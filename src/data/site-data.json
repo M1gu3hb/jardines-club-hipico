@@ -652,7 +652,7 @@
       "id": "69aa135ac7008ce2de176cac",
       "titulo": "Sanitarios amplios y limpios",
       "descripcion": "Sanitarios amplios, limpios y bien cuidados para la comodidad de todos tus invitados durante el evento.",
-      "imagenUrl": null,
+      "imagenUrl": "/media/img/sanitarios.jpg",
       "imagenesUrl": [],
       "activo": true
     },
@@ -660,7 +660,7 @@
       "id": "69aa1332c1515155ff2afc90",
       "titulo": "Seguridad privada durante el evento",
       "descripcion": "Personal de seguridad privada para que tú y tus invitados disfruten con total tranquilidad de principio a fin.",
-      "imagenUrl": null,
+      "imagenUrl": "/media/img/seguridad.jpg",
       "imagenesUrl": [],
       "activo": true
     },
@@ -682,7 +682,7 @@
       "id": "69aa130ccde17acb6fcd1bc2",
       "titulo": "Coordinación de montaje y desmontaje",
       "descripcion": "Nos encargamos del montaje antes de tu evento y del desmontaje al terminar, para que tú solo te ocupes de disfrutar.",
-      "imagenUrl": null,
+      "imagenUrl": "/media/img/montaje.jpg",
       "imagenesUrl": [],
       "activo": true
     },
@@ -690,7 +690,7 @@
       "id": "69aa12fa6ea2b879eda1b4b2",
       "titulo": "Flexibilidad de horarios según tu evento",
       "descripcion": "Ajustamos los horarios a las necesidades de tu evento, con la flexibilidad para que celebres a tu ritmo.",
-      "imagenUrl": null,
+      "imagenUrl": "/media/img/horarios.jpg",
       "imagenesUrl": [],
       "activo": true
     },
@@ -837,7 +837,7 @@
       "id": "69aa11a8b0e151736c3c4acd",
       "titulo": "Trampolín",
       "descripcion": "Trampolines para que los niños salten y se diviertan con seguridad en el área infantil al aire libre.",
-      "imagenUrl": null,
+      "imagenUrl": "/media/img/trampolin.jpg",
       "imagenesUrl": [],
       "activo": true
     },
