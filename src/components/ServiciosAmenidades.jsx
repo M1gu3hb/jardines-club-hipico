@@ -3,6 +3,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import { ChevronDown, Plus, Minus } from "lucide-react";
 import { base44 } from "@/api/base44Client";
 import ServiceAmenityCard from "./ServiceAmenityCard";
+import BarraDulces from "./BarraDulces";
 
 const defaultServicios = [
   { titulo: "Atención personalizada desde la cotización hasta el día del evento" },
@@ -148,6 +149,7 @@ export default function ServiciosAmenidades() {
         descripcion="Acompañamiento completo para que tu evento se sienta impecable de principio a fin."
         items={serviciosList}
       />
+      <BarraDulces />
       <ItemsSection
         id="amenidades"
         eyebrow="Instalaciones"
