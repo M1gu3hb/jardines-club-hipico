@@ -1,14 +1,13 @@
 import { useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { Check, ChevronDown, ImageIcon, Play, Sparkles } from "lucide-react";
+import { Check, ChevronDown, Play, Sparkles } from "lucide-react";
 import { isVideo } from "./MediaViewer";
 
 /**
  * Tarjeta premium para un Servicio o Amenidad.
- * - Miniatura visual al inicio (imagen o primer frame de video).
- * - Si no hay media todavía: placeholder dorado elegante (no se ve vacío).
- * - Si tiene media, es clicable y expande INLINE para verla en grande.
- * - Skeuomorphism oscuro/dorado coherente con el resto del sitio.
+ * - Miniatura visual al inicio (imagen o primer frame de video); placeholder dorado si aún no hay imagen.
+ * - Al expandir muestra la imagen/video en grande y la DESCRIPCIÓN debajo.
+ * - Se puede expandir si tiene media o si tiene descripción.
  */
 export default function ServiceAmenityCard({ item, delay = 0 }) {
   const [open, setOpen] = useState(false);
@@ -20,6 +19,7 @@ export default function ServiceAmenityCard({ item, delay = 0 }) {
   extras.forEach((u) => { if (!allMedia.includes(u)) allMedia.push(u); });
 
   const hasMedia = allMedia.length > 0;
+  const canExpand = hasMedia || !!item.descripcion;
   const thumbUrl = hasMedia ? allMedia[0] : null;
   const thumbIsVideo = thumbUrl ? isVideo(thumbUrl) : false;
   const currentUrl = hasMedia ? allMedia[mediaIdx] : null;
@@ -35,11 +35,11 @@ export default function ServiceAmenityCard({ item, delay = 0 }) {
     >
       <button
         type="button"
-        onClick={() => hasMedia && setOpen((o) => !o)}
-        disabled={!hasMedia}
-        aria-expanded={hasMedia ? open : undefined}
+        onClick={() => canExpand && setOpen((o) => !o)}
+        disabled={!canExpand}
+        aria-expanded={canExpand ? open : undefined}
         className={`w-full flex items-center gap-3.5 p-3 text-left select-none ${
-          hasMedia ? "cursor-pointer active:scale-[0.99] transition-transform" : "cursor-default"
+          canExpand ? "cursor-pointer active:scale-[0.99] transition-transform" : "cursor-default"
         }`}
       >
         {/* Miniatura */}
@@ -79,14 +79,9 @@ export default function ServiceAmenityCard({ item, delay = 0 }) {
               {item.titulo}
             </p>
           </div>
-          {item.descripcion && (
-            <p className="text-white/40 text-[12px] leading-relaxed mt-1">
-              {item.descripcion}
-            </p>
-          )}
         </div>
 
-        {hasMedia && (
+        {canExpand && (
           <span
             className={`flex items-center gap-1 text-[#C9A84C]/80 text-[11px] flex-shrink-0 px-2 py-1 rounded-full transition-transform duration-300 ${
               open ? "rotate-180" : ""
@@ -102,9 +97,9 @@ export default function ServiceAmenityCard({ item, delay = 0 }) {
       </button>
 
       <AnimatePresence initial={false}>
-        {hasMedia && open && (
+        {canExpand && open && (
           <motion.div
-            key="media"
+            key="detalle"
             initial={{ height: 0, opacity: 0 }}
             animate={{ height: "auto", opacity: 1 }}
             exit={{ height: 0, opacity: 0 }}
@@ -112,22 +107,24 @@ export default function ServiceAmenityCard({ item, delay = 0 }) {
             className="overflow-hidden"
           >
             <div className="px-3 pb-3">
-              <div
-                className="relative w-full overflow-hidden rounded-xl"
-                style={{
-                  aspectRatio: "16 / 10",
-                  boxShadow: "0 2px 6px rgba(0,0,0,0.85) inset, 0 0 0 1px rgba(201,168,76,0.22) inset",
-                  background: "#0a0805",
-                }}
-              >
-                {currentIsVideo ? (
-                  <video key={currentUrl} src={currentUrl} controls playsInline className="w-full h-full object-contain bg-black" />
-                ) : (
-                  <img src={currentUrl} alt={item.titulo} loading="lazy" className="w-full h-full object-cover" />
-                )}
-              </div>
+              {hasMedia && (
+                <div
+                  className="relative w-full overflow-hidden rounded-xl"
+                  style={{
+                    aspectRatio: "16 / 10",
+                    boxShadow: "0 2px 6px rgba(0,0,0,0.85) inset, 0 0 0 1px rgba(201,168,76,0.22) inset",
+                    background: "#0a0805",
+                  }}
+                >
+                  {currentIsVideo ? (
+                    <video key={currentUrl} src={currentUrl} controls playsInline className="w-full h-full object-contain bg-black" />
+                  ) : (
+                    <img src={currentUrl} alt={item.titulo} loading="lazy" className="w-full h-full object-cover" />
+                  )}
+                </div>
+              )}
 
-              {allMedia.length > 1 && (
+              {hasMedia && allMedia.length > 1 && (
                 <div className="flex items-center gap-1.5 mt-3 justify-center">
                   {allMedia.map((_, i) => (
                     <button
@@ -142,10 +139,12 @@ export default function ServiceAmenityCard({ item, delay = 0 }) {
                 </div>
               )}
 
-              <div className="flex items-center justify-center gap-1.5 mt-2 text-[#C9A84C]/40 text-[10px] tracking-widest uppercase">
-                <ImageIcon size={10} />
-                <span>{allMedia.length > 1 ? `${mediaIdx + 1} / ${allMedia.length}` : "Ver imagen"}</span>
-              </div>
+              {/* Descripción — debajo de la imagen */}
+              {item.descripcion && (
+                <p className={`text-white/60 text-[13px] leading-relaxed ${hasMedia ? "mt-3" : "mt-0.5"}`}>
+                  {item.descripcion}
+                </p>
+              )}
             </div>
           </motion.div>
         )}

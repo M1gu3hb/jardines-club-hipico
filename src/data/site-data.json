@@ -552,8 +552,8 @@
   "servicios": [
     {
       "id": "69b5ca4fbac9a71f477467d4",
-      "titulo": "Actividades recreativas ",
-      "descripcion": null,
+      "titulo": "Actividades recreativas",
+      "descripcion": "Dinámicas y actividades para mantener a tus invitados entretenidos durante todo el evento, adaptadas a la edad y el estilo de tu celebración.",
       "imagenUrl": "/media/img/ShJ97k0.mp4",
       "imagenesUrl": [],
       "activo": true
@@ -561,7 +561,7 @@
     {
       "id": "69b5af324082f691c41b057b",
       "titulo": "Mesa de Honor personalizada",
-      "descripcion": null,
+      "descripcion": "Una mesa principal montada y decorada a tu gusto para los festejados, con detalles que la convierten en el centro de atención del evento.",
       "imagenUrl": "/media/img/dQoQs2h.jpg",
       "imagenesUrl": [
         "/media/img/Hg1mOu7.jpg",
@@ -571,8 +571,8 @@
     },
     {
       "id": "69b4b87d114582ab367b9952",
-      "titulo": "Sala para conferencias ",
-      "descripcion": null,
+      "titulo": "Sala para conferencias",
+      "descripcion": "Espacio equipado para juntas, presentaciones y eventos empresariales, con la comodidad y el montaje que tu reunión necesita.",
       "imagenUrl": "/media/img/PaEk0ss.jpg",
       "imagenesUrl": [
         "/media/img/XTHL647.jpg"
@@ -582,7 +582,7 @@
     {
       "id": "69b34946eda8b9cbc304f35d",
       "titulo": "Montajes hermosos y personalizables para tu evento",
-      "descripcion": null,
+      "descripcion": "Montamos tu evento a tu medida: mesas, sillas, mantelería, iluminación y decoración según el estilo y la temática que imagines.",
       "imagenUrl": null,
       "imagenesUrl": [
         "/media/img/uU9o0rO.jpeg",
@@ -605,7 +605,7 @@
     {
       "id": "69b332d1643f8e5dbe6ce16f",
       "titulo": "Eventos Nocturnos armalos a tu gusto",
-      "descripcion": null,
+      "descripcion": "Ambienta tu evento nocturno como quieras: iluminación, pista de baile y una atmósfera de fiesta pensada para vivirla de noche.",
       "imagenUrl": "/media/img/RweKHGc.mp4",
       "imagenesUrl": [],
       "activo": true
@@ -613,15 +613,15 @@
     {
       "id": "69ad0a3a5e889313db314d54",
       "titulo": "Entretenimiento para tu evento",
-      "descripcion": "Servicios adicionales diseñados para elevar la experiencia de tu evento con espectáculos, animación, iluminación y entretenimiento que harán de tu celebración un momento inolvidable.",
+      "descripcion": "Servicios adicionales para elevar tu evento: espectáculos, animación, música e iluminación que harán de tu celebración algo inolvidable.",
       "imagenUrl": "/media/img/EzEYGBq.jpeg",
       "imagenesUrl": [],
       "activo": true
     },
     {
       "id": "69aa138fc8c7a687f643aa26",
-      "titulo": "Área de bar ",
-      "descripcion": null,
+      "titulo": "Área de bar",
+      "descripcion": "Barra montada para el servicio de bebidas, ideal para consentir a tus invitados con estilo durante toda la celebración.",
       "imagenUrl": "/media/img/1RPFr68.jpeg",
       "imagenesUrl": [
         "/media/img/Loz3Nlf.jpeg",
@@ -632,7 +632,7 @@
     {
       "id": "69aa137470439a193b9702a2",
       "titulo": "Jardines naturales y vegetación ornamental",
-      "descripcion": null,
+      "descripcion": "Áreas verdes cuidadas y vegetación ornamental que dan un marco natural y elegante a tus fotos y a todo tu evento.",
       "imagenUrl": "/media/img/7B2TkTL.jpeg",
       "imagenesUrl": [
         "/media/img/jytOkQL.jpg",
@@ -650,8 +650,8 @@
     },
     {
       "id": "69aa135ac7008ce2de176cac",
-      "titulo": "Sanitarios amplios y limpios ",
-      "descripcion": null,
+      "titulo": "Sanitarios amplios y limpios",
+      "descripcion": "Sanitarios amplios, limpios y bien cuidados para la comodidad de todos tus invitados durante el evento.",
       "imagenUrl": null,
       "imagenesUrl": [],
       "activo": true
@@ -659,7 +659,7 @@
     {
       "id": "69aa1332c1515155ff2afc90",
       "titulo": "Seguridad privada durante el evento",
-      "descripcion": null,
+      "descripcion": "Personal de seguridad privada para que tú y tus invitados disfruten con total tranquilidad de principio a fin.",
       "imagenUrl": null,
       "imagenesUrl": [],
       "activo": true
@@ -667,7 +667,7 @@
     {
       "id": "69aa1322e6f2bffeb67e19d8",
       "titulo": "Asesoría en decoración y logística",
-      "descripcion": null,
+      "descripcion": "Te acompañamos en la planeación: te asesoramos con la decoración, los tiempos y la logística para que todo salga perfecto.",
       "imagenUrl": "/media/img/jDSRdTG.jpeg",
       "imagenesUrl": [
         "/media/img/JseLRBB.jpg",
@@ -681,15 +681,15 @@
     {
       "id": "69aa130ccde17acb6fcd1bc2",
       "titulo": "Coordinación de montaje y desmontaje",
-      "descripcion": null,
+      "descripcion": "Nos encargamos del montaje antes de tu evento y del desmontaje al terminar, para que tú solo te ocupes de disfrutar.",
       "imagenUrl": null,
       "imagenesUrl": [],
       "activo": true
     },
     {
       "id": "69aa12fa6ea2b879eda1b4b2",
-      "titulo": "Flexibilidad de horarios según su evento",
-      "descripcion": null,
+      "titulo": "Flexibilidad de horarios según tu evento",
+      "descripcion": "Ajustamos los horarios a las necesidades de tu evento, con la flexibilidad para que celebres a tu ritmo.",
       "imagenUrl": null,
       "imagenesUrl": [],
       "activo": true
@@ -697,7 +697,7 @@
     {
       "id": "69aa12e46d095589b77c4973",
       "titulo": "Estacionamiento amplio para invitados",
-      "descripcion": null,
+      "descripcion": "Amplio estacionamiento con acceso cómodo y seguro para que tus invitados lleguen sin complicaciones.",
       "imagenUrl": "/media/img/45sZpbf.jpg",
       "imagenesUrl": [
         "/media/img/E9exgF4.jpg",
@@ -709,8 +709,8 @@
   "amenidades": [
     {
       "id": "69b5ca6b198c63ccefcf09ca",
-      "titulo": "Alberca ",
-      "descripcion": null,
+      "titulo": "Alberca",
+      "descripcion": "Refréscate y diviértete en nuestra alberca, un plus perfecto para eventos de día y celebraciones al aire libre.",
       "imagenUrl": "/media/img/ja5yba1.mp4",
       "imagenesUrl": [],
       "activo": true
@@ -718,15 +718,15 @@
     {
       "id": "69b5ca380a219dcf1eef5afb",
       "titulo": "Inflables Infantiles",
-      "descripcion": null,
+      "descripcion": "Inflables y brincolines para que los niños se diviertan sin parar en un espacio seguro y colorido.",
       "imagenUrl": "/media/img/Uz2KwBD.mp4",
       "imagenesUrl": [],
       "activo": true
     },
     {
       "id": "69b4b8b82035b67a30507190",
-      "titulo": "Futbolito Inflable ",
-      "descripcion": null,
+      "titulo": "Futbolito Inflable",
+      "descripcion": "Cancha de futbolito inflable para partidos amistosos y diversión garantizada entre grandes y chicos.",
       "imagenUrl": "/media/img/MzZW3Ff.jpg",
       "imagenesUrl": [],
       "activo": true
@@ -734,7 +734,7 @@
     {
       "id": "69b4b89c5773bd3cde809d23",
       "titulo": "Set fotográfico",
-      "descripcion": null,
+      "descripcion": "Un set decorado para tus fotos y recuerdos, perfecto para capturar los mejores momentos de tu evento.",
       "imagenUrl": "/media/img/NcBTIFV.png",
       "imagenesUrl": [],
       "activo": true
@@ -742,18 +742,17 @@
     {
       "id": "69b34ae484de5591cb40be5f",
       "titulo": "Mega pantalla led",
-      "descripcion": "",
+      "descripcion": "Pantalla LED de gran formato para proyectar videos, mensajes o presentaciones y sorprender a tus invitados.",
       "imagenUrl": "/media/img/mtRBJJ3.jpeg",
       "imagenesUrl": [],
       "activo": true
     },
     {
       "id": "69b349e21d63f9f4efd28088",
-      "titulo": "Pista pixel led ",
-      "descripcion": null,
+      "titulo": "Pista pixel led",
+      "descripcion": "Pista de baile con luces LED tipo pixel que iluminan cada paso y le dan un ambiente espectacular a la fiesta.",
       "imagenUrl": "/media/img/GtJ1Wu3.jpeg",
       "imagenesUrl": [
-        "/media/img/aC07OIj.jpeg",
         "/media/img/aC07OIj.jpeg"
       ],
       "activo": true
@@ -761,7 +760,7 @@
     {
       "id": "69ad0c29ecb244356f52743d",
       "titulo": "Mesa de dulces personalizada",
-      "descripcion": null,
+      "descripcion": "Una mesa de dulces montada y decorada con la temática y los colores de tu evento, irresistible para niños y adultos.",
       "imagenUrl": "/media/img/ddbmN0D.jpeg",
       "imagenesUrl": [
         "/media/img/jluWxWj.jpeg",
@@ -777,7 +776,7 @@
     {
       "id": "69ad0bdc0d52820396579106",
       "titulo": "Auto clásico",
-      "descripcion": null,
+      "descripcion": "Un auto clásico para tus fotos y para darle un toque elegante y único a tu llegada o a tu sesión fotográfica.",
       "imagenUrl": "/media/img/riXnPVK.jpeg",
       "imagenesUrl": [
         "/media/img/s01hbrC.jpeg"
@@ -787,7 +786,7 @@
     {
       "id": "69aa1272e7303924321be52f",
       "titulo": "Variedad en Grupos Musicales",
-      "descripcion": null,
+      "descripcion": "Música en vivo para tu evento: contamos con variedad de grupos y géneros para ambientar tu celebración.",
       "imagenUrl": null,
       "imagenesUrl": [
         "/media/img/Kynp5yD.mp4",
@@ -799,7 +798,7 @@
     {
       "id": "69aa1202b86abe52d9329b7b",
       "titulo": "Chinelo",
-      "descripcion": null,
+      "descripcion": "Chinelos tradicionales para darle color, baile y alegría a tu fiesta con un toque muy mexicano.",
       "imagenUrl": null,
       "imagenesUrl": [
         "/media/img/dGnzDIS.mp4"
@@ -809,7 +808,7 @@
     {
       "id": "69aa11fc8988370d0f05aa46",
       "titulo": "Cámara 360",
-      "descripcion": null,
+      "descripcion": "Cámara 360° para videos dinámicos y divertidos que tus invitados se llevarán como recuerdo del evento.",
       "imagenUrl": "",
       "imagenesUrl": [
         "/media/img/lZKF7Tm.mp4"
@@ -818,8 +817,8 @@
     },
     {
       "id": "69aa11bdf364fb634cdf2650",
-      "titulo": "Gladiador ",
-      "descripcion": null,
+      "titulo": "Gladiador",
+      "descripcion": "Juego de gladiadores inflable para retos llenos de risas y adrenalina entre tus invitados.",
       "imagenUrl": "/media/img/E2IyEWO.jpeg",
       "imagenesUrl": [
         "/media/img/VndnVrc.jpeg"
@@ -829,7 +828,7 @@
     {
       "id": "69aa11b1703657f6545dacb5",
       "titulo": "Aereobonji",
-      "descripcion": null,
+      "descripcion": "Atracción de saltos tipo bungee para los más aventureros: diversión segura y emocionante para todas las edades.",
       "imagenUrl": "/media/img/MfVlZQx.png",
       "imagenesUrl": [],
       "activo": true
@@ -837,15 +836,15 @@
     {
       "id": "69aa11a8b0e151736c3c4acd",
       "titulo": "Trampolín",
-      "descripcion": null,
+      "descripcion": "Trampolines para que los niños salten y se diviertan con seguridad en el área infantil al aire libre.",
       "imagenUrl": null,
       "imagenesUrl": [],
       "activo": true
     },
     {
       "id": "69a6606896fb128ae90bdad1",
-      "titulo": "Mago ",
-      "descripcion": "Cartomago de Cartas",
+      "titulo": "Mago",
+      "descripcion": "Un mago y cartomago que sorprende a tus invitados con trucos y magia de cerca, perfecto para amenizar cualquier momento.",
       "imagenUrl": "/media/img/wRQHmVn.jpeg",
       "imagenesUrl": [],
       "orden": 1,
