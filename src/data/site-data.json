@@ -1,0 +1,973 @@
+{
+  "config": {
+    "whatsappNumero": "525548663656",
+    "proximamenteImagenUrl": "/media/b44/62261123a_VWSTYLEANUNCIO.jpg",
+    "informacionServicios": null,
+    "proximamenteDescripcion": "Una experiencia especial muy pronto en Jardines Club Hípico. ¡No te lo pierdas!",
+    "textoAmenidades": "",
+    "logoUrl": "/media/img/aMxWuH8.png",
+    "proximamenteActivo": true,
+    "ubicacionTexto": null,
+    "correoAdmin": "jardinesclubhipico@gmail.com",
+    "textoServicios": "",
+    "proximamenteTitulo": "VW Style Club · 20 Fuckin' Years",
+    "ubicacionLinkMapa": "https://maps.app.goo.gl/s52mSRk6gAvtBKn1A",
+    "proximamenteTextoBoton": "Próximamente en Jardines",
+    "telefonoContacto": "+52 55 4866 3656",
+    "textoNoIncluye": "No incluye: alimentos, bebidas, DJ, pista de baile, meseros, juegos infantiles, decoración, pastel, pirotecnia, ni ningún servicio externo al alquiler del espacio.\nLas cotizaciones de estos servicios se manejan por separado con proveedores autorizados.",
+    "colorPrimario": "#C9A84C",
+    "colorSecundario": "#FFFFFF",
+    "id": "69a46ff85b6f242cf4fb91f0"
+  },
+  "salones": [
+    {
+      "id": "69a4955eda5b8d8a559e3ea7",
+      "nombre": "Sálon de los Espejos",
+      "descripcion": "Elegante salón cubierto con iluminación regulable, climatización y acabados de lujo. Ideal para eventos íntimos y corporativos.",
+      "descripcionLarga": "El Salón Grande es el corazón de Jardines Club Hípico, un espacio diseñado para convertir cada celebración en una experiencia memorable.  Su amplia pista de baile invita a vivir momentos llenos de energía y emoción, mientras que su escenario permite disfrutar presentaciones en vivo, música y espectáculos que hacen de cada evento algo verdaderamente especial. La distribución del salón permite crear montajes elegantes y personalizados, adaptándose perfectamente a bodas, XV años, eventos sociales o celebraciones corporativas.  La iluminación ambiental, los amplios espacios y la armonía del lugar crean una atmósfera única donde cada detalle se convierte en parte de una experiencia inolvidable.  Aquí no solo se celebra un evento… se crean recuerdos que permanecerán para siempre.",
+      "capacidad": "300-400 personas",
+      "capacidadMin": 150,
+      "capacidadMax": 400,
+      "orden": 1,
+      "activo": true,
+      "imagenPrincipal": "/media/img/GqNFCgG.jpeg",
+      "imagenes": [
+        "/media/img/GqNFCgG.jpeg",
+        "/media/img/YVHuwPU.jpeg",
+        "/media/img/q5hBmrM.jpeg",
+        "/media/img/OoMjnAm.png",
+        "/media/img/9L0Fxvk.png",
+        "/media/img/NIB5z8l.png",
+        "/media/img/9JCYX0D.png",
+        "/media/img/WsISC1j.png",
+        "/media/img/JDexDse.mp4",
+        "/media/img/OVVYNcO.mp4",
+        "/media/img/zyLySpq.jpg",
+        "/media/img/bzohmTK.jpg",
+        "/media/img/LrtwYEZ.jpg",
+        "/media/img/oFolvxH.jpg",
+        "/media/img/5uVcOay.jpg",
+        "/media/img/dGg8Xxh.jpg",
+        "/media/img/WJxhev8.jpg",
+        "/media/img/1fcZG58.jpg",
+        "/media/img/0lK0J1F.jpg",
+        "/media/img/WPHVZ6S.jpg",
+        "/media/img/nzGjwlf.jpg",
+        "/media/img/FEOMxGn.jpg"
+      ],
+      "caracteristicas": [
+        "Amplio salón para eventos de gran capacidad",
+        "Distribución versátil para diferentes tipos de montaje",
+        "Área especial para banquete y mesas de invitados",
+        "Espacios amplios para decoración personalizada",
+        "Escenario ideal para bandas en vivo, cantantes o presentaciones",
+        "Amplia pista de baile para animar cualquier celebración",
+        "Sistema de iluminación ambiental para ambientar el evento",
+        "Cocina equipada dentro del salón",
+        "Barra de bar para servicio de bebidas",
+        "Baños amplios y cómodos para invitados",
+        "Patio exterior para momentos al aire libre",
+        "Zona especial para sesiones fotográficas",
+        "Área recreativa infantil con alberca de pelotas",
+        "Espacios decorativos para eventos temáticos",
+        "Ambiente elegante ideal para celebraciones memorables"
+      ]
+    },
+    {
+      "id": "69a46ff85b6f242cf4fb91f1",
+      "nombre": "Salón Encanto",
+      "descripcion": "Espacio amplio con decoración cálida y romántica, perfecto para bodas, XV años y celebraciones familiares llenas de magia.",
+      "descripcionLarga": "El Salón Encanto es un espacio amplio y versátil diseñado para transformar cualquier celebración en una experiencia memorable. Su elegante estructura techada permite disfrutar del evento con total comodidad mientras se mantiene la conexión con los jardines y el entorno natural.  Gracias a su gran capacidad y distribución flexible, este salón es ideal para bodas, XV años, fiestas temáticas, eventos familiares y celebraciones corporativas. Cuenta con áreas perfectamente adaptables para montajes elegantes, pista de baile, escenarios musicales y zonas lounge que elevan la experiencia de cada evento.  De día, la luz natural y la vista hacia los jardines crean una atmósfera fresca y acogedora. Por la noche, la iluminación ambiental y la pista de baile iluminada convierten el espacio en un escenario vibrante perfecto para celebrar, bailar y disfrutar.  El Salón Encanto es el equilibrio perfecto entre amplitud, estilo y versatilidad, permitiendo crear eventos únicos que tus invitados recordarán por mucho tiempo.",
+      "capacidad": "200-300 personas",
+      "capacidadMin": 200,
+      "capacidadMax": 300,
+      "orden": 2,
+      "activo": true,
+      "imagenPrincipal": "/media/img/GsY3zXF.png",
+      "imagenes": [
+        "/media/img/GsY3zXF.png",
+        "/media/img/Jg9SrhI.jpeg",
+        "/media/img/oJFrsLZ.jpeg",
+        "/media/img/HmcAg2Z.jpeg",
+        "/media/img/bGnm9yN.jpeg",
+        "/media/img/lQccU4q.jpeg",
+        "/media/img/ERMx9k1.jpeg",
+        "/media/img/4PURIMU.jpeg",
+        "/media/img/Pc1vzXZ.jpeg",
+        "/media/img/T4Iu00h.jpeg",
+        "/media/img/Q0NrnQW.jpeg",
+        "/media/img/25Aeqfh.mp4",
+        "/media/img/ZJC0JRv.mp4",
+        "/media/img/aRdlLip.mp4",
+        "/media/img/DPHY5YQ.jpg",
+        "/media/img/VsTX2Es.mp4",
+        "/media/img/lS2Xe4T.mp4",
+        "/media/img/8nSzGlh.jpg",
+        "/media/img/VD8c9lm.jpg",
+        "/media/img/w4Nwc7u.jpg",
+        "/media/img/ZkvrSIS.jpg",
+        "/media/img/IsnszTR.jpg"
+      ],
+      "caracteristicas": [
+        "Amplio salón techado para eventos sociales",
+        "Amplio salón techado para eventos sociales",
+        "Área para DJ o música en vivo",
+        "Montajes flexibles para diferentes estilos de evento",
+        "Pista de baile iluminada para ambientación nocturna",
+        "Área para DJ o música en vivo",
+        "Ambiente elegante y versátil",
+        "Ideal para decoraciones temáticas o tradicionales",
+        "Iluminación ambiental para eventos nocturnos"
+      ]
+    },
+    {
+      "id": "69a46ff85b6f242cf4fb91f2",
+      "nombre": "Espacio Nocturno (Eclipse)",
+      "descripcion": "Espacio moderno tipo Night Club con iluminación LED, pista de baile, proyector con pantalla gigante y ambiente exclusivo. Ideal para cumpleaños, after parties, eventos juveniles y celebraciones nocturnas llenas de energía.",
+      "descripcionLarga": "Nuestro Espacio Nocturno es un espacio diseñado para eventos nocturnos que buscan un ambiente moderno, dinámico y lleno de energía. Cuenta con una amplia pista de baile, iluminación ambiental tipo antro y un sistema de proyección con pantalla gigante que transforma cualquier celebración en una experiencia inolvidable.  El espacio incluye área lounge con mesas y sillones para convivir cómodamente, además de un servicio de bebidas que complementa perfectamente el ambiente de fiesta. Su iluminación LED y diseño contemporáneo permiten crear diferentes atmósferas según el tipo de evento, desde celebraciones juveniles hasta reuniones privadas con estilo.  Es el lugar ideal para cumpleaños, graduaciones, after parties, reuniones con amigos o eventos temáticos, ofreciendo una experiencia única que combina música, luces y entretenimiento en un solo espacio.",
+      "capacidad": "80-120 personas",
+      "capacidadMin": 50,
+      "capacidadMax": 120,
+      "orden": 3,
+      "activo": true,
+      "imagenPrincipal": "/media/img/F6GeNNq.png",
+      "imagenes": [
+        "/media/img/F6GeNNq.png",
+        "/media/img/S502f1o.jpeg",
+        "/media/img/NO050nK.jpeg",
+        "/media/img/To7QUrH.jpeg",
+        "/media/img/vhEY60N.jpeg",
+        "/media/img/yYflRNX.jpeg",
+        "/media/img/IxvKC6G.jpeg",
+        "/media/img/cfkt9vB.jpeg",
+        "/media/img/fW3YRjj.jpeg",
+        "/media/img/MGOqIQU.mp4",
+        "/media/img/7dPLEbq.mp4"
+      ],
+      "caracteristicas": [
+        "Cabina de DJ para ambientación musical",
+        "Sistema de sonido para música y presentaciones",
+        "Amplia pista de baile",
+        "Proyector con pantalla gigante",
+        "Iluminación LED tipo antro",
+        "Ambientación nocturna personalizable",
+        "Área lounge con mesas y sillones",
+        "Espacios para convivir y descansar",
+        "Distribución ideal para eventos sociales",
+        "Servicio de bebidas",
+        "Área para DJ o animación musical",
+        "Espacios para decoración temática"
+      ]
+    },
+    {
+      "id": "69a46ff85b6f242cf4fb91f5",
+      "nombre": "Jardines",
+      "descripcion": "Hermosos jardines naturales rodeados de vegetación exuberante. El escenario perfecto para ceremonias y festejos al aire libre.",
+      "descripcionLarga": "Los Jardines de Jardines Club Hípico son el alma del lugar y el espacio que da vida a su nombre. Un entorno natural cuidadosamente mantenido que ofrece amplias áreas verdes, vistas abiertas y una atmósfera fresca y elegante para celebraciones únicas.  Sus extensas áreas permiten montar desde eventos íntimos hasta celebraciones de gran escala, adaptándose perfectamente a bodas, XV años, fiestas sociales, ceremonias al aire libre o eventos corporativos. La amplitud del terreno brinda libertad para crear montajes espectaculares con carpas, pistas de baile, escenarios, zonas lounge o áreas gastronómicas.  Rodeados de naturaleza, con paisajes abiertos y jardines impecablemente cuidados, este espacio ofrece el escenario perfecto para eventos que buscan algo más que un salón tradicional: una experiencia elegante al aire libre.  Cada celebración aquí se transforma en un momento especial donde la naturaleza, la elegancia y la amplitud se unen para crear recuerdos inolvidables.",
+      "capacidad": "400-600 personas",
+      "capacidadMin": null,
+      "capacidadMax": null,
+      "orden": 4,
+      "activo": true,
+      "imagenPrincipal": "/media/img/cQFcFEC.jpeg",
+      "imagenes": [
+        "/media/img/fP9Bhew.png",
+        "/media/img/s27TD11.jpeg",
+        "/media/img/1qM0786.jpeg",
+        "/media/img/NRFjbiX.jpeg",
+        "/media/img/RYrYJQn.jpeg",
+        "/media/img/cQFcFEC.jpeg",
+        "/media/img/VvxlY2I.jpeg",
+        "/media/img/KjByJEu.jpeg",
+        "/media/img/WgZwUNN.jpeg",
+        "/media/img/eDTtUTe.jpeg",
+        "/media/img/NRFjbiX.jpeg",
+        "/media/img/7B2TkTL.jpeg",
+        "/media/img/VPgqZZK.mp4",
+        "/media/img/yHdczws.jpg",
+        "/media/img/1RYGMz9.jpg",
+        "/media/img/xpXwKY6.jpg",
+        "/media/img/9LzLa95.jpg",
+        "/media/img/6a7ILRt.jpg",
+        "/media/img/wQdM8cI.jpg",
+        "/media/img/jytOkQL.jpg",
+        "/media/img/XloOMkI.jpg",
+        "/media/img/ww16bh0.jpg",
+        "/media/img/omBNQRh.jpg",
+        "/media/img/RulgWiR.jpg",
+        "/media/img/iCJTgJs.jpg",
+        "/media/img/2vrHFCs.jpg",
+        "/media/img/hYvc3Wz.jpg",
+        "/media/img/0btSqnb.mp4"
+      ],
+      "caracteristicas": [
+        "Amplias áreas verdes para eventos al aire libre",
+        "Espacio ideal para montajes con carpas y estructuras temporales",
+        "Escenario natural para ceremonias, recepciones y sesiones fotográficas",
+        "Jardines cuidadosamente mantenidos y visualmente atractivos",
+        "Gran capacidad para eventos sociales y celebraciones de gran formato",
+        "Gran capacidad para eventos sociales y celebraciones de gran formato",
+        "Áreas versátiles para pistas de baile, zonas lounge y montajes personalizados",
+        "Ideal para bodas, XV años, fiestas temáticas y eventos empresariales",
+        "Vistas amplias que realzan la experiencia del evento",
+        "Espacio perfecto para celebraciones elegantes en contacto con la naturaleza"
+      ]
+    },
+    {
+      "id": "69a46ff85b6f242cf4fb91f3",
+      "nombre": "Área Infantil Pony",
+      "descripcion": "Espacio infantil al aire libre con amplio patio y variedad de juegos para que los niños disfruten al máximo. Ideal para fiestas infantiles, cumpleaños y celebraciones familiares en un ambiente seguro y divertido.",
+      "descripcionLarga": "El área Pony y Juegos está especialmente diseñada para eventos infantiles, ofreciendo un espacio amplio al aire libre donde los niños pueden jugar, explorar y divertirse con total libertad.  Cuenta con una variedad de juegos recreativos, trampolines y estructuras infantiles pensadas para mantener a los pequeños entretenidos durante toda la celebración. Su amplio patio permite realizar actividades, dinámicas y juegos al aire libre, creando una experiencia llena de diversión para todos los invitados.  Además, el área puede complementarse con la renta de juegos adicionales y diferentes amenidades para personalizar cada fiesta según el tipo de evento.  Este espacio es ideal para fiestas infantiles, cumpleaños, reuniones familiares y celebraciones para niños, brindando un ambiente seguro, dinámico y lleno de alegría.",
+      "capacidad": "100-150 personas",
+      "capacidadMin": 100,
+      "capacidadMax": 150,
+      "orden": 5,
+      "activo": true,
+      "imagenPrincipal": "/media/img/bjVFkHI.jpeg",
+      "imagenes": [
+        "/media/img/eH93AJ1.jpeg",
+        "/media/img/bjVFkHI.jpeg",
+        "/media/img/4uJQ7l7.jpeg",
+        "/media/img/vi4MCX4.jpeg",
+        "/media/img/YibFy63.jpeg",
+        "/media/img/nzIZ9BM.jpeg",
+        "/media/img/aud3Xas.jpeg",
+        "/media/img/3MqwugS.mp4",
+        "/media/img/BVBfEFU.jpg"
+      ],
+      "caracteristicas": [
+        "Variedad de juegos recreativos",
+        "Trampolines para niños",
+        "Resbaladillas y estructuras de juego",
+        "Amplio patio al aire libre",
+        "Zona pensada para actividades infantiles",
+        "Área segura para niños",
+        "Espacio adaptable para fiestas infantiles"
+      ]
+    },
+    {
+      "id": "69a46ff85b6f242cf4fb91f4",
+      "nombre": "Capilla",
+      "descripcion": "Elegante capilla para ceremonias y misas, ideal para bodas, XV años, bautizos y eventos especiales. Puede contratarse como complemento de cualquier salón o rentarse de forma independiente para ceremonias íntimas.",
+      "descripcionLarga": "Nuestra Capilla para Ceremonias es un espacio elegante y especial diseñado para realizar misas y ceremonias dentro del mismo recinto del evento, brindando comodidad y una experiencia completa para los invitados.  El espacio cuenta con una estructura amplia y luminosa que permite crear una atmósfera solemne y hermosa para momentos únicos como bodas, XV años, bautizos y ceremonias religiosas. Su diseño permite una decoración personalizada para adaptarse a cada tipo de celebración.  La capilla puede contratarse como complemento de cualquiera de nuestros salones, permitiendo realizar la ceremonia y la recepción en el mismo lugar, o también puede rentarse de forma independiente para ceremonias privadas.  Es el espacio perfecto para quienes desean celebrar un momento especial en un ambiente elegante, cómodo y memorable.",
+      "capacidad": "50-150 personas",
+      "capacidadMin": 50,
+      "capacidadMax": 150,
+      "orden": 6,
+      "activo": true,
+      "imagenPrincipal": "/media/img/9NiMw7K.png",
+      "imagenes": [
+        "/media/img/UYE0gAg.png",
+        "/media/img/sBkiENk.png",
+        "/media/img/9NiMw7K.png",
+        "/media/img/7tJFLcg.jpg",
+        "/media/img/FuTMIip.jpg",
+        "/media/img/AD6P4xz.jpg",
+        "/media/img/ignnXxZ.jpg"
+      ],
+      "caracteristicas": [
+        "Área diseñada para ceremonias religiosas",
+        "Ideal para bodas, XV años, bautizos y misas",
+        "Espacio amplio y luminoso",
+        "Área adaptable para decoración ceremonial",
+        "Escenario principal para altar o ceremonia",
+        "Puede contratarse como extra con cualquier salón",
+        "Disponible para renta independiente",
+        "Ideal para ceremonias íntimas o grandes celebraciones"
+      ]
+    },
+    {
+      "id": "69b5b6cd148f1a285a243b58",
+      "nombre": "Quiosco",
+      "descripcion": "Un espacio íntimo rodeado de áreas verdes, ideal para reuniones privadas y celebraciones pequeñas. Su terraza techada, jardín propio y ambiente tranquilo crean el escenario perfecto para convivencias familiares, comidas especiales o eventos íntimos en contacto con la naturaleza.",
+      "descripcionLarga": "El Quiosco Jardín es un espacio encantador diseñado para quienes buscan celebrar en un ambiente más íntimo y relajado dentro de Jardines Club Hípico. Su terraza techada ofrece un lugar cómodo y protegido para convivir, mientras que su jardín privado crea un entorno natural perfecto para reuniones familiares, cumpleaños, comidas especiales o pequeños eventos sociales.  Este espacio combina naturaleza, tranquilidad y comodidad. Cuenta con una hermosa vista hacia los jardines, una fuente decorativa que aporta un ambiente agradable y una parrilla ideal para reuniones tipo parrillada o convivencias informales. Su patio privado permite disfrutar del aire libre en un ambiente exclusivo y acogedor.  El Quiosco Jardín es ideal para quienes desean un evento más cercano y personalizado, rodeado de naturaleza y con la privacidad perfecta para compartir momentos especiales con familiares y amigos.",
+      "capacidad": "30-50 personas",
+      "capacidadMin": 30,
+      "capacidadMax": 50,
+      "orden": 7,
+      "activo": true,
+      "imagenPrincipal": "/media/img/kgI3kqI.jpg",
+      "imagenes": [
+        "/media/img/sxREpy5.jpg",
+        "/media/img/r6YLYRn.jpg",
+        "/media/img/6jxmKPw.jpg",
+        "/media/img/4bbMZTM.jpg",
+        "/media/img/dsmebc3.jpg",
+        "/media/img/QcEIFgG.jpg",
+        "/media/img/AjEgkJ7.jpg",
+        "/media/img/iHZ01Cu.jpg"
+      ],
+      "caracteristicas": [
+        "Terraza techada tipo quiosco",
+        "Jardín privado",
+        "Parrilla para convivencias",
+        "Fuente decorativa",
+        "Patio exclusivo",
+        "Vista panorámica a los jardines",
+        "Ambiente íntimo y familiar",
+        "Ideal para eventos pequeños y reuniones privadas",
+        "Espacio perfecto para comidas familiares o celebraciones especiales"
+      ]
+    },
+    {
+      "id": "69b5b6e8a36d1f344e0b6f9c",
+      "nombre": "Estancias (Bungalos)",
+      "descripcion": "Espacios cómodos diseñados para descansar dentro de Jardines Club Hípico. Ideales para quienes desean hospedarse después de su evento o simplemente disfrutar una estancia tranquila rodeados de naturaleza.",
+      "descripcionLarga": "Los Búngalos de Jardines Club Hípico ofrecen una opción cómoda y práctica para quienes desean descansar dentro del mismo lugar del evento. Rodeados de áreas verdes y ubicados cerca de nuestras instalaciones principales, permiten a los invitados disfrutar de una estancia tranquila sin necesidad de trasladarse después de la celebración. Estos espacios están diseñados para brindar comodidad y descanso, contando con habitaciones amuebladas, camas confortables y baño privado. Son ideales tanto para quienes desean pasar la noche después de un evento como para quienes buscan una estancia relajada durante el día dentro del complejo. Dentro de los búngalos existen dos tipos de estancias: algunos funcionan como pequeños espacios tipo suite con sala, balcón y baño completo, mientras que otros son habitaciones amplias con múltiples literas, ideales para grupos grandes de invitados. Gracias a su ubicación cercana a los jardines y al área del quiosco, los búngalos permiten combinar celebración y descanso en un mismo lugar, ofreciendo una experiencia más cómoda para anfitriones e invitados.",
+      "capacidad": null,
+      "capacidadMin": null,
+      "capacidadMax": null,
+      "orden": 8,
+      "activo": true,
+      "imagenPrincipal": "/media/img/WvvLXxr.jpg",
+      "imagenes": [
+        "/media/img/sGw9POY.jpg",
+        "/media/img/F7NNzpw.jpg",
+        "/media/img/l05HUuf.jpg",
+        "/media/img/5xzyMKr.jpg",
+        "/media/img/As9nG6N.jpg",
+        "/media/img/UsftLAV.jpg",
+        "/media/img/h560hVl.jpg",
+        "/media/img/zj9flET.jpg",
+        "/media/img/aR3tN4q.jpg",
+        "/media/img/WR4Ggao.jpg"
+      ],
+      "caracteristicas": [
+        "Habitaciones cómodas y amuebladas",
+        "Camas confortables",
+        "Baño privado",
+        "Regadera",
+        "Ubicación dentro del complejo Jardines Club Hípico",
+        "Ubicación dentro del complejo Jardines Club Hípico",
+        "Ideal para hospedaje después de eventos",
+        "Ambiente tranquilo rodeado de naturaleza"
+      ]
+    }
+  ],
+  "galeria": [
+    {
+      "imagenUrl": "/media/img/kVqwxbD.jpg"
+    },
+    {
+      "imagenUrl": "/media/img/9JCYX0D.png"
+    },
+    {
+      "imagenUrl": "/media/img/9L0Fxvk.png"
+    },
+    {
+      "imagenUrl": "/media/img/WsISC1j.png"
+    },
+    {
+      "imagenUrl": "/media/img/DiEKXzT.png"
+    },
+    {
+      "imagenUrl": "/media/img/8lD9N0a.jpeg"
+    },
+    {
+      "imagenUrl": "/media/img/ITSCade.jpeg"
+    },
+    {
+      "imagenUrl": "/media/img/awr99KB.jpg"
+    },
+    {
+      "imagenUrl": "/media/img/yHdczws.jpg"
+    },
+    {
+      "imagenUrl": "/media/img/t8sQWos.jpeg"
+    },
+    {
+      "imagenUrl": "/media/img/6a7ILRt.jpg"
+    },
+    {
+      "imagenUrl": "/media/img/u51AHPp.jpg"
+    },
+    {
+      "imagenUrl": "/media/img/2z9gFMU.jpg"
+    },
+    {
+      "imagenUrl": "/media/img/4VJTNMO.jpg"
+    },
+    {
+      "imagenUrl": "/media/img/ITiqoib.jpg"
+    },
+    {
+      "imagenUrl": "/media/img/LYb2wYX.jpg"
+    },
+    {
+      "imagenUrl": "/media/img/zxB1SJe.jpg"
+    },
+    {
+      "imagenUrl": "/media/img/5uVcOay.jpg"
+    },
+    {
+      "imagenUrl": "/media/img/Tee4mZt.jpeg"
+    },
+    {
+      "imagenUrl": "/media/img/9FrPrv7.png"
+    },
+    {
+      "imagenUrl": "/media/img/1pHa1cQ.png"
+    },
+    {
+      "imagenUrl": "/media/img/9aUorR3.jpeg"
+    },
+    {
+      "imagenUrl": "/media/img/b08MFsb.jpeg"
+    },
+    {
+      "imagenUrl": "/media/img/deSPOLi.jpeg"
+    },
+    {
+      "imagenUrl": "/media/img/EXGwmqq.jpeg"
+    },
+    {
+      "imagenUrl": "/media/img/zQnchfi.jpeg"
+    },
+    {
+      "imagenUrl": "/media/img/Q0NrnQW.jpeg"
+    },
+    {
+      "imagenUrl": "/media/img/wQdM8cI.jpg"
+    },
+    {
+      "imagenUrl": "/media/img/HmcAg2Z.jpeg"
+    },
+    {
+      "imagenUrl": "/media/img/eDTtUTe.jpeg"
+    },
+    {
+      "imagenUrl": "/media/img/cQFcFEC.jpeg"
+    },
+    {
+      "imagenUrl": "/media/img/RYrYJQn.jpeg"
+    },
+    {
+      "imagenUrl": "/media/img/9NiMw7K.png"
+    },
+    {
+      "imagenUrl": "/media/img/bjVFkHI.jpeg"
+    },
+    {
+      "imagenUrl": "/media/img/OgN3r1N.jpeg"
+    },
+    {
+      "imagenUrl": "/media/img/ppVsHFQ.jpg"
+    },
+    {
+      "imagenUrl": "/media/img/XjYU0jA.jpg"
+    },
+    {
+      "imagenUrl": "/media/img/WJxhev8.jpg"
+    },
+    {
+      "imagenUrl": "/media/img/1fcZG58.jpg"
+    },
+    {
+      "imagenUrl": "/media/img/DC5DttY.jpg"
+    },
+    {
+      "imagenUrl": "/media/img/hYvc3Wz.jpg"
+    },
+    {
+      "imagenUrl": "/media/img/DkAxQTI.jpg"
+    },
+    {
+      "imagenUrl": "/media/img/XkldL3C.jpg"
+    },
+    {
+      "imagenUrl": "/media/img/WvvLXxr.jpg"
+    },
+    {
+      "imagenUrl": "/media/img/IQ57aXZ.jpg"
+    },
+    {
+      "imagenUrl": "/media/img/ignnXxZ.jpg"
+    },
+    {
+      "imagenUrl": "/media/img/whYJNSf.jpg"
+    },
+    {
+      "imagenUrl": "/media/img/QcEIFgG.jpg"
+    },
+    {
+      "imagenUrl": "/media/img/oCmThbP.png"
+    },
+    {
+      "imagenUrl": "/media/img/aF5x52D.jpg"
+    },
+    {
+      "imagenUrl": "/media/img/gCoJsoN.mp4"
+    },
+    {
+      "imagenUrl": "/media/img/ZOD8ATc.jpg"
+    },
+    {
+      "imagenUrl": "/media/img/dQoQs2h.jpg"
+    },
+    {
+      "imagenUrl": "/media/img/k1L67Fj.jpg"
+    },
+    {
+      "imagenUrl": "/media/img/KvzqtZe.jpg"
+    },
+    {
+      "imagenUrl": "/media/img/dGg8Xxh.jpg"
+    },
+    {
+      "imagenUrl": "/media/img/oldgKUP.jpg"
+    },
+    {
+      "imagenUrl": "/media/img/nokUcgP.jpg"
+    },
+    {
+      "imagenUrl": "/media/img/omBNQRh.jpg"
+    },
+    {
+      "imagenUrl": "/media/img/ez3kDvT.jpg"
+    },
+    {
+      "imagenUrl": "/media/img/BdaktfP.jpg"
+    },
+    {
+      "imagenUrl": "/media/img/wPHWJqS.jpg"
+    },
+    {
+      "imagenUrl": "/media/img/EXHNkLr.jpg"
+    },
+    {
+      "imagenUrl": "/media/img/ltW3p5N.jpg"
+    },
+    {
+      "imagenUrl": "/media/img/kfX0R8X.jpg"
+    },
+    {
+      "imagenUrl": "/media/img/mS6t6VN.jpg"
+    },
+    {
+      "imagenUrl": "/media/img/9TrZlho.jpg"
+    },
+    {
+      "imagenUrl": "/media/img/iCJTgJs.jpg"
+    },
+    {
+      "imagenUrl": "/media/img/Zvy1b7P.jpg"
+    }
+  ],
+  "servicios": [
+    {
+      "id": "69b5ca4fbac9a71f477467d4",
+      "titulo": "Actividades recreativas ",
+      "descripcion": null,
+      "imagenUrl": "/media/img/ShJ97k0.mp4",
+      "imagenesUrl": [],
+      "activo": true
+    },
+    {
+      "id": "69b5af324082f691c41b057b",
+      "titulo": "Mesa de Honor perzonalizada",
+      "descripcion": null,
+      "imagenUrl": "/media/img/dQoQs2h.jpg",
+      "imagenesUrl": [
+        "/media/img/Hg1mOu7.jpg",
+        "/media/img/cvkxskT.jpg"
+      ],
+      "activo": true
+    },
+    {
+      "id": "69b4b87d114582ab367b9952",
+      "titulo": "Sala para conferencias ",
+      "descripcion": null,
+      "imagenUrl": "/media/img/PaEk0ss.jpg",
+      "imagenesUrl": [
+        "/media/img/XTHL647.jpg"
+      ],
+      "activo": true
+    },
+    {
+      "id": "69b34946eda8b9cbc304f35d",
+      "titulo": "Montajes hermosos y perzonalizables para tu evento",
+      "descripcion": null,
+      "imagenUrl": null,
+      "imagenesUrl": [
+        "/media/img/uU9o0rO.jpeg",
+        "/media/img/PDc0m8j.jpeg",
+        "/media/img/xHBrz6b.jpeg",
+        "/media/img/PK9q4JI.jpeg",
+        "/media/img/mj8Ebx7.jpeg",
+        "/media/img/9L0Fxvk.png",
+        "/media/img/dUmTWym.jpg",
+        "/media/img/VOxAeOE.jpg",
+        "/media/img/5DK2Nht.jpg",
+        "/media/img/FEM4pxc.jpg",
+        "/media/img/kVqwxbD.jpg",
+        "/media/img/ITiqoib.jpg",
+        "/media/img/inCZKV6.jpg",
+        "/media/img/Tyxqkh0.jpg"
+      ],
+      "activo": true
+    },
+    {
+      "id": "69b332d1643f8e5dbe6ce16f",
+      "titulo": "Eventos Nocturnos armalos a tu gusto",
+      "descripcion": null,
+      "imagenUrl": "/media/img/RweKHGc.mp4",
+      "imagenesUrl": [],
+      "activo": true
+    },
+    {
+      "id": "69ad0a3a5e889313db314d54",
+      "titulo": "Entretenimiento para tu evento",
+      "descripcion": "Servicios adicionales diseñados para elevar la experiencia de tu evento con espectáculos, animación, iluminación y entretenimiento que harán de tu celebración un momento inolvidable.",
+      "imagenUrl": "/media/img/EzEYGBq.jpeg",
+      "imagenesUrl": [],
+      "activo": true
+    },
+    {
+      "id": "69aa138fc8c7a687f643aa26",
+      "titulo": "Área de bar ",
+      "descripcion": null,
+      "imagenUrl": "/media/img/1RPFr68.jpeg",
+      "imagenesUrl": [
+        "/media/img/Loz3Nlf.jpeg",
+        "/media/img/xa0MONI.jpeg"
+      ],
+      "activo": true
+    },
+    {
+      "id": "69aa137470439a193b9702a2",
+      "titulo": "Jardines naturales y vegetacion ornamental",
+      "descripcion": null,
+      "imagenUrl": "/media/img/7B2TkTL.jpeg",
+      "imagenesUrl": [
+        "/media/img/jytOkQL.jpg",
+        "/media/img/XloOMkI.jpg",
+        "/media/img/ww16bh0.jpg",
+        "/media/img/omBNQRh.jpg",
+        "/media/img/mS6t6VN.jpg",
+        "/media/img/RulgWiR.jpg",
+        "/media/img/DUt7Hqd.jpg",
+        "/media/img/JkYoDJW.jpg",
+        "/media/img/LXOG3kn.jpg",
+        "/media/img/hYvc3Wz.jpg"
+      ],
+      "activo": true
+    },
+    {
+      "id": "69aa135ac7008ce2de176cac",
+      "titulo": "Sanitarios amplios y limpios ",
+      "descripcion": null,
+      "imagenUrl": null,
+      "imagenesUrl": [],
+      "activo": true
+    },
+    {
+      "id": "69aa1332c1515155ff2afc90",
+      "titulo": "Seguridad privada durante el evento",
+      "descripcion": null,
+      "imagenUrl": null,
+      "imagenesUrl": [],
+      "activo": true
+    },
+    {
+      "id": "69aa1322e6f2bffeb67e19d8",
+      "titulo": "Asesoria en decoracion y logística",
+      "descripcion": null,
+      "imagenUrl": "/media/img/jDSRdTG.jpeg",
+      "imagenesUrl": [
+        "/media/img/JseLRBB.jpg",
+        "/media/img/UjDSHKg.jpg",
+        "/media/img/nsbqIna.jpg",
+        "/media/img/GGpyk3C.jpg",
+        "/media/img/AM4kkI0.jpg"
+      ],
+      "activo": true
+    },
+    {
+      "id": "69aa130ccde17acb6fcd1bc2",
+      "titulo": "Coordinacion de montaje y desmontaje",
+      "descripcion": null,
+      "imagenUrl": null,
+      "imagenesUrl": [],
+      "activo": true
+    },
+    {
+      "id": "69aa12fa6ea2b879eda1b4b2",
+      "titulo": "Flexibilidad de horarios segun su evento",
+      "descripcion": null,
+      "imagenUrl": null,
+      "imagenesUrl": [],
+      "activo": true
+    },
+    {
+      "id": "69aa12e46d095589b77c4973",
+      "titulo": "Estacionamiento amplio para invitados",
+      "descripcion": null,
+      "imagenUrl": "/media/img/45sZpbf.jpg",
+      "imagenesUrl": [
+        "/media/img/E9exgF4.jpg",
+        "/media/img/mluvbg2.jpg"
+      ],
+      "activo": true
+    }
+  ],
+  "amenidades": [
+    {
+      "id": "69b5ca6b198c63ccefcf09ca",
+      "titulo": "Alberca ",
+      "descripcion": null,
+      "imagenUrl": "/media/img/ja5yba1.mp4",
+      "imagenesUrl": [],
+      "activo": true
+    },
+    {
+      "id": "69b5ca380a219dcf1eef5afb",
+      "titulo": "Inflables Infantiles",
+      "descripcion": null,
+      "imagenUrl": "/media/img/Uz2KwBD.mp4",
+      "imagenesUrl": [],
+      "activo": true
+    },
+    {
+      "id": "69b4b8b82035b67a30507190",
+      "titulo": "Futbolito Inflable ",
+      "descripcion": null,
+      "imagenUrl": "/media/img/MzZW3Ff.jpg",
+      "imagenesUrl": [],
+      "activo": true
+    },
+    {
+      "id": "69b4b89c5773bd3cde809d23",
+      "titulo": "Set fotografico ",
+      "descripcion": null,
+      "imagenUrl": "/media/img/NcBTIFV.png",
+      "imagenesUrl": [],
+      "activo": true
+    },
+    {
+      "id": "69b34ae484de5591cb40be5f",
+      "titulo": "Mega pantalla led",
+      "descripcion": "",
+      "imagenUrl": "/media/img/mtRBJJ3.jpeg",
+      "imagenesUrl": [],
+      "activo": true
+    },
+    {
+      "id": "69b349e21d63f9f4efd28088",
+      "titulo": "Pista pixel led ",
+      "descripcion": null,
+      "imagenUrl": "/media/img/GtJ1Wu3.jpeg",
+      "imagenesUrl": [
+        "/media/img/aC07OIj.jpeg",
+        "/media/img/aC07OIj.jpeg"
+      ],
+      "activo": true
+    },
+    {
+      "id": "69ad0c29ecb244356f52743d",
+      "titulo": "Mesa de dulces perzonalizada",
+      "descripcion": null,
+      "imagenUrl": "/media/img/ddbmN0D.jpeg",
+      "imagenesUrl": [
+        "/media/img/jluWxWj.jpeg",
+        "/media/img/FShLxte.jpg",
+        "/media/img/Pngxs7V.jpg",
+        "/media/img/GRJqld5.jpg",
+        "/media/img/nIQ8Dpu.jpg",
+        "/media/img/FEOMxGn.jpg",
+        "/media/img/wPHWJqS.jpg"
+      ],
+      "activo": true
+    },
+    {
+      "id": "69ad0bdc0d52820396579106",
+      "titulo": "Auto clásico",
+      "descripcion": null,
+      "imagenUrl": "/media/img/riXnPVK.jpeg",
+      "imagenesUrl": [
+        "/media/img/s01hbrC.jpeg"
+      ],
+      "activo": true
+    },
+    {
+      "id": "69aa1272e7303924321be52f",
+      "titulo": "Variedad en Grupos Musicales",
+      "descripcion": null,
+      "imagenUrl": null,
+      "imagenesUrl": [
+        "/media/img/Kynp5yD.mp4",
+        "/media/img/PWacDhU.mp4",
+        "/media/img/uUQNyyb.mp4"
+      ],
+      "activo": true
+    },
+    {
+      "id": "69aa1202b86abe52d9329b7b",
+      "titulo": "Chinelo",
+      "descripcion": null,
+      "imagenUrl": null,
+      "imagenesUrl": [
+        "/media/img/dGnzDIS.mp4"
+      ],
+      "activo": true
+    },
+    {
+      "id": "69aa11fc8988370d0f05aa46",
+      "titulo": "Camara 360",
+      "descripcion": null,
+      "imagenUrl": "",
+      "imagenesUrl": [
+        "/media/img/lZKF7Tm.mp4"
+      ],
+      "activo": true
+    },
+    {
+      "id": "69aa11bdf364fb634cdf2650",
+      "titulo": "Gladiador ",
+      "descripcion": null,
+      "imagenUrl": "/media/img/E2IyEWO.jpeg",
+      "imagenesUrl": [
+        "/media/img/VndnVrc.jpeg"
+      ],
+      "activo": true
+    },
+    {
+      "id": "69aa11b1703657f6545dacb5",
+      "titulo": "Aereobonji",
+      "descripcion": null,
+      "imagenUrl": "/media/img/MfVlZQx.png",
+      "imagenesUrl": [],
+      "activo": true
+    },
+    {
+      "id": "69aa11a8b0e151736c3c4acd",
+      "titulo": "Trampolin",
+      "descripcion": null,
+      "imagenUrl": null,
+      "imagenesUrl": [],
+      "activo": true
+    },
+    {
+      "id": "69a6606896fb128ae90bdad1",
+      "titulo": "Mago ",
+      "descripcion": "Cartomago de Cartas",
+      "imagenUrl": "/media/img/wRQHmVn.jpeg",
+      "imagenesUrl": [],
+      "orden": 1,
+      "activo": true
+    }
+  ],
+  "serviciosExtra": [
+    {
+      "id": "69ad0c55011f8e664adb70a4",
+      "nombre": "Servicios extras de entretenimiento",
+      "categoria": null,
+      "descripcion": null,
+      "aplicaA": "todos",
+      "activo": true
+    },
+    {
+      "id": "69aa30cc2d1813b74378eb8a",
+      "nombre": "Banda",
+      "categoria": null,
+      "descripcion": null,
+      "aplicaA": "todos",
+      "activo": true
+    },
+    {
+      "id": "69aa30c748eb95ff1f204143",
+      "nombre": "Mariachi",
+      "categoria": null,
+      "descripcion": null,
+      "aplicaA": "todos",
+      "activo": true
+    },
+    {
+      "id": "69aa30be13de2a3d81e77d1c",
+      "nombre": "Grupo Norteño",
+      "categoria": null,
+      "descripcion": null,
+      "aplicaA": "todos",
+      "activo": true
+    },
+    {
+      "id": "69aa30ae350c7ec5e66e1089",
+      "nombre": "Grupo musical de rock",
+      "categoria": null,
+      "descripcion": null,
+      "aplicaA": "todos",
+      "activo": true
+    },
+    {
+      "id": "69aa30886f9d30d56bd433e4",
+      "nombre": "Barra tipo bar",
+      "categoria": null,
+      "descripcion": null,
+      "aplicaA": "todos",
+      "activo": true
+    },
+    {
+      "id": "69aa305d2a69b9f9557b38e7",
+      "nombre": "Maestro de ceremonias",
+      "categoria": null,
+      "descripcion": null,
+      "aplicaA": "todos",
+      "activo": true
+    },
+    {
+      "id": "69aa304f4058c5a83630a9e7",
+      "nombre": "Piñata",
+      "categoria": null,
+      "descripcion": null,
+      "aplicaA": "todos",
+      "activo": true
+    },
+    {
+      "id": "69aa30445c890b95ab31c0d7",
+      "nombre": "Fotógrafo",
+      "categoria": null,
+      "descripcion": null,
+      "aplicaA": "todos",
+      "activo": true
+    },
+    {
+      "id": "69aa303a62c0a6d5c0cd45ad",
+      "nombre": "Pista de baile iluminada",
+      "categoria": null,
+      "descripcion": null,
+      "aplicaA": "todos",
+      "activo": true
+    },
+    {
+      "id": "69aa301f027798b15526f272",
+      "nombre": "Mesa de dulces",
+      "categoria": null,
+      "descripcion": null,
+      "aplicaA": "todos",
+      "activo": true
+    }
+  ],
+  "alimentos": [
+    {
+      "id": "69aa300023af1f6bc8c234ab",
+      "nombre": "Sin alimentos",
+      "descripcion": null,
+      "pdfUrl": null,
+      "activo": true
+    },
+    {
+      "id": "69aa2ff02a599a659852ce40",
+      "nombre": "Taquiza",
+      "descripcion": null,
+      "pdfUrl": "https://drive.google.com/file/d/1EDYJUc880sQ7VZWpn1udE8t0QksoSvKB/preview",
+      "activo": true
+    },
+    {
+      "id": "69aa2dd3d3e32b83d8c7aa89",
+      "nombre": "Tres tiempos",
+      "descripcion": null,
+      "pdfUrl": "",
+      "activo": true
+    }
+  ],
+  "framesTotal": 241
+}

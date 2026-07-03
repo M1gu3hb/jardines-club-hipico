@@ -1,0 +1,13 @@
+[
+  { "id": "69ad0c55011f8e664adb70a4", "nombre": "Servicios extras de entretenimiento", "categoria": null, "descripcion": null, "aplicaA": "todos", "activo": true },
+  { "id": "69aa30cc2d1813b74378eb8a", "nombre": "Banda", "categoria": null, "descripcion": null, "aplicaA": "todos", "activo": true },
+  { "id": "69aa30c748eb95ff1f204143", "nombre": "Mariachi", "categoria": null, "descripcion": null, "aplicaA": "todos", "activo": true },
+  { "id": "69aa30be13de2a3d81e77d1c", "nombre": "Grupo Norteño", "categoria": null, "descripcion": null, "aplicaA": "todos", "activo": true },
+  { "id": "69aa30ae350c7ec5e66e1089", "nombre": "Grupo musical de rock", "categoria": null, "descripcion": null, "aplicaA": "todos", "activo": true },
+  { "id": "69aa30886f9d30d56bd433e4", "nombre": "Barra tipo bar", "categoria": null, "descripcion": null, "aplicaA": "todos", "activo": true },
+  { "id": "69aa305d2a69b9f9557b38e7", "nombre": "Maestro de ceremonias", "categoria": null, "descripcion": null, "aplicaA": "todos", "activo": true },
+  { "id": "69aa304f4058c5a83630a9e7", "nombre": "Piñata", "categoria": null, "descripcion": null, "aplicaA": "todos", "activo": true },
+  { "id": "69aa30445c890b95ab31c0d7", "nombre": "Fotógrafo", "categoria": null, "descripcion": null, "aplicaA": "todos", "activo": true },
+  { "id": "69aa303a62c0a6d5c0cd45ad", "nombre": "Pista de baile iluminada", "categoria": null, "descripcion": null, "aplicaA": "todos", "activo": true },
+  { "id": "69aa301f027798b15526f272", "nombre": "Mesa de dulces", "categoria": null, "descripcion": null, "aplicaA": "todos", "activo": true }
+]
