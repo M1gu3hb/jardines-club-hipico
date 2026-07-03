@@ -1,16 +1,18 @@
 import { useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { Check, ChevronDown, ImageIcon } from "lucide-react";
+import { Check, ChevronDown, ImageIcon, Play, Sparkles } from "lucide-react";
 import { isVideo } from "./MediaViewer";
 
 /**
  * Tarjeta premium para un Servicio o Amenidad.
- * - Si tiene imagen/video: clicable, expande INLINE para mostrar la media en grande.
- * - Si no tiene media: se ve igual de elegante, no clicable, sin sensación de vacío.
+ * - Miniatura visual al inicio (imagen o primer frame de video).
+ * - Si no hay media todavía: placeholder dorado elegante (no se ve vacío).
+ * - Si tiene media, es clicable y expande INLINE para verla en grande.
  * - Skeuomorphism oscuro/dorado coherente con el resto del sitio.
  */
 export default function ServiceAmenityCard({ item, delay = 0 }) {
   const [open, setOpen] = useState(false);
+  const [mediaIdx, setMediaIdx] = useState(0);
 
   const extras = Array.isArray(item.imagenesUrl) ? item.imagenesUrl.filter(Boolean) : [];
   const allMedia = [];
@@ -18,7 +20,8 @@ export default function ServiceAmenityCard({ item, delay = 0 }) {
   extras.forEach((u) => { if (!allMedia.includes(u)) allMedia.push(u); });
 
   const hasMedia = allMedia.length > 0;
-  const [mediaIdx, setMediaIdx] = useState(0);
+  const thumbUrl = hasMedia ? allMedia[0] : null;
+  const thumbIsVideo = thumbUrl ? isVideo(thumbUrl) : false;
   const currentUrl = hasMedia ? allMedia[mediaIdx] : null;
   const currentIsVideo = currentUrl ? isVideo(currentUrl) : false;
 
@@ -28,36 +31,56 @@ export default function ServiceAmenityCard({ item, delay = 0 }) {
       whileInView={{ opacity: 1, y: 0 }}
       viewport={{ once: true, margin: "-40px" }}
       transition={{ delay, duration: 0.45 }}
-      className="skeu-card overflow-hidden"
+      className="skeu-card skeu-card-hover overflow-hidden"
     >
       <button
         type="button"
         onClick={() => hasMedia && setOpen((o) => !o)}
         disabled={!hasMedia}
         aria-expanded={hasMedia ? open : undefined}
-        className={`w-full flex items-start gap-3 p-4 text-left select-none ${
+        className={`w-full flex items-center gap-3.5 p-3 text-left select-none ${
           hasMedia ? "cursor-pointer active:scale-[0.99] transition-transform" : "cursor-default"
         }`}
       >
-        {/* Icono check en relieve */}
+        {/* Miniatura */}
         <div
-          className="w-9 h-9 rounded-full flex items-center justify-center flex-shrink-0 mt-0.5"
+          className="relative w-14 h-14 sm:w-16 sm:h-16 rounded-xl overflow-hidden flex-shrink-0"
           style={{
-            background: "linear-gradient(180deg, #1a1408 0%, #0a0805 100%)",
-            border: "1px solid rgba(201,168,76,0.4)",
-            boxShadow:
-              "0 1px 0 rgba(255,220,140,0.15) inset, 0 -1px 2px rgba(0,0,0,0.6) inset, 0 2px 6px rgba(0,0,0,0.5)",
+            boxShadow: "0 2px 6px rgba(0,0,0,0.7) inset, 0 0 0 1px rgba(201,168,76,0.28) inset",
+            background: "linear-gradient(160deg, #1a1408 0%, #0a0805 100%)",
           }}
         >
-          <Check size={13} className="text-[#C9A84C]" strokeWidth={2.5} />
+          {hasMedia ? (
+            <>
+              {thumbIsVideo ? (
+                <video src={thumbUrl} muted playsInline preload="metadata" className="w-full h-full object-cover" />
+              ) : (
+                <img src={thumbUrl} alt={item.titulo} loading="lazy" className="w-full h-full object-cover" />
+              )}
+              {thumbIsVideo && (
+                <div className="absolute inset-0 flex items-center justify-center bg-black/25">
+                  <Play size={14} className="text-white/90" fill="currentColor" />
+                </div>
+              )}
+            </>
+          ) : (
+            // Placeholder dorado elegante (para ítems sin imagen aún)
+            <div className="w-full h-full flex items-center justify-center">
+              <Sparkles size={18} className="text-[#C9A84C]/70" />
+            </div>
+          )}
         </div>
 
+        {/* Texto */}
         <div className="flex-1 min-w-0">
-          <p className="text-white/85 text-[14px] sm:text-[15px] leading-snug font-light">
-            {item.titulo}
-          </p>
+          <div className="flex items-center gap-1.5">
+            <Check size={12} className="text-[#C9A84C] flex-shrink-0" strokeWidth={2.5} />
+            <p className="text-white/85 text-[14px] sm:text-[15px] leading-snug font-light truncate">
+              {item.titulo}
+            </p>
+          </div>
           {item.descripcion && (
-            <p className="text-white/40 text-[12px] leading-relaxed mt-1.5">
+            <p className="text-white/40 text-[12px] leading-relaxed mt-1">
               {item.descripcion}
             </p>
           )}
@@ -65,7 +88,7 @@ export default function ServiceAmenityCard({ item, delay = 0 }) {
 
         {hasMedia && (
           <span
-            className={`flex items-center gap-1 text-[#C9A84C]/80 text-[11px] flex-shrink-0 mt-1.5 px-2 py-1 rounded-full transition-transform duration-300 ${
+            className={`flex items-center gap-1 text-[#C9A84C]/80 text-[11px] flex-shrink-0 px-2 py-1 rounded-full transition-transform duration-300 ${
               open ? "rotate-180" : ""
             }`}
             style={{
@@ -98,20 +121,9 @@ export default function ServiceAmenityCard({ item, delay = 0 }) {
                 }}
               >
                 {currentIsVideo ? (
-                  <video
-                    key={currentUrl}
-                    src={currentUrl}
-                    controls
-                    playsInline
-                    className="w-full h-full object-contain bg-black"
-                  />
+                  <video key={currentUrl} src={currentUrl} controls playsInline className="w-full h-full object-contain bg-black" />
                 ) : (
-                  <img
-                    src={currentUrl}
-                    alt={item.titulo}
-                    loading="lazy"
-                    className="w-full h-full object-cover"
-                  />
+                  <img src={currentUrl} alt={item.titulo} loading="lazy" className="w-full h-full object-cover" />
                 )}
               </div>
 
@@ -132,7 +144,7 @@ export default function ServiceAmenityCard({ item, delay = 0 }) {
 
               <div className="flex items-center justify-center gap-1.5 mt-2 text-[#C9A84C]/40 text-[10px] tracking-widest uppercase">
                 <ImageIcon size={10} />
-                <span>{allMedia.length > 1 ? `${mediaIdx + 1} / ${allMedia.length}` : "Imagen"}</span>
+                <span>{allMedia.length > 1 ? `${mediaIdx + 1} / ${allMedia.length}` : "Ver imagen"}</span>
               </div>
             </div>
           </motion.div>

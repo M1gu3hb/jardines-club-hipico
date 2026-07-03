@@ -2,12 +2,12 @@
   "config": {
     "whatsappNumero": "525548663656",
     "proximamenteImagenUrl": "/media/b44/62261123a_VWSTYLEANUNCIO.jpg",
-    "informacionServicios": null,
+    "informacionServicios": "Para brindarte la mejor atención, te pedimos que primero llenes el formulario de cotización con los datos de tu evento.\nEn cuanto lo recibamos, nos pondremos en contacto contigo por WhatsApp para darte una atención personalizada y resolver todas tus dudas.\nNota: el alquiler corresponde al espacio. Alimentos, bebidas, DJ, decoración, mobiliario especial y demás servicios se cotizan por separado con nuestros proveedores autorizados.",
     "proximamenteDescripcion": "Una experiencia especial muy pronto en Jardines Club Hípico. ¡No te lo pierdas!",
     "textoAmenidades": "",
     "logoUrl": "/media/img/aMxWuH8.png",
     "proximamenteActivo": true,
-    "ubicacionTexto": null,
+    "ubicacionTexto": "Sta Inés, Xochimilco, 16810 CDMX",
     "correoAdmin": "jardinesclubhipico@gmail.com",
     "textoServicios": "",
     "proximamenteTitulo": "VW Style Club · 20 Fuckin' Years",
@@ -22,7 +22,7 @@
   "salones": [
     {
       "id": "69a4955eda5b8d8a559e3ea7",
-      "nombre": "Sálon de los Espejos",
+      "nombre": "Salón de los Espejos",
       "descripcion": "Elegante salón cubierto con iluminación regulable, climatización y acabados de lujo. Ideal para eventos íntimos y corporativos.",
       "descripcionLarga": "El Salón Grande es el corazón de Jardines Club Hípico, un espacio diseñado para convertir cada celebración en una experiencia memorable.  Su amplia pista de baile invita a vivir momentos llenos de energía y emoción, mientras que su escenario permite disfrutar presentaciones en vivo, música y espectáculos que hacen de cada evento algo verdaderamente especial. La distribución del salón permite crear montajes elegantes y personalizados, adaptándose perfectamente a bodas, XV años, eventos sociales o celebraciones corporativas.  La iluminación ambiental, los amplios espacios y la armonía del lugar crean una atmósfera única donde cada detalle se convierte en parte de una experiencia inolvidable.  Aquí no solo se celebra un evento… se crean recuerdos que permanecerán para siempre.",
       "capacidad": "300-400 personas",
@@ -110,11 +110,9 @@
       ],
       "caracteristicas": [
         "Amplio salón techado para eventos sociales",
-        "Amplio salón techado para eventos sociales",
         "Área para DJ o música en vivo",
         "Montajes flexibles para diferentes estilos de evento",
         "Pista de baile iluminada para ambientación nocturna",
-        "Área para DJ o música en vivo",
         "Ambiente elegante y versátil",
         "Ideal para decoraciones temáticas o tradicionales",
         "Iluminación ambiental para eventos nocturnos"
@@ -205,7 +203,6 @@
         "Espacio ideal para montajes con carpas y estructuras temporales",
         "Escenario natural para ceremonias, recepciones y sesiones fotográficas",
         "Jardines cuidadosamente mantenidos y visualmente atractivos",
-        "Gran capacidad para eventos sociales y celebraciones de gran formato",
         "Gran capacidad para eventos sociales y celebraciones de gran formato",
         "Áreas versátiles para pistas de baile, zonas lounge y montajes personalizados",
         "Ideal para bodas, XV años, fiestas temáticas y eventos empresariales",
@@ -337,7 +334,6 @@
         "Camas confortables",
         "Baño privado",
         "Regadera",
-        "Ubicación dentro del complejo Jardines Club Hípico",
         "Ubicación dentro del complejo Jardines Club Hípico",
         "Ideal para hospedaje después de eventos",
         "Ambiente tranquilo rodeado de naturaleza"
@@ -564,7 +560,7 @@
     },
     {
       "id": "69b5af324082f691c41b057b",
-      "titulo": "Mesa de Honor perzonalizada",
+      "titulo": "Mesa de Honor personalizada",
       "descripcion": null,
       "imagenUrl": "/media/img/dQoQs2h.jpg",
       "imagenesUrl": [
@@ -585,7 +581,7 @@
     },
     {
       "id": "69b34946eda8b9cbc304f35d",
-      "titulo": "Montajes hermosos y perzonalizables para tu evento",
+      "titulo": "Montajes hermosos y personalizables para tu evento",
       "descripcion": null,
       "imagenUrl": null,
       "imagenesUrl": [
@@ -635,7 +631,7 @@
     },
     {
       "id": "69aa137470439a193b9702a2",
-      "titulo": "Jardines naturales y vegetacion ornamental",
+      "titulo": "Jardines naturales y vegetación ornamental",
       "descripcion": null,
       "imagenUrl": "/media/img/7B2TkTL.jpeg",
       "imagenesUrl": [
@@ -670,7 +666,7 @@
     },
     {
       "id": "69aa1322e6f2bffeb67e19d8",
-      "titulo": "Asesoria en decoracion y logística",
+      "titulo": "Asesoría en decoración y logística",
       "descripcion": null,
       "imagenUrl": "/media/img/jDSRdTG.jpeg",
       "imagenesUrl": [
@@ -684,7 +680,7 @@
     },
     {
       "id": "69aa130ccde17acb6fcd1bc2",
-      "titulo": "Coordinacion de montaje y desmontaje",
+      "titulo": "Coordinación de montaje y desmontaje",
       "descripcion": null,
       "imagenUrl": null,
       "imagenesUrl": [],
@@ -692,7 +688,7 @@
     },
     {
       "id": "69aa12fa6ea2b879eda1b4b2",
-      "titulo": "Flexibilidad de horarios segun su evento",
+      "titulo": "Flexibilidad de horarios según su evento",
       "descripcion": null,
       "imagenUrl": null,
       "imagenesUrl": [],
@@ -737,7 +733,7 @@
     },
     {
       "id": "69b4b89c5773bd3cde809d23",
-      "titulo": "Set fotografico ",
+      "titulo": "Set fotográfico",
       "descripcion": null,
       "imagenUrl": "/media/img/NcBTIFV.png",
       "imagenesUrl": [],
@@ -764,7 +760,7 @@
     },
     {
       "id": "69ad0c29ecb244356f52743d",
-      "titulo": "Mesa de dulces perzonalizada",
+      "titulo": "Mesa de dulces personalizada",
       "descripcion": null,
       "imagenUrl": "/media/img/ddbmN0D.jpeg",
       "imagenesUrl": [
@@ -812,7 +808,7 @@
     },
     {
       "id": "69aa11fc8988370d0f05aa46",
-      "titulo": "Camara 360",
+      "titulo": "Cámara 360",
       "descripcion": null,
       "imagenUrl": "",
       "imagenesUrl": [
@@ -840,7 +836,7 @@
     },
     {
       "id": "69aa11a8b0e151736c3c4acd",
-      "titulo": "Trampolin",
+      "titulo": "Trampolín",
       "descripcion": null,
       "imagenUrl": null,
       "imagenesUrl": [],

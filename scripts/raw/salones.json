@@ -1,7 +1,7 @@
 [
   {
     "id": "69a4955eda5b8d8a559e3ea7",
-    "nombre": "Sálon de los Espejos",
+    "nombre": "Salón de los Espejos",
     "descripcion": "Elegante salón cubierto con iluminación regulable, climatización y acabados de lujo. Ideal para eventos íntimos y corporativos.",
     "descripcionLarga": "El Salón Grande es el corazón de Jardines Club Hípico, un espacio diseñado para convertir cada celebración en una experiencia memorable.  Su amplia pista de baile invita a vivir momentos llenos de energía y emoción, mientras que su escenario permite disfrutar presentaciones en vivo, música y espectáculos que hacen de cada evento algo verdaderamente especial. La distribución del salón permite crear montajes elegantes y personalizados, adaptándose perfectamente a bodas, XV años, eventos sociales o celebraciones corporativas.  La iluminación ambiental, los amplios espacios y la armonía del lugar crean una atmósfera única donde cada detalle se convierte en parte de una experiencia inolvidable.  Aquí no solo se celebra un evento… se crean recuerdos que permanecerán para siempre.",
     "capacidad": "300-400 personas",
@@ -25,7 +25,7 @@
     "activo": true,
     "imagenPrincipal": "https://i.imgur.com/GsY3zXF.png",
     "imagenes": ["https://i.imgur.com/GsY3zXF.png","https://i.imgur.com/Jg9SrhI.jpeg","https://i.imgur.com/oJFrsLZ.jpeg","https://i.imgur.com/HmcAg2Z.jpeg","https://i.imgur.com/bGnm9yN.jpeg","https://i.imgur.com/lQccU4q.jpeg","https://i.imgur.com/ERMx9k1.jpeg","https://i.imgur.com/4PURIMU.jpeg","https://i.imgur.com/Pc1vzXZ.jpeg","https://i.imgur.com/T4Iu00h.jpeg","https://i.imgur.com/Q0NrnQW.jpeg","https://i.imgur.com/25Aeqfh.mp4","https://i.imgur.com/ZJC0JRv.mp4","https://i.imgur.com/aRdlLip.mp4","https://i.imgur.com/DPHY5YQ.jpg","https://i.imgur.com/VsTX2Es.mp4","https://i.imgur.com/lS2Xe4T.mp4","https://i.imgur.com/8nSzGlh.jpg","https://i.imgur.com/VD8c9lm.jpg","https://i.imgur.com/w4Nwc7u.jpg","https://i.imgur.com/ZkvrSIS.jpg","https://i.imgur.com/IsnszTR.jpg"],
-    "caracteristicas": ["Amplio salón techado para eventos sociales","Amplio salón techado para eventos sociales","Área para DJ o música en vivo","Montajes flexibles para diferentes estilos de evento","Pista de baile iluminada para ambientación nocturna","Área para DJ o música en vivo","Ambiente elegante y versátil","Ideal para decoraciones temáticas o tradicionales","Iluminación ambiental para eventos nocturnos"]
+    "caracteristicas": ["Amplio salón techado para eventos sociales","Área para DJ o música en vivo","Montajes flexibles para diferentes estilos de evento","Pista de baile iluminada para ambientación nocturna","Ambiente elegante y versátil","Ideal para decoraciones temáticas o tradicionales","Iluminación ambiental para eventos nocturnos"]
   },
   {
     "id": "69a46ff85b6f242cf4fb91f2",
@@ -53,7 +53,7 @@
     "activo": true,
     "imagenPrincipal": "https://i.imgur.com/cQFcFEC.jpeg",
     "imagenes": ["https://i.imgur.com/fP9Bhew.png","https://i.imgur.com/s27TD11.jpeg","https://i.imgur.com/1qM0786.jpeg","https://i.imgur.com/NRFjbiX.jpeg","https://i.imgur.com/RYrYJQn.jpeg","https://i.imgur.com/cQFcFEC.jpeg","https://i.imgur.com/VvxlY2I.jpeg","https://i.imgur.com/KjByJEu.jpeg","https://i.imgur.com/WgZwUNN.jpeg","https://i.imgur.com/eDTtUTe.jpeg","https://i.imgur.com/NRFjbiX.jpeg","https://i.imgur.com/7B2TkTL.jpeg","https://i.imgur.com/VPgqZZK.mp4","https://i.imgur.com/yHdczws.jpg","https://i.imgur.com/1RYGMz9.jpg","https://i.imgur.com/xpXwKY6.jpg","https://i.imgur.com/9LzLa95.jpg","https://i.imgur.com/6a7ILRt.jpg","https://i.imgur.com/wQdM8cI.jpg","https://i.imgur.com/jytOkQL.jpg","https://i.imgur.com/XloOMkI.jpg","https://i.imgur.com/ww16bh0.jpg","https://i.imgur.com/omBNQRh.jpg","https://i.imgur.com/RulgWiR.jpg","https://i.imgur.com/iCJTgJs.jpg","https://i.imgur.com/2vrHFCs.jpg","https://i.imgur.com/hYvc3Wz.jpg","https://i.imgur.com/0btSqnb.mp4"],
-    "caracteristicas": ["Amplias áreas verdes para eventos al aire libre","Espacio ideal para montajes con carpas y estructuras temporales","Escenario natural para ceremonias, recepciones y sesiones fotográficas","Jardines cuidadosamente mantenidos y visualmente atractivos","Gran capacidad para eventos sociales y celebraciones de gran formato","Gran capacidad para eventos sociales y celebraciones de gran formato","Áreas versátiles para pistas de baile, zonas lounge y montajes personalizados","Ideal para bodas, XV años, fiestas temáticas y eventos empresariales","Vistas amplias que realzan la experiencia del evento","Espacio perfecto para celebraciones elegantes en contacto con la naturaleza"]
+    "caracteristicas": ["Amplias áreas verdes para eventos al aire libre","Espacio ideal para montajes con carpas y estructuras temporales","Escenario natural para ceremonias, recepciones y sesiones fotográficas","Jardines cuidadosamente mantenidos y visualmente atractivos","Gran capacidad para eventos sociales y celebraciones de gran formato","Áreas versátiles para pistas de baile, zonas lounge y montajes personalizados","Ideal para bodas, XV años, fiestas temáticas y eventos empresariales","Vistas amplias que realzan la experiencia del evento","Espacio perfecto para celebraciones elegantes en contacto con la naturaleza"]
   },
   {
     "id": "69a46ff85b6f242cf4fb91f3",
@@ -109,6 +109,6 @@
     "activo": true,
     "imagenPrincipal": "https://i.imgur.com/WvvLXxr.jpg",
     "imagenes": ["https://i.imgur.com/sGw9POY.jpg","https://i.imgur.com/F7NNzpw.jpg","https://i.imgur.com/l05HUuf.jpg","https://i.imgur.com/5xzyMKr.jpg","https://i.imgur.com/As9nG6N.jpg","https://i.imgur.com/UsftLAV.jpg","https://i.imgur.com/h560hVl.jpg","https://i.imgur.com/zj9flET.jpg","https://i.imgur.com/aR3tN4q.jpg","https://i.imgur.com/WR4Ggao.jpg"],
-    "caracteristicas": ["Habitaciones cómodas y amuebladas","Camas confortables","Baño privado","Regadera","Ubicación dentro del complejo Jardines Club Hípico","Ubicación dentro del complejo Jardines Club Hípico","Ideal para hospedaje después de eventos","Ambiente tranquilo rodeado de naturaleza"]
+    "caracteristicas": ["Habitaciones cómodas y amuebladas","Camas confortables","Baño privado","Regadera","Ubicación dentro del complejo Jardines Club Hípico","Ideal para hospedaje después de eventos","Ambiente tranquilo rodeado de naturaleza"]
   }
 ]

@@ -2,7 +2,6 @@ import { motion } from "framer-motion";
 import { useEffect, useRef, useState } from "react";
 import { MapPin } from "lucide-react";
 import ProximamenteCartel from "./ProximamenteCartel";
-import HeroTrustBar from "./HeroTrustBar";
 
 const VIDEOS = [
   { src: "/media/img/NBa3E9g.mp4", maxTime: null },
@@ -150,15 +149,16 @@ export default function HeroSection({
             <span className="text-[#C9A84C] font-extralight">Club Hípico</span>
           </h1>
 
-          {/* Mensaje principal claro: qué es el negocio */}
-          <p className="text-white text-lg sm:text-xl md:text-2xl font-light tracking-wide mt-5 sm:mt-7 max-w-xl mx-auto leading-snug drop-shadow-lg">
-            Salón y jardines para eventos en{" "}
-            <span className="text-[#E6C870]">Xochimilco</span>
+          {/* Mensaje principal: el diferenciador — todo en un solo lugar */}
+          <p className="text-white text-lg sm:text-xl md:text-2xl font-light tracking-wide mt-5 sm:mt-7 max-w-2xl mx-auto leading-snug drop-shadow-lg">
+            Todo tu evento en un solo lugar:{" "}
+            <span className="text-[#E6C870]">8 espacios, capilla, hospedaje y área infantil</span>{" "}
+            al sur de la Ciudad de México.
           </p>
 
-          {/* Frase secundaria elegante */}
-          <p className="text-white/55 text-xs sm:text-sm md:text-base font-light tracking-[0.3em] uppercase mt-3 sm:mt-4 mb-9 sm:mb-12">
-            Bodas · XV años · Corporativos · Eventos sociales
+          {/* Frase secundaria: tipos de evento + rango de capacidad */}
+          <p className="text-white/55 text-xs sm:text-sm md:text-base font-light tracking-[0.26em] uppercase mt-3 sm:mt-4 mb-9 sm:mb-12">
+            Bodas · XV años · Corporativos · Infantiles · De 30 a 600 personas
           </p>
 
           <div className="flex flex-col items-center gap-4">
@@ -178,21 +178,16 @@ export default function HeroSection({
               Si está activo, el bloque de confianza va DEBAJO del cartel
               (en variante compact) para no aplastarse. Si no, va en su
               posición amplia original. */}
-          {showAnuncio ? (
-            <>
-              <div className="mt-8 sm:mt-10 px-2 sm:px-0">
-                <ProximamenteCartel
-                  imagenUrl={proximamenteImagenUrl}
-                  titulo={proximamenteTitulo}
-                  descripcion={proximamenteDescripcion}
-                  textoEtiqueta={proximamenteTexto}
-                  onClick={onProximamenteClick}
-                />
-              </div>
-              <HeroTrustBar variant="compact" />
-            </>
-          ) : (
-            <HeroTrustBar variant="default" />
+          {showAnuncio && (
+            <div className="mt-8 sm:mt-10 px-2 sm:px-0">
+              <ProximamenteCartel
+                imagenUrl={proximamenteImagenUrl}
+                titulo={proximamenteTitulo}
+                descripcion={proximamenteDescripcion}
+                textoEtiqueta={proximamenteTexto}
+                onClick={onProximamenteClick}
+              />
+            </div>
           )}
         </motion.div>
       </div>

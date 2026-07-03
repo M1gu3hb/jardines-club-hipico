@@ -12,6 +12,7 @@ import ContactoSection from "../components/ContactoSection";
 import NoIncluyeSection from "../components/NoIncluyeSection";
 import ScrollAnimationSection from "../components/ScrollAnimationSection";
 import ProximamenteModal from "../components/ProximamenteModal";
+import Confianza from "../components/Confianza";
 
 const SECTIONS = ["inicio", "salones", "servicios", "amenidades", "galeria", "contacto", "no-incluye"];
 
@@ -77,6 +78,7 @@ export default function Home() {
               proximamenteDescripcion={config?.proximamenteDescripcion}
               onProximamenteClick={() => setProximamenteOpen(true)}
             />
+            <Confianza />
             <SalonesSection salones={salones} onSelectSalon={openForm} />
             <ScrollAnimationSection />
             <ServiciosAmenidades />
@@ -93,8 +95,8 @@ export default function Home() {
             </footer>
           </main>
 
-          {/* Sticky WhatsApp mobile button */}
-          <div className="md:hidden fixed bottom-5 right-5 z-50">
+          {/* Sticky WhatsApp button (móvil y escritorio) */}
+          <div className="fixed bottom-5 right-5 z-50">
             <a
               href={`https://wa.me/${config?.whatsappNumero || "525548663656"}?text=Hola,%20me%20gustar%C3%ADa%20cotizar%20un%20evento%20en%20Jardines%20Club%20H%C3%ADpico`}
               target="_blank"
