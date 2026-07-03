@@ -19,7 +19,7 @@ const PASOS = [
   },
 ];
 
-export default function ComoFunciona({ onFormClick }) {
+export default function ComoFunciona() {
   return (
     <section id="como-funciona" className="py-16 md:py-24 px-4 sm:px-6 bg-[#080808] border-b border-white/[0.04] w-full">
       <div className="max-w-5xl mx-auto w-full">
@@ -73,21 +73,6 @@ export default function ComoFunciona({ onFormClick }) {
             );
           })}
         </div>
-
-        {onFormClick && (
-          <div className="flex justify-center mt-12">
-            <button
-              type="button"
-              onClick={onFormClick}
-              className="skeu-gold-btn inline-flex items-center gap-3 font-medium text-sm tracking-[0.2em] uppercase px-9 sm:px-11 py-4 rounded-full"
-            >
-              <span>Cotiza tu evento</span>
-              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 8l4 4m0 0l-4 4m4-4H3" />
-              </svg>
-            </button>
-          </div>
-        )}
       </div>
     </section>
   );

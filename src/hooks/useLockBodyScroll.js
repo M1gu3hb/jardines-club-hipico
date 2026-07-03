@@ -1,31 +1,36 @@
 import { useEffect } from "react";
 
 /**
- * Bloquea el scroll del body mientras `active` sea true.
- * Restaura el scroll a la posición previa al cerrar.
+ * Bloquea el scroll mientras `active` sea true.
+ *
+ * Usa `overflow: hidden` (en html + body) en vez de `position: fixed`.
+ * Ventaja: conserva la posición del scroll SIN reescribirla al cerrar, así
+ * que no dispara la animación de `scroll-behavior: smooth` (que antes hacía
+ * que la página "se regresara escroleando" al cerrar el modal).
+ * Compensa el ancho de la scrollbar para que el contenido no dé un salto lateral.
  */
 export default function useLockBodyScroll(active) {
   useEffect(() => {
     if (!active) return;
 
-    const scrollY = window.scrollY;
+    const html = document.documentElement;
     const body = document.body;
-    const prevOverflow = body.style.overflow;
-    const prevPosition = body.style.position;
-    const prevTop = body.style.top;
-    const prevWidth = body.style.width;
+    const scrollbarW = window.innerWidth - html.clientWidth;
 
+    const prev = {
+      htmlOverflow: html.style.overflow,
+      bodyOverflow: body.style.overflow,
+      htmlPadRight: html.style.paddingRight,
+    };
+
+    html.style.overflow = "hidden";
     body.style.overflow = "hidden";
-    body.style.position = "fixed";
-    body.style.top = `-${scrollY}px`;
-    body.style.width = "100%";
+    if (scrollbarW > 0) html.style.paddingRight = `${scrollbarW}px`;
 
     return () => {
-      body.style.overflow = prevOverflow;
-      body.style.position = prevPosition;
-      body.style.top = prevTop;
-      body.style.width = prevWidth;
-      window.scrollTo(0, scrollY);
+      html.style.overflow = prev.htmlOverflow;
+      body.style.overflow = prev.bodyOverflow;
+      html.style.paddingRight = prev.htmlPadRight;
     };
   }, [active]);
 }

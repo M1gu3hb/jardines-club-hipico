@@ -84,9 +84,9 @@ export default function Home() {
             <SalonesSection salones={salones} onSelectSalon={openForm} />
             <ScrollAnimationSection />
             <ServiciosAmenidades />
+            <ComoFunciona />
             <CtaCotizacion onOpenForm={openForm} />
             <GaleriaSection galeria={galeria} />
-            <ComoFunciona onFormClick={() => openForm("")} />
             <FaqSection />
             <ContactoSection telefono={config?.telefonoContacto} correo={config?.correoAdmin} ubicacionTexto={config?.ubicacionTexto} ubicacionLinkMapa={config?.ubicacionLinkMapa} whatsappNumero={config?.whatsappNumero} />
             <NoIncluyeSection texto={config?.informacionServicios} />

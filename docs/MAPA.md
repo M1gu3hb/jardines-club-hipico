@@ -46,8 +46,8 @@ Cada sección es un componente en [`src/components/`](../src/components):
 | 4 | `#servicios` + `#amenidades` | `ServiciosAmenidades.jsx` | 2 listas con "ver más" (usa `ServiceAmenityCard`) |
 | 5 | — | `CtaCotizacion.jsx` | Franja CTA con imagen de fondo |
 | 6 | `#galeria` | `GaleriaSection.jsx` | Grid masonry de fotos/videos → `MediaViewer` |
-| 6b | `#como-funciona` | `ComoFunciona.jsx` | 3 pasos (elige → cotiza → WhatsApp) + CTA al formulario |
-| 6c | `#faq` | `FaqSection.jsx` | Acordeón de preguntas frecuentes (contenido en el propio archivo) |
+| 4b | `#como-funciona` | `ComoFunciona.jsx` | 3 pasos (elige → cotiza → WhatsApp). Va entre Amenidades y el CTA "Listo para cotizar" |
+| 6c | `#faq` | `FaqSection.jsx` | Acordeón de preguntas frecuentes (después de Galería). Contenido en el array `FAQS` del propio archivo |
 | 7 | `#contacto` | `ContactoSection.jsx` | Teléfono, correo, ubicación, WhatsApp, Facebook |
 | 8 | `#no-incluye` | `NoIncluyeSection.jsx` | Texto "Información de servicios" |
 | — | (footer) | inline en `Home.jsx` | Copyright |
