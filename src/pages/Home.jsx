@@ -33,7 +33,7 @@ export default function Home() {
     Promise.all([
       base44.entities.ConfigSitio.list().then((d) => { setConfig(d[0] || {}); setConfigLoaded(true); }),
       base44.entities.Salon.filter({ activo: true }, "orden").then(setSalones),
-      base44.entities.Galeria.list("-orden").then(setGaleria),
+      base44.entities.Galeria.list().then(setGaleria),
     ]);
   }, []);
 
