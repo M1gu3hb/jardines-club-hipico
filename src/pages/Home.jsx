@@ -13,6 +13,8 @@ import NoIncluyeSection from "../components/NoIncluyeSection";
 import ScrollAnimationSection from "../components/ScrollAnimationSection";
 import ProximamenteModal from "../components/ProximamenteModal";
 import Confianza from "../components/Confianza";
+import ComoFunciona from "../components/ComoFunciona";
+import FaqSection from "../components/FaqSection";
 
 const SECTIONS = ["inicio", "salones", "servicios", "amenidades", "galeria", "contacto", "no-incluye"];
 
@@ -84,6 +86,8 @@ export default function Home() {
             <ServiciosAmenidades />
             <CtaCotizacion onOpenForm={openForm} />
             <GaleriaSection galeria={galeria} />
+            <ComoFunciona onFormClick={() => openForm("")} />
+            <FaqSection />
             <ContactoSection telefono={config?.telefonoContacto} correo={config?.correoAdmin} ubicacionTexto={config?.ubicacionTexto} ubicacionLinkMapa={config?.ubicacionLinkMapa} whatsappNumero={config?.whatsappNumero} />
             <NoIncluyeSection texto={config?.informacionServicios} />
 

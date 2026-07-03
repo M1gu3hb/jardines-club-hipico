@@ -39,13 +39,16 @@ Cada sección es un componente en [`src/components/`](../src/components):
 |---|---|---|---|
 | — | (splash) | `SplashScreen.jsx` | Pantalla de carga con el logo (aparece una vez) |
 | — | (lateral) | `Sidebar.jsx` | Menú lateral + logo + toggle de sonido |
-| 1 | `#inicio` | `HeroSection.jsx` | Video de fondo, título, botón "Cotiza tu Evento", cartel "Próximamente" |
+| 1 | `#inicio` | `HeroSection.jsx` | Video de fondo, título de venta (todo en un lugar), botón "Cotiza tu Evento", cartel "Próximamente" |
+| 1b | — | `Confianza.jsx` | Números (+30 años, +500 eventos, 8 espacios) + rating de Google + carrusel de reseñas (datos en `src/data/resenas.json`) |
 | 2 | `#salones` | `SalonesSection.jsx` | Tarjetas de los 8 espacios → abre `SalonOverlay` |
 | 3 | — | `ScrollAnimationSection.jsx` | Animación de 241 frames dirigida por scroll |
 | 4 | `#servicios` + `#amenidades` | `ServiciosAmenidades.jsx` | 2 listas con "ver más" (usa `ServiceAmenityCard`) |
 | 5 | — | `CtaCotizacion.jsx` | Franja CTA con imagen de fondo |
 | 6 | `#galeria` | `GaleriaSection.jsx` | Grid masonry de fotos/videos → `MediaViewer` |
-| 7 | `#contacto` | `ContactoSection.jsx` | Teléfono, correo, ubicación, WhatsApp |
+| 6b | `#como-funciona` | `ComoFunciona.jsx` | 3 pasos (elige → cotiza → WhatsApp) + CTA al formulario |
+| 6c | `#faq` | `FaqSection.jsx` | Acordeón de preguntas frecuentes (contenido en el propio archivo) |
+| 7 | `#contacto` | `ContactoSection.jsx` | Teléfono, correo, ubicación, WhatsApp, Facebook |
 | 8 | `#no-incluye` | `NoIncluyeSection.jsx` | Texto "Información de servicios" |
 | — | (footer) | inline en `Home.jsx` | Copyright |
 | — | (modales) | `FormularioModal.jsx`, `ProximamenteModal.jsx` | Formulario de cotización y anuncio |
@@ -92,6 +95,9 @@ Para **editar contenido de forma permanente**, ver [`DATOS.md`](DATOS.md).
 | Opciones del formulario (servicios extra, alimentos) | `src/data/site-data.json` → `serviciosExtra[]` / `alimentos[]` |
 | Cartel "Próximamente" (imagen/título/texto) | `config.proximamente*` (o `proximamenteActivo:false` para ocultarlo) |
 | Textos del hero (título, subtítulos) | `src/components/HeroSection.jsx` (están escritos en el JSX) |
+| Reseñas del carrusel / números de confianza / rating | `src/data/resenas.json` |
+| Preguntas del FAQ | `src/components/FaqSection.jsx` (array `FAQS`) |
+| Pasos de "Cómo funciona" | `src/components/ComoFunciona.jsx` (array `PASOS`) |
 | Videos de fondo del hero | Reemplazar `public/media/img/NBa3E9g.mp4` y `uykWsK9.mp4`, o editar el array `VIDEOS` en `HeroSection.jsx` |
 | Textos de sección (eyebrows, títulos "Servicios", "Amenidades", "Galería") | El componente de esa sección (ver tabla §2) |
 | Colores / estilos globales | `src/Layout.jsx` (tokens `.skeu-*`) y `src/index.css` / `tailwind.config.js`. El dorado de marca es `#C9A84C` |
