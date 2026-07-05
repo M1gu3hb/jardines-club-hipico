@@ -1,5 +1,7 @@
+import { useEffect, useState } from "react";
 import { motion } from "framer-motion";
 import { Star } from "lucide-react";
+import { base44 } from "@/api/base44Client";
 import data from "@/data/resenas.json";
 
 // Estrellas doradas (rellenas según la calificación)
@@ -43,7 +45,38 @@ function ReseñaCard({ r }) {
 }
 
 export default function Confianza() {
-  const { stats = [], rating, googleUrl, resenas = [] } = data;
+  // Arranca con el contenido estático (fallback) y se hidrata desde Supabase.
+  const [contenido, setContenido] = useState(data);
+
+  useEffect(() => {
+    let activo = true;
+    (async () => {
+      try {
+        const [cfgs, revs] = await Promise.all([
+          base44.entities.ResenasConfig.list(),
+          base44.entities.Resena.filter({ aprobada: true }, "orden"),
+        ]);
+        if (!activo) return;
+        const cfg = Array.isArray(cfgs) ? cfgs[0] : null;
+        // Solo sustituimos si Supabase devolvió configuración; si no, se queda el fallback.
+        if (cfg) {
+          setContenido({
+            rating: cfg.rating ?? data.rating,
+            googleUrl: cfg.googleUrl ?? data.googleUrl,
+            stats: Array.isArray(cfg.stats) && cfg.stats.length ? cfg.stats : data.stats,
+            resenas: Array.isArray(revs) ? revs : [],
+          });
+        }
+      } catch {
+        // Silencioso: el sitio ya muestra el contenido estático.
+      }
+    })();
+    return () => {
+      activo = false;
+    };
+  }, []);
+
+  const { stats = [], rating, googleUrl, resenas = [] } = contenido;
   const hayResenas = resenas.length > 0;
   // Duplicamos la lista para el marquee continuo
   const loop = hayResenas ? [...resenas, ...resenas] : [];

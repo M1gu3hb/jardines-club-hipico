@@ -1,121 +1,123 @@
 /**
- * base44Client.js — SHIM local (sin dependencia de Base44)
+ * base44Client.js — SHIM de datos.
  *
- * Reemplaza el SDK de Base44 por un proveedor de datos ESTÁTICO que expone la
- * MISMA API que usaban los componentes (`base44.entities.X.list/filter/create/
- * update/delete`, `base44.functions.invoke`, `base44.integrations.Core.UploadFile`,
- * `base44.auth.*`). Así el resto del código sigue funcionando sin cambios.
+ * Conserva la MISMA API pública que usaban los componentes
+ * (`base44.entities.X.list/filter/get/create/update/delete`, `functions.invoke`,
+ * `integrations.Core.UploadFile`, `auth`), pero por dentro habla con **Supabase**
+ * (schema `jardines`). Los componentes NO cambian por esto.
  *
- * - Lecturas: sirven el contenido congelado desde src/data/site-data.json.
- * - Escrituras (panel admin): mutan un store EN MEMORIA (solo dura la sesión,
- *   no persiste al recargar). El sitio público es 100% estático.
- * - El envío del formulario (functions.invoke) pega a /api/solicitud, una
- *   función serverless de Vercel que manda el correo por Gmail.
+ * - Traduce camelCase (JS) ↔ snake_case (columnas de Postgres) automáticamente.
+ * - Orden: "orden" asc, "-orden" desc, "-created_date" → created_at desc.
+ * - Escrituras: RLS decide (admin para CMS; público solo puede insertar solicitudes).
  */
-import siteData from "@/data/site-data.json";
+import { supabase } from "./supabaseClient";
 
-// ---- store en memoria, sembrado desde el snapshot estático -----------------
-const clone = (v) => JSON.parse(JSON.stringify(v));
-
-const store = {
-  ConfigSitio: clone([siteData.config]),
-  Salon: clone(siteData.salones),
-  Galeria: clone(siteData.galeria),
-  ServicioItem: clone(siteData.servicios),
-  AmenidadItem: clone(siteData.amenidades),
-  ServicioExtra: clone(siteData.serviciosExtra),
-  AlimentoMenu: clone(siteData.alimentos),
-  SolicitudEvento: [],
+// Entidad (nombre que usan los componentes) → tabla en el schema jardines.
+const TABLES = {
+  ConfigSitio: "config_sitio",
+  Salon: "salones",
+  Galeria: "galeria",
+  ServicioItem: "servicios",
+  AmenidadItem: "amenidades",
+  ServicioExtra: "servicios_extra",
+  AlimentoMenu: "alimentos",
+  SolicitudEvento: "solicitudes",
+  ResenasConfig: "resenas_config",
+  Resena: "resenas",
+  Evento: "eventos",
+  Documento: "documentos",
+  ItemContratado: "items_contratados",
+  Perfil: "perfiles",
+  SalonPlano: "salon_planos",
+  EventoReglasMesas: "evento_reglas_mesas",
+  Mesa: "mesas",
+  Invitado: "invitados",
+  Invitacion: "invitaciones",
+  Acceso: "accesos",
+  Cronograma: "cronograma",
+  Musica: "musica",
 };
 
-// id pseudo-aleatorio de 24 hex (imita los ObjectId de Base44)
-function genId() {
-  let s = "";
-  for (let i = 0; i < 24; i++) s += Math.floor(Math.random() * 16).toString(16);
-  return s;
-}
+// Tablas con columna `orden` (para ordenar por defecto cuando no se pasa sort).
+const CON_ORDEN = new Set([
+  "salones", "galeria", "servicios", "amenidades", "servicios_extra", "alimentos",
+  "resenas", "mesas", "cronograma", "items_contratados",
+]);
 
-// Ordena imitando el sort de Base44: "campo" asc, "-campo" desc.
-// Los valores null/undefined se tratan como 0 (van primero en asc), y el
-// orden es estable (conserva el orden de inserción cuando hay empates).
-function sortBy(arr, sort) {
-  const out = arr.map((o, i) => [o, i]);
-  if (!sort) return out.map((x) => x[0]);
+const toSnake = (s) => s.replace(/([A-Z])/g, (m) => "_" + m.toLowerCase());
+const toCamel = (s) => s.replace(/_([a-z0-9])/g, (_, c) => c.toUpperCase());
+const rowToObj = (r) => {
+  if (!r || typeof r !== "object") return r;
+  const o = {};
+  for (const k in r) o[toCamel(k)] = r[k];
+  return o;
+};
+const objToRow = (o) => {
+  const r = {};
+  for (const k in o) if (o[k] !== undefined) r[toSnake(k)] = o[k];
+  return r;
+};
+const rid = () => (globalThis.crypto?.randomUUID ? crypto.randomUUID() : "id-" + Date.now() + Math.random().toString(36).slice(2));
+
+function sortColumn(sort) {
   const desc = sort.startsWith("-");
-  const key = desc ? sort.slice(1) : sort;
-  const val = (o) => {
-    const v = o[key];
-    return v === undefined || v === null ? 0 : v;
-  };
-  out.sort((a, b) => {
-    const va = val(a[0]);
-    const vb = val(b[0]);
-    let c;
-    if (typeof va === "number" && typeof vb === "number") c = va - vb;
-    else c = String(va).localeCompare(String(vb));
-    if (c === 0) c = a[1] - b[1]; // estable
-    return desc ? -c : c;
-  });
-  return out.map((x) => x[0]);
+  let col = desc ? sort.slice(1) : sort;
+  col = col === "created_date" ? "created_at" : toSnake(col);
+  return { col, ascending: !desc };
 }
 
-function matches(obj, query) {
-  if (!query) return true;
-  return Object.keys(query).every((k) => obj[k] === query[k]);
+async function runQuery(table, { sort, filter } = {}) {
+  let q = supabase.from(table).select("*");
+  if (filter) for (const k in filter) q = q.eq(toSnake(k), filter[k]);
+  if (sort) { const { col, ascending } = sortColumn(sort); q = q.order(col, { ascending, nullsFirst: false }); }
+  else if (CON_ORDEN.has(table)) q = q.order("orden", { ascending: true, nullsFirst: false });
+  const { data, error } = await q;
+  if (error) { console.error("[shim] query", table, error.message); return []; }
+  return (data || []).map(rowToObj);
 }
 
 function makeEntity(name) {
-  const rows = () => store[name] || (store[name] = []);
+  const table = TABLES[name] || toSnake(name);
   return {
-    async list(sort) {
-      return clone(sortBy(rows(), sort));
-    },
-    async filter(query, sort) {
-      return clone(sortBy(rows().filter((o) => matches(o, query)), sort));
-    },
-    async get(id) {
-      const found = rows().find((o) => o.id === id);
-      return found ? clone(found) : null;
-    },
+    async list(sort) { return runQuery(table, { sort }); },
+    async filter(filter, sort) { return runQuery(table, { sort, filter }); },
+    async get(id) { const { data } = await supabase.from(table).select("*").eq("id", id).maybeSingle(); return rowToObj(data); },
     async create(data) {
-      const rec = { ...clone(data), id: genId(), created_date: new Date().toISOString() };
-      rows().push(rec);
-      return clone(rec);
+      const row = objToRow(data);
+      if (!row.id) row.id = rid();
+      const { error } = await supabase.from(table).insert(row);
+      if (error) { console.error("[shim] create", table, error.message); throw error; }
+      return rowToObj(row);
     },
     async update(id, patch) {
-      const rec = rows().find((o) => o.id === id);
-      if (rec) Object.assign(rec, clone(patch));
-      return rec ? clone(rec) : null;
+      const row = objToRow(patch);
+      const { data, error } = await supabase.from(table).update(row).eq("id", id).select().maybeSingle();
+      if (error) { console.error("[shim] update", table, error.message); throw error; }
+      return rowToObj(data) || { id, ...patch };
     },
     async delete(id) {
-      const arr = rows();
-      const idx = arr.findIndex((o) => o.id === id);
-      if (idx >= 0) arr.splice(idx, 1);
+      const { error } = await supabase.from(table).delete().eq("id", id);
+      if (error) { console.error("[shim] delete", table, error.message); throw error; }
       return { success: true };
     },
   };
 }
 
-const entities = new Proxy(
-  {},
-  {
-    get(target, prop) {
-      if (typeof prop !== "string") return undefined;
-      if (!target[prop]) target[prop] = makeEntity(prop);
-      return target[prop];
-    },
-  }
-);
+const entities = new Proxy({}, {
+  get(target, prop) {
+    if (typeof prop !== "string") return undefined;
+    if (!target[prop]) target[prop] = makeEntity(prop);
+    return target[prop];
+  },
+});
 
-// ---- functions: envío del formulario por correo ----------------------------
+// Envío del formulario por correo (la función serverless sigue mandando el correo).
 const functions = {
   async invoke(name, payload) {
     if (name === "gmailSolicitud" || name === "notificarNuevaSolicitud") {
       const body = (payload && payload.data) || payload || {};
       const res = await fetch("/api/solicitud", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(body),
+        method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body),
       });
       if (!res.ok) throw new Error(`solicitud ${res.status}`);
       return res.json().catch(() => ({ ok: true }));
@@ -124,23 +126,24 @@ const functions = {
   },
 };
 
-// ---- integraciones (subida de archivos en el admin, solo en memoria) -------
+// Subida de archivos del CMS → bucket público `sitio`.
 const integrations = {
   Core: {
     async UploadFile({ file }) {
-      // URL de objeto temporal: sirve para previsualizar en el admin durante la
-      // sesión. No persiste (el sitio es estático).
-      return { file_url: typeof URL !== "undefined" && file ? URL.createObjectURL(file) : "" };
+      const ext = (file.name.split(".").pop() || "bin").toLowerCase();
+      const path = `cms/${Date.now()}-${Math.random().toString(36).slice(2)}.${ext}`;
+      const { error } = await supabase.storage.from("sitio").upload(path, file, { upsert: false, contentType: file.type || undefined });
+      if (error) throw error;
+      const { data } = supabase.storage.from("sitio").getPublicUrl(path);
+      return { file_url: data.publicUrl };
     },
   },
 };
 
-// ---- auth: stubs (el sitio público no requiere autenticación) --------------
+// Auth → Supabase Auth (los guards y el login por rol se completan en FASE-03).
 const auth = {
-  async me() {
-    throw new Error("auth deshabilitado en el sitio estático");
-  },
-  logout() {},
+  async me() { const { data } = await supabase.auth.getUser(); if (!data?.user) throw new Error("no session"); return data.user; },
+  async logout() { await supabase.auth.signOut(); },
   redirectToLogin() {},
 };
 
