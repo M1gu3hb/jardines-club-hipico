@@ -1,0 +1,16 @@
+insert into jardines.amenidades (titulo, descripcion, imagen_url, imagenes_url, activo, orden) values
+  ('Alberca', 'Refréscate y diviértete en nuestra alberca, un plus perfecto para eventos de día y celebraciones al aire libre.', '/media/img/ja5yba1.mp4', '[]'::jsonb, true, 1),
+  ('Inflables Infantiles', 'Inflables y brincolines para que los niños se diviertan sin parar en un espacio seguro y colorido.', '/media/img/Uz2KwBD.mp4', '[]'::jsonb, true, 2),
+  ('Futbolito Inflable', 'Cancha de futbolito inflable para partidos amistosos y diversión garantizada entre grandes y chicos.', '/media/img/MzZW3Ff.jpg', '[]'::jsonb, true, 3),
+  ('Set fotográfico', 'Un set decorado para tus fotos y recuerdos, perfecto para capturar los mejores momentos de tu evento.', '/media/img/NcBTIFV.png', '[]'::jsonb, true, 4),
+  ('Mega pantalla led', 'Pantalla LED de gran formato para proyectar videos, mensajes o presentaciones y sorprender a tus invitados.', '/media/img/mtRBJJ3.jpeg', '[]'::jsonb, true, 5),
+  ('Pista pixel led', 'Pista de baile con luces LED tipo pixel que iluminan cada paso y le dan un ambiente espectacular a la fiesta.', '/media/img/GtJ1Wu3.jpeg', '["/media/img/aC07OIj.jpeg"]'::jsonb, true, 6),
+  ('Mesa de dulces personalizada', 'Una mesa de dulces montada y decorada con la temática y los colores de tu evento, irresistible para niños y adultos.', '/media/img/ddbmN0D.jpeg', '["/media/img/jluWxWj.jpeg","/media/img/FShLxte.jpg","/media/img/Pngxs7V.jpg","/media/img/GRJqld5.jpg","/media/img/nIQ8Dpu.jpg","/media/img/FEOMxGn.jpg","/media/img/wPHWJqS.jpg"]'::jsonb, true, 7),
+  ('Auto clásico', 'Un auto clásico para tus fotos y para darle un toque elegante y único a tu llegada o a tu sesión fotográfica.', '/media/img/riXnPVK.jpeg', '["/media/img/s01hbrC.jpeg"]'::jsonb, true, 8),
+  ('Variedad en Grupos Musicales', 'Música en vivo para tu evento: contamos con variedad de grupos y géneros para ambientar tu celebración.', null, '["/media/img/Kynp5yD.mp4","/media/img/PWacDhU.mp4","/media/img/uUQNyyb.mp4"]'::jsonb, true, 9),
+  ('Chinelo', 'Chinelos tradicionales para darle color, baile y alegría a tu fiesta con un toque muy mexicano.', null, '["/media/img/dGnzDIS.mp4"]'::jsonb, true, 10),
+  ('Cámara 360', 'Cámara 360° para videos dinámicos y divertidos que tus invitados se llevarán como recuerdo del evento.', null, '["/media/img/lZKF7Tm.mp4"]'::jsonb, true, 11),
+  ('Gladiador', 'Juego de gladiadores inflable para retos llenos de risas y adrenalina entre tus invitados.', '/media/img/E2IyEWO.jpeg', '["/media/img/VndnVrc.jpeg"]'::jsonb, true, 12),
+  ('Aereobonji', 'Atracción de saltos tipo bungee para los más aventureros: diversión segura y emocionante para todas las edades.', '/media/img/MfVlZQx.png', '[]'::jsonb, true, 13),
+  ('Trampolín', 'Trampolines para que los niños salten y se diviertan con seguridad en el área infantil al aire libre.', '/media/img/trampolin.jpg', '[]'::jsonb, true, 14),
+  ('Mago', 'Un mago y cartomago que sorprende a tus invitados con trucos y magia de cerca, perfecto para amenizar cualquier momento.', '/media/img/wRQHmVn.jpeg', '[]'::jsonb, true, 15);
