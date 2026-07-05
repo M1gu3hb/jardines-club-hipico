@@ -27,15 +27,20 @@ variables de entorno, scripts, dependencias, permisos/roles/seguridad.
 
 ## Reglas específicas de ESTE proyecto (no romper)
 
-- **El sitio es ESTÁTICO.** No hay base de datos en vivo. Todo el contenido vive en
-  `src/data/site-data.json`, generado desde `scripts/raw/*.json` con `node scripts/build-media.mjs`.
-- **Fuente de verdad del contenido = `scripts/raw/*.json`.** Si editas contenido ahí, corre
-  `node scripts/build-media.mjs` para regenerar `src/data/site-data.json`. (Editar el JSON
-  generado directamente también funciona, pero se pierde al regenerar.)
-- **El "SDK de Base44" es un SHIM local** (`src/api/base44Client.js`). Sirve datos estáticos y
-  expone la MISMA API que el SDK original (`base44.entities.X.list/filter/create/...`). NO
-  reintroducir dependencias de Base44. Los componentes siguen llamando `base44.entities.X` — eso
-  es intencional, no lo "arregles".
+- **El sitio es DINÁMICO desde FASE-02 (2026-07-05).** El contenido vive en **Supabase**
+  (Postgres, schema `jardines`, proyecto `vuzyhbiwnnngeohysxcw`). `src/data/site-data.json` y
+  `src/data/resenas.json` quedan solo como **fallback estático** (por si Supabase no responde).
+- **El acceso a datos es SOLO el shim `src/api/base44Client.js`.** Por dentro habla con Supabase
+  (`src/api/supabaseClient.js`) pero conserva la MISMA API pública que el SDK de Base44
+  (`base44.entities.X.list/filter/get/create/update/delete`, `functions.invoke`,
+  `integrations.Core.UploadFile`, `auth`) y traduce camelCase↔snake_case. Los componentes NO
+  cambian por esto — siguen llamando `base44.entities.X`. NO reintroducir dependencias de Base44.
+- **Nunca exponer `service_role` ni `GMAIL_APP_PASSWORD` en el front.** El front solo usa la
+  `anon key` (`VITE_SUPABASE_ANON_KEY`). Claves privadas solo en funciones `api/`.
+- **RLS activo en TODAS las tablas** del schema `jardines`. El contenido público es de solo
+  lectura para anónimos; escritura del CMS requiere rol admin.
+- **Para cambiar contenido del sitio se usa el panel Admin (persiste en Supabase)**, no editar
+  JSON. El seed inicial se generó con `scripts/seed-supabase.mjs` (ver `docs/DATABASE.md`).
 - **Los medios se auto-hospedan** en `public/media/`. Si agregas una imagen, ponla ahí y usa la
   ruta `/media/img/...`. Los videos se detectan por extensión (`.mp4|webm|mov|ogg|m4v`).
 - **Formulario → correo:** `src/components/FormularioModal.jsx` → `base44.functions.invoke("gmailSolicitud")`

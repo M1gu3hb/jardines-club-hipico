@@ -140,10 +140,29 @@ const integrations = {
   },
 };
 
-// Auth → Supabase Auth (los guards y el login por rol se completan en FASE-03).
+// Auth → Supabase Auth. Login por rol (admin) y por usuario/contraseña (cliente).
 const auth = {
   async me() { const { data } = await supabase.auth.getUser(); if (!data?.user) throw new Error("no session"); return data.user; },
+  async session() { const { data } = await supabase.auth.getSession(); return data?.session || null; },
+  // Perfil (rol) del usuario logueado. RLS permite leer el perfil propio.
+  async perfil() {
+    const { data: u } = await supabase.auth.getUser();
+    if (!u?.user) return null;
+    const { data } = await supabase.from("perfiles").select("*").eq("user_id", u.user.id).maybeSingle();
+    return rowToObj(data);
+  },
+  // Login admin: email + contraseña directos.
+  async loginEmail(email, password) {
+    const { data, error } = await supabase.auth.signInWithPassword({ email, password });
+    if (error) throw error;
+    return data;
+  },
   async logout() { await supabase.auth.signOut(); },
+  // Reacciona a cambios de sesión (login/logout/refresh). Devuelve un unsubscribe.
+  onChange(cb) {
+    const { data } = supabase.auth.onAuthStateChange((_e, session) => cb(session));
+    return () => data?.subscription?.unsubscribe();
+  },
   redirectToLogin() {},
 };
 

@@ -4,6 +4,10 @@ import { queryClientInstance } from '@/lib/query-client'
 import { pagesConfig } from './pages.config'
 import { BrowserRouter as Router, Route, Routes } from 'react-router-dom';
 import PageNotFound from './lib/PageNotFound';
+import { AuthProvider } from '@/api/authContext';
+import RequireAdmin from '@/components/auth/RequireAdmin';
+import Admin from '@/pages/Admin';
+import { ADMIN_SLUG } from '@/config/portal';
 
 const { Pages, Layout, mainPage } = pagesConfig;
 const mainPageKey = mainPage ?? Object.keys(Pages)[0];
@@ -13,30 +17,44 @@ const LayoutWrapper = ({ children, currentPageName }) => Layout ?
   <Layout currentPageName={currentPageName}>{children}</Layout>
   : <>{children}</>;
 
+// El panel Admin NO se expone en su ruta por defecto (/Admin queda como 404).
+// Solo vive tras el guard, en la ruta secreta ADMIN_SLUG.
+const publicPages = Object.entries(Pages).filter(([path]) => path !== 'Admin');
+
 function App() {
   return (
     <QueryClientProvider client={queryClientInstance}>
-      <Router>
-        <Routes>
-          <Route path="/" element={
-            <LayoutWrapper currentPageName={mainPageKey}>
-              <MainPage />
-            </LayoutWrapper>
-          } />
-          {Object.entries(Pages).map(([path, Page]) => (
-            <Route
-              key={path}
-              path={`/${path}`}
-              element={
-                <LayoutWrapper currentPageName={path}>
-                  <Page />
-                </LayoutWrapper>
-              }
-            />
-          ))}
-          <Route path="*" element={<PageNotFound />} />
-        </Routes>
-      </Router>
+      <AuthProvider>
+        <Router>
+          <Routes>
+            <Route path="/" element={
+              <LayoutWrapper currentPageName={mainPageKey}>
+                <MainPage />
+              </LayoutWrapper>
+            } />
+
+            {/* Ruta secreta del admin (no adivinable, sin enlaces públicos). */}
+            <Route path={`/${ADMIN_SLUG}`} element={
+              <RequireAdmin>
+                <Admin />
+              </RequireAdmin>
+            } />
+
+            {publicPages.map(([path, Page]) => (
+              <Route
+                key={path}
+                path={`/${path}`}
+                element={
+                  <LayoutWrapper currentPageName={path}>
+                    <Page />
+                  </LayoutWrapper>
+                }
+              />
+            ))}
+            <Route path="*" element={<PageNotFound />} />
+          </Routes>
+        </Router>
+      </AuthProvider>
       <Toaster />
     </QueryClientProvider>
   )
