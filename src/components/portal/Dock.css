@@ -23,10 +23,18 @@
   box-shadow: 0 10px 30px -10px rgba(0, 0, 0, 0.7);
   padding: 0 0.55rem 0.55rem;
   pointer-events: auto;
-  overflow-x: auto;
+  /* overflow VISIBLE en desktop: así el ícono magnificado y su etiqueta NO se
+     recortan al hover (overflow-x:auto forzaba recorte vertical). */
+  overflow: visible;
   scrollbar-width: none;
 }
 .dock-panel::-webkit-scrollbar { display: none; }
+/* En pantallas táctiles (sin hover) no hay magnificación: permitir scroll
+   horizontal si hay muchas secciones. El recorte vertical no molesta ahí. */
+@media (pointer: coarse) {
+  .dock-panel { overflow-x: auto; overflow-y: hidden; }
+  .dock-label { display: none; }
+}
 .dock-item {
   position: relative;
   display: inline-flex;

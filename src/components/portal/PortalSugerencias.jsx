@@ -3,6 +3,7 @@ import { motion } from "framer-motion";
 import { Lightbulb, X, MessageCircle } from "lucide-react";
 import { base44 } from "@/api/base44Client";
 import { sugerirParaEvento } from "@/lib/sugerencias";
+import { poolSugerible } from "@/lib/catalogo";
 
 /**
  * PortalSugerencias — ideas inteligentes para el evento del cliente.
@@ -25,15 +26,13 @@ export default function PortalSugerencias({ evento }) {
     let activo = true;
     (async () => {
       try {
-        const [servicios, amenidades, extras, cfg] = await Promise.all([
-          base44.entities.ServicioItem.filter({ activo: true }, "orden"),
-          base44.entities.AmenidadItem.filter({ activo: true }, "orden"),
-          base44.entities.ServicioExtra.filter({ activo: true }, "orden"),
+        const [pool, cfg] = await Promise.all([
+          poolSugerible(),
           base44.entities.ConfigSitio.list(),
         ]);
         if (!activo) return;
         setWhatsapp(cfg?.[0]?.whatsappNumero || null);
-        setSugerencias(sugerirParaEvento(evento, { servicios, amenidades, extras }, 3));
+        setSugerencias(sugerirParaEvento(evento, pool, 3));
       } catch {
         if (activo) setSugerencias([]);
       }

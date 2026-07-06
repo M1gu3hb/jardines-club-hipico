@@ -184,26 +184,29 @@ export default function AdminEventos() {
         </div>
         {["Todos", ...ESTATUS].map((s) => (
           <button key={s} onClick={() => setFiltro(s)}
-            className={`px-3 py-2 text-xs transition-all ${filtro === s ? "bg-[#C9A84C]/15 text-[#C9A84C]" : "text-white/30 hover:text-white/60 border border-white/5"}`}>
+            className={`px-3.5 py-2 text-xs rounded-full transition-all ${filtro === s ? "bg-[#C9A84C]/15 text-[#C9A84C] border border-[#C9A84C]/40" : "text-white/30 hover:text-white/60 border border-white/10"}`}>
             {s}
           </button>
         ))}
       </div>
 
-      <div className="space-y-2">
+      <div className="space-y-2.5">
         {lista.map((e) => (
           <button key={e.id} onClick={() => setAbierto(e)}
-            className="w-full flex items-center gap-4 bg-[#111] border border-white/5 hover:border-[#C9A84C]/25 px-5 py-4 text-left transition-all">
+            className="skeu-card skeu-card-hover w-full flex items-center gap-4 px-5 py-4 text-left">
+            <div className="w-10 h-10 rounded-full bg-[#C9A84C]/10 border border-[#C9A84C]/20 flex items-center justify-center flex-shrink-0">
+              <Calendar size={16} className="text-[#C9A84C]/70" />
+            </div>
             <div className="flex-1 min-w-0">
-              <p className="text-white/85 text-sm truncate">{e.nombreEvento}</p>
-              <div className="flex items-center gap-3 mt-1 text-white/30 text-xs">
-                <span className="flex items-center gap-1"><Calendar size={11} />{e.fechaEvento || "sin fecha"}</span>
+              <p className="text-white/90 text-sm font-medium truncate">{e.nombreEvento}</p>
+              <div className="flex items-center gap-3 mt-1 text-white/35 text-xs">
+                <span>{e.fechaEvento || "sin fecha"}</span>
                 <span className="flex items-center gap-1 truncate"><User size={11} />{e.clienteNombre || e.usuario || "—"}</span>
-                <span className="truncate">{salonNombre(e.salonId)}</span>
+                <span className="truncate hidden sm:inline">{salonNombre(e.salonId)}</span>
               </div>
             </div>
-            {e.portalActivo && <span className="flex items-center gap-1 text-green-400/70 text-xs"><DoorOpen size={12} /> Portal</span>}
-            <span className={`text-xs px-2 py-1 ${estatusColor(e.estatus)}`}>{e.estatus || "Apartado"}</span>
+            {e.portalActivo && <span className="flex items-center gap-1 text-green-400/70 text-xs flex-shrink-0"><DoorOpen size={12} /> Portal</span>}
+            <span className={`text-xs px-2.5 py-1 rounded-full flex-shrink-0 ${estatusColor(e.estatus)}`}>{e.estatus || "Apartado"}</span>
           </button>
         ))}
         {lista.length === 0 && <p className="text-white/20 text-sm py-8 text-center">No hay eventos que coincidan.</p>}

@@ -58,6 +58,8 @@ const BOOST_GENERAL = [
   "fotógrafo", "barra tipo bar", "mariachi", "jardines",
 ];
 
+import { imagenDe } from "./media";
+
 const norm = (s) => String(s || "").toLowerCase();
 
 function perfilDe(tipoEvento) {
@@ -112,43 +114,35 @@ function semillaDiaria(eventoId) {
 }
 
 /**
- * @param {object} evento     evento del cliente (tipoEvento, id)
- * @param {object} catalogo   { servicios: [], amenidades: [], extras: [] } (camelCase del shim)
- * @param {number} cuantas    cuántas sugerencias devolver (default 3)
+ * @param {object} evento   evento del cliente (tipoEvento, id)
+ * @param {Array}  pool      lista PLANA de ítems sugeribles (amenidades/servicios ya
+ *                           filtrados por portal_sugerible); cada uno con .origen.
+ * @param {number} cuantas   cuántas sugerencias devolver (default 3)
  * @returns {Array<{titulo, descripcion, imagenUrl, razon, origen}>}
  */
-export function sugerirParaEvento(evento, catalogo, cuantas = 3) {
+export function sugerirParaEvento(evento, pool, cuantas = 3) {
   const perfil = perfilDe(evento?.tipoEvento);
   const boost = perfil ? perfil.boost : BOOST_GENERAL;
   const razonBase = perfil ? perfil.razon : "Ideal para tu celebración";
+  const lista = Array.isArray(pool) ? pool : [];
 
   const candidatos = [];
-  const agregar = (item, origen) => {
-    const texto = norm(item.titulo || item.nombre) + " " + norm(item.descripcion);
-    let score = 0;
+  lista.forEach((item) => {
+    const nombre = item.titulo || item.nombre;
+    const texto = norm(nombre) + " " + norm(item.descripcion);
+    let score = 1; // base: todo lo sugerible es candidato válido
     boost.forEach((k, i) => {
       if (texto.includes(k)) score += (boost.length - i) * 10; // antes en la lista = más peso
     });
-    // extras con aplica_a específico: fuerte señal si coincide con el tipo, fuera si no.
-    if (origen === "extra" && item.aplicaA && norm(item.aplicaA) !== "todos") {
-      if (perfil && norm(item.aplicaA).includes(perfil.id)) score += 100;
-      else if (!norm(evento?.tipoEvento).includes(norm(item.aplicaA))) score = -1;
-    }
-    if (score > 0) {
-      candidatos.push({
-        titulo: item.titulo || item.nombre,
-        descripcion: item.descripcion || "",
-        imagenUrl: item.imagenUrl || item.imagenesUrl?.[0] || null,
-        razon: razonBase,
-        origen,
-        score,
-      });
-    }
-  };
-
-  (catalogo.servicios || []).forEach((s) => agregar(s, "servicio"));
-  (catalogo.amenidades || []).forEach((a) => agregar(a, "amenidad"));
-  (catalogo.extras || []).forEach((e) => agregar(e, "extra"));
+    candidatos.push({
+      titulo: nombre,
+      descripcion: item.descripcion || "",
+      imagenUrl: imagenDe(item),
+      razon: razonBase,
+      origen: item.origen || "amenidad",
+      score,
+    });
+  });
 
   // Ordenar por puntaje; los que tienen imagen se ven mejor → pequeño empujón.
   candidatos.sort((a, b) => (b.score + (b.imagenUrl ? 5 : 0)) - (a.score + (a.imagenUrl ? 5 : 0)));

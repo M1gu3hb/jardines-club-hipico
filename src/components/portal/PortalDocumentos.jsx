@@ -1,8 +1,15 @@
 import { useState, useEffect } from "react";
 import { base44 } from "@/api/base44Client";
-import { FileText, Download, Loader2 } from "lucide-react";
+import { FileText, Download, Loader2, FileSignature, ReceiptText, FileCheck2 } from "lucide-react";
 
 const BUCKET = "clientes";
+
+const ICONO = {
+  contrato: FileSignature,
+  cotizacion: ReceiptText,
+  comprobante: FileCheck2,
+  otro: FileText,
+};
 
 export default function PortalDocumentos({ eventoId }) {
   const [docs, setDocs] = useState([]);
@@ -29,25 +36,32 @@ export default function PortalDocumentos({ eventoId }) {
 
   return (
     <div className="max-w-xl mx-auto">
-      <div className="space-y-2">
-        {docs.map((d) => (
-          <div key={d.id} className="flex items-center gap-3 skeu-card px-4 py-3.5">
-            <FileText size={18} className="text-[#C9A84C]/60 flex-shrink-0" />
-            <div className="flex-1 min-w-0">
-              <p className="text-white/80 text-sm truncate">{d.titulo}</p>
-              <p className="text-white/25 text-xs capitalize">{d.tipo}</p>
+      <div className="space-y-3">
+        {docs.map((d) => {
+          const Icono = ICONO[d.tipo] || FileText;
+          return (
+            <div key={d.id} className="skeu-card skeu-card-hover flex items-center gap-4 px-4 py-4">
+              <div className="w-12 h-12 rounded-xl bg-[#C9A84C]/10 border border-[#C9A84C]/20 flex items-center justify-center flex-shrink-0">
+                <Icono size={20} className="text-[#C9A84C]/80" />
+              </div>
+              <div className="flex-1 min-w-0">
+                <p className="text-white/85 text-sm font-medium truncate">{d.titulo}</p>
+                <p className="text-white/30 text-xs capitalize mt-0.5">{d.tipo}</p>
+              </div>
+              <button onClick={() => abrir(d)} disabled={abriendo === d.id}
+                className="skeu-dark-btn flex items-center gap-1.5 text-xs px-4 py-2 rounded-full flex-shrink-0 disabled:opacity-50">
+                {abriendo === d.id ? <Loader2 size={13} className="animate-spin" /> : <Download size={13} />} Ver
+              </button>
             </div>
-            <button onClick={() => abrir(d)} disabled={abriendo === d.id}
-              className="flex items-center gap-1.5 text-[#C9A84C] text-xs border border-[#C9A84C]/30 px-3 py-1.5 hover:bg-[#C9A84C]/10 transition-all disabled:opacity-50">
-              {abriendo === d.id ? <Loader2 size={13} className="animate-spin" /> : <Download size={13} />} Ver
-            </button>
-          </div>
-        ))}
+          );
+        })}
         {docs.length === 0 && (
-          <div className="text-center py-10">
-            <FileText size={26} className="text-[#C9A84C]/30 mx-auto mb-3" />
-            <p className="text-white/40 text-sm">Aún no hay documentos por aquí.</p>
-            <p className="text-white/25 text-xs mt-1">En cuanto tu coordinador suba tu cotización o contrato, los verás en este espacio.</p>
+          <div className="text-center py-14">
+            <div className="w-16 h-16 rounded-full bg-[#C9A84C]/8 border border-[#C9A84C]/15 flex items-center justify-center mx-auto mb-4">
+              <FileText size={26} className="text-[#C9A84C]/40" />
+            </div>
+            <p className="text-white/45 text-sm">Aún no hay documentos por aquí.</p>
+            <p className="text-white/25 text-xs mt-1.5 max-w-xs mx-auto">En cuanto tu coordinador suba tu cotización o contrato, lo verás en este espacio y te avisaremos.</p>
           </div>
         )}
       </div>

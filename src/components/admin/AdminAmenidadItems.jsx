@@ -132,6 +132,16 @@ function ItemForm({ form, setForm, onSave, onCancel }) {
           <button onClick={addUrl} className="border border-white/20 text-white/50 px-3 py-1.5 text-xs hover:text-white hover:border-[#C9A84C]/40 transition-colors">+ Añadir</button>
         </div>
       </div>
+      <button type="button" onClick={() => set("portalSugerible", form.portalSugerible === false ? true : false)}
+        className="flex items-center gap-2.5 text-left pt-1">
+        <span className={`w-5 h-5 rounded-sm border flex items-center justify-center transition-all flex-shrink-0 ${form.portalSugerible !== false ? "border-[#C9A84C] bg-[#C9A84C]" : "border-white/20"}`}>
+          {form.portalSugerible !== false && <Check size={10} className="text-black" />}
+        </span>
+        <span>
+          <span className="text-white/60 text-xs">Sugerir en el portal del cliente</span>
+          <span className="block text-white/25 text-[11px]">Aparece en "Arma tu evento" para que el cliente la agregue a su lista.</span>
+        </span>
+      </button>
       <div className="flex gap-2 pt-1">
         <button onClick={onSave} className="flex items-center gap-1.5 bg-[#C9A84C] text-black px-4 py-2 text-xs font-medium hover:bg-[#d4b558]">
           <Check size={12} /> Guardar

@@ -41,6 +41,18 @@ export function eventoYaPaso(evento) {
   return dias !== null && dias < 0;
 }
 
+/** "18:00" (24h) → "6:00 p.m." legible. */
+export function horaLegible(hhmm) {
+  const m = String(hhmm || "").match(/^(\d{1,2}):(\d{2})/);
+  if (!m) return "";
+  let h = Number(m[1]);
+  const min = m[2];
+  const ampm = h >= 12 ? "p.m." : "a.m.";
+  let h12 = h % 12;
+  if (h12 === 0) h12 = 12;
+  return `${h12}:${min} ${ampm}`;
+}
+
 /** "hace 5 min" / "hace 3 h" / "hace 2 días" a partir de un timestamp ISO. */
 export function tiempoRelativo(iso) {
   if (!iso) return "";

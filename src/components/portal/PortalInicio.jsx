@@ -3,7 +3,7 @@ import { motion } from "framer-motion";
 import { base44 } from "@/api/base44Client";
 import {
   Calendar, MapPin, Tag, CheckCircle2, Loader2, Sparkles,
-  FileText, Clock, Music, LayoutGrid, ChevronRight, Heart, Star,
+  FileText, Clock, Music, LayoutGrid, ChevronRight, Heart, Star, Wallet,
 } from "lucide-react";
 import { estatusColor } from "@/components/admin/eventos/_ui";
 import { fechaLarga, diasFaltantes, eventoYaPaso } from "@/lib/fechas";
@@ -183,6 +183,34 @@ export default function PortalInicio({ evento, salon, onConfirmado, onIr }) {
             </div>
           ))}
         </div>
+
+        {/* Progreso de pago (si el admin capturó montos) */}
+        {Number(evento.montoTotal) > 0 && (() => {
+          const total = Number(evento.montoTotal);
+          const pagado = Number(evento.anticipoMonto) || 0;
+          const resta = Math.max(0, total - pagado);
+          const pct = Math.min(100, Math.round((pagado / total) * 100));
+          const liquidado = resta === 0;
+          const fmt = (n) => "$" + n.toLocaleString("es-MX");
+          return (
+            <div className="mt-5 pt-5 border-t border-white/5">
+              <div className="flex items-center justify-between mb-2">
+                <span className="portal-eyebrow flex items-center gap-1.5"><Wallet size={12} /> Tu anticipo</span>
+                {liquidado
+                  ? <span className="text-green-400/80 text-xs flex items-center gap-1"><CheckCircle2 size={12} /> Liquidado</span>
+                  : pagado > 0 && <span className="text-[#E6C870] text-xs">Anticipo recibido ✓</span>}
+              </div>
+              <div className="h-2 rounded-full bg-white/5 overflow-hidden">
+                <motion.div initial={{ width: 0 }} animate={{ width: `${pct}%` }} transition={{ duration: 0.9, ease: [0.16, 1, 0.3, 1] }}
+                  className="h-full rounded-full" style={{ background: "linear-gradient(90deg,#A88532,#E6C870)" }} />
+              </div>
+              <div className="flex items-center justify-between mt-2 text-xs">
+                <span className="text-white/50">Llevas <span className="text-[#E6C870]">{fmt(pagado)}</span> de {fmt(total)}</span>
+                {!liquidado && <span className="text-white/40">Te resta <span className="text-white/70">{fmt(resta)}</span></span>}
+              </div>
+            </div>
+          );
+        })()}
       </motion.div>
 
       {/* ===== Tu avance (accesos directos) ===== */}

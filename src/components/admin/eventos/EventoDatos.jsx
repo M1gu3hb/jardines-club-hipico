@@ -35,7 +35,9 @@ export default function EventoDatos({ evento, salones, onActualizado }) {
       clienteTelefono: form.clienteTelefono || null,
       notas: form.notas || null,
       portalActivo: !!form.portalActivo,
-      anticipoPagado: !!form.anticipoPagado,
+      montoTotal: form.montoTotal !== "" && form.montoTotal != null ? Number(form.montoTotal) : null,
+      anticipoMonto: form.anticipoMonto !== "" && form.anticipoMonto != null ? Number(form.anticipoMonto) : null,
+      anticipoPagado: Number(form.anticipoMonto) > 0 ? true : !!form.anticipoPagado,
     };
     const actualizado = await base44.entities.Evento.update(evento.id, patch);
     setGuardando(false);
@@ -105,8 +107,23 @@ export default function EventoDatos({ evento, salones, onActualizado }) {
 
       <Area label="Notas internas" value={form.notas} onChange={(v) => set("notas", v)} />
 
+      {/* Pagos / anticipo */}
       <div className="border-t border-white/5 pt-4 space-y-3">
-        <Toggle label="Anticipo pagado" checked={!!form.anticipoPagado} onChange={(v) => set("anticipoPagado", v)} />
+        <p className="text-white/40 text-xs uppercase tracking-wider">Pagos del evento</p>
+        <div className="grid grid-cols-2 gap-3">
+          <Field label="Monto total (MXN)" value={form.montoTotal ?? ""} onChange={(v) => set("montoTotal", v)} type="number" />
+          <Field label="Anticipo pagado (MXN)" value={form.anticipoMonto ?? ""} onChange={(v) => set("anticipoMonto", v)} type="number" />
+        </div>
+        {Number(form.montoTotal) > 0 && (
+          <p className="text-white/40 text-xs">
+            Pagado <span className="text-[#C9A84C]">${(Number(form.anticipoMonto) || 0).toLocaleString("es-MX")}</span> de
+            ${Number(form.montoTotal).toLocaleString("es-MX")} · resta
+            <span className="text-[#C9A84C]"> ${Math.max(0, Number(form.montoTotal) - (Number(form.anticipoMonto) || 0)).toLocaleString("es-MX")}</span>
+          </p>
+        )}
+      </div>
+
+      <div className="border-t border-white/5 pt-4 space-y-3">
         <Toggle label="Portal activo" hint="Prende el acceso del cliente a su portal (tras el anticipo)."
           checked={!!form.portalActivo} onChange={(v) => set("portalActivo", v)} />
       </div>

@@ -1,23 +1,34 @@
 import { useState, useEffect, useCallback } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import {
-  Sparkles, Plus, Check, X, Lightbulb, StickyNote, Trash2, Loader2, Heart,
+  Sparkles, Plus, Check, X, Lightbulb, StickyNote, Trash2, Loader2, Heart, Wand2,
 } from "lucide-react";
 import { base44 } from "@/api/base44Client";
 import { sugerirParaEvento, mensajeEleccion } from "@/lib/sugerencias";
+import { poolSugerible } from "@/lib/catalogo";
+import { imagenDe } from "@/lib/media";
 import { notificarDueno } from "@/lib/notificar";
 import Celebracion from "./Celebracion";
 
+/** Miniatura: imagen real o ícono dorado (nunca imagen rota). */
+function Miniatura({ src, size = 56 }) {
+  if (src) {
+    return <img src={src} alt="" style={{ width: size, height: size }} className="rounded-xl object-cover flex-shrink-0" loading="lazy" />;
+  }
+  return (
+    <div style={{ width: size, height: size }} className="rounded-xl bg-gradient-to-br from-[#C9A84C]/15 to-[#C9A84C]/5 border border-[#C9A84C]/15 flex items-center justify-center flex-shrink-0">
+      <Wand2 size={size * 0.34} className="text-[#C9A84C]/60" />
+    </div>
+  );
+}
+
 /**
  * PortalArmalo — "Arma tu evento a tu gusto".
- *
- * El cliente explora el catálogo real del club, agrega lo que le ilusiona a SU
- * lista (wishlist) y escribe sus notas e ideas. NADA de esto modifica su
- * contrato: es su espacio creativo. Cada interés le llega al dueño como
- * notificación (dashboard + correo) para darle seguimiento personal.
+ * El cliente explora add-ons reales del club y arma su lista de deseos + notas.
+ * Nada modifica su contrato; cada interés le llega al dueño (dashboard + correo).
  */
 export default function PortalArmalo({ evento }) {
-  const [catalogo, setCatalogo] = useState(null);
+  const [pool, setPool] = useState(null);
   const [lista, setLista] = useState([]);
   const [notas, setNotas] = useState([]);
   const [pestana, setPestana] = useState("ideas");
@@ -25,7 +36,7 @@ export default function PortalArmalo({ evento }) {
   const [celebrar, setCelebrar] = useState(false);
   const [notaTexto, setNotaTexto] = useState("");
   const [guardandoNota, setGuardandoNota] = useState(false);
-  const [ocupado, setOcupado] = useState(null); // titulo del ítem que se está agregando
+  const [ocupado, setOcupado] = useState(null);
 
   const cargarLista = useCallback(() => {
     base44.entities.EventoWishlist.filter({ eventoId: evento.id }, "-created_date").then(setLista);
@@ -36,14 +47,7 @@ export default function PortalArmalo({ evento }) {
 
   useEffect(() => {
     let activo = true;
-    (async () => {
-      const [servicios, amenidades, extras] = await Promise.all([
-        base44.entities.ServicioItem.filter({ activo: true }, "orden"),
-        base44.entities.AmenidadItem.filter({ activo: true }, "orden"),
-        base44.entities.ServicioExtra.filter({ activo: true }, "orden"),
-      ]);
-      if (activo) setCatalogo({ servicios, amenidades, extras });
-    })();
+    poolSugerible().then((p) => { if (activo) setPool(p); }).catch(() => { if (activo) setPool([]); });
     cargarLista();
     cargarNotas();
     return () => { activo = false; };
@@ -59,12 +63,11 @@ export default function PortalArmalo({ evento }) {
       setMensaje(mensajeEleccion(titulo, evento.tipoEvento));
       setCelebrar(true);
       cargarLista();
-      // El dueño se entera (dashboard + correo), sin frenar al cliente.
       notificarDueno({
         eventoId: evento.id,
         tipo: "interes",
         titulo: `💡 ${evento.nombreEvento} está interesado en: ${titulo}`,
-        detalle: `${evento.clienteNombre || "El cliente"} lo agregó a su lista de deseos desde su portal (${origen}).`,
+        detalle: `${evento.clienteNombre || "El cliente"} lo agregó a su lista de deseos desde su portal.`,
       });
     } catch (e) {
       console.error("[armalo] agregar:", e.message);
@@ -73,10 +76,7 @@ export default function PortalArmalo({ evento }) {
     }
   };
 
-  const quitar = async (item) => {
-    await base44.entities.EventoWishlist.delete(item.id);
-    cargarLista();
-  };
+  const quitar = async (item) => { await base44.entities.EventoWishlist.delete(item.id); cargarLista(); };
 
   const agregarNota = async () => {
     if (!notaTexto.trim()) return;
@@ -86,32 +86,19 @@ export default function PortalArmalo({ evento }) {
     setGuardandoNota(false);
     cargarNotas();
   };
-  const borrarNota = async (n) => {
-    await base44.entities.EventoNota.delete(n.id);
-    cargarNotas();
-  };
+  const borrarNota = async (n) => { await base44.entities.EventoNota.delete(n.id); cargarNotas(); };
 
-  const sugerencias = catalogo
-    ? sugerirParaEvento(evento, catalogo, 4).filter((s) => !enLista(s.titulo))
-    : [];
-
-  const itemsPestana = !catalogo ? [] : (
-    pestana === "ideas" ? [] :
-    pestana === "servicios" ? catalogo.servicios.map((s) => ({ ...s, origen: "servicio" })) :
-    pestana === "amenidades" ? catalogo.amenidades.map((a) => ({ ...a, origen: "amenidad" })) :
-    catalogo.extras.map((e) => ({ ...e, titulo: e.titulo || e.nombre, origen: "extra" }))
-  );
+  const sugerencias = pool ? sugerirParaEvento(evento, pool, 5).filter((s) => !enLista(s.titulo)) : [];
+  const explorar = pool || [];
 
   return (
     <div className="relative">
       {/* Chispas al agregar */}
       <div className="pointer-events-none fixed inset-0 z-50 flex items-center justify-center">
-        <div className="relative w-1 h-1">
-          <Celebracion activo={celebrar} onFin={() => setCelebrar(false)} tam={190} />
-        </div>
+        <div className="relative w-1 h-1"><Celebracion activo={celebrar} onFin={() => setCelebrar(false)} tam={190} /></div>
       </div>
 
-      {/* Mensaje encantador al agregar */}
+      {/* Mensaje encantador */}
       <AnimatePresence>
         {mensaje && (
           <motion.div
@@ -130,86 +117,89 @@ export default function PortalArmalo({ evento }) {
 
       {/* Mi lista */}
       {lista.length > 0 && (
-        <div className="mb-6">
-          <p className="portal-eyebrow mb-2 flex items-center gap-1.5"><Heart size={12} /> Mi lista ({lista.length})</p>
+        <div className="skeu-card p-5 mb-6">
+          <p className="portal-eyebrow mb-3 flex items-center gap-1.5"><Heart size={12} className="text-[#E6C870]" /> Mi lista de deseos · {lista.length}</p>
           <div className="flex flex-wrap gap-2">
             {lista.map((w) => (
-              <span key={w.id} className="flex items-center gap-2 bg-[#C9A84C]/10 border border-[#C9A84C]/30 text-[#E6C870] text-xs px-3 py-2 rounded-full">
+              <span key={w.id} className="flex items-center gap-2 bg-[#C9A84C]/12 border border-[#C9A84C]/35 text-[#E6C870] text-xs px-3 py-2 rounded-full">
                 {w.titulo}
                 <button onClick={() => quitar(w)} aria-label={`Quitar ${w.titulo}`} className="text-[#C9A84C]/50 hover:text-red-400 transition-colors"><X size={11} /></button>
               </span>
             ))}
           </div>
-          <p className="text-white/25 text-[11px] mt-2">Tu coordinador ya puede ver tu lista y te contactará para hacerla realidad. Nada se agrega ni se cobra automáticamente.</p>
+          <p className="text-white/30 text-[11px] mt-3">Tu coordinador ya ve tu lista y te contactará para hacerla realidad. Nada se agrega ni se cobra automáticamente.</p>
         </div>
       )}
 
-      {/* Pestañas del catálogo */}
+      {/* Pestañas */}
       <div className="flex gap-2 mb-4">
         {[
           { id: "ideas", label: "Ideas para ti", icon: Lightbulb },
-          { id: "servicios", label: "Servicios" },
-          { id: "amenidades", label: "Amenidades" },
-          { id: "extras", label: "Extras" },
+          { id: "explorar", label: "Explorar todo", icon: Sparkles },
         ].map((t) => (
           <button key={t.id} onClick={() => setPestana(t.id)}
-            className={`flex items-center gap-1.5 px-3 py-2 text-xs rounded-full transition-all ${
+            className={`flex items-center gap-1.5 px-4 py-2 text-xs rounded-full transition-all ${
               pestana === t.id ? "bg-[#C9A84C]/15 text-[#C9A84C] border border-[#C9A84C]/40" : "text-white/35 border border-white/10 hover:text-white/60"
             }`}>
-            {t.icon && <t.icon size={12} />} {t.label}
+            <t.icon size={12} /> {t.label}
           </button>
         ))}
       </div>
 
-      {!catalogo && <p className="text-white/25 text-sm py-8 text-center">Preparando el catálogo…</p>}
+      {!pool && <p className="text-white/25 text-sm py-8 text-center">Preparando ideas para tu evento…</p>}
 
       {/* Ideas inteligentes */}
-      {catalogo && pestana === "ideas" && (
-        <div className="space-y-2">
+      {pool && pestana === "ideas" && (
+        <div className="space-y-2.5">
           {sugerencias.map((s) => (
-            <div key={s.titulo} className="skeu-card flex items-center gap-3 p-3">
-              {s.imagenUrl ? (
-                <img src={s.imagenUrl} alt="" className="w-14 h-14 rounded-xl object-cover flex-shrink-0" loading="lazy" />
-              ) : (
-                <div className="w-14 h-14 rounded-xl bg-[#C9A84C]/10 flex items-center justify-center flex-shrink-0"><Lightbulb size={18} className="text-[#C9A84C]/50" /></div>
-              )}
+            <motion.div key={s.titulo} layout className="skeu-card skeu-card-hover flex items-center gap-3.5 p-3">
+              <Miniatura src={s.imagenUrl} />
               <div className="flex-1 min-w-0">
-                <p className="text-white/85 text-sm truncate">{s.titulo}</p>
-                <p className="text-[#C9A84C]/55 text-[11px]">{s.razon}</p>
+                <p className="text-white/85 text-sm font-medium truncate">{s.titulo}</p>
+                <p className="text-[#C9A84C]/60 text-[11px] flex items-center gap-1"><Sparkles size={9} /> {s.razon}</p>
               </div>
               <button onClick={() => agregar(s.titulo, s.origen)} disabled={!!ocupado}
-                className="flex items-center gap-1.5 skeu-gold-btn text-xs px-3.5 py-2 rounded-full flex-shrink-0 disabled:opacity-50">
+                className="flex items-center gap-1.5 skeu-gold-btn text-xs px-4 py-2 rounded-full flex-shrink-0 disabled:opacity-50">
                 {ocupado === s.titulo ? <Loader2 size={12} className="animate-spin" /> : <Plus size={13} />} A mi lista
               </button>
-            </div>
+            </motion.div>
           ))}
           {sugerencias.length === 0 && (
-            <p className="text-white/25 text-sm py-6 text-center">¡Ya agregaste nuestras ideas favoritas! Explora el catálogo completo en las pestañas.</p>
+            <p className="text-white/25 text-sm py-6 text-center">¡Ya agregaste nuestras ideas favoritas! Mira todo el catálogo en "Explorar todo".</p>
           )}
         </div>
       )}
 
-      {/* Catálogo por pestaña */}
-      {catalogo && pestana !== "ideas" && (
-        <div className="grid grid-cols-2 gap-2.5">
-          {itemsPestana.map((it) => {
+      {/* Explorar catálogo sugerible */}
+      {pool && pestana === "explorar" && (
+        <div className="grid grid-cols-2 gap-3">
+          {explorar.map((it) => {
             const titulo = it.titulo || it.nombre;
-            const img = it.imagenUrl || it.imagenesUrl?.[0] || null;
+            const img = imagenDe(it);
             const ya = enLista(titulo);
             return (
-              <div key={titulo} className="skeu-card p-3 flex flex-col">
-                {img && <img src={img} alt="" className="w-full h-20 rounded-xl object-cover mb-2" loading="lazy" />}
-                <p className="text-white/80 text-xs leading-snug flex-1">{titulo}</p>
-                <button onClick={() => agregar(titulo, it.origen)} disabled={ya || !!ocupado}
-                  className={`mt-2.5 flex items-center justify-center gap-1.5 text-xs px-3 py-2 rounded-full transition-all ${
-                    ya ? "bg-[#C9A84C]/10 text-[#C9A84C]/70 border border-[#C9A84C]/25 cursor-default"
-                       : "border border-white/15 text-white/60 hover:border-[#C9A84C]/50 hover:text-[#C9A84C]"
-                  }`}>
-                  {ya ? <><Check size={12} /> En tu lista</> : ocupado === titulo ? <Loader2 size={12} className="animate-spin" /> : <><Plus size={12} /> Agregar</>}
-                </button>
+              <div key={titulo} className="skeu-card overflow-hidden flex flex-col">
+                {img ? (
+                  <img src={img} alt="" className="w-full h-24 object-cover" loading="lazy" />
+                ) : (
+                  <div className="w-full h-24 bg-gradient-to-br from-[#C9A84C]/12 to-transparent flex items-center justify-center">
+                    <Wand2 size={22} className="text-[#C9A84C]/40" />
+                  </div>
+                )}
+                <div className="p-3 flex flex-col flex-1">
+                  <p className="text-white/80 text-xs leading-snug flex-1">{titulo}</p>
+                  <button onClick={() => agregar(titulo, it.origen)} disabled={ya || !!ocupado}
+                    className={`mt-2.5 flex items-center justify-center gap-1.5 text-xs px-3 py-2 rounded-full transition-all ${
+                      ya ? "bg-[#C9A84C]/12 text-[#E6C870] border border-[#C9A84C]/30 cursor-default"
+                         : "border border-white/15 text-white/60 hover:border-[#C9A84C]/50 hover:text-[#C9A84C]"
+                    }`}>
+                    {ya ? <><Check size={12} /> En tu lista</> : ocupado === titulo ? <Loader2 size={12} className="animate-spin" /> : <><Plus size={12} /> Agregar</>}
+                  </button>
+                </div>
               </div>
             );
           })}
+          {explorar.length === 0 && <p className="text-white/25 text-sm py-6 text-center col-span-2">Pronto habrá más ideas por aquí.</p>}
         </div>
       )}
 
@@ -219,7 +209,7 @@ export default function PortalArmalo({ evento }) {
         <div className="flex gap-2 mb-3">
           <input value={notaTexto} onChange={(e) => setNotaTexto(e.target.value)}
             onKeyDown={(e) => e.key === "Enter" && agregarNota()}
-            placeholder="Apunta lo que se te ocurra: colores, canciones, detalles…"
+            placeholder="Colores, canciones, detalles especiales…"
             className="flex-1 bg-white/5 border border-white/10 rounded-xl text-white/75 text-sm px-4 py-2.5 outline-none focus:border-[#C9A84C]/40" />
           <button onClick={agregarNota} disabled={guardandoNota || !notaTexto.trim()}
             className="skeu-dark-btn px-4 rounded-xl text-sm disabled:opacity-40">
@@ -228,12 +218,13 @@ export default function PortalArmalo({ evento }) {
         </div>
         <div className="space-y-2">
           {notas.map((n) => (
-            <div key={n.id} className="flex items-start gap-3 bg-white/[0.03] border border-white/5 rounded-xl px-4 py-3">
-              <p className="text-white/60 text-sm flex-1 leading-relaxed">{n.texto}</p>
+            <div key={n.id} className="flex items-start gap-3 skeu-card px-4 py-3">
+              <StickyNote size={13} className="text-[#C9A84C]/50 flex-shrink-0 mt-0.5" />
+              <p className="text-white/65 text-sm flex-1 leading-relaxed">{n.texto}</p>
               <button onClick={() => borrarNota(n)} className="text-white/20 hover:text-red-400 transition-colors flex-shrink-0 mt-0.5"><Trash2 size={13} /></button>
             </div>
           ))}
-          {notas.length === 0 && <p className="text-white/20 text-xs">Este es tu espacio: nadie más que tú y tu coordinador lo ven.</p>}
+          {notas.length === 0 && <p className="text-white/20 text-xs">Este es tu espacio: solo tú y tu coordinador lo ven.</p>}
         </div>
       </div>
     </div>
