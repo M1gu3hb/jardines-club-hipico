@@ -7,6 +7,7 @@ import EventoItems from "./EventoItems";
 import EventoCronograma from "@/components/evento/EventoCronograma";
 import EventoMusica from "@/components/evento/EventoMusica";
 import EventoMesasAdmin from "@/components/mesas/EventoMesasAdmin";
+import EventoMeseros from "@/components/meseros/EventoMeseros";
 
 const SUBTABS = [
   { id: "datos", label: "Datos", icon: Settings2 },
@@ -17,10 +18,6 @@ const SUBTABS = [
   { id: "mesas", label: "Mesas", icon: LayoutGrid },
   { id: "qr", label: "QR / Meseros", icon: QrCode },
 ];
-
-function Placeholder({ texto }) {
-  return <p className="text-white/25 text-sm py-10 text-center">{texto}</p>;
-}
 
 export default function EventoFicha({ evento, salones, onVolver, onActualizado }) {
   const [tab, setTab] = useState("datos");
@@ -57,7 +54,7 @@ export default function EventoFicha({ evento, salones, onVolver, onActualizado }
       {tab === "cronograma" && <EventoCronograma eventoId={evento.id} editable />}
       {tab === "musica" && <EventoMusica eventoId={evento.id} editable />}
       {tab === "mesas" && <EventoMesasAdmin eventoId={evento.id} salonId={evento.salonId} />}
-      {tab === "qr" && <Placeholder texto="Invitaciones QR y control de meseros se habilitan en la FASE-07." />}
+      {tab === "qr" && <EventoMeseros eventoId={evento.id} />}
     </div>
   );
 }

@@ -8,6 +8,7 @@ import { AuthProvider } from '@/api/authContext';
 import RequireAdmin from '@/components/auth/RequireAdmin';
 import Admin from '@/pages/Admin';
 import PortalPage from '@/components/portal/PortalPage';
+import AccesoPage from '@/components/meseros/AccesoPage';
 import { ADMIN_SLUG } from '@/config/portal';
 
 const { Pages, Layout, mainPage } = pagesConfig;
@@ -43,6 +44,13 @@ function App() {
 
             {/* Portal del cliente (login usuario/contraseña + secciones del evento). */}
             <Route path="/portal" element={<PortalPage />} />
+
+            {/* Acceso por QR (meseros). Protegido: solo admin/staff con sesión. */}
+            <Route path="/acceso/:token" element={
+              <RequireAdmin>
+                <AccesoPage />
+              </RequireAdmin>
+            } />
 
             {publicPages.map(([path, Page]) => (
               <Route
