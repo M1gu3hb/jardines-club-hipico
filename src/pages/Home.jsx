@@ -1,7 +1,9 @@
 import { useState, useEffect, useRef } from "react";
 import { base44 } from "@/api/base44Client";
 import SplashScreen from "../components/SplashScreen";
-import Sidebar from "../components/Sidebar";
+import StaggeredMenu from "../components/StaggeredMenu";
+import SoundToggle from "../components/SoundToggle";
+import { playSound } from "../components/soundSystem";
 import HeroSection from "../components/HeroSection";
 import SalonesSection from "../components/SalonesSection";
 import ServiciosAmenidades from "../components/ServiciosAmenidades";
@@ -17,6 +19,16 @@ import ComoFunciona from "../components/ComoFunciona";
 import FaqSection from "../components/FaqSection";
 
 const SECTIONS = ["inicio", "salones", "servicios", "amenidades", "galeria", "contacto", "no-incluye"];
+
+const MENU_ITEMS = [
+  { id: "inicio", label: "Inicio" },
+  { id: "salones", label: "Salones" },
+  { id: "servicios", label: "Servicios" },
+  { id: "amenidades", label: "Amenidades" },
+  { id: "galeria", label: "Galería" },
+  { id: "contacto", label: "Contacto" },
+  { id: "no-incluye", label: "Avisos" },
+].map((i) => ({ ...i, link: `#${i.id}`, ariaLabel: `Ir a ${i.label}` }));
 
 export default function Home() {
   const [splashDone, setSplashDone] = useState(false);
@@ -58,6 +70,12 @@ export default function Home() {
     setModalOpen(true);
   };
 
+  const scrollToSection = (item) => {
+    playSound("click");
+    const el = document.getElementById(item.id);
+    if (el) el.scrollIntoView({ behavior: "smooth", block: "start" });
+  };
+
   return (
     <>
       {!splashDone && configLoaded && (
@@ -65,11 +83,16 @@ export default function Home() {
       )}
 
       {splashDone && (
-        <div className="flex min-h-screen bg-[#0a0a0a]">
-          <Sidebar logoUrl={config?.logoUrl} activeSection={activeSection} />
+        <div className="min-h-screen bg-[#0a0a0a]">
+          <StaggeredMenu
+            items={MENU_ITEMS}
+            logoUrl={config?.logoUrl}
+            onItemClick={scrollToSection}
+            headerExtra={<SoundToggle />}
+          />
 
-          {/* Main content — NO overflow-x:hidden aquí (rompería sticky de la animación). El recorte horizontal se controla en html/body desde el Layout. */}
-          <main className="flex-1 md:ml-[220px] pt-14 md:pt-0 transition-all duration-300 w-full min-w-0">
+          {/* Main content — NO overflow-x:hidden aquí (rompería sticky de la animación). El recorte horizontal se controla en html/body desde el Layout. El menú (StaggeredMenu) es un overlay fijo, por eso ya no hay margen de sidebar. */}
+          <main className="w-full min-w-0">
             <HeroSection
               onFormClick={() => openForm("")}
               logoUrl={config?.logoUrl}

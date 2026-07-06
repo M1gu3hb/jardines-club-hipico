@@ -3,6 +3,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import { ChevronDown, Plus, Minus } from "lucide-react";
 import { base44 } from "@/api/base44Client";
 import ServiceAmenityCard from "./ServiceAmenityCard";
+import AnimatedItem from "./AnimatedItem";
 import BarraDulces from "./BarraDulces";
 
 const defaultServicios = [
@@ -69,22 +70,17 @@ function ItemsSection({ id, eyebrow, titulo, descripcion, items }) {
           )}
         </motion.div>
 
+        {/* Reveal estilo AnimatedList: cada card entra con scale + opacity al aparecer
+            en vista. Se conserva la ServiceAmenityCard real y el grid responsivo. */}
         <div className="grid grid-cols-1 md:grid-cols-2 gap-3 md:gap-4">
           <AnimatePresence initial={false}>
             {visible.map((item, i) => (
-              <motion.div
+              <AnimatedItem
                 key={item.id || `${item.titulo}-${i}`}
-                layout
-                initial={i >= PREVIEW_COUNT ? { opacity: 0, y: 10 } : false}
-                animate={{ opacity: 1, y: 0 }}
-                exit={{ opacity: 0, y: -10 }}
-                transition={{ duration: 0.35, delay: i >= PREVIEW_COUNT ? (i - PREVIEW_COUNT) * 0.04 : 0 }}
+                delay={i >= PREVIEW_COUNT ? (i - PREVIEW_COUNT) * 0.05 : 0}
               >
-                <ServiceAmenityCard
-                  item={item}
-                  delay={Math.min(i * 0.04, 0.25)}
-                />
-              </motion.div>
+                <ServiceAmenityCard item={item} delay={0} />
+              </AnimatedItem>
             ))}
           </AnimatePresence>
         </div>
