@@ -1,8 +1,9 @@
 import { useState, useEffect } from "react";
 import { base44 } from "@/api/base44Client";
 import { motion } from "framer-motion";
-import { Plus, Loader2, Trash2, Clock, Sunrise } from "lucide-react";
+import { Plus, Loader2, Trash2, Clock, Sunrise, Sparkles } from "lucide-react";
 import { horaLegible } from "@/lib/fechas";
+import { sugerirMomentos, horaSugerida } from "@/lib/cronogramaSugerencias";
 import SelectorHora from "./SelectorHora";
 
 /**
@@ -10,7 +11,7 @@ import SelectorHora from "./SelectorHora";
  * y portal del cliente. Selector de hora propio (no el nativo). Con editable=false
  * solo muestra.
  */
-export default function EventoCronograma({ eventoId, editable = false }) {
+export default function EventoCronograma({ eventoId, editable = false, tipoEvento = "" }) {
   const [items, setItems] = useState([]);
   const [form, setForm] = useState({ hora: "18:00", titulo: "", descripcion: "" });
   const [guardando, setGuardando] = useState(false);
@@ -45,6 +46,29 @@ export default function EventoCronograma({ eventoId, editable = false }) {
               <label className="text-white/40 text-xs uppercase tracking-wider mb-2 block">¿A qué hora?</label>
               <SelectorHora value={form.hora} onChange={(v) => set("hora", v)} />
             </div>
+
+            {/* Sugerencias inteligentes: el siguiente momento lógico de tu fiesta */}
+            {(() => {
+              const sugeridos = sugerirMomentos(items, tipoEvento, 4);
+              if (!sugeridos.length) return null;
+              return (
+                <div>
+                  <p className="text-[#C9A84C]/60 text-[11px] uppercase tracking-wider mb-2 flex items-center gap-1.5">
+                    <Sparkles size={11} /> ¿Qué sigue en tu fiesta?
+                  </p>
+                  <div className="flex flex-wrap gap-2">
+                    {sugeridos.map((s) => (
+                      <button key={s.titulo} type="button" onClick={() => set("titulo", s.titulo)}
+                        title={s.desc || undefined}
+                        className={`glass-chip text-xs px-3 py-2 rounded-full ${form.titulo === s.titulo ? "glass-chip--activo" : "text-white/55 hover:text-[#E6C870]"}`}>
+                        {s.titulo}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              );
+            })()}
+
             <div>
               <label className="text-white/40 text-xs uppercase tracking-wider mb-1.5 block">¿Qué momento? *</label>
               <input value={form.titulo} onChange={(e) => set("titulo", e.target.value)} autoFocus
@@ -63,7 +87,7 @@ export default function EventoCronograma({ eventoId, editable = false }) {
             </div>
           </div>
         ) : (
-          <button onClick={() => setAbierto(true)}
+          <button onClick={() => { set("hora", horaSugerida(items)); setAbierto(true); }}
             className="skeu-card skeu-card-hover w-full flex items-center gap-3 p-4 mb-5 text-left group">
             <span className="w-9 h-9 rounded-full bg-[#C9A84C]/12 border border-[#C9A84C]/30 flex items-center justify-center flex-shrink-0">
               <Plus size={16} className="text-[#E6C870]" />

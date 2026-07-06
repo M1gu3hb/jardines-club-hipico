@@ -32,6 +32,7 @@ export default function EventoFicha({ evento, salones, onVolver, onActualizado }
           <h2 className="text-white text-xl font-thin truncate">{evento.nombreEvento}</h2>
           <p className="text-white/30 text-xs mt-0.5">
             {evento.usuario ? `Acceso: ${evento.usuario}` : "Sin credenciales de acceso"}
+            {evento.creadoPor && <span className="text-[#C9A84C]/50"> · creado por {evento.creadoPor}</span>}
           </p>
         </div>
         <span className={`text-xs px-2 py-1 ${estatusColor(evento.estatus)}`}>{evento.estatus || "Apartado"}</span>
@@ -51,7 +52,7 @@ export default function EventoFicha({ evento, salones, onVolver, onActualizado }
       {tab === "datos" && <EventoDatos evento={evento} salones={salones} onActualizado={onActualizado} />}
       {tab === "documentos" && <EventoDocumentos eventoId={evento.id} />}
       {tab === "items" && <EventoItems eventoId={evento.id} />}
-      {tab === "cronograma" && <EventoCronograma eventoId={evento.id} editable />}
+      {tab === "cronograma" && <EventoCronograma eventoId={evento.id} editable tipoEvento={evento.tipoEvento} />}
       {tab === "musica" && <EventoMusica eventoId={evento.id} editable />}
       {tab === "mesas" && <EventoMesasAdmin eventoId={evento.id} salonId={evento.salonId} />}
       {tab === "qr" && <EventoMeseros eventoId={evento.id} />}

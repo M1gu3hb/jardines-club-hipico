@@ -2,6 +2,7 @@ import { useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Check, ChevronDown, Play, Sparkles } from "lucide-react";
 import { isVideo } from "./MediaViewer";
+import MediaCarrusel from "./MediaCarrusel";
 
 /**
  * Tarjeta premium para un Servicio o Amenidad.
@@ -11,7 +12,6 @@ import { isVideo } from "./MediaViewer";
  */
 export default function ServiceAmenityCard({ item, delay = 0 }) {
   const [open, setOpen] = useState(false);
-  const [mediaIdx, setMediaIdx] = useState(0);
 
   const extras = Array.isArray(item.imagenesUrl) ? item.imagenesUrl.filter(Boolean) : [];
   const allMedia = [];
@@ -22,8 +22,6 @@ export default function ServiceAmenityCard({ item, delay = 0 }) {
   const canExpand = hasMedia || !!item.descripcion;
   const thumbUrl = hasMedia ? allMedia[0] : null;
   const thumbIsVideo = thumbUrl ? isVideo(thumbUrl) : false;
-  const currentUrl = hasMedia ? allMedia[mediaIdx] : null;
-  const currentIsVideo = currentUrl ? isVideo(currentUrl) : false;
 
   return (
     <motion.div
@@ -107,37 +105,8 @@ export default function ServiceAmenityCard({ item, delay = 0 }) {
             className="overflow-hidden"
           >
             <div className="px-3 pb-3">
-              {hasMedia && (
-                <div
-                  className="relative w-full overflow-hidden rounded-xl"
-                  style={{
-                    aspectRatio: "16 / 10",
-                    boxShadow: "0 2px 6px rgba(0,0,0,0.85) inset, 0 0 0 1px rgba(201,168,76,0.22) inset",
-                    background: "#0a0805",
-                  }}
-                >
-                  {currentIsVideo ? (
-                    <video key={currentUrl} src={currentUrl} controls playsInline className="w-full h-full object-contain bg-black" />
-                  ) : (
-                    <img src={currentUrl} alt={item.titulo} loading="lazy" className="w-full h-full object-cover" />
-                  )}
-                </div>
-              )}
-
-              {hasMedia && allMedia.length > 1 && (
-                <div className="flex items-center gap-1.5 mt-3 justify-center">
-                  {allMedia.map((_, i) => (
-                    <button
-                      key={i}
-                      onClick={(e) => { e.stopPropagation(); setMediaIdx(i); }}
-                      className={`h-1 transition-all rounded-full ${
-                        i === mediaIdx ? "w-6 bg-[#C9A84C]" : "w-2.5 bg-white/25"
-                      }`}
-                      aria-label={`Ver media ${i + 1}`}
-                    />
-                  ))}
-                </div>
-              )}
+              {/* Carrusel con flechas + swipe (antes solo puntitos) */}
+              {hasMedia && <MediaCarrusel media={allMedia} alt={item.titulo} />}
 
               {/* Descripción — debajo de la imagen */}
               {item.descripcion && (

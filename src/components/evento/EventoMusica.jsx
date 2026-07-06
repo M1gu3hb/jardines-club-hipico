@@ -10,7 +10,7 @@ function esUrl(v) {
   return /^https?:\/\//i.test(String(v || "").trim());
 }
 
-export default function EventoMusica({ eventoId, editable = false }) {
+export default function EventoMusica({ eventoId, editable = false, alAgregar }) {
   const [items, setItems] = useState([]);
   const [form, setForm] = useState({ tipo: "poner", cancion: "", artista: "", enlace: "" });
   const [guardando, setGuardando] = useState(false);
@@ -22,12 +22,14 @@ export default function EventoMusica({ eventoId, editable = false }) {
   const agregar = async () => {
     if (!form.cancion.trim() && !form.enlace.trim()) return;
     setGuardando(true);
+    const nombreCancion = form.cancion.trim() || (esUrl(form.enlace) ? "Enlace" : "");
     await base44.entities.Musica.create({
       eventoId, tipo: form.tipo,
-      cancion: form.cancion.trim() || (esUrl(form.enlace) ? "Enlace" : ""),
+      cancion: nombreCancion,
       artista: form.artista || null,
       enlace: esUrl(form.enlace) ? form.enlace.trim() : null,
     });
+    alAgregar?.(nombreCancion + (form.artista ? ` — ${form.artista}` : ""));
     setForm({ tipo: form.tipo, cancion: "", artista: "", enlace: "" });
     setGuardando(false);
     cargar();

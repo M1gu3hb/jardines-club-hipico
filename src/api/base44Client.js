@@ -140,6 +140,19 @@ const functions = {
     if (!res.ok) throw new Error(json.error || `Error ${res.status}`);
     return json;
   },
+  // Crea otro ADMINISTRADOR del panel (server-side con service_role; valida rol admin).
+  async crearAdmin(payload) {
+    const { data } = await supabase.auth.getSession();
+    const token = data?.session?.access_token;
+    const res = await fetch("/api/crear-admin", {
+      method: "POST",
+      headers: { "Content-Type": "application/json", Authorization: `Bearer ${token || ""}` },
+      body: JSON.stringify(payload),
+    });
+    const json = await res.json().catch(() => ({}));
+    if (!res.ok) throw new Error(json.error || `Error ${res.status}`);
+    return json;
+  },
   // Correos del admin hacia el cliente (p. ej. aviso "tu cotización está lista").
   async correoCliente(payload) {
     const { data } = await supabase.auth.getSession();

@@ -1,7 +1,8 @@
 import { useState, useEffect } from "react";
 import { base44 } from "@/api/base44Client";
+import { motion, AnimatePresence } from "framer-motion";
 import {
-  CalendarDays, Inbox, Star, DoorOpen, ChevronRight, Clock, Users, PartyPopper, Bell, Check,
+  CalendarDays, Inbox, Star, DoorOpen, ChevronRight, Clock, Users, PartyPopper, Bell, Check, ChevronDown,
 } from "lucide-react";
 import { estatusColor } from "@/components/admin/eventos/_ui";
 import { fechaLarga, diasFaltantes, tiempoRelativo } from "@/lib/fechas";
@@ -55,8 +56,11 @@ export default function AdminInicio({ onIr }) {
   const [notifs, setNotifs] = useState([]);
   const [marcando, setMarcando] = useState(false);
 
+  const [eventosMapa, setEventosMapa] = useState({});
+  const [grupoAbierto, setGrupoAbierto] = useState(null);
+
   const cargarNotifs = () =>
-    base44.entities.Notificacion.list("-created_date").then((n) => setNotifs(n.slice(0, 20)));
+    base44.entities.Notificacion.list("-created_date").then((n) => setNotifs(n.slice(0, 120)));
 
   useEffect(() => {
     let activo = true;
@@ -72,6 +76,11 @@ export default function AdminInicio({ onIr }) {
       const proximos = eventos
         .filter((e) => e.fechaEvento && e.fechaEvento >= hoyStr && e.estatus !== "Cancelado")
         .sort((a, b) => a.fechaEvento.localeCompare(b.fechaEvento));
+
+      // Mapa id → nombre para etiquetar los grupos de notificaciones.
+      const mapa = {};
+      eventos.forEach((e) => { mapa[e.id] = e.nombreEvento; });
+      setEventosMapa(mapa);
 
       setDatos({
         proximos,
@@ -131,22 +140,67 @@ export default function AdminInicio({ onIr }) {
             </button>
           )}
         </div>
-        <div className="space-y-1.5">
-          {notifs.slice(0, 6).map((n) => (
-            <div key={n.id} className={`flex items-start gap-3 px-4 py-3 border transition-all ${
-              n.leida ? "bg-[#0f0f0f] border-white/5" : "bg-[#141109] border-[#C9A84C]/30"
-            }`}>
-              {!n.leida && <span className="w-1.5 h-1.5 rounded-full bg-[#C9A84C] mt-1.5 flex-shrink-0" />}
-              <div className="flex-1 min-w-0">
-                <p className={`text-sm truncate ${n.leida ? "text-white/50" : "text-white/85"}`}>{n.titulo}</p>
-                {n.detalle && <p className="text-white/30 text-xs mt-0.5 line-clamp-2">{n.detalle}</p>}
-              </div>
-              <span className="text-white/25 text-[11px] flex-shrink-0 mt-0.5">{tiempoRelativo(n.createdAt)}</span>
-            </div>
-          ))}
-          {notifs.length === 0 && (
-            <p className="text-white/20 text-sm py-4 text-center">Sin actividad del portal todavía. Aquí verás cuando un cliente confirme, deje reseña o se interese en algo.</p>
-          )}
+        {/* Agrupadas por evento: máximo 5 grupos, expandibles con el historial completo */}
+        <div className="space-y-2">
+          {(() => {
+            const grupos = new Map();
+            notifs.forEach((n) => {
+              const k = n.eventoId || "general";
+              if (!grupos.has(k)) grupos.set(k, []);
+              grupos.get(k).push(n);
+            });
+            const lista = Array.from(grupos.entries())
+              .sort((a, b) => new Date(b[1][0].createdAt) - new Date(a[1][0].createdAt))
+              .slice(0, 5);
+
+            if (lista.length === 0) {
+              return <p className="text-white/20 text-sm py-4 text-center">Sin actividad del portal todavía. Aquí verás cuando un cliente entre, deje reseña o se interese en algo.</p>;
+            }
+
+            return lista.map(([k, items]) => {
+              const nombre = eventosMapa[k] || (k === "general" ? "General" : "Evento");
+              const sinLeer = items.filter((n) => !n.leida).length;
+              const abierto = grupoAbierto === k;
+              return (
+                <div key={k} className={`border rounded-xl overflow-hidden transition-all ${sinLeer ? "border-[#C9A84C]/35 bg-[#141109]" : "border-white/5 bg-[#0f0f0f]"}`}>
+                  <button onClick={() => setGrupoAbierto(abierto ? null : k)}
+                    className="w-full flex items-center gap-3 px-4 py-3.5 text-left">
+                    {sinLeer > 0 && <span className="w-2 h-2 rounded-full bg-[#C9A84C] flex-shrink-0" />}
+                    <div className="flex-1 min-w-0">
+                      <p className={`text-sm truncate ${sinLeer ? "text-white/90" : "text-white/55"}`}>{nombre}</p>
+                      <p className="text-white/30 text-xs mt-0.5 truncate">{items[0].titulo} · {tiempoRelativo(items[0].createdAt)}</p>
+                    </div>
+                    <span className="text-white/30 text-xs flex-shrink-0">{items.length} {items.length === 1 ? "actividad" : "actividades"}</span>
+                    <ChevronDown size={14} className={`text-[#C9A84C]/60 flex-shrink-0 transition-transform ${abierto ? "rotate-180" : ""}`} />
+                  </button>
+                  <AnimatePresence initial={false}>
+                    {abierto && (
+                      <motion.div
+                        initial={{ height: 0, opacity: 0 }}
+                        animate={{ height: "auto", opacity: 1 }}
+                        exit={{ height: 0, opacity: 0 }}
+                        transition={{ duration: 0.25, ease: [0.16, 1, 0.3, 1] }}
+                        className="overflow-hidden"
+                      >
+                        <div className="border-t border-white/5 divide-y divide-white/5">
+                          {items.slice(0, 15).map((n) => (
+                            <div key={n.id} className="flex items-start gap-2.5 px-4 py-2.5">
+                              {!n.leida && <span className="w-1.5 h-1.5 rounded-full bg-[#C9A84C] mt-1.5 flex-shrink-0" />}
+                              <div className="flex-1 min-w-0">
+                                <p className={`text-xs ${n.leida ? "text-white/45" : "text-white/75"}`}>{n.titulo}</p>
+                                {n.detalle && <p className="text-white/25 text-[11px] mt-0.5 line-clamp-2">{n.detalle}</p>}
+                              </div>
+                              <span className="text-white/20 text-[10px] flex-shrink-0 mt-0.5">{tiempoRelativo(n.createdAt)}</span>
+                            </div>
+                          ))}
+                        </div>
+                      </motion.div>
+                    )}
+                  </AnimatePresence>
+                </div>
+              );
+            });
+          })()}
         </div>
       </div>
 
@@ -168,7 +222,10 @@ export default function AdminInicio({ onIr }) {
                   {esHoy && <PartyPopper size={15} className="text-[#E6C870] flex-shrink-0" />}
                   <div className="flex-1 min-w-0">
                     <p className="text-white/80 text-sm truncate">{e.nombreEvento}</p>
-                    <p className="text-white/30 text-xs truncate">{fechaLarga(e.fechaEvento)}</p>
+                    <p className="text-white/30 text-xs truncate">
+                      {fechaLarga(e.fechaEvento)}
+                      {e.creadoPor && <span className="text-[#C9A84C]/50"> · por {e.creadoPor}</span>}
+                    </p>
                   </div>
                   <span className={`text-xs flex-shrink-0 ${esHoy ? "text-[#E6C870] font-medium" : "text-[#C9A84C]/70"}`}>{enCuantosDias(e.fechaEvento)}</span>
                   <span className={`text-[10px] px-1.5 py-0.5 flex-shrink-0 ${estatusColor(e.estatus)}`}>{e.estatus}</span>

@@ -10,14 +10,15 @@
 import { base44 } from "@/api/base44Client";
 import { supabase } from "@/api/supabaseClient";
 
-export async function notificarDueno({ eventoId, tipo = "info", titulo, detalle = "" }) {
+export async function notificarDueno({ eventoId, tipo = "info", titulo, detalle = "", correo = true }) {
   // 1) Dashboard
   try {
     await base44.entities.Notificacion.create({ eventoId, tipo, titulo, detalle });
   } catch (e) {
     console.error("[notificar] dashboard:", e.message);
   }
-  // 2) Correo (no esperamos el resultado para no frenar la UI)
+  // 2) Correo (opcional — la actividad ligera NO manda correo, solo dashboard)
+  if (!correo) return;
   try {
     const { data } = await supabase.auth.getSession();
     const token = data?.session?.access_token;
@@ -29,4 +30,18 @@ export async function notificarDueno({ eventoId, tipo = "info", titulo, detalle 
       }).catch(() => {});
     }
   } catch { /* sin sesión no hay correo; el dashboard ya quedó */ }
+}
+
+/**
+ * Actividad ligera del cliente (visitas, revisó documentos, música, quitó de su
+ * lista…). Va SOLO al dashboard (sin correo) y se de-duplica por sesión del
+ * navegador para no llenar de ruido (una vez por clave por sesión).
+ */
+export function registrarActividad({ eventoId, clave, tipo = "actividad", titulo, detalle = "" }) {
+  try {
+    const k = `jch_act_${eventoId}_${clave}`;
+    if (sessionStorage.getItem(k) === "1") return;
+    sessionStorage.setItem(k, "1");
+  } catch { /* sin storage: registrar de todos modos */ }
+  notificarDueno({ eventoId, tipo, titulo, detalle, correo: false });
 }

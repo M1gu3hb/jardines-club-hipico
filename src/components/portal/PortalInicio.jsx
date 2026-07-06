@@ -2,14 +2,12 @@ import { useState, useEffect } from "react";
 import { motion } from "framer-motion";
 import { base44 } from "@/api/base44Client";
 import {
-  Calendar, MapPin, Tag, CheckCircle2, Loader2, Sparkles,
+  Calendar, MapPin, Tag, CheckCircle2, Sparkles,
   FileText, Clock, Music, LayoutGrid, ChevronRight, Heart, Star, Wallet,
 } from "lucide-react";
 import { estatusColor } from "@/components/admin/eventos/_ui";
 import { fechaLarga, diasFaltantes, eventoYaPaso } from "@/lib/fechas";
-import { notificarDueno } from "@/lib/notificar";
 import PortalSugerencias from "./PortalSugerencias";
-import Celebracion from "./Celebracion";
 
 /** Primer nombre del cliente para el saludo (o null si no hay). */
 function primerNombre(evento) {
@@ -43,13 +41,10 @@ function MensajeCuentaRegresiva({ dias }) {
   return null;
 }
 
-export default function PortalInicio({ evento, salon, onConfirmado, onIr }) {
-  const [confirmando, setConfirmando] = useState(false);
+export default function PortalInicio({ evento, salon, onIr }) {
   const [avance, setAvance] = useState(null);
-  const [celebrar, setCelebrar] = useState(false);
   const [yaDejoResena, setYaDejoResena] = useState(null); // null = averiguando
 
-  const confirmado = !!evento.confirmadoCliente;
   const nombre = primerNombre(evento);
   const dias = diasFaltantes(evento.fechaEvento);
   const yaPaso = eventoYaPaso(evento);
@@ -83,24 +78,6 @@ export default function PortalInicio({ evento, salon, onConfirmado, onIr }) {
     })();
     return () => { activo = false; };
   }, [evento.id]);
-
-  const confirmar = async () => {
-    setConfirmando(true);
-    try {
-      await base44.rpc("confirmar_evento", { evt: evento.id });
-      setCelebrar(true);
-      // Avisar al dueño (dashboard + correo); nunca frena al cliente.
-      notificarDueno({
-        eventoId: evento.id,
-        tipo: "confirmacion",
-        titulo: `🎉 ${evento.nombreEvento} confirmó su evento`,
-        detalle: `${evento.clienteNombre || "El cliente"} confirmó desde su portal.${evento.fechaEvento ? " Fecha: " + fechaLarga(evento.fechaEvento) + "." : ""}`,
-      });
-      onConfirmado?.();
-    } finally {
-      setConfirmando(false);
-    }
-  };
 
   const pasos = [
     { id: "cronograma", label: "Cronograma", icon: Clock, count: avance?.crono, hint: "momentos" },
@@ -298,39 +275,8 @@ export default function PortalInicio({ evento, salon, onConfirmado, onIr }) {
       {/* ===== Ideas inteligentes (discretas, descartables) ===== */}
       {!yaPaso && <PortalSugerencias evento={evento} />}
 
-      {/* ===== Confirmación ===== */}
-      {!yaPaso && (
-        <motion.div
-          initial={{ opacity: 0, y: 16 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.35, duration: 0.6 }}
-          className="relative text-center pb-4"
-        >
-          <Celebracion activo={celebrar} onFin={() => setCelebrar(false)} />
-          {confirmado ? (
-            <div className="skeu-card px-6 py-5 inline-flex items-center gap-3">
-              <CheckCircle2 size={20} className="text-[#E6C870]" />
-              <div className="text-left">
-                <p className="text-white/85 text-sm">Tu evento está confirmado</p>
-                <p className="text-white/35 text-xs mt-0.5">Estamos preparando todo para recibirte.</p>
-              </div>
-            </div>
-          ) : (
-            <>
-              <p className="text-white/40 text-sm mb-4">¿Todo se ve bien? Confírmanos y nos ponemos en marcha.</p>
-              <motion.button
-                whileTap={{ scale: 0.97 }}
-                onClick={confirmar}
-                disabled={confirmando}
-                className="skeu-gold-btn inline-flex items-center gap-2.5 px-8 py-3.5 rounded-full text-sm font-medium tracking-wide disabled:opacity-50"
-              >
-                {confirmando ? <Loader2 size={16} className="animate-spin" /> : <Sparkles size={16} />}
-                Confirmar mi evento
-              </motion.button>
-            </>
-          )}
-        </motion.div>
-      )}
+      {/* Nota: se eliminó el bloque "Confirmar evento". Si el cliente tiene acceso
+          al portal es porque su evento YA está confirmado (el dueño le dio usuario). */}
     </div>
   );
 }

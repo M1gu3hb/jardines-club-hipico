@@ -215,3 +215,31 @@ html { scroll-behavior: smooth; }
   .jch-texto-dorado-shimmer { animation: none; }
   .jch-chispa { animation: none; opacity: 0; }
 }
+
+/* === Glassmorphism dorado (capa premium del portal, mobile-first) === */
+.glass-panel {
+  background: rgba(18, 15, 9, 0.55);
+  backdrop-filter: blur(16px) saturate(1.2);
+  -webkit-backdrop-filter: blur(16px) saturate(1.2);
+  border: 1px solid rgba(201, 168, 76, 0.22);
+}
+.glass-chip {
+  background: rgba(255, 255, 255, 0.05);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  border: 1px solid rgba(255, 255, 255, 0.10);
+  transition: border-color .25s ease, background .25s ease, color .25s ease;
+}
+.glass-chip--activo {
+  background: rgba(201, 168, 76, 0.14);
+  border-color: rgba(201, 168, 76, 0.5);
+  color: #E6C870;
+  box-shadow: 0 0 18px -6px rgba(201, 168, 76, 0.4);
+}
+.glass-sheet {
+  background: rgba(14, 12, 8, 0.82);
+  backdrop-filter: blur(22px) saturate(1.25);
+  -webkit-backdrop-filter: blur(22px) saturate(1.25);
+  border-top: 1px solid rgba(201, 168, 76, 0.35);
+  box-shadow: 0 -18px 50px -12px rgba(0, 0, 0, 0.85);
+}

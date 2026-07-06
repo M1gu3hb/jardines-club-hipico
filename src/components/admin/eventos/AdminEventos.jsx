@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
 import { base44 } from "@/api/base44Client";
+import { useAuth } from "@/api/authContext";
 import { Plus, Loader2, Check, Search, Calendar, User, DoorOpen } from "lucide-react";
 import { Field, Area, ESTATUS, estatusColor } from "./_ui";
 import EventoFicha from "./EventoFicha";
@@ -11,6 +12,7 @@ const FORM_VACIO = {
 };
 
 export default function AdminEventos() {
+  const { perfil } = useAuth();
   const [eventos, setEventos] = useState([]);
   const [salones, setSalones] = useState([]);
   const [abierto, setAbierto] = useState(null); // evento seleccionado (ficha)
@@ -58,6 +60,8 @@ export default function AdminEventos() {
         clienteTelefono: form.clienteTelefono || null,
         estatus: "Apartado",
         portalActivo: false,
+        // Trazabilidad: qué administrador creó este evento.
+        creadoPor: perfil?.nombre || null,
       });
       // 2) Reglas de mesas por defecto.
       await base44.entities.EventoReglasMesas.create({
@@ -203,6 +207,7 @@ export default function AdminEventos() {
                 <span>{e.fechaEvento || "sin fecha"}</span>
                 <span className="flex items-center gap-1 truncate"><User size={11} />{e.clienteNombre || e.usuario || "—"}</span>
                 <span className="truncate hidden sm:inline">{salonNombre(e.salonId)}</span>
+                {e.creadoPor && <span className="text-[#C9A84C]/50 truncate hidden md:inline">· creado por {e.creadoPor}</span>}
               </div>
             </div>
             {e.portalActivo && <span className="flex items-center gap-1 text-green-400/70 text-xs flex-shrink-0"><DoorOpen size={12} /> Portal</span>}

@@ -5,6 +5,7 @@ import { base44 } from "@/api/base44Client";
 import { useAuth } from "@/api/authContext";
 import { Home, FileText, Package, Clock, Music, LayoutGrid, Star, LogOut, Sparkles, Globe } from "lucide-react";
 import { eventoYaPaso } from "@/lib/fechas";
+import { registrarActividad } from "@/lib/notificar";
 import Dock from "./Dock";
 import PortalInicio from "./PortalInicio";
 import PortalDocumentos from "./PortalDocumentos";
@@ -45,7 +46,27 @@ export default function PortalShell({ evento, onRefresh }) {
   useEffect(() => {
     if (evento.salonId) base44.entities.Salon.get(evento.salonId).then((s) => setSalon(s || null));
     base44.entities.EventoReglasMesas.filter({ eventoId: evento.id }).then((r) => setReglas(r[0] || null));
-  }, [evento.id, evento.salonId]);
+    // Actividad: registrar la visita (una vez por sesión del navegador, sin correo).
+    registrarActividad({
+      eventoId: evento.id,
+      clave: "visita",
+      tipo: "visita",
+      titulo: `👋 ${evento.nombreEvento} entró a su portal`,
+    });
+  }, [evento.id, evento.salonId, evento.nombreEvento]);
+
+  // Actividad por sección (solo las que hablan de interés real, 1 vez por sesión).
+  const irASeccion = (id) => {
+    setSeccion(id);
+    if (id === "documentos") {
+      registrarActividad({
+        eventoId: evento.id,
+        clave: "documentos",
+        tipo: "documentos",
+        titulo: `📄 ${evento.nombreEvento} revisó sus documentos`,
+      });
+    }
+  };
 
   const yaPaso = eventoYaPaso(evento);
 
@@ -67,13 +88,13 @@ export default function PortalShell({ evento, onRefresh }) {
     icon: it.icon,
     label: it.label,
     active: seccion === it.id,
-    onClick: () => setSeccion(it.id),
+    onClick: () => irASeccion(it.id),
   }));
 
   return (
     <div className="min-h-screen bg-[#0a0a0a]">
-      {/* Header */}
-      <header className="sticky top-0 z-40 bg-[#0a0a0a]/90 backdrop-blur border-b border-[#C9A84C]/10 px-5 py-3 flex items-center justify-between">
+      {/* Header (glass) */}
+      <header className="glass-panel sticky top-0 z-40 border-x-0 border-t-0 px-5 py-3 flex items-center justify-between">
         <div className="min-w-0">
           <p className="portal-eyebrow">Jardines Club Hípico</p>
           <p className="text-white/80 text-sm font-light truncate">{evento.nombreEvento}</p>
@@ -99,7 +120,7 @@ export default function PortalShell({ evento, onRefresh }) {
           transition={{ duration: 0.3, ease: [0.16, 1, 0.3, 1] }}
         >
             {seccion === "inicio" && (
-              <PortalInicio evento={evento} salon={salon} onConfirmado={onRefresh} onIr={setSeccion} />
+              <PortalInicio evento={evento} salon={salon} onIr={irASeccion} />
             )}
             {seccion === "armalo" && (
               <div className="max-w-xl mx-auto">
@@ -122,13 +143,22 @@ export default function PortalShell({ evento, onRefresh }) {
             {seccion === "cronograma" && (
               <div className="max-w-2xl mx-auto">
                 <TituloSeccion titulo="Cronograma" descripcion="Diseña los momentos de tu evento, hora por hora. Nuestro equipo lo seguirá contigo." />
-                <EventoCronograma eventoId={evento.id} editable />
+                <EventoCronograma eventoId={evento.id} editable tipoEvento={evento.tipoEvento} />
               </div>
             )}
             {seccion === "musica" && (
               <div className="max-w-2xl mx-auto">
                 <TituloSeccion titulo="Música" descripcion="Cuéntanos qué quieres bailar… y qué canción no debe sonar jamás." />
-                <EventoMusica eventoId={evento.id} editable />
+                <EventoMusica
+                  eventoId={evento.id}
+                  editable
+                  alAgregar={(cancion) => registrarActividad({
+                    eventoId: evento.id,
+                    clave: `musica_${Date.now()}`,
+                    tipo: "musica",
+                    titulo: `🎵 ${evento.nombreEvento} agregó música: ${cancion}`,
+                  })}
+                />
               </div>
             )}
             {seccion === "mesas" && (
