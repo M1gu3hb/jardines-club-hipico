@@ -124,6 +124,40 @@ const functions = {
     }
     return {};
   },
+  // Crea el usuario de Auth del cliente (server-side, con service_role) y lo liga al evento.
+  async crearUsuarioEvento(payload) {
+    const { data } = await supabase.auth.getSession();
+    const token = data?.session?.access_token;
+    const res = await fetch("/api/crear-usuario-evento", {
+      method: "POST",
+      headers: { "Content-Type": "application/json", Authorization: `Bearer ${token || ""}` },
+      body: JSON.stringify(payload),
+    });
+    const json = await res.json().catch(() => ({}));
+    if (!res.ok) throw new Error(json.error || `Error ${res.status}`);
+    return json;
+  },
+};
+
+// Storage genérico (para el bucket privado `clientes` de documentos del evento).
+const storage = {
+  async upload(bucket, file, folder = "") {
+    const ext = (file.name.split(".").pop() || "bin").toLowerCase();
+    const path = `${folder ? folder + "/" : ""}${Date.now()}-${Math.random().toString(36).slice(2)}.${ext}`;
+    const { error } = await supabase.storage.from(bucket).upload(path, file, { upsert: false, contentType: file.type || undefined });
+    if (error) throw error;
+    return { path };
+  },
+  async signedUrl(bucket, path, expiresIn = 3600) {
+    const { data, error } = await supabase.storage.from(bucket).createSignedUrl(path, expiresIn);
+    if (error) throw error;
+    return data.signedUrl;
+  },
+  async remove(bucket, path) {
+    const { error } = await supabase.storage.from(bucket).remove([path]);
+    if (error) throw error;
+    return { success: true };
+  },
 };
 
 // Subida de archivos del CMS → bucket público `sitio`.
@@ -166,5 +200,5 @@ const auth = {
   redirectToLogin() {},
 };
 
-export const base44 = { entities, functions, integrations, auth };
+export const base44 = { entities, functions, integrations, storage, auth };
 export default base44;

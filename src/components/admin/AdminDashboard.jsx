@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import { base44 } from "@/api/base44Client";
-import { Settings, Image, Building2, LayoutGrid, Inbox, LogOut, Menu, X, Sparkles, ListChecks, Star, UtensilsCrossed } from "lucide-react";
+import { Settings, Image, Building2, LayoutGrid, Inbox, LogOut, Menu, X, Sparkles, ListChecks, Star, UtensilsCrossed, CalendarDays } from "lucide-react";
+import AdminEventos from "@/components/admin/eventos/AdminEventos";
 import AdminConfig from "@/components/admin/AdminConfig";
 import AdminSalones from "@/components/admin/AdminSalones";
 import AdminGaleria from "@/components/admin/AdminGaleria";
@@ -11,6 +12,7 @@ import AdminAmenidadItems from "@/components/admin/AdminAmenidadItems";
 import AdminAlimentos from "@/components/admin/AdminAlimentos";
 
 const TABS = [
+  { id: "eventos", label: "Eventos", icon: CalendarDays },
   { id: "config", label: "Configuración", icon: Settings },
   { id: "salones", label: "Salones", icon: Building2 },
   { id: "servicios-items", label: "Servicios", icon: ListChecks },
@@ -22,7 +24,7 @@ const TABS = [
 ];
 
 export default function AdminDashboard({ onLogout }) {
-  const [active, setActive] = useState("config");
+  const [active, setActive] = useState("eventos");
   const [mobileMenu, setMobileMenu] = useState(false);
 
   return (
@@ -70,6 +72,7 @@ export default function AdminDashboard({ onLogout }) {
           <button onClick={() => setMobileMenu(true)} className="text-white/40"><Menu size={20} /></button>
         </div>
         <div className="p-6 md:p-8 max-w-4xl mx-auto">
+          {active === "eventos" && <AdminEventos />}
           {active === "config" && <AdminConfig />}
           {active === "salones" && <AdminSalones />}
           {active === "servicios-items" && <AdminServicioItems />}
