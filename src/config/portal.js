@@ -13,6 +13,10 @@ export const ADMIN_SLUG = import.meta.env.VITE_ADMIN_SLUG || "gestion-jch-9f27ax
 
 export const CLIENTE_EMAIL_DOMINIO = "portal.jardines.local";
 
+// Link para publicar reseña en Google Maps (perfil del negocio). Google NO permite
+// prellenar texto/estrellas por URL: solo abre el perfil para que el usuario escriba.
+export const GOOGLE_RESENA_URL = "https://maps.app.goo.gl/LZsy25TLhe3HsZYW8";
+
 /** Normaliza un usuario a un email sintético estable (minúsculas, sin espacios). */
 export function usuarioAEmail(usuario) {
   const limpio = String(usuario || "")

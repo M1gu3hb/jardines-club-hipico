@@ -10,6 +10,7 @@ import AdminServicios from "@/components/admin/AdminServicios";
 import AdminServicioItems from "@/components/admin/AdminServicioItems";
 import AdminAmenidadItems from "@/components/admin/AdminAmenidadItems";
 import AdminAlimentos from "@/components/admin/AdminAlimentos";
+import AdminResenas from "@/components/admin/AdminResenas";
 
 const TABS = [
   { id: "eventos", label: "Eventos", icon: CalendarDays },
@@ -20,6 +21,7 @@ const TABS = [
   { id: "servicios", label: "Servicios Extra", icon: Sparkles },
   { id: "alimentos", label: "Alimentos", icon: UtensilsCrossed },
   { id: "galeria", label: "Galería", icon: Image },
+  { id: "resenas", label: "Reseñas", icon: Star },
   { id: "solicitudes", label: "Solicitudes", icon: Inbox },
 ];
 
@@ -80,6 +82,7 @@ export default function AdminDashboard({ onLogout }) {
           {active === "servicios" && <AdminServicios />}
           {active === "alimentos" && <AdminAlimentos />}
           {active === "galeria" && <AdminGaleria />}
+          {active === "resenas" && <AdminResenas />}
           {active === "solicitudes" && <AdminSolicitudes />}
         </div>
       </div>
