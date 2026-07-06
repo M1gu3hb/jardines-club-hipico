@@ -7,6 +7,7 @@ import {
 } from "lucide-react";
 import { estatusColor } from "@/components/admin/eventos/_ui";
 import { fechaLarga, diasFaltantes, eventoYaPaso } from "@/lib/fechas";
+import PortalSugerencias from "./PortalSugerencias";
 
 /** Primer nombre del cliente para el saludo (o null si no hay). */
 function primerNombre(evento) {
@@ -191,6 +192,9 @@ export default function PortalInicio({ evento, salon, onConfirmado, onIr }) {
           </div>
         </motion.div>
       )}
+
+      {/* ===== Ideas inteligentes (discretas, descartables) ===== */}
+      {!yaPaso && <PortalSugerencias evento={evento} />}
 
       {/* ===== Confirmación ===== */}
       {!yaPaso && (
