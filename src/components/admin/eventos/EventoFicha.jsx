@@ -6,6 +6,7 @@ import EventoDocumentos from "./EventoDocumentos";
 import EventoItems from "./EventoItems";
 import EventoCronograma from "@/components/evento/EventoCronograma";
 import EventoMusica from "@/components/evento/EventoMusica";
+import EventoMesasAdmin from "@/components/mesas/EventoMesasAdmin";
 
 const SUBTABS = [
   { id: "datos", label: "Datos", icon: Settings2 },
@@ -55,7 +56,7 @@ export default function EventoFicha({ evento, salones, onVolver, onActualizado }
       {tab === "items" && <EventoItems eventoId={evento.id} />}
       {tab === "cronograma" && <EventoCronograma eventoId={evento.id} editable />}
       {tab === "musica" && <EventoMusica eventoId={evento.id} editable />}
-      {tab === "mesas" && <Placeholder texto="El editor de mesas se habilita en la FASE-06." />}
+      {tab === "mesas" && <EventoMesasAdmin eventoId={evento.id} salonId={evento.salonId} />}
       {tab === "qr" && <Placeholder texto="Invitaciones QR y control de meseros se habilitan en la FASE-07." />}
     </div>
   );

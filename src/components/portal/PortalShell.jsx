@@ -8,6 +8,7 @@ import PortalDocumentos from "./PortalDocumentos";
 import PortalContratado from "./PortalContratado";
 import EventoCronograma from "@/components/evento/EventoCronograma";
 import EventoMusica from "@/components/evento/EventoMusica";
+import MesaEditor from "@/components/mesas/MesaEditor";
 
 function eventoYaPaso(evento) {
   if (evento.estatus === "Realizado") return true;
@@ -82,13 +83,14 @@ export default function PortalShell({ evento, onRefresh }) {
           </div>
         )}
         {seccion === "mesas" && (
-          <div className="max-w-2xl mx-auto text-center">
-            <h2 className="text-white text-xl font-thin mb-2">Mesas</h2>
-            <p className="text-white/30 text-sm">
+          <div className="max-w-3xl mx-auto">
+            <h2 className="text-white text-xl font-thin mb-1">Mesas</h2>
+            <p className="text-white/30 text-sm mb-6">
               {reglas?.clientePuedeEditar
-                ? "Aquí podrás organizar tus mesas (se habilita en la siguiente actualización)."
-                : "Aquí verás la distribución de tus mesas (próximamente)."}
+                ? "Organiza la distribución de tus mesas e invitados."
+                : "Distribución de tus mesas (solo lectura)."}
             </p>
+            <MesaEditor eventoId={evento.id} salonId={evento.salonId} reglas={reglas} editable={!!reglas?.clientePuedeEditar} />
           </div>
         )}
         {seccion === "resena" && (
