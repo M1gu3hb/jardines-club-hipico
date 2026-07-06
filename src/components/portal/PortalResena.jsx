@@ -64,33 +64,46 @@ export default function PortalResena({ evento }) {
   return (
     <div className="max-w-md mx-auto">
       <div className="text-center mb-6">
-        <h2 className="text-white text-2xl font-thin">¿Cómo estuvo tu evento?</h2>
-        <p className="text-white/40 text-sm mt-2">Tu reseña nos ayuda muchísimo. La guardaremos y podrás publicarla en Google.</p>
+        <div className="flex items-center justify-center gap-3 mb-3">
+          <div className="h-px w-10 bg-gradient-to-r from-transparent to-[#C9A84C]/50" />
+          <h2 className="text-white text-2xl font-thin">¿Cómo estuvo tu evento?</h2>
+          <div className="h-px w-10 bg-gradient-to-l from-transparent to-[#C9A84C]/50" />
+        </div>
+        <p className="text-white/40 text-sm">Fue un honor recibirte. Cuéntanos cómo lo viviste: tu reseña ilumina el camino de quienes vienen.</p>
       </div>
 
-      <div className="flex justify-center gap-2 mb-5">
-        {[1, 2, 3, 4, 5].map((n) => (
-          <button key={n} onMouseEnter={() => setHover(n)} onMouseLeave={() => setHover(0)} onClick={() => setEstrellas(n)}>
-            <Star size={30} className={(hover || estrellas) >= n ? "text-[#E6C870]" : "text-white/15"}
-              fill={(hover || estrellas) >= n ? "#E6C870" : "transparent"} />
-          </button>
-        ))}
+      <div className="skeu-card p-6">
+        <div className="flex justify-center gap-2.5 mb-5">
+          {[1, 2, 3, 4, 5].map((n) => (
+            <button
+              key={n}
+              onMouseEnter={() => setHover(n)}
+              onMouseLeave={() => setHover(0)}
+              onClick={() => setEstrellas(n)}
+              className="transition-transform hover:scale-110 active:scale-95"
+              aria-label={`${n} estrellas`}
+            >
+              <Star size={32} className={(hover || estrellas) >= n ? "text-[#E6C870]" : "text-white/15"}
+                fill={(hover || estrellas) >= n ? "#E6C870" : "transparent"} />
+            </button>
+          ))}
+        </div>
+
+        <textarea value={texto} onChange={(e) => setTexto(e.target.value)} rows={5}
+          placeholder="Cuéntanos tu experiencia en Jardines Club Hípico…"
+          className="w-full bg-white/5 border border-white/10 rounded-xl text-white/80 text-sm px-4 py-3 outline-none focus:border-[#C9A84C]/40 resize-none" />
+
+        {error && <p className="text-red-400 text-xs mt-2">{error}</p>}
+
+        <button onClick={enviar} disabled={enviando}
+          className="skeu-gold-btn w-full mt-4 flex items-center justify-center gap-2 py-3.5 rounded-full text-sm font-medium disabled:opacity-50">
+          {enviando ? <Loader2 size={15} className="animate-spin" /> : <ClipboardCheck size={16} />}
+          Guardar y publicar en Google
+        </button>
+        <p className="text-white/25 text-xs text-center mt-3">
+          Al enviar, copiamos tu reseña y abrimos Google para que solo la pegues y publiques.
+        </p>
       </div>
-
-      <textarea value={texto} onChange={(e) => setTexto(e.target.value)} rows={5}
-        placeholder="Cuéntanos tu experiencia en Jardines Club Hípico…"
-        className="w-full bg-white/5 border border-white/10 text-white/80 text-sm px-4 py-3 outline-none focus:border-[#C9A84C]/40 resize-none" />
-
-      {error && <p className="text-red-400 text-xs mt-2">{error}</p>}
-
-      <button onClick={enviar} disabled={enviando}
-        className="w-full mt-4 flex items-center justify-center gap-2 bg-[#C9A84C] text-[#0a0a0a] py-3 text-sm font-medium hover:bg-[#d4b558] transition-all disabled:opacity-50">
-        {enviando ? <Loader2 size={15} className="animate-spin" /> : <ClipboardCheck size={16} />}
-        Guardar y publicar en Google
-      </button>
-      <p className="text-white/25 text-xs text-center mt-3">
-        Al enviar, copiamos tu reseña y abrimos Google para que solo la pegues y publiques.
-      </p>
     </div>
   );
 }
