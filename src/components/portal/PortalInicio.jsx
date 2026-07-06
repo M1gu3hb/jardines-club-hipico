@@ -3,11 +3,13 @@ import { motion } from "framer-motion";
 import { base44 } from "@/api/base44Client";
 import {
   Calendar, MapPin, Tag, CheckCircle2, Loader2, Sparkles,
-  FileText, Clock, Music, LayoutGrid, ChevronRight, Heart,
+  FileText, Clock, Music, LayoutGrid, ChevronRight, Heart, Star,
 } from "lucide-react";
 import { estatusColor } from "@/components/admin/eventos/_ui";
 import { fechaLarga, diasFaltantes, eventoYaPaso } from "@/lib/fechas";
+import { notificarDueno } from "@/lib/notificar";
 import PortalSugerencias from "./PortalSugerencias";
+import Celebracion from "./Celebracion";
 
 /** Primer nombre del cliente para el saludo (o null si no hay). */
 function primerNombre(evento) {
@@ -44,12 +46,24 @@ function MensajeCuentaRegresiva({ dias }) {
 export default function PortalInicio({ evento, salon, onConfirmado, onIr }) {
   const [confirmando, setConfirmando] = useState(false);
   const [avance, setAvance] = useState(null);
+  const [celebrar, setCelebrar] = useState(false);
+  const [yaDejoResena, setYaDejoResena] = useState(null); // null = averiguando
 
   const confirmado = !!evento.confirmadoCliente;
   const nombre = primerNombre(evento);
   const dias = diasFaltantes(evento.fechaEvento);
   const yaPaso = eventoYaPaso(evento);
   const fondo = salon?.imagenPrincipal || salon?.imagenes?.[0] || null;
+
+  // ¿Ya dejó su reseña? (RLS le permite leer las de SU evento.)
+  useEffect(() => {
+    if (!yaPaso) return;
+    let activo = true;
+    base44.entities.Resena.filter({ eventoId: evento.id })
+      .then((rs) => { if (activo) setYaDejoResena(rs.length > 0); })
+      .catch(() => { if (activo) setYaDejoResena(false); });
+    return () => { activo = false; };
+  }, [evento.id, yaPaso]);
 
   // Resumen del avance de SU planeación (todo filtrado por RLS a su evento).
   useEffect(() => {
@@ -74,6 +88,14 @@ export default function PortalInicio({ evento, salon, onConfirmado, onIr }) {
     setConfirmando(true);
     try {
       await base44.rpc("confirmar_evento", { evt: evento.id });
+      setCelebrar(true);
+      // Avisar al dueño (dashboard + correo); nunca frena al cliente.
+      notificarDueno({
+        eventoId: evento.id,
+        tipo: "confirmacion",
+        titulo: `🎉 ${evento.nombreEvento} confirmó su evento`,
+        detalle: `${evento.clienteNombre || "El cliente"} confirmó desde su portal.${evento.fechaEvento ? " Fecha: " + fechaLarga(evento.fechaEvento) + "." : ""}`,
+      });
       onConfirmado?.();
     } finally {
       setConfirmando(false);
@@ -190,7 +212,59 @@ export default function PortalInicio({ evento, salon, onConfirmado, onIr }) {
               </button>
             ))}
           </div>
+
+          {/* CTA estrella: arma tu evento a tu gusto */}
+          <button
+            onClick={() => onIr?.("armalo")}
+            className="skeu-card skeu-card-hover w-full mt-3 p-5 text-left group border-[#C9A84C]/30"
+          >
+            <div className="flex items-center gap-4">
+              <div className="w-11 h-11 rounded-full bg-[#C9A84C]/12 border border-[#C9A84C]/30 flex items-center justify-center flex-shrink-0">
+                <Sparkles size={19} className="text-[#E6C870]" />
+              </div>
+              <div className="flex-1 min-w-0">
+                <p className="jch-texto-dorado-shimmer text-[15px] font-medium">Arma tu evento a tu gusto</p>
+                <p className="text-white/40 text-xs mt-0.5">Explora ideas, crea tu lista de deseos… y nosotros la hacemos realidad.</p>
+              </div>
+              <ChevronRight size={16} className="text-[#C9A84C]/50 group-hover:text-[#C9A84C] group-hover:translate-x-0.5 transition-all flex-shrink-0" />
+            </div>
+          </button>
         </motion.div>
+      )}
+
+      {/* ===== Post-evento: invitación estelar a dejar reseña ===== */}
+      {yaPaso && yaDejoResena === false && (
+        <motion.div
+          initial={{ opacity: 0, y: 18 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.25, duration: 0.7, ease: [0.16, 1, 0.3, 1] }}
+          className="skeu-card border-[#C9A84C]/40 p-7 mb-6 text-center"
+        >
+          <div className="flex justify-center gap-1.5 mb-4">
+            {[0, 1, 2, 3, 4].map((i) => (
+              <motion.span key={i}
+                initial={{ opacity: 0, scale: 0.4, rotate: -30 }}
+                animate={{ opacity: 1, scale: 1, rotate: 0 }}
+                transition={{ delay: 0.5 + i * 0.12, duration: 0.45, ease: [0.16, 1, 0.3, 1] }}
+              >
+                <Star size={26} className="text-[#E6C870]" fill="#E6C870" />
+              </motion.span>
+            ))}
+          </div>
+          <h3 className="text-white text-xl font-thin">¿Cómo viviste tu evento?</h3>
+          <p className="text-white/45 text-sm mt-2 max-w-sm mx-auto leading-relaxed">
+            Nos encantaría escucharlo de ti. Tu reseña tarda un minuto y significa el mundo para nosotros.
+          </p>
+          <button onClick={() => onIr?.("resena")}
+            className="skeu-gold-btn inline-flex items-center gap-2 mt-5 px-7 py-3 rounded-full text-sm font-medium">
+            <Star size={15} /> Dejar mi reseña
+          </button>
+        </motion.div>
+      )}
+      {yaPaso && yaDejoResena === true && (
+        <p className="text-center text-white/35 text-sm mb-6 flex items-center justify-center gap-2">
+          <Star size={14} className="text-[#E6C870]" fill="#E6C870" /> Gracias por tu reseña: es un regalo para nosotros.
+        </p>
       )}
 
       {/* ===== Ideas inteligentes (discretas, descartables) ===== */}
@@ -202,8 +276,9 @@ export default function PortalInicio({ evento, salon, onConfirmado, onIr }) {
           initial={{ opacity: 0, y: 16 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.35, duration: 0.6 }}
-          className="text-center pb-4"
+          className="relative text-center pb-4"
         >
+          <Celebracion activo={celebrar} onFin={() => setCelebrar(false)} />
           {confirmado ? (
             <div className="skeu-card px-6 py-5 inline-flex items-center gap-3">
               <CheckCircle2 size={20} className="text-[#E6C870]" />

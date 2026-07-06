@@ -36,6 +36,9 @@ const TABLES = {
   Acceso: "accesos",
   Cronograma: "cronograma",
   Musica: "musica",
+  EventoWishlist: "evento_wishlist",
+  EventoNota: "evento_notas",
+  Notificacion: "notificaciones",
 };
 
 // Tablas con columna `orden` (para ordenar por defecto cuando no se pasa sort).

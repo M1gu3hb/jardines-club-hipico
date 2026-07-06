@@ -2,6 +2,7 @@ import { useState } from "react";
 import { base44 } from "@/api/base44Client";
 import { Star, Loader2, CheckCircle2, ClipboardCheck, ExternalLink } from "lucide-react";
 import { GOOGLE_RESENA_URL } from "@/config/portal";
+import { notificarDueno } from "@/lib/notificar";
 
 export default function PortalResena({ evento }) {
   const [estrellas, setEstrellas] = useState(5);
@@ -35,6 +36,13 @@ export default function PortalResena({ evento }) {
         // `aprobada` la fuerza a false el trigger de moderación (la revisa el admin).
       });
       setEnviado(true);
+      // Avisar al dueño (dashboard + correo) que hay reseña por moderar.
+      notificarDueno({
+        eventoId: evento.id,
+        tipo: "resena",
+        titulo: `⭐ Nueva reseña de ${autor} (${estrellas}★)`,
+        detalle: `"${texto.trim().slice(0, 180)}" — pendiente de aprobar en el panel para aparecer en el sitio.`,
+      });
     } catch (e) {
       setError("No se pudo guardar tu reseña: " + e.message);
     } finally {

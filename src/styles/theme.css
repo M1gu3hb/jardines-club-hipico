@@ -181,3 +181,37 @@ html { scroll-behavior: smooth; }
   letter-spacing: 0.3em;
   text-transform: uppercase;
 }
+
+/* Chispas doradas (Celebracion.jsx): vuelan desde el centro y se apagan. */
+@keyframes jchChispaVuela {
+  0%   { transform: translate(0, 0) rotate(0deg) scale(1); opacity: 1; }
+  70%  { opacity: 1; }
+  100% { transform: translate(var(--dx), var(--dy)) rotate(var(--rot)) scale(0.4); opacity: 0; }
+}
+.jch-chispa {
+  position: absolute;
+  display: block;
+  animation-name: jchChispaVuela;
+  animation-timing-function: cubic-bezier(0.16, 1, 0.3, 1);
+  animation-fill-mode: forwards;
+  box-shadow: 0 0 8px rgba(226, 194, 102, 0.55);
+  will-change: transform, opacity;
+}
+
+/* Brillo que recorre un texto/borde dorado (para acentos del portal). */
+@keyframes jchShimmer {
+  0% { background-position: -200% center; }
+  100% { background-position: 200% center; }
+}
+.jch-texto-dorado-shimmer {
+  background: linear-gradient(100deg, #A88532 20%, #F5E3A0 40%, #C9A84C 60%, #A88532 80%);
+  background-size: 200% auto;
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+  animation: jchShimmer 5s linear infinite;
+}
+@media (prefers-reduced-motion: reduce) {
+  .jch-texto-dorado-shimmer { animation: none; }
+  .jch-chispa { animation: none; opacity: 0; }
+}

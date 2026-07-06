@@ -1,8 +1,9 @@
 import { useState, useEffect, useMemo } from "react";
 import { motion } from "framer-motion";
+import { useNavigate } from "react-router-dom";
 import { base44 } from "@/api/base44Client";
 import { useAuth } from "@/api/authContext";
-import { Home, FileText, Package, Clock, Music, LayoutGrid, Star, LogOut } from "lucide-react";
+import { Home, FileText, Package, Clock, Music, LayoutGrid, Star, LogOut, Sparkles, Globe } from "lucide-react";
 import { eventoYaPaso } from "@/lib/fechas";
 import Dock from "./Dock";
 import PortalInicio from "./PortalInicio";
@@ -12,6 +13,7 @@ import EventoCronograma from "@/components/evento/EventoCronograma";
 import EventoMusica from "@/components/evento/EventoMusica";
 import MesaEditor from "@/components/mesas/MesaEditor";
 import PortalResena from "./PortalResena";
+import PortalArmalo from "./PortalArmalo";
 
 /** Encabezado de sección con el estilo editorial del sitio. */
 function TituloSeccion({ titulo, descripcion }) {
@@ -29,7 +31,14 @@ function TituloSeccion({ titulo, descripcion }) {
 
 export default function PortalShell({ evento, onRefresh }) {
   const { logout } = useAuth();
+  const navigate = useNavigate();
   const [seccion, setSeccion] = useState("inicio");
+
+  // Ir al sitio público SIN que la auto-entrada al portal lo regrese (bypass de sesión).
+  const verSitio = () => {
+    try { sessionStorage.setItem("jch_ver_sitio", "1"); } catch { /* sin storage */ }
+    navigate("/");
+  };
   const [salon, setSalon] = useState(null);
   const [reglas, setReglas] = useState(null);
 
@@ -43,6 +52,7 @@ export default function PortalShell({ evento, onRefresh }) {
   const items = useMemo(() => {
     const base = [
       { id: "inicio", label: "Inicio", icon: <Home size={18} /> },
+      { id: "armalo", label: "Mi lista", icon: <Sparkles size={18} /> },
       { id: "documentos", label: "Documentos", icon: <FileText size={18} /> },
       { id: "contratado", label: "Contratado", icon: <Package size={18} /> },
       { id: "cronograma", label: "Cronograma", icon: <Clock size={18} /> },
@@ -68,9 +78,14 @@ export default function PortalShell({ evento, onRefresh }) {
           <p className="portal-eyebrow">Jardines Club Hípico</p>
           <p className="text-white/80 text-sm font-light truncate">{evento.nombreEvento}</p>
         </div>
-        <button onClick={logout} className="flex items-center gap-1.5 text-white/30 hover:text-white/60 text-xs transition-colors flex-shrink-0">
-          <LogOut size={14} /> Salir
-        </button>
+        <div className="flex items-center gap-4 flex-shrink-0">
+          <button onClick={verSitio} className="flex items-center gap-1.5 text-white/30 hover:text-white/60 text-xs transition-colors">
+            <Globe size={14} /> Ver sitio
+          </button>
+          <button onClick={logout} className="flex items-center gap-1.5 text-white/30 hover:text-white/60 text-xs transition-colors">
+            <LogOut size={14} /> Salir
+          </button>
+        </div>
       </header>
 
       {/* Contenido con entrada suave por sección. Sin AnimatePresence/exit a propósito:
@@ -85,6 +100,12 @@ export default function PortalShell({ evento, onRefresh }) {
         >
             {seccion === "inicio" && (
               <PortalInicio evento={evento} salon={salon} onConfirmado={onRefresh} onIr={setSeccion} />
+            )}
+            {seccion === "armalo" && (
+              <div className="max-w-xl mx-auto">
+                <TituloSeccion titulo="Arma tu evento" descripcion="Explora, ilusiónate y haz tu lista. Tu coordinador la verá y la hará realidad contigo." />
+                <PortalArmalo evento={evento} />
+              </div>
             )}
             {seccion === "documentos" && (
               <div className="max-w-xl mx-auto">

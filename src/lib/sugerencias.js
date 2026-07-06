@@ -65,6 +65,43 @@ function perfilDe(tipoEvento) {
   return PERFILES.find((p) => p.match.some((k) => t.includes(k))) || null;
 }
 
+// Mensajes cálidos al agregar algo a "tu lista" (rotan según el ítem, por perfil).
+const MENSAJES_ELECCION = {
+  boda: [
+    (t) => `¡Gran elección! Con ${t}, tu boda va a quedar en la memoria de todos ✨`,
+    (t) => `${t} es de lo más amado en las bodas de Jardines — tus invitados lo van a disfrutar muchísimo`,
+    (t) => `Hermosa decisión: ${t} le dará ese toque inolvidable a tu gran día 💛`,
+  ],
+  xv: [
+    (t) => `¡Excelente! Con ${t}, tus XV van a brillar como se merecen ✨`,
+    (t) => `${t} es un éxito en cada XV que celebramos — ¡gran elección!`,
+    (t) => `¡Sí! ${t} va a hacer que tu fiesta sea LA fiesta 💫`,
+  ],
+  infantil: [
+    (t) => `¡Qué divertido! Con ${t}, los peques no van a querer irse 🎈`,
+    (t) => `${t} es garantía de risas — ¡gran elección para tu festejo!`,
+    (t) => `¡Excelente! ${t} hará de ese día una aventura inolvidable ✨`,
+  ],
+  corporativo: [
+    (t) => `Gran elección: ${t} le dará un toque profesional y memorable a tu evento`,
+    (t) => `${t} eleva cualquier evento de empresa — excelente decisión ✨`,
+  ],
+  general: [
+    (t) => `¡Gran elección! ${t} le va a encantar a tus invitados ✨`,
+    (t) => `${t} hará tu celebración aún más especial — buena decisión 💛`,
+    (t) => `¡Excelente gusto! Con ${t}, tu evento sube de nivel ✨`,
+  ],
+};
+
+/** Mensaje encantador al agregar `titulo` a la lista, según el tipo de evento. */
+export function mensajeEleccion(titulo, tipoEvento) {
+  const perfil = perfilDe(tipoEvento);
+  const lista = MENSAJES_ELECCION[perfil?.id] || MENSAJES_ELECCION.general;
+  let h = 0;
+  for (const c of norm(titulo)) h = (h * 31 + c.charCodeAt(0)) >>> 0;
+  return lista[h % lista.length](titulo);
+}
+
 /** Semilla estable por día + evento (rotación diaria, no por recarga). */
 function semillaDiaria(eventoId) {
   const hoy = new Date();

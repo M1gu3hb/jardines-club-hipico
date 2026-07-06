@@ -40,3 +40,16 @@ export function eventoYaPaso(evento) {
   const dias = diasFaltantes(evento?.fechaEvento);
   return dias !== null && dias < 0;
 }
+
+/** "hace 5 min" / "hace 3 h" / "hace 2 días" a partir de un timestamp ISO. */
+export function tiempoRelativo(iso) {
+  if (!iso) return "";
+  const ms = Date.now() - new Date(iso).getTime();
+  const min = Math.floor(ms / 60000);
+  if (min < 1) return "ahora mismo";
+  if (min < 60) return `hace ${min} min`;
+  const h = Math.floor(min / 60);
+  if (h < 24) return `hace ${h} h`;
+  const d = Math.floor(h / 24);
+  return d === 1 ? "ayer" : `hace ${d} días`;
+}

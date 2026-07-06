@@ -8,7 +8,9 @@ import { motion, useInView } from "framer-motion";
  */
 export default function AnimatedItem({ children, delay = 0 }) {
   const ref = useRef(null);
-  const inView = useInView(ref, { amount: 0.3, once: false });
+  // once: true → una vez revelada, la card NUNCA vuelve a ocultarse (más robusto
+  // si el navegador pausa frames en pestañas de fondo o dispositivos lentos).
+  const inView = useInView(ref, { amount: 0.15, once: true });
   return (
     <motion.div
       ref={ref}

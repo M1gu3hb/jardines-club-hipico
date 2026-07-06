@@ -1,5 +1,7 @@
 import { useState, useEffect, useRef } from "react";
+import { useNavigate } from "react-router-dom";
 import { base44 } from "@/api/base44Client";
+import { useAuth } from "@/api/authContext";
 import SplashScreen from "../components/SplashScreen";
 import StaggeredMenu from "../components/StaggeredMenu";
 import SoundToggle from "../components/SoundToggle";
@@ -31,6 +33,20 @@ const MENU_ITEMS = [
 ].map((i) => ({ ...i, link: `#${i.id}`, ariaLabel: `Ir a ${i.label}` }));
 
 export default function Home() {
+  const navigate = useNavigate();
+  const { loading: authLoading, isCliente, evento } = useAuth();
+
+  // Auto-entrada al portal: si quien visita tiene sesión de CLIENTE con evento,
+  // lo llevamos directo a SU portal (su beneficio exclusivo — y terminado el
+  // evento, lo primero que ve es la invitación a dejar su reseña). El botón
+  // "Ver sitio" del portal pone un bypass en sessionStorage para navegar libre.
+  useEffect(() => {
+    if (authLoading || !isCliente || !evento) return;
+    let bypass = false;
+    try { bypass = sessionStorage.getItem("jch_ver_sitio") === "1"; } catch { /* sin storage */ }
+    if (!bypass) navigate("/portal", { replace: true });
+  }, [authLoading, isCliente, evento, navigate]);
+
   const [splashDone, setSplashDone] = useState(false);
   const [configLoaded, setConfigLoaded] = useState(false);
   const [config, setConfig] = useState(null);

@@ -1,6 +1,6 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { base44 } from "@/api/base44Client";
-import { Loader2, Check, KeyRound } from "lucide-react";
+import { Loader2, Check, KeyRound, Heart, StickyNote } from "lucide-react";
 import { Field, Area, Toggle, ESTATUS } from "./_ui";
 
 export default function EventoDatos({ evento, salones, onActualizado }) {
@@ -13,6 +13,14 @@ export default function EventoDatos({ evento, salones, onActualizado }) {
   const [cred, setCred] = useState({ usuario: "", password: "" });
   const [credMsg, setCredMsg] = useState("");
   const [credBusy, setCredBusy] = useState(false);
+
+  // Lo que el cliente armó en su portal (lectura: wishlist + notas).
+  const [deseos, setDeseos] = useState([]);
+  const [notasCliente, setNotasCliente] = useState([]);
+  useEffect(() => {
+    base44.entities.EventoWishlist.filter({ eventoId: evento.id }, "-created_date").then(setDeseos);
+    base44.entities.EventoNota.filter({ eventoId: evento.id }, "-created_date").then(setNotasCliente);
+  }, [evento.id]);
 
   const guardar = async () => {
     setGuardando(true);
@@ -105,6 +113,34 @@ export default function EventoDatos({ evento, salones, onActualizado }) {
         </button>
         {ok && <span className="text-green-400/80 text-xs">Guardado.</span>}
       </div>
+
+      {/* Lo que el cliente sueña (wishlist + notas de su portal) */}
+      {(deseos.length > 0 || notasCliente.length > 0) && (
+        <div className="border-t border-white/5 pt-4 space-y-3">
+          <p className="text-white/40 text-xs uppercase tracking-wider flex items-center gap-2">
+            <Heart size={13} className="text-[#C9A84C]/70" /> Lo que el cliente quiere (desde su portal)
+          </p>
+          {deseos.length > 0 && (
+            <div className="flex flex-wrap gap-2">
+              {deseos.map((d) => (
+                <span key={d.id} className="bg-[#C9A84C]/10 border border-[#C9A84C]/25 text-[#E6C870] text-xs px-2.5 py-1.5 rounded-full">
+                  {d.titulo}
+                </span>
+              ))}
+            </div>
+          )}
+          {notasCliente.length > 0 && (
+            <div className="space-y-1.5">
+              {notasCliente.map((n) => (
+                <p key={n.id} className="flex items-start gap-2 text-white/45 text-xs leading-relaxed">
+                  <StickyNote size={11} className="text-[#C9A84C]/50 flex-shrink-0 mt-0.5" /> {n.texto}
+                </p>
+              ))}
+            </div>
+          )}
+          <p className="text-white/20 text-[11px]">Es su lista de deseos: no modifica lo contratado. Úsala para darle seguimiento.</p>
+        </div>
+      )}
 
       {/* Credenciales de acceso */}
       <div className="border-t border-white/5 pt-4">
