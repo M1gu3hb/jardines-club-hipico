@@ -7,6 +7,7 @@ import PageNotFound from './lib/PageNotFound';
 import { AuthProvider } from '@/api/authContext';
 import RequireAdmin from '@/components/auth/RequireAdmin';
 import Admin from '@/pages/Admin';
+import PortalPage from '@/components/portal/PortalPage';
 import { ADMIN_SLUG } from '@/config/portal';
 
 const { Pages, Layout, mainPage } = pagesConfig;
@@ -39,6 +40,9 @@ function App() {
                 <Admin />
               </RequireAdmin>
             } />
+
+            {/* Portal del cliente (login usuario/contraseña + secciones del evento). */}
+            <Route path="/portal" element={<PortalPage />} />
 
             {publicPages.map(([path, Page]) => (
               <Route

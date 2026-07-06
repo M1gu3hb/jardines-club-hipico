@@ -200,5 +200,12 @@ const auth = {
   redirectToLogin() {},
 };
 
-export const base44 = { entities, functions, integrations, storage, auth };
+// RPCs del schema jardines (SECURITY DEFINER: confirmar_evento, info_invitacion, registrar_acceso).
+async function rpc(name, params = {}) {
+  const { data, error } = await supabase.rpc(name, params);
+  if (error) { console.error("[shim] rpc", name, error.message); throw error; }
+  return data;
+}
+
+export const base44 = { entities, functions, integrations, storage, auth, rpc };
 export default base44;
