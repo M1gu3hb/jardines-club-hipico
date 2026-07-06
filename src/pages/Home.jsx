@@ -30,7 +30,10 @@ const MENU_ITEMS = [
   { id: "galeria", label: "Galería" },
   { id: "contacto", label: "Contacto" },
   { id: "no-incluye", label: "Avisos" },
-].map((i) => ({ ...i, link: `#${i.id}`, ariaLabel: `Ir a ${i.label}` }));
+]
+  .map((i) => ({ ...i, link: `#${i.id}`, ariaLabel: `Ir a ${i.label}` }))
+  // Acceso al portal de clientes: SOLO dentro del menú (no visible en la página).
+  .concat([{ id: "portal", label: "Portal de clientes", link: "/portal", ariaLabel: "Entrar al portal de clientes", esRuta: true }]);
 
 export default function Home() {
   const navigate = useNavigate();
@@ -88,6 +91,13 @@ export default function Home() {
 
   const scrollToSection = (item) => {
     playSound("click");
+    // El item "Portal de clientes" navega a la ruta del portal (quita el bypass
+    // para que, si hay sesión de cliente, entre directo a su evento).
+    if (item.esRuta) {
+      try { sessionStorage.removeItem("jch_ver_sitio"); } catch { /* sin storage */ }
+      navigate(item.link);
+      return;
+    }
     const el = document.getElementById(item.id);
     if (el) el.scrollIntoView({ behavior: "smooth", block: "start" });
   };
@@ -131,17 +141,11 @@ export default function Home() {
             <ContactoSection telefono={config?.telefonoContacto} correo={config?.correoAdmin} ubicacionTexto={config?.ubicacionTexto} ubicacionLinkMapa={config?.ubicacionLinkMapa} whatsappNumero={config?.whatsappNumero} />
             <NoIncluyeSection texto={config?.informacionServicios} />
 
-            {/* Footer */}
+            {/* Footer (el acceso al portal de clientes vive en el MENÚ, no aquí) */}
             <footer className="bg-[#080808] border-t border-white/5 py-8 px-6 text-center">
               <p className="text-white/20 text-xs tracking-widest uppercase">
                 © {new Date().getFullYear()} Jardines Club Hípico · Ciudad de México
               </p>
-              <a
-                href="/portal"
-                className="inline-block mt-3 text-[#C9A84C]/45 hover:text-[#C9A84C] text-[11px] tracking-[0.2em] uppercase transition-colors"
-              >
-                ¿Ya tienes tu evento con nosotros? Entra a tu portal →
-              </a>
             </footer>
           </main>
 

@@ -269,7 +269,11 @@ export default function StaggeredMenu({
             {items.map((it, idx) => (
               <li className="sm-panel-itemWrap" key={it.label + idx}>
                 <a
-                  className={"sm-panel-item" + (activeId && it.id === activeId ? " sm-panel-item--active" : "")}
+                  className={
+                    "sm-panel-item" +
+                    (activeId && it.id === activeId ? " sm-panel-item--active" : "") +
+                    (it.esRuta ? " sm-panel-item--especial" : "")
+                  }
                   href={it.link}
                   aria-label={it.ariaLabel}
                   aria-current={activeId && it.id === activeId ? "true" : undefined}

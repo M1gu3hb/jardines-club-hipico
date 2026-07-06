@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { base44 } from "@/api/base44Client";
-import { Upload, Loader2, Trash2, Download, FileText } from "lucide-react";
+import { Upload, Loader2, Trash2, Download, FileText, Send, Check } from "lucide-react";
 
 const BUCKET = "clientes";
 const TIPOS = ["contrato", "cotizacion", "comprobante", "otro"];
@@ -11,6 +11,26 @@ export default function EventoDocumentos({ eventoId }) {
   const [titulo, setTitulo] = useState("");
   const [tipo, setTipo] = useState("contrato");
   const [error, setError] = useState("");
+  const [avisando, setAvisando] = useState(null); // id del doc cuyo aviso se envía
+  const [avisados, setAvisados] = useState({});   // id → correo al que se envió
+
+  // Aviso al cliente por correo (plantilla dorada): "tu cotización está lista".
+  const avisar = async (doc) => {
+    setError("");
+    setAvisando(doc.id);
+    try {
+      const r = await base44.functions.correoCliente({
+        tipo: "cotizacion",
+        eventoId,
+        documento: doc.titulo,
+      });
+      setAvisados((a) => ({ ...a, [doc.id]: r.enviadoA }));
+    } catch (e) {
+      setError("No se pudo avisar: " + e.message);
+    } finally {
+      setAvisando(null);
+    }
+  };
 
   const cargar = () => base44.entities.Documento.filter({ eventoId }, "-created_date").then(setDocs);
   useEffect(() => { cargar(); }, [eventoId]);
@@ -80,8 +100,20 @@ export default function EventoDocumentos({ eventoId }) {
             <FileText size={16} className="text-[#C9A84C]/60 flex-shrink-0" />
             <div className="flex-1 min-w-0">
               <p className="text-white/75 text-sm truncate">{d.titulo}</p>
-              <p className="text-white/25 text-xs capitalize">{d.tipo}</p>
+              <p className="text-white/25 text-xs capitalize">
+                {d.tipo}
+                {avisados[d.id] && <span className="text-green-400/70 normal-case"> · avisado a {avisados[d.id]}</span>}
+              </p>
             </div>
+            {avisados[d.id] ? (
+              <span className="flex items-center gap-1 text-green-400/70 text-xs px-2"><Check size={13} /> Enviado</span>
+            ) : (
+              <button onClick={() => avisar(d)} disabled={!!avisando}
+                title="Avisar al cliente por correo que este documento está listo"
+                className="flex items-center gap-1.5 text-[#C9A84C]/80 hover:text-[#C9A84C] text-xs border border-[#C9A84C]/30 hover:border-[#C9A84C]/60 px-2.5 py-1.5 rounded-full transition-all disabled:opacity-50">
+                {avisando === d.id ? <Loader2 size={12} className="animate-spin" /> : <Send size={12} />} Avisar
+              </button>
+            )}
             <button onClick={() => descargar(d)} className="text-white/30 hover:text-[#C9A84C] transition-colors p-1.5"><Download size={15} /></button>
             <button onClick={() => borrar(d)} className="text-white/30 hover:text-red-400 transition-colors p-1.5"><Trash2 size={14} /></button>
           </div>

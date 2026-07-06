@@ -55,7 +55,12 @@ export default function EventoDatos({ evento, salones, onActualizado }) {
         usuario: cred.usuario.trim(), password: cred.password,
         eventoId: evento.id, nombre: form.clienteNombre || form.nombreEvento,
       });
-      setCredMsg("Credenciales creadas. Usuario: " + r.usuario);
+      setCredMsg(
+        "Credenciales creadas. Usuario: " + r.usuario +
+        (r.correoEnviado
+          ? " · Se envió el correo de bienvenida con sus accesos al cliente. ✉️"
+          : " · No se envió correo (el evento no tiene correo de contacto).")
+      );
       onActualizado?.({ ...evento, usuario: r.usuario, authUserId: r.userId });
     } catch (e) {
       setCredMsg("Error: " + e.message);

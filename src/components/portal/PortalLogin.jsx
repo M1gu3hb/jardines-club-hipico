@@ -12,6 +12,7 @@ export default function PortalLogin() {
   const [error, setError] = useState("");
   const [cargando, setCargando] = useState(false);
   const [logoUrl, setLogoUrl] = useState(null);
+  const [entrandoAuto, setEntrandoAuto] = useState(false);
 
   // Logo real del club (lectura pública del CMS).
   useEffect(() => {
@@ -19,6 +20,32 @@ export default function PortalLogin() {
       .then((c) => setLogoUrl(c?.[0]?.logoUrl || null))
       .catch(() => {});
   }, []);
+
+  // Link mágico del correo de bienvenida: /portal#acceso=<base64(usuario:contraseña)>.
+  // Va en el FRAGMENTO (#) — nunca viaja al servidor ni queda en logs. Se entra solo,
+  // se limpia la URL, y la sesión queda recordada en este dispositivo.
+  useEffect(() => {
+    const m = window.location.hash.match(/acceso=([^&]+)/);
+    if (!m) return;
+    // Limpiar el hash de inmediato (que no quede en la barra ni en el historial).
+    window.history.replaceState(null, "", window.location.pathname);
+    let u = "", p = "";
+    try {
+      const dec = atob(decodeURIComponent(m[1]));
+      const sep = dec.indexOf(":");
+      u = dec.slice(0, sep);
+      p = dec.slice(sep + 1);
+    } catch { return; }
+    if (!u || !p) return;
+    setUsuario(u);
+    setPassword(p);
+    setEntrandoAuto(true);
+    loginCliente(u, p)
+      .catch(() => {
+        setEntrandoAuto(false);
+        setError("Tu link de acceso ya no coincide. Escribe tu usuario y contraseña.");
+      });
+  }, [loginCliente]);
 
   const submit = async (e) => {
     e.preventDefault();
@@ -32,6 +59,16 @@ export default function PortalLogin() {
       setCargando(false);
     }
   };
+
+  // Entrando con el link mágico del correo: pantalla de cortesía.
+  if (entrandoAuto) {
+    return (
+      <div className="min-h-screen bg-[#0a0a0a] flex flex-col items-center justify-center gap-4 px-4">
+        <div className="w-8 h-8 rounded-full border-2 border-[#C9A84C]/30 border-t-[#C9A84C] animate-spin" />
+        <p className="text-white/40 text-xs tracking-[0.25em] uppercase text-center">Abriendo tu portal…</p>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-[#0a0a0a] flex items-center justify-center px-4">

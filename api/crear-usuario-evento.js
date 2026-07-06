@@ -11,6 +11,7 @@
 //   SUPABASE_URL           -> https://<proyecto>.supabase.co
 //   SUPABASE_SERVICE_ROLE  -> service_role key (SECRETA; solo en el servidor)
 import { createClient } from "@supabase/supabase-js";
+import { plantillaOro, cajaCredenciales, enviarCorreo, SITIO_URL } from "./_lib/correo.js";
 
 const DOMINIO_CLIENTE = "portal.jardines.local";
 
@@ -123,7 +124,47 @@ export default async function handler(req, res) {
       return;
     }
 
-    res.status(200).json({ ok: true, userId: nuevoId, usuario: limpio });
+    // 5) Correo de bienvenida al cliente con sus credenciales + link de auto-entrada.
+    //    El link lleva usuario:contraseña en el FRAGMENTO (#) en base64: el fragmento
+    //    nunca viaja al servidor ni queda en logs; el portal lo lee, entra solo y lo borra.
+    let correoEnviado = false;
+    try {
+      const { data: ev } = await admin
+        .from("eventos")
+        .select("nombre_evento, cliente_nombre, cliente_email, tipo_evento")
+        .eq("id", eventoId)
+        .maybeSingle();
+      if (ev?.cliente_email) {
+        const acceso = Buffer.from(`${limpio}:${password}`, "utf8").toString("base64");
+        const linkMagico = `${SITIO_URL}/portal#acceso=${encodeURIComponent(acceso)}`;
+        const nombreCliente = (ev.cliente_nombre || nombre || "").split(/\s+/)[0] || "Hola";
+        const html = plantillaOro({
+          pretitulo: "Tu portal está listo",
+          titulo: ev.nombre_evento || "Tu evento",
+          cuerpoHtml: `
+            <p style="margin:0 0 14px 0;">${nombreCliente}, ¡bienvenido a la familia de Jardines Club Hípico! 🎉</p>
+            <p style="margin:0 0 6px 0;">Creamos tu <strong style="color:#E6C870;">portal exclusivo</strong> para que armes cada detalle de tu evento:
+            cronograma, música, mesas, tus documentos y una lista de deseos con ideas para inspirarte.</p>
+            ${cajaCredenciales(limpio, password)}
+            <p style="margin:0;">Guarda este correo: estas son tus llaves. Con el botón de abajo entras directo, sin escribir nada.</p>`,
+          ctaTexto: "Entrar a mi portal",
+          ctaUrl: linkMagico,
+          notaPie: "Si no esperabas este correo, ignóralo con confianza.",
+        });
+        await enviarCorreo({
+          to: ev.cliente_email,
+          subject: `✨ Tu portal de "${ev.nombre_evento}" está listo — Jardines Club Hípico`,
+          html,
+          texto: `Tu portal está listo. Usuario: ${limpio} · Contraseña: ${password} · Entra en ${SITIO_URL}/portal`,
+        });
+        correoEnviado = true;
+      }
+    } catch (e) {
+      // El correo es cortesía: si falla, las credenciales YA existen y se muestran en el panel.
+      console.error("[crear-usuario-evento] correo bienvenida:", e.message);
+    }
+
+    res.status(200).json({ ok: true, userId: nuevoId, usuario: limpio, correoEnviado });
   } catch (e) {
     console.error("[crear-usuario-evento] Error:", e.message);
     res.status(500).json({ error: "Error del servidor" });

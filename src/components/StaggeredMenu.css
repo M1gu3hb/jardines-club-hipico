@@ -40,6 +40,20 @@
   content: ""; position: absolute; left: -0.85em; top: 50%; transform: translateY(-50%);
   width: 0.35em; height: 0.35em; border-radius: 50%; background: var(--sm-accent, #C9A84C);
 }
+/* Item especial (Portal de clientes): separado, dorado y más discreto. */
+.sm-panel-itemWrap:has(.sm-panel-item--especial) {
+  margin-top: 1.4rem;
+  padding-top: 1.2rem;
+  border-top: 1px solid rgba(201, 168, 76, 0.2);
+}
+.sm-panel-item--especial {
+  font-size: 0.95rem;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--sm-accent, #C9A84C);
+}
+.sm-panel-item--especial:hover { color: #F0D98A; }
+.sm-panel-list[data-numbering] .sm-panel-item--especial::after { content: none; }
 .sm-panel-list[data-numbering] { counter-reset: smItem; }
 .sm-panel-list[data-numbering] .sm-panel-item::after {
   counter-increment: smItem; content: counter(smItem, decimal-leading-zero);
