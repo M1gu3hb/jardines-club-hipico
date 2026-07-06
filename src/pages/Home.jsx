@@ -87,6 +87,7 @@ export default function Home() {
           <StaggeredMenu
             items={MENU_ITEMS}
             logoUrl={config?.logoUrl}
+            activeId={activeSection}
             onItemClick={scrollToSection}
             headerExtra={<SoundToggle />}
           />
@@ -119,6 +120,12 @@ export default function Home() {
               <p className="text-white/20 text-xs tracking-widest uppercase">
                 © {new Date().getFullYear()} Jardines Club Hípico · Ciudad de México
               </p>
+              <a
+                href="/portal"
+                className="inline-block mt-3 text-[#C9A84C]/45 hover:text-[#C9A84C] text-[11px] tracking-[0.2em] uppercase transition-colors"
+              >
+                ¿Ya tienes tu evento con nosotros? Entra a tu portal →
+              </a>
             </footer>
           </main>
 

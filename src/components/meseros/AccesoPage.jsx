@@ -58,16 +58,30 @@ export default function AccesoPage() {
             <p className="text-white/70">{error}</p>
           </div>
         ) : info ? (
-          <div className="bg-[#111] border border-[#C9A84C]/20 p-6">
-            <p className="text-[#C9A84C]/60 text-xs uppercase tracking-[0.2em] text-center">{info.evento}</p>
+          <div className="skeu-card p-6">
+            <p className="portal-eyebrow text-center">{info.evento}</p>
             <h1 className="text-white text-2xl font-thin text-center mt-1">{info.invitado || "Invitado"}</h1>
 
-            <div className="flex items-center justify-center gap-2 mt-4 text-white/70">
-              <MapPin size={16} className="text-[#C9A84C]/70" />
-              <span className="text-lg">{info.mesa}</span>
+            {/* La mesa en GRANDE: el mesero debe leerla de un vistazo en la puerta */}
+            <div className="mt-5 text-center rounded-2xl border border-[#C9A84C]/30 bg-[#C9A84C]/[0.07] px-4 py-5">
+              <p className="flex items-center justify-center gap-1.5 text-[#C9A84C]/70 text-[11px] uppercase tracking-[0.25em] mb-1">
+                <MapPin size={12} /> Su mesa
+              </p>
+              <p
+                className="font-thin leading-none"
+                style={{
+                  fontSize: "clamp(2rem, 8vw, 2.8rem)",
+                  background: "linear-gradient(180deg, #F0D98A 0%, #C9A84C 55%, #A88532 100%)",
+                  WebkitBackgroundClip: "text",
+                  WebkitTextFillColor: "transparent",
+                  backgroundClip: "text",
+                }}
+              >
+                {info.mesa}
+              </p>
             </div>
 
-            <div className="flex items-center justify-center gap-2 mt-2 text-white/40 text-sm">
+            <div className="flex items-center justify-center gap-2 mt-4 text-white/40 text-sm">
               <Users size={14} /> {info.registradas}/{info.max} registradas · quedan {restante}
             </div>
 
@@ -80,15 +94,22 @@ export default function AccesoPage() {
             {restante > 0 ? (
               <div className="mt-6">
                 <p className="text-white/40 text-xs uppercase tracking-wider text-center mb-3">¿Cuántas personas entran?</p>
-                <div className="flex items-center justify-center gap-4">
-                  <button onClick={() => setPersonas((p) => Math.max(1, p - 1))} className="w-10 h-10 border border-white/15 text-white/60 flex items-center justify-center hover:border-[#C9A84C]/40"><Minus size={16} /></button>
-                  <span className="text-white text-3xl font-thin w-12 text-center">{personas}</span>
-                  <button onClick={() => setPersonas((p) => Math.min(restante, p + 1))} className="w-10 h-10 border border-white/15 text-white/60 flex items-center justify-center hover:border-[#C9A84C]/40"><Plus size={16} /></button>
+                {/* Botones grandes: se usan de pie, con prisa y con el teléfono en una mano */}
+                <div className="flex items-center justify-center gap-5">
+                  <button onClick={() => setPersonas((p) => Math.max(1, p - 1))}
+                    className="w-14 h-14 rounded-full border border-white/15 text-white/70 flex items-center justify-center active:scale-95 hover:border-[#C9A84C]/40 transition-all">
+                    <Minus size={20} />
+                  </button>
+                  <span className="text-white text-4xl font-thin w-14 text-center tabular-nums">{personas}</span>
+                  <button onClick={() => setPersonas((p) => Math.min(restante, p + 1))}
+                    className="w-14 h-14 rounded-full border border-white/15 text-white/70 flex items-center justify-center active:scale-95 hover:border-[#C9A84C]/40 transition-all">
+                    <Plus size={20} />
+                  </button>
                 </div>
                 {error && <p className="text-red-400 text-xs text-center mt-3">{error}</p>}
                 <button onClick={registrar} disabled={registrando}
-                  className="w-full mt-5 flex items-center justify-center gap-2 bg-[#C9A84C] text-[#0a0a0a] py-3 text-sm font-medium hover:bg-[#d4b558] transition-all disabled:opacity-50">
-                  {registrando ? <Loader2 size={14} className="animate-spin" /> : <Check size={16} />} Registrar acceso
+                  className="skeu-gold-btn w-full mt-6 flex items-center justify-center gap-2 py-4 rounded-full text-sm font-medium disabled:opacity-50">
+                  {registrando ? <Loader2 size={16} className="animate-spin" /> : <Check size={17} />} Registrar acceso
                 </button>
               </div>
             ) : (

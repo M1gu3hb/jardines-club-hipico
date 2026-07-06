@@ -11,8 +11,9 @@ import PortalShell from "./PortalShell";
 
 function Cargando() {
   return (
-    <div className="min-h-screen bg-[#0a0a0a] flex items-center justify-center">
+    <div className="min-h-screen bg-[#0a0a0a] flex flex-col items-center justify-center gap-4">
       <div className="w-8 h-8 rounded-full border-2 border-[#C9A84C]/30 border-t-[#C9A84C] animate-spin" />
+      <p className="text-white/30 text-xs tracking-[0.25em] uppercase">Preparando tu evento…</p>
     </div>
   );
 }
@@ -26,9 +27,10 @@ export default function PortalPage() {
   if (!evento) {
     return (
       <div className="min-h-screen bg-[#0a0a0a] flex items-center justify-center px-4 text-center">
-        <div>
-          <p className="text-white/70 text-lg font-light">No encontramos un evento ligado a tu cuenta.</p>
-          <button onClick={logout} className="mt-5 text-[#C9A84C] text-sm border border-[#C9A84C]/30 px-4 py-2 hover:bg-[#C9A84C]/10 transition-colors">
+        <div className="max-w-sm">
+          <p className="text-white/75 text-lg font-light">Tu cuenta aún no tiene un evento asignado.</p>
+          <p className="text-white/35 text-sm mt-2">Escríbele a tu coordinador de Jardines Club Hípico y lo resolvemos enseguida.</p>
+          <button onClick={logout} className="mt-6 text-[#C9A84C] text-sm border border-[#C9A84C]/30 px-4 py-2 rounded-full hover:bg-[#C9A84C]/10 transition-colors">
             Cerrar sesión
           </button>
         </div>

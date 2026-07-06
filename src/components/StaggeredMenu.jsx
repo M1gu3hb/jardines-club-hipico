@@ -22,6 +22,7 @@ export default function StaggeredMenu({
   changeMenuColorOnOpen = false,
   closeOnClickAway = true,
   headerExtra = null,
+  activeId = null,
   onItemClick,
   onMenuOpen,
   onMenuClose,
@@ -267,8 +268,14 @@ export default function StaggeredMenu({
           <ul className="sm-panel-list" role="list" data-numbering={displayItemNumbering || undefined}>
             {items.map((it, idx) => (
               <li className="sm-panel-itemWrap" key={it.label + idx}>
-                <a className="sm-panel-item" href={it.link} aria-label={it.ariaLabel} data-index={idx + 1}
-                  onClick={(e) => handleItem(e, it)}>
+                <a
+                  className={"sm-panel-item" + (activeId && it.id === activeId ? " sm-panel-item--active" : "")}
+                  href={it.link}
+                  aria-label={it.ariaLabel}
+                  aria-current={activeId && it.id === activeId ? "true" : undefined}
+                  data-index={idx + 1}
+                  onClick={(e) => handleItem(e, it)}
+                >
                   <span className="sm-panel-itemLabel">{it.label}</span>
                 </a>
               </li>

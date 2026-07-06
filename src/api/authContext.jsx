@@ -7,7 +7,7 @@
  *
  * No guarda credenciales. Reacciona a cambios de sesión (login/logout/refresh de token).
  */
-import { createContext, useContext, useEffect, useState, useCallback } from "react";
+import { createContext, useContext, useEffect, useState, useCallback, useRef } from "react";
 import { base44 } from "@/api/base44Client";
 import { usuarioAEmail } from "@/config/portal";
 
@@ -18,11 +18,15 @@ export function AuthProvider({ children }) {
   const [user, setUser] = useState(null);
   const [perfil, setPerfil] = useState(null);
   const [evento, setEvento] = useState(null);
+  // Id del usuario ya cargado: evita recargar (y desmontar la UI) cuando Supabase
+  // re-emite SIGNED_IN / TOKEN_REFRESHED del MISMO usuario (p. ej. al volver a la pestaña).
+  const userIdRef = useRef(null);
 
   // Carga perfil (rol) y, si es cliente, su evento. Depende del usuario actual de Auth.
   const cargarContexto = useCallback(async () => {
     try {
       const sesion = await base44.auth.session();
+      userIdRef.current = sesion?.user?.id || null;
       if (!sesion?.user) {
         setUser(null);
         setPerfil(null);
@@ -45,10 +49,14 @@ export function AuthProvider({ children }) {
 
   useEffect(() => {
     cargarContexto();
-    // Re-cargar el contexto cuando cambie la sesión (login/logout en otra pestaña, refresh).
-    // Se difiere con setTimeout(0) para no invocar consultas de Supabase DENTRO del callback
-    // de onAuthStateChange (evita la reentrancia/deadlock del lock de auth en supabase-js v2).
-    const unsub = base44.auth.onChange(() => {
+    // Re-cargar el contexto SOLO cuando el usuario realmente cambia (login/logout).
+    // Supabase re-emite SIGNED_IN/TOKEN_REFRESHED del mismo usuario al volver a la
+    // pestaña; recargar ahí desmontaba el portal y regresaba al cliente al inicio.
+    // Se difiere con setTimeout(0) para no invocar consultas de Supabase DENTRO del
+    // callback de onAuthStateChange (evita la reentrancia/deadlock de supabase-js v2).
+    const unsub = base44.auth.onChange((session) => {
+      const nuevoId = session?.user?.id || null;
+      if (nuevoId === userIdRef.current) return;
       setLoading(true);
       setTimeout(() => cargarContexto(), 0);
     });

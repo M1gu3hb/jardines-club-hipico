@@ -35,6 +35,11 @@
 }
 .sm-panel-itemLabel { display: inline-block; will-change: transform; transform-origin: 50% 100%; }
 .sm-panel-item:hover { color: var(--sm-accent, #C9A84C); }
+.sm-panel-item--active { color: var(--sm-accent, #C9A84C); }
+.sm-panel-item--active::before {
+  content: ""; position: absolute; left: -0.85em; top: 50%; transform: translateY(-50%);
+  width: 0.35em; height: 0.35em; border-radius: 50%; background: var(--sm-accent, #C9A84C);
+}
 .sm-panel-list[data-numbering] { counter-reset: smItem; }
 .sm-panel-list[data-numbering] .sm-panel-item::after {
   counter-increment: smItem; content: counter(smItem, decimal-leading-zero);

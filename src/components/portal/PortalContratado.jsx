@@ -12,14 +12,12 @@ export default function PortalContratado({ eventoId }) {
       .finally(() => setCargando(false));
   }, [eventoId]);
 
-  if (cargando) return <p className="text-white/25 text-sm py-10 text-center">Cargando…</p>;
+  if (cargando) return <p className="text-white/25 text-sm py-10 text-center">Repasando tu paquete…</p>;
 
   const total = items.reduce((acc, it) => acc + (Number(it.precio) || 0) * (Number(it.cantidad) || 1), 0);
 
   return (
     <div className="max-w-xl mx-auto">
-      <h2 className="text-white text-xl font-thin mb-1">Lo que contrataste</h2>
-      <p className="text-white/30 text-sm mb-6">Servicios y paquetes incluidos en tu evento.</p>
       <div className="space-y-2">
         {items.map((it) => (
           <div key={it.id} className="flex items-center gap-3 skeu-card px-4 py-3.5">
@@ -38,7 +36,13 @@ export default function PortalContratado({ eventoId }) {
             )}
           </div>
         ))}
-        {items.length === 0 && <p className="text-white/20 text-sm py-8 text-center">Aún no hay ítems registrados.</p>}
+        {items.length === 0 && (
+          <div className="text-center py-10">
+            <Package size={26} className="text-[#C9A84C]/30 mx-auto mb-3" />
+            <p className="text-white/40 text-sm">Tu paquete aún se está armando.</p>
+            <p className="text-white/25 text-xs mt-1">Aquí verás cada servicio contratado en cuanto quede registrado.</p>
+          </div>
+        )}
         {total > 0 && (
           <div className="flex justify-end pt-3">
             <span className="text-white/40 text-sm">Total: <span className="text-[#C9A84C]">${total.toLocaleString("es-MX")}</span></span>

@@ -25,12 +25,10 @@ export default function PortalDocumentos({ eventoId }) {
     }
   };
 
-  if (cargando) return <p className="text-white/25 text-sm py-10 text-center">Cargando…</p>;
+  if (cargando) return <p className="text-white/25 text-sm py-10 text-center">Preparando tus documentos…</p>;
 
   return (
     <div className="max-w-xl mx-auto">
-      <h2 className="text-white text-xl font-thin mb-1">Documentos</h2>
-      <p className="text-white/30 text-sm mb-6">Cotizaciones, contratos y comprobantes de tu evento.</p>
       <div className="space-y-2">
         {docs.map((d) => (
           <div key={d.id} className="flex items-center gap-3 skeu-card px-4 py-3.5">
@@ -45,7 +43,13 @@ export default function PortalDocumentos({ eventoId }) {
             </button>
           </div>
         ))}
-        {docs.length === 0 && <p className="text-white/20 text-sm py-8 text-center">Aún no hay documentos disponibles.</p>}
+        {docs.length === 0 && (
+          <div className="text-center py-10">
+            <FileText size={26} className="text-[#C9A84C]/30 mx-auto mb-3" />
+            <p className="text-white/40 text-sm">Aún no hay documentos por aquí.</p>
+            <p className="text-white/25 text-xs mt-1">En cuanto tu coordinador suba tu cotización o contrato, los verás en este espacio.</p>
+          </div>
+        )}
       </div>
     </div>
   );

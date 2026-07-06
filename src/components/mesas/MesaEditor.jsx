@@ -185,6 +185,13 @@ function MesaPanel({ mesa, editable, formas, opciones, libre, onPatch, onBorrar,
   const [invitados, setInvitados] = useState([]);
   const [nuevo, setNuevo] = useState("");
   const [cargandoInv, setCargandoInv] = useState(true);
+  // Nombre con estado local: se guarda al salir del campo (blur/Enter), no en cada tecla,
+  // para no disparar un UPDATE a Supabase por caracter escrito.
+  const [nombre, setNombre] = useState(mesa.nombre || "");
+  const guardarNombre = () => {
+    const limpio = nombre.trim() || mesa.nombre || "Mesa";
+    if (limpio !== mesa.nombre) onPatch(mesa.id, { nombre: limpio });
+  };
 
   const cargarInv = useCallback(() => {
     base44.entities.Invitado.filter({ mesaId: mesa.id }).then(setInvitados).finally(() => setCargandoInv(false));
@@ -208,8 +215,14 @@ function MesaPanel({ mesa, editable, formas, opciones, libre, onPatch, onBorrar,
 
       <div>
         <label className="text-white/30 text-xs uppercase tracking-wider mb-1.5 block">Nombre</label>
-        <input value={mesa.nombre || ""} disabled={!editable} onChange={(e) => onPatch(mesa.id, { nombre: e.target.value })}
-          className="w-full bg-white/5 border border-white/10 text-white/70 text-sm px-3 py-2 outline-none focus:border-[#C9A84C]/40 disabled:opacity-60" />
+        <input
+          value={nombre}
+          disabled={!editable}
+          onChange={(e) => setNombre(e.target.value)}
+          onBlur={guardarNombre}
+          onKeyDown={(e) => e.key === "Enter" && e.currentTarget.blur()}
+          className="w-full bg-white/5 border border-white/10 text-white/70 text-sm px-3 py-2 outline-none focus:border-[#C9A84C]/40 disabled:opacity-60"
+        />
       </div>
 
       <div>

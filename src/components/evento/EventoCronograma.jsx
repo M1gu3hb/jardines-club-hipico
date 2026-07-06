@@ -74,7 +74,13 @@ export default function EventoCronograma({ eventoId, editable = false }) {
             )}
           </div>
         ))}
-        {items.length === 0 && <p className="text-white/20 text-sm py-6 text-center">Cronograma vacío.</p>}
+        {items.length === 0 && (
+          <div className="text-center py-8">
+            <Clock size={24} className="text-[#C9A84C]/30 mx-auto mb-3" />
+            <p className="text-white/40 text-sm">Aún no hay momentos en el cronograma.</p>
+            {editable && <p className="text-white/25 text-xs mt-1">Empieza por la llegada de los invitados, la ceremonia o el brindis.</p>}
+          </div>
+        )}
       </div>
     </div>
   );
