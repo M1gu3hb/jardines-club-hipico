@@ -9,6 +9,8 @@ import RequireAdmin from '@/components/auth/RequireAdmin';
 import Admin from '@/pages/Admin';
 import PortalPage from '@/components/portal/PortalPage';
 import AccesoPage from '@/components/meseros/AccesoPage';
+import StaffPage from '@/components/meseros/StaffPage';
+import InvitacionPublica from '@/components/invitacion/InvitacionPublica';
 import { ADMIN_SLUG } from '@/config/portal';
 
 const { Pages, Layout, mainPage } = pagesConfig;
@@ -45,12 +47,15 @@ function App() {
             {/* Portal del cliente (login usuario/contraseña + secciones del evento). */}
             <Route path="/portal" element={<PortalPage />} />
 
-            {/* Acceso por QR (meseros). Protegido: solo admin/staff con sesión. */}
-            <Route path="/acceso/:token" element={
-              <RequireAdmin>
-                <AccesoPage />
-              </RequireAdmin>
-            } />
+            {/* Acceso por QR: pública en la RUTA, pero las RPCs exigen admin o
+                staff con token válido. Sin token válido no se puede leer ni registrar. */}
+            <Route path="/acceso/:token" element={<AccesoPage />} />
+
+            {/* Vista de meseros por evento (link de staff, sin panel). */}
+            <Route path="/staff/:token" element={<StaffPage />} />
+
+            {/* Invitación digital pública para invitados (con RSVP). */}
+            <Route path="/invitacion/:token" element={<InvitacionPublica />} />
 
             {publicPages.map(([path, Page]) => (
               <Route

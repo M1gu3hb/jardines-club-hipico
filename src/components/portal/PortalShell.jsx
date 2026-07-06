@@ -3,7 +3,7 @@ import { motion } from "framer-motion";
 import { useNavigate } from "react-router-dom";
 import { base44 } from "@/api/base44Client";
 import { useAuth } from "@/api/authContext";
-import { Home, FileText, Package, Clock, Music, LayoutGrid, Star, LogOut, Sparkles, Globe } from "lucide-react";
+import { Home, FileText, Package, Clock, Music, LayoutGrid, Star, LogOut, Sparkles, Globe, Mail } from "lucide-react";
 import { eventoYaPaso } from "@/lib/fechas";
 import { registrarActividad } from "@/lib/notificar";
 import Dock from "./Dock";
@@ -15,6 +15,8 @@ import EventoMusica from "@/components/evento/EventoMusica";
 import MesaEditor from "@/components/mesas/MesaEditor";
 import PortalResena from "./PortalResena";
 import PortalArmalo from "./PortalArmalo";
+import PortalInvitacion from "./PortalInvitacion";
+import PortalInstall from "./PortalInstall";
 
 /** Encabezado de sección con el estilo editorial del sitio. */
 function TituloSeccion({ titulo, descripcion }) {
@@ -79,6 +81,7 @@ export default function PortalShell({ evento, onRefresh }) {
       { id: "cronograma", label: "Cronograma", icon: <Clock size={18} /> },
       { id: "musica", label: "Música", icon: <Music size={18} /> },
       { id: "mesas", label: "Mesas", icon: <LayoutGrid size={18} /> },
+      { id: "invitacion", label: "Invitación", icon: <Mail size={18} /> },
     ];
     if (yaPaso) base.push({ id: "resena", label: "Reseña", icon: <Star size={18} /> });
     return base;
@@ -172,9 +175,18 @@ export default function PortalShell({ evento, onRefresh }) {
                 <MesaEditor eventoId={evento.id} salonId={evento.salonId} reglas={reglas} editable={!!reglas?.clientePuedeEditar} />
               </div>
             )}
+            {seccion === "invitacion" && (
+              <div className="max-w-xl mx-auto">
+                <TituloSeccion titulo="Invitación digital" descripcion="Crea la invitación de tu evento y compártela con tus invitados. Ellos confirman su asistencia aquí mismo." />
+                <PortalInvitacion evento={evento} />
+              </div>
+            )}
             {seccion === "resena" && <PortalResena evento={evento} />}
         </motion.div>
       </main>
+
+      {/* Invitación a instalar el portal como app */}
+      <PortalInstall />
 
       {/* Dock de navegación */}
       <div className="fixed inset-x-0 bottom-0 z-50" style={{ height: 96 }}>

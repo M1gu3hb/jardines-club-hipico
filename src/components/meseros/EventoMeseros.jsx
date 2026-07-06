@@ -1,10 +1,11 @@
 import { useState, useEffect, useCallback } from "react";
 import QRCode from "qrcode";
 import { base44 } from "@/api/base44Client";
-import { Plus, Loader2, Trash2, Printer, QrCode, ExternalLink, Users } from "lucide-react";
+import { Plus, Loader2, Trash2, Printer, QrCode, ExternalLink, Users, Link2, Copy, RefreshCw, Share2 } from "lucide-react";
 import QrImg from "./QrImg";
 
 const accesoUrl = (token) => `${window.location.origin}/acceso/${token}`;
+const staffUrl = (token) => `${window.location.origin}/staff/${token}`;
 const nuevoToken = () => (crypto.randomUUID ? crypto.randomUUID() : "t-" + Date.now() + Math.random().toString(36).slice(2));
 
 export default function EventoMeseros({ eventoId }) {
@@ -15,17 +16,40 @@ export default function EventoMeseros({ eventoId }) {
   const [nombre, setNombre] = useState("");
   const [maxPersonas, setMaxPersonas] = useState("");
   const [generando, setGenerando] = useState(false);
+  const [staffToken, setStaffToken] = useState(null);
+  const [genStaff, setGenStaff] = useState(false);
+  const [copiado, setCopiado] = useState(false);
 
   const cargar = useCallback(async () => {
-    const [ms, invs] = await Promise.all([
+    const [ms, invs, ev] = await Promise.all([
       base44.entities.Mesa.filter({ eventoId }, "orden"),
       base44.entities.Invitacion.filter({ eventoId }, "-created_date"),
+      base44.entities.Evento.get(eventoId),
     ]);
     setMesas(ms);
     setInvitaciones(invs);
+    setStaffToken(ev?.staffToken || null);
     setCargando(false);
   }, [eventoId]);
   useEffect(() => { cargar(); }, [cargar]);
+
+  const generarStaffLink = async () => {
+    setGenStaff(true);
+    const t = nuevoToken();
+    await base44.entities.Evento.update(eventoId, { staffToken: t });
+    setStaffToken(t);
+    setGenStaff(false);
+  };
+  const copiarStaff = () => {
+    navigator.clipboard?.writeText(staffUrl(staffToken)).then(() => {
+      setCopiado(true); setTimeout(() => setCopiado(false), 2000);
+    }).catch(() => {});
+  };
+  const compartirStaff = () => {
+    const url = staffUrl(staffToken);
+    const msg = `Link para registrar invitados (meseros): ${url}`;
+    window.open(`https://wa.me/?text=${encodeURIComponent(msg)}`, "_blank", "noopener,noreferrer");
+  };
 
   const mesaNombre = (id) => mesas.find((m) => m.id === id)?.nombre || "Sin mesa";
   const mesaCap = (id) => mesas.find((m) => m.id === id)?.capacidad || 1;
@@ -95,6 +119,38 @@ export default function EventoMeseros({ eventoId }) {
 
   return (
     <div>
+      {/* Link de meseros: acceso operativo sin panel */}
+      <div className="bg-[#111] border border-[#C9A84C]/20 p-5 mb-5">
+        <p className="text-white/60 text-sm uppercase tracking-wider flex items-center gap-2 mb-1"><Link2 size={14} /> Link para tus meseros</p>
+        <p className="text-white/35 text-xs mb-3">Compártelo el día del evento. Con él escanean los QR de los invitados y ven el avance de mesas en vivo — sin entrar al panel.</p>
+        {staffToken ? (
+          <div className="space-y-3">
+            <div className="flex items-center gap-2 bg-white/5 border border-white/10 px-3 py-2.5 rounded-lg">
+              <span className="flex-1 text-white/60 text-xs truncate">{staffUrl(staffToken)}</span>
+              <button onClick={copiarStaff} className="text-[#C9A84C]/70 hover:text-[#C9A84C] transition-colors flex-shrink-0" title="Copiar">
+                {copiado ? <span className="text-green-400/80 text-xs">¡Copiado!</span> : <Copy size={15} />}
+              </button>
+            </div>
+            <div className="flex flex-wrap gap-2">
+              <button onClick={compartirStaff} className="flex items-center gap-2 border border-[#25D366]/40 text-[#25D366] px-4 py-2 text-sm rounded-full hover:bg-[#25D366]/10 transition-all">
+                <Share2 size={14} /> Compartir por WhatsApp
+              </button>
+              <a href={staffUrl(staffToken)} target="_blank" rel="noopener noreferrer" className="flex items-center gap-2 border border-white/10 text-white/50 px-4 py-2 text-sm rounded-full hover:text-white/80 transition-all">
+                <ExternalLink size={14} /> Abrir
+              </a>
+              <button onClick={generarStaffLink} disabled={genStaff} className="flex items-center gap-2 text-white/30 hover:text-white/60 px-3 py-2 text-xs transition-all ml-auto" title="Renueva el link (invalida el anterior)">
+                {genStaff ? <Loader2 size={13} className="animate-spin" /> : <RefreshCw size={13} />} Renovar link
+              </button>
+            </div>
+          </div>
+        ) : (
+          <button onClick={generarStaffLink} disabled={genStaff}
+            className="flex items-center gap-2 bg-[#C9A84C] text-[#0a0a0a] px-5 py-2.5 text-sm font-medium hover:bg-[#d4b558] transition-all disabled:opacity-50">
+            {genStaff ? <Loader2 size={13} className="animate-spin" /> : <Link2 size={14} />} Generar link de meseros
+          </button>
+        )}
+      </div>
+
       {mesas.length === 0 && (
         <p className="text-amber-400/70 text-sm mb-4">Primero crea mesas (pestaña Mesas) para poder generar invitaciones.</p>
       )}

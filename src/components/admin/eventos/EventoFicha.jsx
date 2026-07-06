@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { ArrowLeft, FileText, Package, Clock, Music, LayoutGrid, QrCode, Settings2 } from "lucide-react";
+import { ArrowLeft, FileText, Package, Clock, Music, LayoutGrid, QrCode, Settings2, Users } from "lucide-react";
 import { estatusColor } from "./_ui";
 import EventoDatos from "./EventoDatos";
 import EventoDocumentos from "./EventoDocumentos";
@@ -8,6 +8,7 @@ import EventoCronograma from "@/components/evento/EventoCronograma";
 import EventoMusica from "@/components/evento/EventoMusica";
 import EventoMesasAdmin from "@/components/mesas/EventoMesasAdmin";
 import EventoMeseros from "@/components/meseros/EventoMeseros";
+import EventoRsvps from "./EventoRsvps";
 
 const SUBTABS = [
   { id: "datos", label: "Datos", icon: Settings2 },
@@ -16,6 +17,7 @@ const SUBTABS = [
   { id: "cronograma", label: "Cronograma", icon: Clock },
   { id: "musica", label: "Música", icon: Music },
   { id: "mesas", label: "Mesas", icon: LayoutGrid },
+  { id: "invitados", label: "Invitados", icon: Users },
   { id: "qr", label: "QR / Meseros", icon: QrCode },
 ];
 
@@ -55,6 +57,7 @@ export default function EventoFicha({ evento, salones, onVolver, onActualizado }
       {tab === "cronograma" && <EventoCronograma eventoId={evento.id} editable tipoEvento={evento.tipoEvento} />}
       {tab === "musica" && <EventoMusica eventoId={evento.id} editable />}
       {tab === "mesas" && <EventoMesasAdmin eventoId={evento.id} salonId={evento.salonId} />}
+      {tab === "invitados" && <EventoRsvps evento={evento} />}
       {tab === "qr" && <EventoMeseros eventoId={evento.id} />}
     </div>
   );

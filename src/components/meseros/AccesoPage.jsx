@@ -4,9 +4,12 @@ import { base44 } from "@/api/base44Client";
 import { MapPin, Users, Check, Loader2, AlertTriangle, ArrowLeft, Minus, Plus } from "lucide-react";
 
 /**
- * Vista de acceso (meseros). Se abre al escanear el QR: /acceso/<token>.
- * Protegida por <RequireAdmin> (los meseros usan la sesión del panel). Los RPCs
- * `info_invitacion` y `registrar_acceso` validan admin + cupo en el servidor.
+ * Vista de acceso al escanear el QR de un invitado: /acceso/<token>.
+ * Funciona para DOS tipos de usuario, sin panel:
+ *  - ADMIN con sesión → RPCs `info_invitacion` / `registrar_acceso` (validan is_admin).
+ *  - MESERO (staff) con el token guardado al abrir /staff/<staff_token> →
+ *    RPCs `*_staff` que validan el staff_token del evento.
+ * En ambos casos el cupo se valida en el servidor.
  */
 export default function AccesoPage() {
   const { token } = useParams();
@@ -17,15 +20,24 @@ export default function AccesoPage() {
   const [registrando, setRegistrando] = useState(false);
   const [resultado, setResultado] = useState(null);
 
+  // staff_token guardado por StaffPage (si el mesero abrió su link primero).
+  const staffToken = (() => { try { return localStorage.getItem("jch_staff_token"); } catch { return null; } })();
+
   const cargar = async () => {
     setCargando(true); setError(""); setResultado(null);
     try {
-      const data = await base44.rpc("info_invitacion", { p_token: token });
+      // Preferimos el modo staff si hay token de meseros; si no, modo admin.
+      const data = staffToken
+        ? await base44.rpc("info_invitacion_staff", { p_staff: staffToken, p_token: token })
+        : await base44.rpc("info_invitacion", { p_token: token });
       setInfo(data);
       const restante = Math.max(1, (data.max || 1) - (data.registradas || 0));
       setPersonas(Math.min(1, restante) || 1);
     } catch (e) {
-      setError(e.message || "No se pudo leer la invitación.");
+      const msg = /no autorizado|autorizado/i.test(e.message || "")
+        ? "Necesitas abrir primero el link de meseros, o entrar como administrador."
+        : (e.message || "No se pudo leer la invitación.");
+      setError(msg);
     } finally {
       setCargando(false);
     }
@@ -35,7 +47,9 @@ export default function AccesoPage() {
   const registrar = async () => {
     setRegistrando(true); setError("");
     try {
-      const r = await base44.rpc("registrar_acceso", { p_token: token, p_personas: Number(personas) });
+      const r = staffToken
+        ? await base44.rpc("registrar_acceso_staff", { p_staff: staffToken, p_token: token, p_personas: Number(personas) })
+        : await base44.rpc("registrar_acceso", { p_token: token, p_personas: Number(personas) });
       setResultado(r);
       await cargar();
     } catch (e) {
