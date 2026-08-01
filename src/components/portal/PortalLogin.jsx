@@ -45,14 +45,20 @@ export default function PortalLogin() {
           body: JSON.stringify({ token }),
         });
         if (!r.ok) throw new Error("canje");
-        const { tokenHash } = await r.json();
+        const { tokenHash, destino } = await r.json();
         if (!tokenHash) throw new Error("canje");
         const { error: vErr } = await supabase.auth.verifyOtp({
           token_hash: tokenHash,
           type: "magiclink",
         });
         if (vErr) throw vErr;
-        // La sesión ya quedó activa; el guard del portal se encarga del resto.
+        // El destino lo decide el servidor según el rol: el enlace de un
+        // administrador no puede terminar en el portal de cliente.
+        if (destino && destino !== "/portal") {
+          window.location.replace(destino);
+          return;
+        }
+        // Cliente: la sesión ya quedó activa y el guard del portal sigue.
       } catch {
         setEntrandoAuto(false);
         setError("Tu enlace de acceso ya se usó o caducó. Escribe tu usuario y contraseña.");

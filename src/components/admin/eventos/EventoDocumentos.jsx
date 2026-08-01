@@ -19,10 +19,13 @@ export default function EventoDocumentos({ eventoId }) {
     setError("");
     setAvisando(doc.id);
     try {
+      // Solo viaja el id: el servidor relee el documento, comprueba que pertenece
+      // a este evento y toma de ahí el nombre. El navegador ya no dicta el
+      // contenido del correo que sale hacia el cliente.
       const r = await base44.functions.correoCliente({
         tipo: "cotizacion",
         eventoId,
-        documento: doc.titulo,
+        documentoId: doc.id,
       });
       setAvisados((a) => ({ ...a, [doc.id]: r.enviadoA }));
     } catch (e) {

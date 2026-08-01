@@ -15,7 +15,7 @@
 //   tiempo constante, con un lock de idempotencia para no duplicar el envío.
 import { createClient } from "@supabase/supabase-js";
 import { plantillaOro, enviarCorreo, SITIO_URL } from "./_lib/correo.js";
-import { igualSeguro, bearer, generico } from "./_lib/guard.js";
+import { igualSeguro, bearer, generico, idemIniciar, idemCerrar, escHtml } from "./_lib/guard.js";
 
 const DEST_DEFAULT = "mighuer427@gmail.com";
 const fmt = (n) => "$" + Number(n || 0).toLocaleString("es-MX");
@@ -45,16 +45,16 @@ export default async function handler(req, res) {
 
   // Lock de idempotencia: si el cron se reintenta (o alguien lo dispara dos
   // veces el mismo día), el segundo intento no vuelve a mandar los correos.
+  const claveCron = hoy.toISOString().slice(0, 10);
   try {
-    const { data: primera } = await admin.rpc("api_idempotencia", {
-      p_endpoint: "cron-recordatorios",
-      p_clave: hoy.toISOString().slice(0, 10),
-      p_horas: 20,
-    });
-    if (primera !== true) {
+    // Lease de 10 min: si la ejecución se corta a medias, mañana (o al vencer)
+    // se puede reintentar en lugar de quedar bloqueada para siempre.
+    const idem = await idemIniciar(admin, "cron-recordatorios", claveCron, 600, 20);
+    if (idem === "duplicado" || idem === "en_curso") {
       res.status(200).json({ ok: true, omitido: "ya se ejecutó hoy" });
       return;
     }
+    if (idem !== "procede") return generico(res, 500);
   } catch (e) {
     console.error("[cron] no se pudo tomar el lock de idempotencia:", e.message);
     return generico(res, 500);
@@ -93,7 +93,7 @@ export default async function handler(req, res) {
     if (proximos.length || saldos.length || estancadas.length || paraResena.length) {
       const bloque = (titulo, items) => items.length
         ? `<p style="margin:16px 0 6px 0;color:#E6C870;font-weight:bold;font-size:13px;">${titulo}</p>` +
-          items.map((t) => `<p style="margin:0 0 4px 0;">• ${t}</p>`).join("")
+          items.map((t) => `<p style="margin:0 0 4px 0;">• ${escHtml(t)}</p>`).join("")
         : "";
       const cuerpo =
         bloque("📅 Próximos 7 días", proximos.map((e) => `${e.nombre_evento} — ${fecha(e.fecha_evento)}`)) +
@@ -123,7 +123,7 @@ export default async function handler(req, res) {
           const html = plantillaOro({
             pretitulo: "¿Cómo estuvo tu evento?",
             titulo: "Nos encantaría saber de ti",
-            cuerpoHtml: `<p style="margin:0 0 14px 0;">${(e.cliente_nombre || "Hola").split(/\s+/)[0]}, esperamos que <strong style="color:#E6C870;">${e.nombre_evento}</strong> haya sido inolvidable.</p>
+            cuerpoHtml: `<p style="margin:0 0 14px 0;">${escHtml((e.cliente_nombre || "Hola").split(/\s+/)[0])}, esperamos que <strong style="color:#E6C870;">${escHtml(e.nombre_evento)}</strong> haya sido inolvidable.</p>
               <p style="margin:0;">Tu opinión significa el mundo para nosotros. ¿Nos regalas un minuto para contarnos cómo te fue?</p>`,
             ctaTexto: "Dejar mi reseña",
             ctaUrl: `${SITIO_URL}/portal`,

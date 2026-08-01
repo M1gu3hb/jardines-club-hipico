@@ -15,7 +15,7 @@
 import { plantillaOro, enviarCorreo, SITIO_URL } from "./_lib/correo.js";
 import {
   escHtml, clienteAdmin, leerBody, autorizarJardines,
-  rateLimit, idempotencia, auditar, generico,
+  rateLimit, idemIniciar, idemCerrar, auditar, generico,
 } from "./_lib/guard.js";
 
 const DEST_DEFAULT = "mighuer427@gmail.com";
@@ -28,6 +28,39 @@ const ACCIONES = {
   documento:    { pretitulo: "Actividad del portal", titulo: "Un cliente revisó sus documentos" },
   nota:         { pretitulo: "Actividad del portal", titulo: "Un cliente dejó una nota" },
 };
+
+/**
+ * Comprueba que la acción anunciada realmente sucedió, releyendo la base.
+ * Evita que alguien con sesión legítima dispare avisos de cosas que no pasaron.
+ */
+async function accionOcurrio(admin, accion, evento) {
+  if (accion === "resena") {
+    const { count } = await admin
+      .from("resenas").select("id", { count: "exact", head: true })
+      .eq("evento_id", evento.id);
+    return (count || 0) > 0;
+  }
+  if (accion === "interes") {
+    const { count } = await admin
+      .from("evento_wishlist").select("id", { count: "exact", head: true })
+      .eq("evento_id", evento.id);
+    return (count || 0) > 0;
+  }
+  if (accion === "nota") {
+    const { count } = await admin
+      .from("evento_notas").select("id", { count: "exact", head: true })
+      .eq("evento_id", evento.id);
+    return (count || 0) > 0;
+  }
+  if (accion === "confirmacion") return evento.confirmado_cliente === true;
+  if (accion === "documento") {
+    const { count } = await admin
+      .from("documentos").select("id", { count: "exact", head: true })
+      .eq("evento_id", evento.id);
+    return (count || 0) > 0;
+  }
+  return false;
+}
 
 export default async function handler(req, res) {
   if (req.method !== "POST") return generico(res, 405);
@@ -63,30 +96,43 @@ export default async function handler(req, res) {
     return generico(res, 429);
   }
 
-  // 4) Los datos del evento se RECONSULTAN en el servidor; no se confía en el body.
-  //    Y el evento debe pertenecer a quien llama (salvo que sea admin).
-  let evento = null;
-  if (eventoId) {
-    const { data } = await admin
-      .from("eventos")
-      .select("id, nombre_evento, fecha_evento, cliente_nombre, auth_user_id")
-      .eq("id", eventoId)
-      .maybeSingle();
-    if (!data) return generico(res, 403);
-    if (aut.perfil.rol !== "admin" && data.auth_user_id !== aut.user.id) {
-      await auditar(admin, "notificar", "denegado", {
-        entidad: "eventos", entidadId: eventoId, detalle: { motivo: "evento_ajeno" },
-      });
-      return generico(res, 403);
-    }
-    evento = data;
+  // 4) TODAS las acciones van ligadas a un evento. Un cliente no puede mandar
+  //    avisos genéricos sin evento: sería un canal libre hacia el buzón del dueño.
+  if (!eventoId || !/^[0-9a-f-]{36}$/i.test(String(eventoId))) return generico(res, 400);
+
+  // Los datos se RECONSULTAN en el servidor; no se confía en el body. Y el evento
+  // debe pertenecer a quien llama (salvo que sea admin).
+  const { data: evento } = await admin
+    .from("eventos")
+    .select("id, nombre_evento, fecha_evento, cliente_nombre, auth_user_id, confirmado_cliente")
+    .eq("id", eventoId)
+    .maybeSingle();
+  if (!evento) return generico(res, 403);
+  if (aut.perfil.rol !== "admin" && evento.auth_user_id !== aut.user.id) {
+    await auditar(admin, "notificar", "denegado", {
+      entidad: "eventos", entidadId: eventoId, detalle: { motivo: "evento_ajeno" },
+    });
+    return generico(res, 403);
   }
 
-  // 5) Idempotencia: un reintento del navegador no duplica el correo.
-  const clave = `${accion}:${eventoId || aut.user.id}:${new Date().toISOString().slice(0, 13)}`;
-  if (!(await idempotencia(admin, "notificar", clave, 6))) {
+  // 4.b) La acción tiene que haber OCURRIDO de verdad. Sin esto, un cliente podría
+  //      disparar "nueva reseña" sin haber reseñado nada.
+  const existe = await accionOcurrio(admin, accion, evento);
+  if (!existe) {
+    await auditar(admin, "notificar", "denegado", {
+      entidad: "eventos", entidadId: eventoId, detalle: { motivo: "accion_inexistente", accion },
+    });
+    return generico(res, 400);
+  }
+
+  // 5) Idempotencia recuperable: dos envíos concurrentes no duplican el correo,
+  //    pero si el envío falla la clave queda reintentable.
+  const clave = `${accion}:${eventoId}:${new Date().toISOString().slice(0, 13)}`;
+  const idem = await idemIniciar(admin, "notificar", clave, 60, 6);
+  if (idem === "duplicado" || idem === "en_curso") {
     return res.status(200).json({ ok: true, duplicado: true });
   }
+  if (idem !== "procede") return generico(res, 500);
 
   try {
     // Todo lo dinámico va escapado. `nota` es lo único que aporta el cliente y se
@@ -115,13 +161,15 @@ export default async function handler(req, res) {
       texto: `${plantilla.titulo}${evento ? ` — ${evento.nombre_evento}` : ""}`,
     });
 
+    await idemCerrar(admin, "notificar", clave, true);
     await auditar(admin, "notificar", "ok", {
-      entidad: "eventos", entidadId: evento?.id ?? null, eventoId: evento?.id ?? null,
-      detalle: { accion },
+      entidad: "eventos", entidadId: evento.id, eventoId: evento.id, detalle: { accion },
     });
     res.status(200).json({ ok: true });
   } catch (e) {
     console.error("[notificar] Error al enviar correo:", e.message);
+    // Fallido, no completado: el aviso se puede reintentar.
+    await idemCerrar(admin, "notificar", clave, false);
     await auditar(admin, "notificar", "error", { detalle: { accion } });
     generico(res, 500);
   }

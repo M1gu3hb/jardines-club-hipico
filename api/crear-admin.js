@@ -8,6 +8,7 @@
 // Body: { nombre, correo, password, telefono? }
 import { createClient } from "@supabase/supabase-js";
 import { plantillaOro, enviarCorreo, SITIO_URL } from "./_lib/correo.js";
+import { escHtml } from "./_lib/guard.js";
 
 export default async function handler(req, res) {
   if (req.method !== "POST") {
@@ -135,10 +136,10 @@ export default async function handler(req, res) {
         pretitulo: "Acceso al panel",
         titulo: "Bienvenido al equipo",
         cuerpoHtml: `
-          <p style="margin:0 0 14px 0;">${String(nombre).split(/\s+/)[0]}, ${perfil.nombre || "un administrador"} te dio acceso al
+          <p style="margin:0 0 14px 0;">${escHtml(String(nombre).split(/\s+/)[0])}, ${escHtml(perfil.nombre || "un administrador")} te dio acceso al
           <strong style="color:#E6C870;">panel de administración</strong> de Jardines Club Hípico.</p>
           <p style="margin:0 0 6px 0;">Desde ahí puedes gestionar eventos, clientes, el sitio web y ver toda la actividad del portal.</p>
-          <p style="margin:0 0 6px 0;">Tu correo de acceso es <strong style="color:#E6C870;">${String(correo).trim().toLowerCase()}</strong>. Entra con el botón: el enlace sirve una sola vez y caduca en 3 días.</p>
+          <p style="margin:0 0 6px 0;">Tu correo de acceso es <strong style="color:#E6C870;">${escHtml(String(correo).trim().toLowerCase())}</strong>. Entra con el botón: el enlace sirve una sola vez y caduca en 3 días.</p>
           <p style="margin:0;">Tu contraseña te la comparte por separado quien te dio de alta. El panel vive en una dirección privada: <span style="color:#E6C870;">${panelUrl}</span></p>`,
         ctaTexto: "Entrar al panel",
         ctaUrl: entrarUrl,

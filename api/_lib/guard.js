@@ -104,13 +104,30 @@ export async function rateLimit(admin, bucket, clave, max, segundos) {
   return data === true;
 }
 
-/** Reclama una clave de idempotencia. true = primera vez, procede. */
-export async function idempotencia(admin, endpoint, clave, horas = 24) {
-  const { data, error } = await admin.rpc("api_idempotencia", {
-    p_endpoint: endpoint, p_clave: String(clave ?? ""), p_horas: horas,
+/**
+ * Idempotencia RECUPERABLE.
+ *
+ * Devuelve 'procede' | 'duplicado' | 'en_curso' | 'error'. La clave no queda
+ * consumida hasta que se llama a `idemCerrar(..., true)`: si el envío falla, se
+ * marca 'fallido' y el reintento vuelve a proceder. Un proceso interrumpido se
+ * recupera solo cuando vence su lease.
+ */
+export async function idemIniciar(admin, endpoint, clave, leaseSeg = 60, horas = 24) {
+  const { data, error } = await admin.rpc("api_idem_iniciar", {
+    p_endpoint: endpoint, p_clave: String(clave ?? ""),
+    p_lease_seg: leaseSeg, p_horas: horas,
   });
-  if (error) return false;
-  return data === true;
+  if (error) return "error";
+  return data;
+}
+
+/** Cierra la clave: true = completado (no se repite), false = fallido (reintentable). */
+export async function idemCerrar(admin, endpoint, clave, ok) {
+  try {
+    await admin.rpc("api_idem_cerrar", {
+      p_endpoint: endpoint, p_clave: String(clave ?? ""), p_ok: ok,
+    });
+  } catch { /* no debe tumbar la respuesta */ }
 }
 
 /** Registro en la bitácora de Jardines (nunca guarda secretos). */

@@ -16,7 +16,7 @@
 //   solicitud, así que un reintento no duplica el aviso.
 import nodemailer from "nodemailer";
 import {
-  clienteAdmin, leerBody, rateLimit, idempotencia,
+  clienteAdmin, leerBody, rateLimit, idemIniciar, idemCerrar,
   auditar, generico, ipCliente,
 } from "./_lib/guard.js";
 
@@ -96,10 +96,13 @@ export default async function handler(req, res) {
     return generico(res, 400);
   }
 
-  // Un reintento del navegador no manda el correo dos veces.
-  if (!(await idempotencia(admin, "solicitud-correo", s.id, 48))) {
+  // Un reintento no manda el correo dos veces, pero un fallo real sí se puede
+  // reintentar: la clave solo se consume cuando el envío sale bien.
+  const idem = await idemIniciar(admin, "solicitud-correo", s.id, 60, 48);
+  if (idem === "duplicado" || idem === "en_curso") {
     return res.status(200).json({ ok: true, duplicado: true });
   }
+  if (idem !== "procede") return generico(res, 500);
 
   try {
     const transporter = nodemailer.createTransport({ service: "gmail", auth: { user, pass } });
@@ -112,10 +115,12 @@ export default async function handler(req, res) {
       text: construirTexto(s),
     });
 
+    await idemCerrar(admin, "solicitud-correo", s.id, true);
     await auditar(admin, "solicitud_correo", "ok", { entidad: "solicitudes", entidadId: s.id });
     res.status(200).json({ ok: true });
   } catch (e) {
     console.error("[solicitud] Error al enviar correo:", e.message);
+    await idemCerrar(admin, "solicitud-correo", s.id, false);
     await auditar(admin, "solicitud_correo", "error", { entidad: "solicitudes", entidadId: s.id });
     generico(res, 500);
   }

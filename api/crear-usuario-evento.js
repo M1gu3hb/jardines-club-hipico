@@ -12,6 +12,7 @@
 //   SUPABASE_SERVICE_ROLE  -> service_role key (SECRETA; solo en el servidor)
 import { createClient } from "@supabase/supabase-js";
 import { plantillaOro, enviarCorreo, SITIO_URL } from "./_lib/correo.js";
+import { escHtml } from "./_lib/guard.js";
 
 const DOMINIO_CLIENTE = "portal.jardines.local";
 
@@ -159,10 +160,10 @@ export default async function handler(req, res) {
           pretitulo: "Tu portal está listo",
           titulo: ev.nombre_evento || "Tu evento",
           cuerpoHtml: `
-            <p style="margin:0 0 14px 0;">${nombreCliente}, ¡bienvenido a la familia de Jardines Club Hípico! 🎉</p>
+            <p style="margin:0 0 14px 0;">${escHtml(nombreCliente)}, ¡bienvenido a la familia de Jardines Club Hípico! 🎉</p>
             <p style="margin:0 0 6px 0;">Creamos tu <strong style="color:#E6C870;">portal exclusivo</strong> para que armes cada detalle de tu evento:
             cronograma, música, mesas, tus documentos y una lista de deseos con ideas para inspirarte.</p>
-            <p style="margin:0 0 6px 0;">Tu usuario es <strong style="color:#E6C870;">${limpio}</strong>. Con el botón de abajo entras directo, sin escribir nada.</p>
+            <p style="margin:0 0 6px 0;">Tu usuario es <strong style="color:#E6C870;">${escHtml(limpio)}</strong>. Con el botón de abajo entras directo, sin escribir nada.</p>
             <p style="margin:0;">El enlace sirve una sola vez y caduca en 3 días. Si se te vence, pídenos otro.</p>`,
           ctaTexto: "Entrar a mi portal",
           ctaUrl: linkMagico,
