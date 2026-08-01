@@ -7,7 +7,7 @@
 //
 // Body: { nombre, correo, password, telefono? }
 import { createClient } from "@supabase/supabase-js";
-import { plantillaOro, cajaCredenciales, enviarCorreo, SITIO_URL } from "./_lib/correo.js";
+import { plantillaOro, enviarCorreo, SITIO_URL } from "./_lib/correo.js";
 
 export default async function handler(req, res) {
   if (req.method !== "POST") {
@@ -87,6 +87,12 @@ export default async function handler(req, res) {
       user_metadata: { nombre },
     });
     if (createErr) {
+      // El aprovisionamiento ya estaba emitido: si el alta falla hay que consumirlo
+      // ahora mismo. Si no, quedaría una concesión de ADMIN reutilizable durante
+      // 7 días para quien lograra registrarse con ese correo.
+      await admin.rpc("revocar_aprovisionamiento", {
+        p_email: String(correo).trim().toLowerCase(),
+      }).catch(() => {});
       const msg = /already been registered|already exists/i.test(createErr.message || "")
         ? "Ya existe una cuenta con ese correo"
         : createErr.message;
@@ -104,6 +110,9 @@ export default async function handler(req, res) {
     });
     if (rolErr) {
       await admin.auth.admin.deleteUser(nuevoId).catch(() => {});
+      await admin.rpc("revocar_aprovisionamiento", {
+        p_email: String(correo).trim().toLowerCase(),
+      }).catch(() => {});
       res.status(500).json({ error: "No se pudo asignar el rol: " + rolErr.message });
       return;
     }
@@ -115,6 +124,13 @@ export default async function handler(req, res) {
     let correoEnviado = false;
     try {
       const panelUrl = `${SITIO_URL}/${process.env.VITE_ADMIN_SLUG || "gestion-jch-9f27ax"}`;
+      // Enlace de un solo uso en lugar de la contraseña en el cuerpo del correo.
+      const { data: tokenAcceso } = await admin.rpc("crear_acceso_unico", {
+        p_user_id: nuevoId, p_proposito: "primer_acceso_admin", p_horas: 72,
+      });
+      const entrarUrl = tokenAcceso
+        ? `${SITIO_URL}/portal#entrar=${encodeURIComponent(tokenAcceso)}`
+        : panelUrl;
       const html = plantillaOro({
         pretitulo: "Acceso al panel",
         titulo: "Bienvenido al equipo",
@@ -122,17 +138,18 @@ export default async function handler(req, res) {
           <p style="margin:0 0 14px 0;">${String(nombre).split(/\s+/)[0]}, ${perfil.nombre || "un administrador"} te dio acceso al
           <strong style="color:#E6C870;">panel de administración</strong> de Jardines Club Hípico.</p>
           <p style="margin:0 0 6px 0;">Desde ahí puedes gestionar eventos, clientes, el sitio web y ver toda la actividad del portal.</p>
-          ${cajaCredenciales(String(correo).trim().toLowerCase(), password)}
-          <p style="margin:0;">Guarda este correo y no compartas tus accesos. El panel vive en una dirección privada:</p>`,
+          <p style="margin:0 0 6px 0;">Tu correo de acceso es <strong style="color:#E6C870;">${String(correo).trim().toLowerCase()}</strong>. Entra con el botón: el enlace sirve una sola vez y caduca en 3 días.</p>
+          <p style="margin:0;">Tu contraseña te la comparte por separado quien te dio de alta. El panel vive en una dirección privada: <span style="color:#E6C870;">${panelUrl}</span></p>`,
         ctaTexto: "Entrar al panel",
-        ctaUrl: panelUrl,
+        ctaUrl: entrarUrl,
         notaPie: "Si no esperabas este acceso, avisa al administrador principal.",
       });
       await enviarCorreo({
         to: String(correo).trim().toLowerCase(),
         subject: "🔑 Tu acceso al panel — Jardines Club Hípico",
         html,
-        texto: `Tienes acceso al panel. Correo: ${correo} · Contraseña: ${password} · Panel: ${panelUrl}`,
+        // Sin contraseña en el cuerpo.
+        texto: `Tienes acceso al panel. Correo: ${correo}. Entra con este enlace de un solo uso: ${entrarUrl}`,
       });
       correoEnviado = true;
     } catch (e) {

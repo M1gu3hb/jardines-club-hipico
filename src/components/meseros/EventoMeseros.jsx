@@ -7,6 +7,23 @@ import QrImg from "./QrImg";
 const accesoUrl = (token) => `${window.location.origin}/acceso/${token}`;
 const staffUrl = (token) => `${window.location.origin}/staff/${token}`;
 
+/**
+ * Token de invitación: 256 bits de `crypto.getRandomValues`, en base64url.
+ *
+ * Sin fallback a `Math.random()`: es predecible y aquí el token ES la credencial
+ * que abre la invitación. Si el navegador no trae WebCrypto, preferimos fallar
+ * antes que emitir un QR adivinable. `crypto.getRandomValues` existe en todo
+ * navegador con soporte real desde hace años, y el sitio ya se sirve por HTTPS.
+ */
+const nuevoTokenInvitacion = () => {
+  const b = new Uint8Array(32);
+  crypto.getRandomValues(b);
+  return btoa(String.fromCharCode(...b))
+    .replace(/\+/g, "-")
+    .replace(/\//g, "_")
+    .replace(/=+$/, "");
+};
+
 export default function EventoMeseros({ eventoId }) {
   const [mesas, setMesas] = useState([]);
   const [invitaciones, setInvitaciones] = useState([]);
@@ -65,7 +82,7 @@ export default function EventoMeseros({ eventoId }) {
     await base44.entities.Invitacion.create({
       eventoId, mesaId,
       nombreInvitado: nombre.trim() || null,
-      token: nuevoToken(),
+      token: nuevoTokenInvitacion(),
       maxPersonas: maxPersonas ? Number(maxPersonas) : mesaCap(mesaId),
       personasRegistradas: 0,
       estatus: "pendiente",
@@ -82,7 +99,7 @@ export default function EventoMeseros({ eventoId }) {
     for (const m of mesas) {
       if (conInvitacion.has(m.id)) continue;
       await base44.entities.Invitacion.create({
-        eventoId, mesaId: m.id, nombreInvitado: null, token: nuevoToken(),
+        eventoId, mesaId: m.id, nombreInvitado: null, token: nuevoTokenInvitacion(),
         maxPersonas: m.capacidad || 1, personasRegistradas: 0, estatus: "pendiente",
       });
     }

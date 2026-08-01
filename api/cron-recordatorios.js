@@ -6,25 +6,32 @@
 //  - Re-invitación de RESEÑA al cliente para eventos pasados sin reseña
 //    (idempotente vía eventos.resena_recordada).
 //
-// Seguridad: Vercel Cron manda `Authorization: Bearer <CRON_SECRET>` si defines
-// CRON_SECRET. Si está definido, se exige; si no, se registra y se permite.
+// SEGURIDAD (corregido)
+//   Antes: `if (secret) { ...exigir... }`. Si CRON_SECRET no estaba definido, la
+//   ruta quedaba ABIERTA a internet: cualquiera podía dispararla y provocar el
+//   envío masivo de correos. Eso es fail-open, y por una variable ausente.
+//   Ahora falla CERRADO: sin secreto configurado la ruta responde 500 y no hace
+//   nada. Además solo acepta POST/GET de Vercel Cron y compara el secreto en
+//   tiempo constante, con un lock de idempotencia para no duplicar el envío.
 import { createClient } from "@supabase/supabase-js";
 import { plantillaOro, enviarCorreo, SITIO_URL } from "./_lib/correo.js";
+import { igualSeguro, bearer, generico } from "./_lib/guard.js";
 
 const DEST_DEFAULT = "mighuer427@gmail.com";
 const fmt = (n) => "$" + Number(n || 0).toLocaleString("es-MX");
 const fecha = (iso) => (iso ? new Date(iso + "T00:00:00").toLocaleDateString("es-MX", { day: "numeric", month: "long" }) : "");
 
 export default async function handler(req, res) {
-  // Verificación del secreto del cron (si está configurado).
+  // Vercel Cron invoca con GET; se acepta POST para disparo manual controlado.
+  if (req.method !== "GET" && req.method !== "POST") return generico(res, 405);
+
+  // FAIL-CLOSED: sin secreto configurado no se ejecuta nada.
   const secret = process.env.CRON_SECRET;
-  if (secret) {
-    const auth = req.headers.authorization || "";
-    if (auth !== `Bearer ${secret}`) {
-      res.status(401).json({ error: "No autorizado" });
-      return;
-    }
+  if (!secret) {
+    console.error("[cron] CRON_SECRET no está configurado: la ruta queda deshabilitada");
+    return generico(res, 500);
   }
+  if (!igualSeguro(bearer(req), secret)) return generico(res, 401);
 
   const url = process.env.SUPABASE_URL || process.env.VITE_SUPABASE_URL;
   const serviceRole = process.env.SUPABASE_SERVICE_ROLE;
@@ -35,6 +42,23 @@ export default async function handler(req, res) {
   const admin = createClient(url, serviceRole, { db: { schema: "jardines" }, auth: { persistSession: false } });
 
   const hoy = new Date();
+
+  // Lock de idempotencia: si el cron se reintenta (o alguien lo dispara dos
+  // veces el mismo día), el segundo intento no vuelve a mandar los correos.
+  try {
+    const { data: primera } = await admin.rpc("api_idempotencia", {
+      p_endpoint: "cron-recordatorios",
+      p_clave: hoy.toISOString().slice(0, 10),
+      p_horas: 20,
+    });
+    if (primera !== true) {
+      res.status(200).json({ ok: true, omitido: "ya se ejecutó hoy" });
+      return;
+    }
+  } catch (e) {
+    console.error("[cron] no se pudo tomar el lock de idempotencia:", e.message);
+    return generico(res, 500);
+  }
   const iso = (d) => d.toISOString().slice(0, 10);
   const hoyStr = iso(hoy);
   const en7 = iso(new Date(hoy.getTime() + 7 * 86400000));

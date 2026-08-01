@@ -11,7 +11,7 @@
 //   SUPABASE_URL           -> https://<proyecto>.supabase.co
 //   SUPABASE_SERVICE_ROLE  -> service_role key (SECRETA; solo en el servidor)
 import { createClient } from "@supabase/supabase-js";
-import { plantillaOro, cajaCredenciales, enviarCorreo, SITIO_URL } from "./_lib/correo.js";
+import { plantillaOro, enviarCorreo, SITIO_URL } from "./_lib/correo.js";
 
 const DOMINIO_CLIENTE = "portal.jardines.local";
 
@@ -146,8 +146,14 @@ export default async function handler(req, res) {
         .eq("id", eventoId)
         .maybeSingle();
       if (ev?.cliente_email) {
-        const acceso = Buffer.from(`${limpio}:${password}`, "utf8").toString("base64");
-        const linkMagico = `${SITIO_URL}/portal#acceso=${encodeURIComponent(acceso)}`;
+        // Enlace de un solo uso, con caducidad, guardado solo como hash. Antes
+        // aquí viajaba base64(usuario:contraseña), que es reversible: quien viera
+        // el correo o el historial se quedaba con la credencial permanente.
+        const { data: tokenAcceso, error: taErr } = await admin.rpc("crear_acceso_unico", {
+          p_user_id: nuevoId, p_proposito: "primer_acceso_cliente", p_horas: 72,
+        });
+        if (taErr || !tokenAcceso) throw new Error("no se pudo emitir el acceso");
+        const linkMagico = `${SITIO_URL}/portal#entrar=${encodeURIComponent(tokenAcceso)}`;
         const nombreCliente = (ev.cliente_nombre || nombre || "").split(/\s+/)[0] || "Hola";
         const html = plantillaOro({
           pretitulo: "Tu portal está listo",
@@ -156,8 +162,8 @@ export default async function handler(req, res) {
             <p style="margin:0 0 14px 0;">${nombreCliente}, ¡bienvenido a la familia de Jardines Club Hípico! 🎉</p>
             <p style="margin:0 0 6px 0;">Creamos tu <strong style="color:#E6C870;">portal exclusivo</strong> para que armes cada detalle de tu evento:
             cronograma, música, mesas, tus documentos y una lista de deseos con ideas para inspirarte.</p>
-            ${cajaCredenciales(limpio, password)}
-            <p style="margin:0;">Guarda este correo: estas son tus llaves. Con el botón de abajo entras directo, sin escribir nada.</p>`,
+            <p style="margin:0 0 6px 0;">Tu usuario es <strong style="color:#E6C870;">${limpio}</strong>. Con el botón de abajo entras directo, sin escribir nada.</p>
+            <p style="margin:0;">El enlace sirve una sola vez y caduca en 3 días. Si se te vence, pídenos otro.</p>`,
           ctaTexto: "Entrar a mi portal",
           ctaUrl: linkMagico,
           notaPie: "Si no esperabas este correo, ignóralo con confianza.",
@@ -166,7 +172,8 @@ export default async function handler(req, res) {
           to: ev.cliente_email,
           subject: `✨ Tu portal de "${ev.nombre_evento}" está listo — Jardines Club Hípico`,
           html,
-          texto: `Tu portal está listo. Usuario: ${limpio} · Contraseña: ${password} · Entra en ${SITIO_URL}/portal`,
+          // Sin contraseña en el cuerpo: el correo no es un lugar seguro para una credencial.
+          texto: `Tu portal está listo. Usuario: ${limpio}. Entra con este enlace de un solo uso: ${linkMagico}`,
         });
         correoEnviado = true;
       }
