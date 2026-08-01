@@ -90,11 +90,15 @@ export default async function handler(req, res) {
       res.status(400).json({ error: "Usuario inválido" });
       return;
     }
+    // `app_metadata` solo lo puede escribir la Admin API (service_role): es la señal
+    // server-side que marca al usuario como de Jardines. El rol NO viaja en
+    // `user_metadata`, que el propio usuario puede modificar después.
     const { data: created, error: createErr } = await admin.auth.admin.createUser({
       email,
       password,
       email_confirm: true,
-      user_metadata: { rol: "cliente", nombre: nombre || usuario, usuario: limpio },
+      app_metadata: { app: "jardines" },
+      user_metadata: { nombre: nombre || usuario, usuario: limpio },
     });
     if (createErr) {
       const msg = /already been registered|already exists/i.test(createErr.message || "")
@@ -106,11 +110,18 @@ export default async function handler(req, res) {
 
     const nuevoId = created.user.id;
 
-    // 3) Asegurar el perfil como cliente (el trigger ya lo crea; forzamos por si acaso).
-    await admin
-      .from("perfiles")
-      .update({ rol: "cliente", nombre: nombre || usuario })
-      .eq("user_id", nuevoId);
+    // 3) Fijar el rol por la vía administrativa protegida (queda auditado).
+    //    `asignar_rol` solo la puede ejecutar service_role, nunca el navegador.
+    const { error: rolErr } = await admin.rpc("asignar_rol", {
+      p_user_id: nuevoId,
+      p_rol: "cliente",
+      p_nombre: nombre || usuario,
+    });
+    if (rolErr) {
+      await admin.auth.admin.deleteUser(nuevoId).catch(() => {});
+      res.status(500).json({ error: "No se pudo asignar el rol: " + rolErr.message });
+      return;
+    }
 
     // 4) Ligar el evento a este usuario/credencial.
     const { error: linkErr } = await admin

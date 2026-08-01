@@ -6,7 +6,6 @@ import QrImg from "./QrImg";
 
 const accesoUrl = (token) => `${window.location.origin}/acceso/${token}`;
 const staffUrl = (token) => `${window.location.origin}/staff/${token}`;
-const nuevoToken = () => (crypto.randomUUID ? crypto.randomUUID() : "t-" + Date.now() + Math.random().toString(36).slice(2));
 
 export default function EventoMeseros({ eventoId }) {
   const [mesas, setMesas] = useState([]);
@@ -33,11 +32,17 @@ export default function EventoMeseros({ eventoId }) {
   }, [eventoId]);
   useEffect(() => { cargar(); }, [cargar]);
 
+  // El token lo genera y lo guarda el servidor (RPC `rotar_staff_token`): 256 bits,
+  // con hash, vigencia ligada a la fecha del evento y registro en auditoría. El
+  // navegador ya no inventa credenciales ni las escribe directo en la tabla.
   const generarStaffLink = async () => {
     setGenStaff(true);
-    const t = nuevoToken();
-    await base44.entities.Evento.update(eventoId, { staffToken: t });
-    setStaffToken(t);
+    try {
+      const t = await base44.rpc("rotar_staff_token", { p_evento: eventoId });
+      if (t) setStaffToken(t);
+    } catch (e) {
+      console.error("[meseros] no se pudo generar el link de staff:", e.message);
+    }
     setGenStaff(false);
   };
   const copiarStaff = () => {

@@ -67,11 +67,24 @@ export default async function handler(req, res) {
     }
 
     // 2) Crear el usuario de Auth (correo real, confirmado, rol admin).
+    // El rol admin se registra ANTES del alta en una invitación de aprovisionamiento
+    // que solo puede emitir el servidor. Así el trigger de auth.users toma el rol de
+    // una fuente controlada y nunca de `user_metadata` (que el usuario puede editar).
+    const { error: aproErr } = await admin.rpc("aprovisionar_usuario", {
+      p_email: String(correo).trim().toLowerCase(),
+      p_rol: "admin",
+    });
+    if (aproErr) {
+      res.status(500).json({ error: "No se pudo aprovisionar el acceso: " + aproErr.message });
+      return;
+    }
+
     const { data: created, error: createErr } = await admin.auth.admin.createUser({
       email: String(correo).trim().toLowerCase(),
       password,
       email_confirm: true,
-      user_metadata: { rol: "admin", nombre },
+      app_metadata: { app: "jardines" },
+      user_metadata: { nombre },
     });
     if (createErr) {
       const msg = /already been registered|already exists/i.test(createErr.message || "")
@@ -82,9 +95,20 @@ export default async function handler(req, res) {
     }
     const nuevoId = created.user.id;
 
-    // 3) Completar el perfil (el trigger ya lo creó con rol del metadata).
+    // 3) Confirmar el rol por la vía administrativa protegida (idempotente y auditada)
+    //    y completar los datos de contacto del perfil.
+    const { error: rolErr } = await admin.rpc("asignar_rol", {
+      p_user_id: nuevoId,
+      p_rol: "admin",
+      p_nombre: nombre,
+    });
+    if (rolErr) {
+      await admin.auth.admin.deleteUser(nuevoId).catch(() => {});
+      res.status(500).json({ error: "No se pudo asignar el rol: " + rolErr.message });
+      return;
+    }
     await admin.from("perfiles")
-      .update({ rol: "admin", nombre, telefono: telefono || null, correo: String(correo).trim().toLowerCase() })
+      .update({ telefono: telefono || null, correo: String(correo).trim().toLowerCase() })
       .eq("user_id", nuevoId);
 
     // 4) Correo de bienvenida con sus accesos y el link del panel.

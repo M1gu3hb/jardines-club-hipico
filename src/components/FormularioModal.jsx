@@ -114,11 +114,11 @@ export default function FormularioModal({ open, onClose, preselectedSalon, whats
         estatus: "Nueva",
       };
 
+      // El servidor genera y guarda el folio en la misma operación. Antes se
+      // intentaba un UPDATE posterior que RLS rechazaba en silencio, así que el
+      // folio del correo nunca coincidía con el de la base.
       const creada = await base44.entities.SolicitudEvento.create(dataToSave);
-      if (creada && creada.id) {
-        folioGenerado = `JCH-${creada.id.slice(-6).toUpperCase()}`;
-        base44.entities.SolicitudEvento.update(creada.id, { folio: folioGenerado }).catch(() => {});
-      }
+      if (creada?.folio) folioGenerado = creada.folio;
 
       // Enviar correo al administrador (función serverless → Gmail)
       base44.functions.invoke("gmailSolicitud", {

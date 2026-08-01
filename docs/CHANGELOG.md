@@ -1,5 +1,57 @@
 # CHANGELOG.md
 
+## 2026-08-01 — Endurecimiento de seguridad de Jardines (migraciones `jardines_sec_01..09`)
+
+### Cambios realizados
+- **Escalamiento de privilegios eliminado.** `jardines.handle_new_user()` tomaba el rol de
+  `raw_user_meta_data->>'rol'`, que controla el cliente. Ahora el rol solo viene de fuente
+  server-side (tabla privada de aprovisionamiento o `raw_app_meta_data`) y el trigger nunca concede
+  más que `cliente`. La promoción exige `jardines.asignar_rol`, con `EXECUTE` solo para `service_role`.
+- **Perfiles cruzados con Vero cortados.** El trigger vive en `auth.users`, compartida, y creaba
+  perfil de Jardines para todos los usuarios (incluido el admin de Vero). Ahora solo lo crea si hay
+  señal server-side de que el usuario es de Jardines.
+- **IDOR del módulo operativo corregido.** `operativo_ubicar` aceptaba `p_evento` sin validar; ahora
+  el evento se deriva o se valida contra los eventos permitidos. `operativo_evento_activo` dejó de
+  devolver `staffToken` de otros eventos. Nueva tabla `operativo_asignacion` (opcional, aditiva).
+- **Tokens de staff:** hash con pepper, expiración, rotación (256 bits), revocación, rate limit,
+  auditoría y respuestas genéricas anti-enumeración. Los QR/enlaces vigentes siguen funcionando.
+- **Rate limits reales** (`jardines_private.rate_limit`), persistentes, con claves hasheadas y
+  conteo atómico seguro ante concurrencia.
+- **RLS:** roles explícitos en todas las políticas (ninguna apunta ya a `PUBLIC`), una policy por
+  comando, `(select auth.uid())`, y `anon` sin INSERT/UPDATE/DELETE en ninguna tabla.
+- **Solicitudes:** el `WITH CHECK (true)` se sustituyó por `jardines.solicitud_crear`, que valida
+  formato y longitudes, limita tasa y fija los campos internos en el servidor.
+- **Storage:** límites de tamaño y MIME, listado público cerrado en `planos` y `sitio`, y escritura
+  del operativo acotada a `tx/<canal_id>/…`.
+- 12 índices de llave foránea, constraints de validación y auditoría aislada en `jardines_private`.
+
+### Archivos modificados
+- Nuevos: `supabase/migrations/2026080121*_jardines_sec_0{1..9}_*.sql`, `docs/SEGURIDAD.md`,
+  `supabase/migrations/PENDIENTE_jardines_sec_10_retiro_compat_staff_token.sql.noapply`.
+- Modificados: `api/crear-admin.js`, `api/crear-usuario-evento.js`, `src/api/base44Client.js`,
+  `src/components/FormularioModal.jsx`, `src/components/meseros/EventoMeseros.jsx`,
+  `src/components/admin/eventos/EventoDocumentos.jsx`.
+
+### Entidades/BD afectadas
+Schema `jardines` (32 tablas) y nuevo schema privado `jardines_private`. **`public` (Vero) sin
+cambios**: recuentos y checksums idénticos antes/después.
+
+### Bugs resueltos
+- El folio de la solicitud nunca se guardaba: el front intentaba un `UPDATE` que RLS rechazaba en
+  silencio, así que el folio del correo no coincidía con el de la base. Ahora lo genera el servidor.
+- Los documentos del cliente se subían a `evento-<id>/` pero la policy comparaba contra `<id>`, así
+  que el cliente nunca podía abrirlos. Corregido (no había archivos, sin pérdida de datos).
+- El panel rotaba `staff_token` desde el navegador con `crypto.randomUUID()` escribiendo directo en
+  la tabla; ahora usa la RPC `rotar_staff_token`.
+
+### Bugs nuevos: ninguno detectado.
+
+### Decisiones tomadas: ver `docs/DECISIONS.md` (D-SEC-1 … D-SEC-5).
+
+### Próximo paso
+Probar en la interfaz el botón "generar link de meseros" y, una vez validado, aplicar
+`PENDIENTE_jardines_sec_10_retiro_compat_staff_token.sql.noapply` para retirar el token en claro.
+
 ## 2026-07-03 — Documentación viva del proyecto
 
 ### Cambios realizados

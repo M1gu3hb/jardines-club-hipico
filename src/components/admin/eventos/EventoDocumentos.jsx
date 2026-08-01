@@ -41,7 +41,11 @@ export default function EventoDocumentos({ eventoId }) {
     setError("");
     setSubiendo(true);
     try {
-      const { path } = await base44.storage.upload(BUCKET, file, `evento-${eventoId}`);
+      // La carpeta debe ser el id del evento a secas: la política de Storage
+      // autoriza al cliente comparando foldername(name)[1] contra eventos.id.
+      // Con el prefijo "evento-" nunca coincidía y el cliente no podía abrir
+      // sus propios documentos.
+      const { path } = await base44.storage.upload(BUCKET, file, eventoId);
       await base44.entities.Documento.create({
         eventoId,
         titulo: titulo.trim() || file.name,
