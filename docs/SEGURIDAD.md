@@ -134,6 +134,18 @@ canales y asignaciones.
 Nunca guarda tokens completos, PIN, contraseñas ni `service_role`. Cuando hay que identificar a un
 actor sin sesión se guarda un HMAC irreversible. Lectura: `jardines.auditoria_reciente()`, solo admin.
 
+## 8.bis Orden de despliegue (importante)
+
+La base es **producción compartida**: una migración aplicada afecta al sitio que ya está en línea,
+aunque el frontend nuevo siga en la rama. En `sec_05` se revocó el INSERT de `anon` sobre
+`solicitudes` antes de desplegar el front que usa la RPC, y eso **dejó el formulario público roto**
+hasta que `sec_13` lo restableció (ya saneado).
+
+Regla para la próxima vez: **primero lo aditivo, se despliega el frontend, y solo entonces se retira
+lo viejo.** Hoy conviven los dos caminos y ambos pasan por el mismo trigger de saneo, así que dan las
+mismas garantías. El INSERT directo de `anon` se puede revocar cuando el frontend nuevo esté
+desplegado y verificado.
+
 ## 9. Pendientes compartidos (requieren decisión, afectan a Vero)
 
 No se cambiaron por estar fuera del alcance autorizado:
