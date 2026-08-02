@@ -12,7 +12,7 @@
 //      servidor devuelve el destino según el ROL leído de la base, y el
 //      navegador redirige ahí después de crear la sesión.
 import {
-  clienteAdmin, leerBody, rateLimit, auditar, generico, ipCliente,
+  clienteAdmin, leerBody, rateLimit, auditar, generico, ipCliente, rpcSeguro,
 } from "./_lib/guard.js";
 
 export default async function handler(req, res) {
@@ -37,9 +37,9 @@ export default async function handler(req, res) {
   }
 
   // FASE 1 — tomar el enlace sin consumirlo todavía.
-  const { data: filas, error } = await admin.rpc("canjear_acceso_iniciar", { p_token: token });
-  const fila = Array.isArray(filas) ? filas[0] : filas;
-  if (error || !fila?.user_id) return generico(res, 401);
+  const r1 = await rpcSeguro(admin, "canjear_acceso_iniciar", { p_token: token });
+  const fila = Array.isArray(r1.data) ? r1.data[0] : r1.data;
+  if (!r1.ok || !fila?.user_id) return generico(res, 401);
 
   try {
     const { data: u, error: uErr } = await admin.auth.admin.getUserById(fila.user_id);
@@ -54,7 +54,11 @@ export default async function handler(req, res) {
     if (lErr || !link?.properties?.hashed_token) throw new Error("generateLink");
 
     // FASE 2 — ahora sí se consume: ya tenemos con qué entrar.
-    await admin.rpc("canjear_acceso_confirmar", { p_token: token });
+    // Si la confirmación falla NO se entrega el tokenHash: entregarlo dejaría el
+    // enlace sin consumir y reutilizable. supabase-js resuelve con `{ error }`
+    // en vez de lanzar, así que hay que mirarlo explícitamente.
+    const r2 = await rpcSeguro(admin, "canjear_acceso_confirmar", { p_token: token });
+    if (!r2.ok) throw new Error("no se pudo confirmar el consumo del acceso");
 
     // El destino lo decide el servidor a partir del rol, no el correo ni el cliente.
     const destino = fila.rol === "admin"

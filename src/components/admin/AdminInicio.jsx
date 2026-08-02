@@ -2,7 +2,7 @@ import { useState, useEffect } from "react";
 import { base44 } from "@/api/base44Client";
 import { motion, AnimatePresence } from "framer-motion";
 import {
-  CalendarDays, Inbox, Star, DoorOpen, ChevronRight, Clock, Users, PartyPopper, Bell, Check, ChevronDown,
+  CalendarDays, Inbox, Star, DoorOpen, ChevronRight, Clock, PartyPopper, Bell, Check, ChevronDown,
 } from "lucide-react";
 import { estatusColor } from "@/components/admin/eventos/_ui";
 import { fechaLarga, diasFaltantes, tiempoRelativo } from "@/lib/fechas";

@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef, useCallback } from "react";
 import { base44 } from "@/api/base44Client";
-import { Plus, Trash2, Circle, Square, X, Users, Loader2 } from "lucide-react";
+import { Plus, Trash2, Circle, Square, X, Users } from "lucide-react";
 
 /**
  * Editor de mesas estilo POS sobre un lienzo (plano placeholder).

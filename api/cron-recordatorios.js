@@ -45,20 +45,14 @@ export default async function handler(req, res) {
 
   // Lock de idempotencia: si el cron se reintenta (o alguien lo dispara dos
   // veces el mismo día), el segundo intento no vuelve a mandar los correos.
-  const claveCron = hoy.toISOString().slice(0, 10);
-  try {
-    // Lease de 10 min: si la ejecución se corta a medias, mañana (o al vencer)
-    // se puede reintentar en lugar de quedar bloqueada para siempre.
-    const idem = await idemIniciar(admin, "cron-recordatorios", claveCron, 600, 20);
-    if (idem === "duplicado" || idem === "en_curso") {
-      res.status(200).json({ ok: true, omitido: "ya se ejecutó hoy" });
-      return;
-    }
-    if (idem !== "procede") return generico(res, 500);
-  } catch (e) {
-    console.error("[cron] no se pudo tomar el lock de idempotencia:", e.message);
-    return generico(res, 500);
-  }
+  // IDEMPOTENCIA POR MENSAJE, no por ejecución completa.
+  //
+  // Antes había un solo lock diario que además nunca se cerraba: al vencer el
+  // lease, una segunda ejecución reenviaba TODO lo del día. Ahora cada correo
+  // tiene su propia clave —una para el digest, una por evento para la reseña— y
+  // se cierra como completada solo cuando ese correo concreto salió. Un fallo
+  // parcial deja reintentable únicamente lo que falló.
+  const claveDia = hoy.toISOString().slice(0, 10);
   const iso = (d) => d.toISOString().slice(0, 10);
   const hoyStr = iso(hoy);
   const en7 = iso(new Date(hoy.getTime() + 7 * 86400000));
@@ -90,6 +84,7 @@ export default async function handler(req, res) {
 
     // 1) Digest al dueño (solo si hay algo que reportar)
     let digestEnviado = false;
+    let digestOmitido = null;
     if (proximos.length || saldos.length || estancadas.length || paraResena.length) {
       const bloque = (titulo, items) => items.length
         ? `<p style="margin:16px 0 6px 0;color:#E6C870;font-weight:bold;font-size:13px;">${titulo}</p>` +
@@ -109,15 +104,33 @@ export default async function handler(req, res) {
         ctaUrl: `${SITIO_URL}/${process.env.VITE_ADMIN_SLUG || "gestion-jch-9f27ax"}`,
         notaPie: "Resumen automático diario de Jardines Club Hípico.",
       });
-      try {
-        await enviarCorreo({ to: process.env.MAIL_TO || DEST_DEFAULT, subject: "☀️ Tu resumen del día — Jardines Club Hípico", html, texto: "Revisa tu panel para el resumen del día." });
-        digestEnviado = true;
-      } catch (e) { console.error("[cron] digest:", e.message); }
+      const claveDigest = `digest:${claveDia}`;
+      const idemDigest = await idemIniciar(admin, "cron-recordatorios", claveDigest, 300, 30);
+      if (idemDigest === "procede") {
+        try {
+          await enviarCorreo({ to: process.env.MAIL_TO || DEST_DEFAULT, subject: "☀️ Tu resumen del día — Jardines Club Hípico", html, texto: "Revisa tu panel para el resumen del día." });
+          await idemCerrar(admin, "cron-recordatorios", claveDigest, true);
+          digestEnviado = true;
+        } catch (e) {
+          console.error("[cron] digest:", e.message);
+          // Fallido, no completado: mañana o al reintentar vuelve a salir.
+          await idemCerrar(admin, "cron-recordatorios", claveDigest, false);
+        }
+      } else {
+        digestOmitido = idemDigest;   // 'duplicado' o 'en_curso'
+      }
     }
 
     // 2) Re-invitación de reseña al cliente + notificación al dashboard
     let resenasInvitadas = 0;
     for (const e of paraResena) {
+      // Una clave por EVENTO: si a un cliente le falla el correo, no bloquea a
+      // los demás ni se reenvía a quien ya lo recibió.
+      const claveResena = `resena:${e.id}`;
+      const idemResena = await idemIniciar(admin, "cron-recordatorios", claveResena, 300, 24 * 30);
+      if (idemResena !== "procede") continue;
+
+      let enviadoOk = false;
       if (e.cliente_email) {
         try {
           const html = plantillaOro({
@@ -130,15 +143,24 @@ export default async function handler(req, res) {
             notaPie: "Si ya la dejaste, ¡gracias! Ignora este correo.",
           });
           await enviarCorreo({ to: e.cliente_email, subject: `⭐ ¿Cómo estuvo ${e.nombre_evento}? — Jardines Club Hípico`, html, texto: `Cuéntanos cómo estuvo tu evento en ${SITIO_URL}/portal` });
+          enviadoOk = true;
           resenasInvitadas++;
         } catch (err) { console.error("[cron] resena mail:", err.message); }
       }
-      // Marcar como recordado (idempotencia) + notificar al dashboard
+
+      if (!enviadoOk) {
+        // El correo NO salió: la clave queda reintentable y el evento NO se marca
+        // como recordado, para que el próximo día se vuelva a intentar.
+        await idemCerrar(admin, "cron-recordatorios", claveResena, false);
+        continue;
+      }
+
+      await idemCerrar(admin, "cron-recordatorios", claveResena, true);
       await admin.from("eventos").update({ resena_recordada: true }).eq("id", e.id);
       await admin.from("notificaciones").insert({ evento_id: e.id, tipo: "recordatorio", titulo: `⭐ Le pedimos su reseña a ${e.nombre_evento}` }).then(() => {}, () => {});
     }
 
-    res.status(200).json({ ok: true, digestEnviado, resenasInvitadas, proximos: proximos.length, saldos: saldos.length, estancadas: estancadas.length });
+    res.status(200).json({ ok: true, digestEnviado, digestOmitido, resenasInvitadas, proximos: proximos.length, saldos: saldos.length, estancadas: estancadas.length });
   } catch (e) {
     console.error("[cron] Error:", e.message);
     res.status(500).json({ error: "Error del cron" });

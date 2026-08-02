@@ -6,78 +6,63 @@
 // misma URL secreta con su correo + contraseña, y recibe un correo de bienvenida.
 //
 // Body: { nombre, correo, password, telefono? }
-import { createClient } from "@supabase/supabase-js";
 import { plantillaOro, enviarCorreo, SITIO_URL } from "./_lib/correo.js";
-import { escHtml } from "./_lib/guard.js";
+import {
+  escHtml, clienteAdmin, leerBody, autorizarJardines, rateLimit,
+  idemIniciar, idemCerrar, auditar, generico, rpcSeguro,
+} from "./_lib/guard.js";
 
 export default async function handler(req, res) {
-  if (req.method !== "POST") {
-    res.status(405).json({ error: "Método no permitido" });
-    return;
+  if (req.method !== "POST") return generico(res, 405);
+
+  const admin = clienteAdmin();
+  if (!admin) {
+    console.error("[crear-admin] Faltan SUPABASE_URL / SUPABASE_SERVICE_ROLE");
+    return generico(res, 500);
   }
 
-  const url = process.env.SUPABASE_URL || process.env.VITE_SUPABASE_URL;
-  const serviceRole = process.env.SUPABASE_SERVICE_ROLE;
-  if (!url || !serviceRole) {
-    res.status(500).json({ error: "Servidor sin configuración de Supabase" });
-    return;
+  // Autorización real: admin de Jardines. Un usuario de Vero recibe 403.
+  const aut = await autorizarJardines(req, admin, { rol: "admin" });
+  if (!aut.ok) {
+    await auditar(admin, "crear_admin", "denegado", { detalle: { motivo: `http_${aut.status}` } });
+    return generico(res, aut.status);
+  }
+  const perfil = aut.perfil;
+
+  const lectura = leerBody(req, 8 * 1024);
+  if (!lectura.ok) return generico(res, lectura.status);
+  const { nombre, correo, password, telefono } = lectura.body;
+
+  if (!nombre || !correo || !password) return generico(res, 400);
+  if (String(nombre).length > 120) return generico(res, 400);
+  if (String(correo).length > 160 || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(String(correo))) return generico(res, 400);
+  if (String(password).length < 8 || String(password).length > 200) return generico(res, 400);
+  if (telefono && String(telefono).length > 30) return generico(res, 400);
+
+  if (!(await rateLimit(admin, "crear-admin", aut.user.id, 10, 3600))) {
+    await auditar(admin, "crear_admin", "denegado", { detalle: { motivo: "rate_limit" } });
+    return generico(res, 429);
   }
 
-  const authHeader = req.headers.authorization || "";
-  const token = authHeader.startsWith("Bearer ") ? authHeader.slice(7) : null;
-  if (!token) {
-    res.status(401).json({ error: "Falta token de autorización" });
-    return;
-  }
+  const claveIdem = String(correo).trim().toLowerCase();
+  const idem = await idemIniciar(admin, "crear-admin", claveIdem, 120, 1);
+  if (idem === "en_curso") return generico(res, 429);
+  if (idem !== "procede" && idem !== "duplicado") return generico(res, 500);
 
-  let body = req.body;
-  if (typeof body === "string") {
-    try { body = JSON.parse(body); } catch { body = {}; }
-  }
-  const { nombre, correo, password, telefono } = body || {};
-  if (!nombre || !correo || !password) {
-    res.status(400).json({ error: "Faltan datos: nombre, correo, contraseña" });
-    return;
-  }
-  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(String(correo))) {
-    res.status(400).json({ error: "Correo inválido" });
-    return;
-  }
-  if (String(password).length < 8) {
-    res.status(400).json({ error: "La contraseña de un admin debe tener al menos 8 caracteres" });
-    return;
-  }
-
-  const admin = createClient(url, serviceRole, {
-    db: { schema: "jardines" },
-    auth: { persistSession: false, autoRefreshToken: false },
-  });
-
+  let nuevoId = null;
   try {
-    // 1) Verificar que quien llama es admin.
-    const { data: userData, error: userErr } = await admin.auth.getUser(token);
-    if (userErr || !userData?.user) {
-      res.status(401).json({ error: "Sesión inválida" });
-      return;
-    }
-    const { data: perfil } = await admin
-      .from("perfiles").select("rol, nombre").eq("user_id", userData.user.id).maybeSingle();
-    if (perfil?.rol !== "admin") {
-      res.status(403).json({ error: "Solo un administrador puede crear administradores" });
-      return;
-    }
 
     // 2) Crear el usuario de Auth (correo real, confirmado, rol admin).
     // El rol admin se registra ANTES del alta en una invitación de aprovisionamiento
     // que solo puede emitir el servidor. Así el trigger de auth.users toma el rol de
     // una fuente controlada y nunca de `user_metadata` (que el usuario puede editar).
-    const { error: aproErr } = await admin.rpc("aprovisionar_usuario", {
-      p_email: String(correo).trim().toLowerCase(),
-      p_rol: "admin",
+    const rApro = await rpcSeguro(admin, "aprovisionar_usuario", {
+      p_email: String(correo).trim().toLowerCase(), p_rol: "admin",
     });
-    if (aproErr) {
-      res.status(500).json({ error: "No se pudo aprovisionar el acceso: " + aproErr.message });
-      return;
+    if (!rApro.ok) {
+      await idemCerrar(admin, "crear-admin", claveIdem, false);
+      await auditar(admin, "crear_admin", "error", { detalle: { paso: "aprovisionar" } });
+      return generico(res, 500);
     }
 
     const { data: created, error: createErr } = await admin.auth.admin.createUser({
@@ -94,28 +79,26 @@ export default async function handler(req, res) {
       await admin.rpc("revocar_aprovisionamiento", {
         p_email: String(correo).trim().toLowerCase(),
       }).catch(() => {});
-      const msg = /already been registered|already exists/i.test(createErr.message || "")
-        ? "Ya existe una cuenta con ese correo"
-        : createErr.message;
-      res.status(409).json({ error: msg });
+      await idemCerrar(admin, "crear-admin", claveIdem, false);
+      const duplicado = /already been registered|already exists/i.test(createErr.message || "");
+      await auditar(admin, "crear_admin", "denegado",
+        { detalle: { motivo: duplicado ? "correo_duplicado" : "alta_fallida" } });
+      res.status(409).json({ error: duplicado ? "Ya existe una cuenta con ese correo" : "No se pudo crear la cuenta" });
       return;
     }
-    const nuevoId = created.user.id;
+    nuevoId = created.user.id;
 
     // 3) Confirmar el rol por la vía administrativa protegida (idempotente y auditada)
     //    y completar los datos de contacto del perfil.
-    const { error: rolErr } = await admin.rpc("asignar_rol", {
-      p_user_id: nuevoId,
-      p_rol: "admin",
-      p_nombre: nombre,
+    const rRol = await rpcSeguro(admin, "asignar_rol", {
+      p_user_id: nuevoId, p_rol: "admin", p_nombre: nombre,
     });
-    if (rolErr) {
+    if (!rRol.ok) {
       await admin.auth.admin.deleteUser(nuevoId).catch(() => {});
-      await admin.rpc("revocar_aprovisionamiento", {
-        p_email: String(correo).trim().toLowerCase(),
-      }).catch(() => {});
-      res.status(500).json({ error: "No se pudo asignar el rol: " + rolErr.message });
-      return;
+      await rpcSeguro(admin, "revocar_aprovisionamiento", { p_email: String(correo).trim().toLowerCase() });
+      await idemCerrar(admin, "crear-admin", claveIdem, false);
+      await auditar(admin, "crear_admin", "error", { detalle: { paso: "asignar_rol" } });
+      return generico(res, 500);
     }
     await admin.from("perfiles")
       .update({ telefono: telefono || null, correo: String(correo).trim().toLowerCase() })
@@ -157,9 +140,15 @@ export default async function handler(req, res) {
       console.error("[crear-admin] correo bienvenida:", e.message);
     }
 
+    await idemCerrar(admin, "crear-admin", claveIdem, true);
+    await auditar(admin, "crear_admin", "ok", { entidad: "perfiles", entidadId: nuevoId, detalle: { correoEnviado } });
     res.status(200).json({ ok: true, userId: nuevoId, correoEnviado });
   } catch (e) {
     console.error("[crear-admin] Error:", e.message);
-    res.status(500).json({ error: "Error del servidor" });
+    if (nuevoId) await admin.auth.admin.deleteUser(nuevoId).catch(() => {});
+    await rpcSeguro(admin, "revocar_aprovisionamiento", { p_email: String(correo).trim().toLowerCase() });
+    await idemCerrar(admin, "crear-admin", claveIdem, false);
+    await auditar(admin, "crear_admin", "error", { detalle: { paso: "inesperado" } });
+    generico(res, 500);
   }
 }

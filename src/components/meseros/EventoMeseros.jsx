@@ -32,7 +32,8 @@ export default function EventoMeseros({ eventoId }) {
   const [nombre, setNombre] = useState("");
   const [maxPersonas, setMaxPersonas] = useState("");
   const [generando, setGenerando] = useState(false);
-  const [staffToken, setStaffToken] = useState(null);
+  const [staffToken, setStaffToken] = useState(null);   // solo en memoria, nunca releído
+  const [tieneLink, setTieneLink] = useState(false);
   const [genStaff, setGenStaff] = useState(false);
   const [copiado, setCopiado] = useState(false);
 
@@ -44,7 +45,9 @@ export default function EventoMeseros({ eventoId }) {
     ]);
     setMesas(ms);
     setInvitaciones(invs);
-    setStaffToken(ev?.staffToken || null);
+    // El token NO se relee de la tabla: solo existe en memoria durante la sesión
+    // de interfaz en la que se generó. Al recargar se ofrece generar uno nuevo.
+    setTieneLink(Boolean(ev?.staffTokenRotadoAt) && !ev?.staffTokenRevocadoAt);
     setCargando(false);
   }, [eventoId]);
   useEffect(() => { cargar(); }, [cargar]);
@@ -166,10 +169,20 @@ export default function EventoMeseros({ eventoId }) {
             </div>
           </div>
         ) : (
-          <button onClick={generarStaffLink} disabled={genStaff}
-            className="flex items-center gap-2 bg-[#C9A84C] text-[#0a0a0a] px-5 py-2.5 text-sm font-medium hover:bg-[#d4b558] transition-all disabled:opacity-50">
-            {genStaff ? <Loader2 size={13} className="animate-spin" /> : <Link2 size={14} />} Generar link de meseros
-          </button>
+          <div className="space-y-2">
+            {tieneLink && (
+              <p className="text-white/35 text-xs">
+                Ya hay un enlace activo, pero por seguridad no se guarda en claro y no
+                puede volver a mostrarse. Si lo perdiste, genera uno nuevo: el anterior
+                dejará de funcionar.
+              </p>
+            )}
+            <button onClick={generarStaffLink} disabled={genStaff}
+              className="flex items-center gap-2 bg-[#C9A84C] text-[#0a0a0a] px-5 py-2.5 text-sm font-medium hover:bg-[#d4b558] transition-all disabled:opacity-50">
+              {genStaff ? <Loader2 size={13} className="animate-spin" /> : <Link2 size={14} />}
+              {tieneLink ? "Generar nuevo enlace" : "Generar link de meseros"}
+            </button>
+          </div>
         )}
       </div>
 

@@ -35,7 +35,7 @@ export default function Celebracion({ activo, onFin, tam = 220 }) {
     setParticulas(nuevas);
     const t = setTimeout(() => { setParticulas(null); onFin?.(); }, 1400);
     return () => clearTimeout(t);
-  }, [activo]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [activo]);
 
   if (!particulas) return null;
 

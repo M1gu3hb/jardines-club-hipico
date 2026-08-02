@@ -121,13 +121,45 @@ export async function idemIniciar(admin, endpoint, clave, leaseSeg = 60, horas =
   return data;
 }
 
-/** Cierra la clave: true = completado (no se repite), false = fallido (reintentable). */
+/**
+ * Cierra la clave: true = completado (no se repite), false = fallido (reintentable).
+ *
+ * Devuelve `true` solo si la base confirmó el cierre. supabase-js NO lanza: en un
+ * fallo resuelve la promesa con `{ error }`, así que un try/catch por sí solo da
+ * la falsa impresión de que todo salió bien.
+ */
 export async function idemCerrar(admin, endpoint, clave, ok) {
   try {
-    await admin.rpc("api_idem_cerrar", {
+    const { error } = await admin.rpc("api_idem_cerrar", {
       p_endpoint: endpoint, p_clave: String(clave ?? ""), p_ok: ok,
     });
-  } catch { /* no debe tumbar la respuesta */ }
+    if (error) {
+      console.error("[guard] idemCerrar:", error.message);
+      return false;
+    }
+    return true;
+  } catch (e) {
+    console.error("[guard] idemCerrar:", e.message);
+    return false;
+  }
+}
+
+/**
+ * Llama una RPC y devuelve { ok, data }. Nunca da éxito si Supabase reportó
+ * error, aunque la promesa se haya resuelto.
+ */
+export async function rpcSeguro(admin, nombre, params) {
+  try {
+    const { data, error } = await admin.rpc(nombre, params);
+    if (error) {
+      console.error(`[guard] rpc ${nombre}:`, error.message);
+      return { ok: false, data: null };
+    }
+    return { ok: true, data };
+  } catch (e) {
+    console.error(`[guard] rpc ${nombre}:`, e.message);
+    return { ok: false, data: null };
+  }
 }
 
 /** Registro en la bitácora de Jardines (nunca guarda secretos). */
