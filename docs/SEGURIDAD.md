@@ -1,6 +1,6 @@
 # SEGURIDAD.md — Modelo de seguridad de Jardines Club Hípico
 
-> Última revisión: **2026-08-01** (endurecimiento completo, migraciones `jardines_sec_01..09`).
+> Última revisión: **2026-08-02** — CERRADO. Migraciones `jardines_sec_01..21` aplicadas en producción.
 > Proyecto Supabase `vuzyhbiwnnngeohysxcw` (PostgreSQL 17, `us-east-1`), **compartido con Vero Seguros**.
 
 ## 1. Regla de convivencia con Vero Seguros
@@ -31,8 +31,9 @@ Reglas del trigger:
 1. Solo crea perfil si el usuario es de Jardines, y eso se decide **únicamente** con señales
    controladas por el servidor:
    - una invitación vigente en `jardines_private.aprovisionamiento`, o
-   - `raw_app_meta_data->>'app' = 'jardines'` (solo escribible por la Admin API con `service_role`), o
-   - un dominio sintético nuestro (`@portal.jardines.local`, `@staff.jardines.local`).
+   - `raw_app_meta_data->>'app' = 'jardines'`, que solo escribe la Admin API con `service_role`.
+
+   El dominio del correo **ya no cuenta** (`sec_18`): era un dato que elige quien se registra.
 2. **Nunca** lee `raw_user_meta_data` para decidir el rol. Como máximo asigna `cliente`.
 3. Nunca lanza excepción: un fallo aquí jamás debe impedir el alta de un usuario de Vero.
 
@@ -83,10 +84,10 @@ Toda validación pasa por `jardines_private.evento_por_staff()`, que responde **
 error genérico (`no disponible`): no distingue inexistente, expirado, revocado ni bloqueado. Eso es lo
 que impide enumerar eventos, mesas e invitaciones.
 
-> **Compatibilidad vigente:** la columna `staff_token` en claro se conserva para que los QR ya
-> impresos sigan sirviendo y el panel pueda recompartir el enlace. Riesgo residual documentado. Su
-> retiro está escrito y listo en
-> `supabase/migrations/PENDIENTE_jardines_sec_10_retiro_compat_staff_token.sql.noapply`.
+> **Retirado el 2026-08-02 (`sec_20`).** La columna `eventos.staff_token` **ya no existe**: el token
+> solo vive como hash. La rotación lo devuelve **una sola vez** y el panel no puede reconsultarlo —
+> tras recargar ofrece "Generar nuevo enlace". Inexistente, revocado y expirado dan exactamente la
+> misma respuesta.
 
 ## 6. Rate limits (server-side, persistentes)
 

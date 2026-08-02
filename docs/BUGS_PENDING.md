@@ -46,3 +46,23 @@ _(No hay bugs críticos abiertos.)_
 - **Documentación previa desactualizada:** `PROJECT_CONTEXT.md`, `docs/DATABASE.md` y
   `docs/ARCHITECTURE.md` siguen describiendo la etapa estática ("no hay base de datos en vivo"),
   anterior a FASE-02. No se reescribieron en esta sesión por quedar fuera del alcance.
+
+## 2026-08-02 — Estado tras el cierre
+
+**Resueltos y verificados en producción:** escalamiento por `raw_user_meta_data`, perfiles
+cruzados con Vero, IDOR entre eventos, enumeración por `info_mesa_publica`, `/api/notificar`
+abierto a cualquier sesión y con HTML arbitrario, cron fail-open, `/api/solicitud` con cuerpo
+arbitrario, contraseñas en correos y enlaces, `INSERT` público sin validación, **token de staff
+en claro (columna eliminada en `sec_20`)** e `INSERT` de compatibilidad (`sec_21`).
+
+**Riesgos residuales reales** (documentados, no bloqueantes):
+
+- Los tokens de mesa e invitación son **credenciales portadoras** por diseño del producto:
+  quien tenga el QR entra. Mitigado con 256 bits, rate limit y respuestas genéricas.
+- `operativo_canales` es **global, no por evento**. Con dos eventos activos a la vez, el
+  personal de ambos compartiría canal de radio. Hoy no ocurre (un evento a la vez).
+- 2 vulnerabilidades `high` de React Router por **"RSC Mode CSRF"**: no aplican, esta app es
+  una SPA con `BrowserRouter` y no usa RSC. Verificado por búsqueda en `src/`.
+- **Pendientes compartidos con Vero**, excluidos a propósito: protección de contraseñas
+  filtradas desactivada (config global de Auth), `public.is_admin()` y `public.rls_auto_enable()`
+  ejecutables por `anon`, y `public.content_audit(actor)` sin índice de FK.

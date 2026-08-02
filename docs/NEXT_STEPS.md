@@ -35,3 +35,17 @@ _(Nada urgente. El sitio está completo y en producción.)_
 4. Acordar con Vero los pendientes compartidos de `docs/SEGURIDAD.md` §9.
 5. Reescribir `PROJECT_CONTEXT.md`, `docs/DATABASE.md` y `docs/ARCHITECTURE.md`: siguen describiendo
    la etapa estática y ya no corresponden a la realidad.
+
+## 2026-08-02 — Tras el cierre del blindaje
+
+Ya no queda nada bloqueante. Lo que sigue es mejora, no deuda de seguridad:
+
+1. **Interfaz para asignar personal a eventos.** Hoy los 3 operativos tienen
+   `acceso_global=true` porque la plantilla es fija y el salón opera un evento a la vez.
+   Si algún día hay dos eventos simultáneos con equipos distintos, hace falta una pantalla
+   para `jardines.operativo_asignacion` (la tabla y las políticas ya existen).
+2. **Cambio de contraseña dentro del portal.** El primer acceso es por enlace de un solo uso;
+   la contraseña se comparte por separado. Una pantalla de "cambiar mi contraseña" cerraría el ciclo.
+3. **Canales operativos por evento.** `operativo_canales` es global: dos eventos simultáneos
+   compartirían canal. Ver riesgo residual en `docs/SEGURIDAD.md`.
+4. **Pendientes compartidos con Vero** (requieren su visto bueno, ver `docs/SEGURIDAD.md` §9).

@@ -1,5 +1,12 @@
 # DATABASE.md
 
+> **ACTUALIZADO 2026-08-02.** Este documento describía la etapa ESTÁTICA del proyecto
+> (anterior a FASE-02). Ya no es cierta: **el sitio es dinámico y tiene base de datos viva**
+> en Supabase (schema `jardines`, proyecto `vuzyhbiwnnngeohysxcw`, compartido con Vero Seguros).
+> `src/api/base44Client.js` conserva el nombre por compatibilidad, pero **Base44 ya no existe ni
+> se usa**: por dentro es Supabase. Los JSON de `src/data/` son solo respaldo estático.
+> El modelo de seguridad vigente está en **`docs/SEGURIDAD.md`**.
+
 ## Resumen
 
 **No hay base de datos en vivo.** El proyecto es estático. El "modelo de datos" son las entidades
