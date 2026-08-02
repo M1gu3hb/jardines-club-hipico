@@ -161,9 +161,10 @@ export default async function handler(req, res) {
       texto: `${plantilla.titulo}${evento ? ` — ${evento.nombre_evento}` : ""}`,
     });
 
-    await idemCerrar(admin, "notificar", clave, true);
-    await auditar(admin, "notificar", "ok", {
-      entidad: "eventos", entidadId: evento.id, eventoId: evento.id, detalle: { accion },
+    const cerrado = await idemCerrar(admin, "notificar", clave, true);
+    await auditar(admin, "notificar", cerrado ? "ok" : "error", {
+      entidad: "eventos", entidadId: evento.id, eventoId: evento.id,
+      detalle: { accion, incidente: cerrado ? undefined : "idem_no_cerrada" },
     });
     res.status(200).json({ ok: true });
   } catch (e) {

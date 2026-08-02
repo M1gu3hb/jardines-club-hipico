@@ -129,6 +129,47 @@ for (const ruta of ["api/crear-admin.js", "api/crear-usuario-evento.js"]) {
   check(`${ruta}: usa enlace de un solo uso`, /crear_acceso_unico/.test(s));
 }
 
+// ---------------------------------------------------------------- errores de supabase-js
+// supabase-js resuelve con { error } en vez de rechazar: `.catch()` no atrapa nada.
+for (const ruta of [
+  "api/notificar.js", "api/correo-cliente.js", "api/solicitud.js",
+  "api/crear-admin.js", "api/crear-usuario-evento.js",
+  "api/cron-recordatorios.js", "api/canjear-acceso.js",
+]) {
+  const s = leerCodigo(ruta);
+  check(`${ruta}: sin .catch(() => {}) sobre llamadas a Supabase`, !/\.catch\(\(\) => \{\}\)/.test(s));
+  check(`${ruta}: sin .then(() => {}, () => {})`, !/\.then\(\(\) => \{\},\s*\(\) => \{\}\)/.test(s));
+}
+
+// Compensaciones comprobables
+for (const ruta of ["api/crear-admin.js", "api/crear-usuario-evento.js"]) {
+  const s = leerCodigo(ruta);
+  check(`${ruta}: la compensacion usa compensarAlta (comprobada)`, /compensarAlta/.test(s));
+  check(`${ruta}: no borra usuarios sin comprobar`, !/deleteUser\([^)]*\)\.catch/.test(s));
+}
+{
+  const s = leerCodigo("api/canjear-acceso.js");
+  check("canjear-acceso: libera el lease con rpcSeguro", /rpcSeguro\(admin, "canjear_acceso_liberar"/.test(s));
+  check("canjear-acceso: deja evidencia si no pudo liberar", /lease_no_liberado/.test(s));
+}
+
+// idemCerrar comprobado en la ruta de exito
+for (const ruta of [
+  "api/notificar.js", "api/correo-cliente.js", "api/solicitud.js",
+  "api/crear-admin.js", "api/crear-usuario-evento.js",
+]) {
+  const s = leerCodigo(ruta);
+  check(`${ruta}: comprueba el booleano de idemCerrar`, /(const cerrad\w+ = await idemCerrar)/.test(s));
+  check(`${ruta}: audita el incidente si no cerro`, /idem_no_cerrada/.test(s));
+}
+{
+  const s = leerCodigo("api/cron-recordatorios.js");
+  check("cron: comprueba idemCerrar y las escrituras", /escrituraOk/.test(s) && /incidentes/.test(s));
+  check("cron: no marca resena_recordada sin confirmar", /cierre_incompleto/.test(s));
+  const doc = leer("api/cron-recordatorios.js");
+  check("cron: documenta semantica at-least-once", /AT-LEAST-ONCE/.test(doc));
+}
+
 // ---------------------------------------------------------------- salida
 let fallan = 0;
 for (const c of casos) {

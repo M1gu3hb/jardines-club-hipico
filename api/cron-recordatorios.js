@@ -13,9 +13,24 @@
 //   Ahora falla CERRADO: sin secreto configurado la ruta responde 500 y no hace
 //   nada. Además solo acepta POST/GET de Vercel Cron y compara el secreto en
 //   tiempo constante, con un lock de idempotencia para no duplicar el envío.
+//
+// IDEMPOTENCIA POR MENSAJE, y su semántica real: AT-LEAST-ONCE.
+//   Cada correo tiene su propia clave —una para el digest, una por evento para la
+//   reseña— y se cierra como completada solo cuando ESE correo salió. Un fallo
+//   parcial deja reintentable únicamente lo que falló.
+//
+//   Pero Gmail y PostgreSQL son dos sistemas distintos y no existe transacción
+//   que los abarque. Si el correo sale y justo después falla el cierre en
+//   PostgreSQL, la clave queda en 'procesando' y al vencer su lease el mensaje
+//   PUEDE reenviarse. Es decir: **at-least-once, no exactly-once**.
+//
+//   Se elige ese lado a propósito: es preferible que al dueño le llegue dos veces
+//   su resumen a que un cliente nunca reciba la invitación a reseñar. Esos casos
+//   se registran en `incidentes` y en la auditoría, así que quedan visibles en
+//   lugar de silenciosos.
 import { createClient } from "@supabase/supabase-js";
 import { plantillaOro, enviarCorreo, SITIO_URL } from "./_lib/correo.js";
-import { igualSeguro, bearer, generico, idemIniciar, idemCerrar, escHtml } from "./_lib/guard.js";
+import { igualSeguro, bearer, generico, idemIniciar, idemCerrar, escHtml, escrituraOk, auditar } from "./_lib/guard.js";
 
 const DEST_DEFAULT = "mighuer427@gmail.com";
 const fmt = (n) => "$" + Number(n || 0).toLocaleString("es-MX");
@@ -85,6 +100,7 @@ export default async function handler(req, res) {
     // 1) Digest al dueño (solo si hay algo que reportar)
     let digestEnviado = false;
     let digestOmitido = null;
+    const incidentes = [];
     if (proximos.length || saldos.length || estancadas.length || paraResena.length) {
       const bloque = (titulo, items) => items.length
         ? `<p style="margin:16px 0 6px 0;color:#E6C870;font-weight:bold;font-size:13px;">${titulo}</p>` +
@@ -109,8 +125,13 @@ export default async function handler(req, res) {
       if (idemDigest === "procede") {
         try {
           await enviarCorreo({ to: process.env.MAIL_TO || DEST_DEFAULT, subject: "☀️ Tu resumen del día — Jardines Club Hípico", html, texto: "Revisa tu panel para el resumen del día." });
-          await idemCerrar(admin, "cron-recordatorios", claveDigest, true);
           digestEnviado = true;
+          // El correo YA salió. Si el cierre en PostgreSQL falla, mañana puede
+          // reenviarse: ver la nota de semántica at-least-once arriba.
+          if (!(await idemCerrar(admin, "cron-recordatorios", claveDigest, true))) {
+            incidentes.push("digest_idem_no_cerrada");
+            await auditar(admin, "cron_digest", "error", { detalle: { incidente: "idem_no_cerrada" } });
+          }
         } catch (e) {
           console.error("[cron] digest:", e.message);
           // Fallido, no completado: mañana o al reintentar vuelve a salir.
@@ -155,12 +176,33 @@ export default async function handler(req, res) {
         continue;
       }
 
-      await idemCerrar(admin, "cron-recordatorios", claveResena, true);
-      await admin.from("eventos").update({ resena_recordada: true }).eq("id", e.id);
-      await admin.from("notificaciones").insert({ evento_id: e.id, tipo: "recordatorio", titulo: `⭐ Le pedimos su reseña a ${e.nombre_evento}` }).then(() => {}, () => {});
+      // El correo ya salió. Se comprueban las TRES escrituras siguientes.
+      const cerrada = await idemCerrar(admin, "cron-recordatorios", claveResena, true);
+      const marcado = await escrituraOk(
+        admin.from("eventos").update({ resena_recordada: true }).eq("id", e.id),
+        "cron resena_recordada");
+      await escrituraOk(
+        admin.from("notificaciones").insert({
+          evento_id: e.id, tipo: "recordatorio",
+          titulo: `⭐ Le pedimos su reseña a ${e.nombre_evento}`,
+        }), "cron notificacion");
+
+      // `resena_recordada` solo cuenta como confirmado si AMBAS salieron bien.
+      // Si no, este evento vuelve a entrar mañana (puede repetir el correo).
+      if (!cerrada || !marcado) {
+        incidentes.push(`resena_no_confirmada:${e.id}`);
+        await auditar(admin, "cron_resena", "error", {
+          entidad: "eventos", entidadId: e.id, eventoId: e.id,
+          detalle: { incidente: "cierre_incompleto", cerrada, marcado },
+        });
+      }
     }
 
-    res.status(200).json({ ok: true, digestEnviado, digestOmitido, resenasInvitadas, proximos: proximos.length, saldos: saldos.length, estancadas: estancadas.length });
+    res.status(200).json({
+      ok: true, digestEnviado, digestOmitido, resenasInvitadas,
+      proximos: proximos.length, saldos: saldos.length, estancadas: estancadas.length,
+      incidentes,
+    });
   } catch (e) {
     console.error("[cron] Error:", e.message);
     res.status(500).json({ error: "Error del cron" });

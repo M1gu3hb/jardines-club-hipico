@@ -68,9 +68,14 @@ export default async function handler(req, res) {
     res.status(200).json({ ok: true, tokenHash: link.properties.hashed_token, destino });
   } catch (e) {
     // Fallo intermedio: se libera el lease para que el enlace siga sirviendo.
-    await admin.rpc("canjear_acceso_liberar", { p_token: token }).catch(() => {});
+    // Se comprueba la liberación: si NO se pudo liberar, el enlace queda con el
+    // lease puesto hasta que venza (2 min) y hay que dejar constancia.
+    const rLib = await rpcSeguro(admin, "canjear_acceso_liberar", { p_token: token });
     console.error("[canjear-acceso] fallo intermedio:", e.message);
-    await auditar(admin, "acceso_unico_canjeado", "error", { detalle: { motivo: "intermedio" } });
+    await auditar(admin, "acceso_unico_canjeado", "error", {
+      detalle: { motivo: "intermedio", leaseLiberado: rLib.ok,
+                 incidente: rLib.ok ? undefined : "lease_no_liberado" },
+    });
     generico(res, 503);
   }
 }

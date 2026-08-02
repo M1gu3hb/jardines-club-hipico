@@ -194,30 +194,36 @@ begin
   exception when others then insert into _t values ('B4','esquema privado inalcanzable','denegado', true); end;
 
   -- Formulario público: sigue funcionando y sigue saneado
+  -- sec_21: el INSERT directo de anon quedó REVOCADO. La única vía es la RPC.
   begin
-    insert into jardines.solicitudes (nombre_completo,telefono,acepto_aviso_privacidad,estatus,folio)
-    values ('  sint Cliente  ','55 5555 5555',true,'Cerrada','FALSO');
-    insert into _t values ('B6','formulario publico funciona','ok', true);
+    insert into jardines.solicitudes (nombre_completo,telefono,acepto_aviso_privacidad)
+    values ('sint directo','5555555555',true);
+    insert into _t values ('B6','anon INSERT directo en solicitudes REVOCADO','PERMITIDO', false);
   exception when others then
-    insert into _t values ('B6','formulario publico funciona','ROTO: '||sqlerrm, false);
+    insert into _t values ('B6','anon INSERT directo en solicitudes REVOCADO','denegado', true);
   end;
   begin
-    insert into jardines.solicitudes (nombre_completo,telefono,acepto_aviso_privacidad)
-    values ('sint X','no-es-telefono',true);
-    insert into _t values ('B6','rechaza telefono invalido','ACEPTADO', false);
-  exception when others then insert into _t values ('B6','rechaza telefono invalido','rechazado', true); end;
+    j := jardines.solicitud_crear('  sint Cliente  ','55 5555 5555',null,null,null,null,null,repeat('x',5000),true);
+    insert into _t values ('B6','formulario publico via RPC funciona', j->>'folio', (j->>'folio') like 'JCH-%');
+  exception when others then
+    insert into _t values ('B6','formulario publico via RPC funciona','ROTO: '||sqlerrm, false);
+  end;
   begin
-    insert into jardines.solicitudes (nombre_completo,telefono,acepto_aviso_privacidad)
-    values ('sint Y','5555555555',false);
-    insert into _t values ('B6','exige aviso de privacidad','ACEPTADO', false);
-  exception when others then insert into _t values ('B6','exige aviso de privacidad','rechazado', true); end;
+    perform jardines.solicitud_crear('sint X','no-es-telefono',null,null,null,null,null,null,true);
+    insert into _t values ('B6','RPC rechaza telefono invalido','ACEPTADO', false);
+  exception when others then insert into _t values ('B6','RPC rechaza telefono invalido','rechazado', true); end;
+  begin
+    perform jardines.solicitud_crear('sint Y','5555555555',null,null,null,null,null,null,false);
+    insert into _t values ('B6','RPC exige aviso de privacidad','ACEPTADO', false);
+  exception when others then insert into _t values ('B6','RPC exige aviso de privacidad','rechazado', true); end;
 
   perform set_config('role','postgres',true);
   perform set_config('request.jwt.claims','',true);
 
-  select estatus||' / '||coalesce(folio,'-') into r
-    from jardines.solicitudes where nombre_completo like 'sint Cliente%' order by created_at desc limit 1;
-  insert into _t values ('B6','campos internos los fija el servidor', r, r like 'Nueva / JCH-%');
+  select estatus||' / '||coalesce(folio,'-')||' / '||length(comentarios)::text into r
+    from jardines.solicitudes where nombre_completo = 'sint Cliente' order by created_at desc limit 1;
+  insert into _t values ('B6','RPC: estatus, folio y recorte los fija el servidor', r, r like 'Nueva / JCH-%/ 2000'
+                          or r like 'Nueva / JCH-% / 2000');
 
   ---------------------------------------------------------------- Cliente A vs B
   perform set_config('role','authenticated',true);

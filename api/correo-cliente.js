@@ -105,9 +105,10 @@ export default async function handler(req, res) {
       replyTo: process.env.MAIL_TO || process.env.GMAIL_USER,
     });
 
-    await idemCerrar(admin, "correo-cliente", clave, true);
-    await auditar(admin, "correo_cliente", "ok", {
+    const cerrado = await idemCerrar(admin, "correo-cliente", clave, true);
+    await auditar(admin, "correo_cliente", cerrado ? "ok" : "error", {
       entidad: "documentos", entidadId: documentoId || null, eventoId: ev.id,
+      detalle: cerrado ? {} : { incidente: "idem_no_cerrada" },
     });
     res.status(200).json({ ok: true, enviadoA: ev.cliente_email });
   } catch (e) {

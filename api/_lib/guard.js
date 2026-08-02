@@ -162,6 +162,72 @@ export async function rpcSeguro(admin, nombre, params) {
   }
 }
 
+/**
+ * Borra un usuario de Auth y CONFIRMA que se borró.
+ *
+ * `admin.auth.admin.deleteUser()` resuelve con `{ error }` en vez de rechazar,
+ * así que `.catch(() => {})` no atrapa nada: dejaba creer que la compensación
+ * había ocurrido cuando podía haber fallado, y el usuario quedaba huérfano con
+ * credenciales válidas.
+ */
+export async function borrarUsuario(admin, userId) {
+  if (!userId) return false;
+  try {
+    const { error } = await admin.auth.admin.deleteUser(userId);
+    if (error) {
+      console.error("[guard] deleteUser:", error.message);
+      return false;
+    }
+    return true;
+  } catch (e) {
+    console.error("[guard] deleteUser:", e.message);
+    return false;
+  }
+}
+
+/**
+ * Compensación tras un alta fallida: borra el usuario y, si se indica, revoca el
+ * aprovisionamiento pendiente. Devuelve qué se logró para poder auditarlo.
+ *
+ * Si algo NO se pudo limpiar se registra como incidente crítico, porque queda
+ * estado colgando que una persona tiene que revisar.
+ */
+export async function compensarAlta(admin, { userId, correo, accion }) {
+  const usuarioBorrado = userId ? await borrarUsuario(admin, userId) : true;
+  let aproRevocado = true;
+  if (correo) {
+    const r = await rpcSeguro(admin, "revocar_aprovisionamiento", { p_email: correo });
+    aproRevocado = r.ok;
+  }
+
+  if (!usuarioBorrado || !aproRevocado) {
+    // Estado colgando: usuario Auth huérfano y/o concesión de admin viva.
+    await auditar(admin, accion, "error", {
+      entidad: "perfiles", entidadId: userId ?? null,
+      detalle: { incidente: "compensacion_incompleta", usuarioBorrado, aproRevocado },
+    });
+  }
+  return { usuarioBorrado, aproRevocado, ok: usuarioBorrado && aproRevocado };
+}
+
+/**
+ * Insert/update de apoyo (no crítico para la respuesta) que aun así hay que
+ * comprobar: devuelve true solo si Supabase no reportó error.
+ */
+export async function escrituraOk(promesa, etiqueta) {
+  try {
+    const { error } = await promesa;
+    if (error) {
+      console.error(`[guard] ${etiqueta}:`, error.message);
+      return false;
+    }
+    return true;
+  } catch (e) {
+    console.error(`[guard] ${etiqueta}:`, e.message);
+    return false;
+  }
+}
+
 /** Registro en la bitácora de Jardines (nunca guarda secretos). */
 export async function auditar(admin, accion, resultado, extra = {}) {
   try {

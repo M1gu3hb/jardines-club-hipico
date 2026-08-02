@@ -115,8 +115,11 @@ export default async function handler(req, res) {
       text: construirTexto(s),
     });
 
-    await idemCerrar(admin, "solicitud-correo", s.id, true);
-    await auditar(admin, "solicitud_correo", "ok", { entidad: "solicitudes", entidadId: s.id });
+    const cerrado = await idemCerrar(admin, "solicitud-correo", s.id, true);
+    await auditar(admin, "solicitud_correo", cerrado ? "ok" : "error", {
+      entidad: "solicitudes", entidadId: s.id,
+      detalle: cerrado ? {} : { incidente: "idem_no_cerrada" },
+    });
     res.status(200).json({ ok: true });
   } catch (e) {
     console.error("[solicitud] Error al enviar correo:", e.message);
