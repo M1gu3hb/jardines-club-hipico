@@ -13,7 +13,7 @@
 import { plantillaOro, enviarCorreo, SITIO_URL } from "./_lib/correo.js";
 import {
   escHtml, clienteAdmin, leerBody, autorizarJardines, rateLimit,
-  idemIniciar, idemCerrar, auditar, generico, rpcSeguro,
+  idemIniciar, idemCerrar, auditar, generico, rpcSeguro, compensarAlta,
 } from "./_lib/guard.js";
 
 const DOMINIO_CLIENTE = "portal.jardines.local";
@@ -98,7 +98,9 @@ export default async function handler(req, res) {
       p_user_id: nuevoId, p_rol: "cliente", p_nombre: nombre || usuario,
     });
     if (!rRol.ok) {
-      await admin.auth.admin.deleteUser(nuevoId).catch(() => {});
+      // Compensación COMPROBADA: si el borrado falla, queda un usuario Auth
+      // huérfano con credenciales válidas y eso se audita como incidente.
+      await compensarAlta(admin, { userId: nuevoId, accion: "crear_usuario_evento" });
       await idemCerrar(admin, "crear-usuario-evento", claveIdem, false);
       await auditar(admin, "crear_usuario_evento", "error", { detalle: { paso: "asignar_rol" } });
       return generico(res, 500);
@@ -114,7 +116,7 @@ export default async function handler(req, res) {
       .select("id")
       .maybeSingle();
     if (linkErr || !ligado || ligado.id !== eventoId) {
-      await admin.auth.admin.deleteUser(nuevoId).catch(() => {});
+      await compensarAlta(admin, { userId: nuevoId, accion: "crear_usuario_evento" });
       await idemCerrar(admin, "crear-usuario-evento", claveIdem, false);
       await auditar(admin, "crear_usuario_evento", "error", {
         entidad: "eventos", entidadId: eventoId,
@@ -170,14 +172,15 @@ export default async function handler(req, res) {
       console.error("[crear-usuario-evento] correo bienvenida:", e.message);
     }
 
-    await idemCerrar(admin, "crear-usuario-evento", claveIdem, true);
-    await auditar(admin, "crear_usuario_evento", "ok", {
-      entidad: "eventos", entidadId: eventoId, eventoId, detalle: { correoEnviado },
+    const cerrado = await idemCerrar(admin, "crear-usuario-evento", claveIdem, true);
+    await auditar(admin, "crear_usuario_evento", cerrado ? "ok" : "error", {
+      entidad: "eventos", entidadId: eventoId, eventoId,
+      detalle: { correoEnviado, incidente: cerrado ? undefined : "idem_no_cerrada" },
     });
     res.status(200).json({ ok: true, userId: nuevoId, usuario: limpio, correoEnviado });
   } catch (e) {
     console.error("[crear-usuario-evento] Error:", e.message);
-    if (nuevoId) await admin.auth.admin.deleteUser(nuevoId).catch(() => {});
+    await compensarAlta(admin, { userId: nuevoId, accion: "crear_usuario_evento" });
     await idemCerrar(admin, "crear-usuario-evento", claveIdem, false);
     await auditar(admin, "crear_usuario_evento", "error", { detalle: { paso: "inesperado" } });
     generico(res, 500);

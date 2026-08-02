@@ -9,7 +9,7 @@
 import { plantillaOro, enviarCorreo, SITIO_URL } from "./_lib/correo.js";
 import {
   escHtml, clienteAdmin, leerBody, autorizarJardines, rateLimit,
-  idemIniciar, idemCerrar, auditar, generico, rpcSeguro,
+  idemIniciar, idemCerrar, auditar, generico, rpcSeguro, compensarAlta,
 } from "./_lib/guard.js";
 
 export default async function handler(req, res) {
@@ -76,9 +76,8 @@ export default async function handler(req, res) {
       // El aprovisionamiento ya estaba emitido: si el alta falla hay que consumirlo
       // ahora mismo. Si no, quedaría una concesión de ADMIN reutilizable durante
       // 7 días para quien lograra registrarse con ese correo.
-      await admin.rpc("revocar_aprovisionamiento", {
-        p_email: String(correo).trim().toLowerCase(),
-      }).catch(() => {});
+      // La revocación se COMPRUEBA: si falla, queda una concesión de admin viva.
+      await compensarAlta(admin, { correo: String(correo).trim().toLowerCase(), accion: "crear_admin" });
       await idemCerrar(admin, "crear-admin", claveIdem, false);
       const duplicado = /already been registered|already exists/i.test(createErr.message || "");
       await auditar(admin, "crear_admin", "denegado",
@@ -94,8 +93,9 @@ export default async function handler(req, res) {
       p_user_id: nuevoId, p_rol: "admin", p_nombre: nombre,
     });
     if (!rRol.ok) {
-      await admin.auth.admin.deleteUser(nuevoId).catch(() => {});
-      await rpcSeguro(admin, "revocar_aprovisionamiento", { p_email: String(correo).trim().toLowerCase() });
+      await compensarAlta(admin, {
+        userId: nuevoId, correo: String(correo).trim().toLowerCase(), accion: "crear_admin",
+      });
       await idemCerrar(admin, "crear-admin", claveIdem, false);
       await auditar(admin, "crear_admin", "error", { detalle: { paso: "asignar_rol" } });
       return generico(res, 500);
@@ -140,13 +140,17 @@ export default async function handler(req, res) {
       console.error("[crear-admin] correo bienvenida:", e.message);
     }
 
-    await idemCerrar(admin, "crear-admin", claveIdem, true);
-    await auditar(admin, "crear_admin", "ok", { entidad: "perfiles", entidadId: nuevoId, detalle: { correoEnviado } });
+    const cerrado = await idemCerrar(admin, "crear-admin", claveIdem, true);
+    await auditar(admin, "crear_admin", cerrado ? "ok" : "error", {
+      entidad: "perfiles", entidadId: nuevoId,
+      detalle: { correoEnviado, incidente: cerrado ? undefined : "idem_no_cerrada" },
+    });
     res.status(200).json({ ok: true, userId: nuevoId, correoEnviado });
   } catch (e) {
     console.error("[crear-admin] Error:", e.message);
-    if (nuevoId) await admin.auth.admin.deleteUser(nuevoId).catch(() => {});
-    await rpcSeguro(admin, "revocar_aprovisionamiento", { p_email: String(correo).trim().toLowerCase() });
+    await compensarAlta(admin, {
+      userId: nuevoId, correo: String(correo).trim().toLowerCase(), accion: "crear_admin",
+    });
     await idemCerrar(admin, "crear-admin", claveIdem, false);
     await auditar(admin, "crear_admin", "error", { detalle: { paso: "inesperado" } });
     generico(res, 500);
