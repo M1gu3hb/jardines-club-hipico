@@ -3,6 +3,7 @@ import { motion } from "framer-motion";
 import { Eye, EyeOff } from "lucide-react";
 import { useAuth } from "@/api/authContext";
 import { base44 } from "@/api/base44Client";
+import { supabase } from "@/api/supabaseClient";
 
 export default function PortalLogin() {
   const { loginCliente } = useAuth();
@@ -21,31 +22,49 @@ export default function PortalLogin() {
       .catch(() => {});
   }, []);
 
-  // Link mágico del correo de bienvenida: /portal#acceso=<base64(usuario:contraseña)>.
-  // Va en el FRAGMENTO (#) — nunca viaja al servidor ni queda en logs. Se entra solo,
-  // se limpia la URL, y la sesión queda recordada en este dispositivo.
+  // Enlace de primer acceso: /portal#entrar=<token de un solo uso>.
+  //
+  // Antes aquí venía base64(usuario:contraseña), que es reversible: quien viera el
+  // correo reenviado o el historial se quedaba con la credencial permanente. Ahora
+  // el enlace lleva un token de 256 bits que el servidor guarda solo hasheado,
+  // caduca y sirve UNA vez. Para el cliente sigue siendo un clic.
   useEffect(() => {
-    const m = window.location.hash.match(/acceso=([^&]+)/);
+    const m = window.location.hash.match(/entrar=([^&]+)/);
     if (!m) return;
     // Limpiar el hash de inmediato (que no quede en la barra ni en el historial).
     window.history.replaceState(null, "", window.location.pathname);
-    let u = "", p = "";
-    try {
-      const dec = atob(decodeURIComponent(m[1]));
-      const sep = dec.indexOf(":");
-      u = dec.slice(0, sep);
-      p = dec.slice(sep + 1);
-    } catch { return; }
-    if (!u || !p) return;
-    setUsuario(u);
-    setPassword(p);
+    const token = decodeURIComponent(m[1]);
+    if (!token) return;
+
     setEntrandoAuto(true);
-    loginCliente(u, p)
-      .catch(() => {
+    (async () => {
+      try {
+        const r = await fetch("/api/canjear-acceso", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ token }),
+        });
+        if (!r.ok) throw new Error("canje");
+        const { tokenHash, destino } = await r.json();
+        if (!tokenHash) throw new Error("canje");
+        const { error: vErr } = await supabase.auth.verifyOtp({
+          token_hash: tokenHash,
+          type: "magiclink",
+        });
+        if (vErr) throw vErr;
+        // El destino lo decide el servidor según el rol: el enlace de un
+        // administrador no puede terminar en el portal de cliente.
+        if (destino && destino !== "/portal") {
+          window.location.replace(destino);
+          return;
+        }
+        // Cliente: la sesión ya quedó activa y el guard del portal sigue.
+      } catch {
         setEntrandoAuto(false);
-        setError("Tu link de acceso ya no coincide. Escribe tu usuario y contraseña.");
-      });
-  }, [loginCliente]);
+        setError("Tu enlace de acceso ya se usó o caducó. Escribe tu usuario y contraseña.");
+      }
+    })();
+  }, []);
 
   const submit = async (e) => {
     e.preventDefault();

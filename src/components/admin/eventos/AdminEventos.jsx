@@ -2,7 +2,7 @@ import { useState, useEffect } from "react";
 import { base44 } from "@/api/base44Client";
 import { useAuth } from "@/api/authContext";
 import { Plus, Loader2, Check, Search, Calendar, User, DoorOpen } from "lucide-react";
-import { Field, Area, ESTATUS, estatusColor } from "./_ui";
+import { Field, ESTATUS, estatusColor } from "./_ui";
 import EventoFicha from "./EventoFicha";
 
 const FORM_VACIO = {

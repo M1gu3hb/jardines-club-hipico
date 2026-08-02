@@ -6,7 +6,23 @@ import QrImg from "./QrImg";
 
 const accesoUrl = (token) => `${window.location.origin}/acceso/${token}`;
 const staffUrl = (token) => `${window.location.origin}/staff/${token}`;
-const nuevoToken = () => (crypto.randomUUID ? crypto.randomUUID() : "t-" + Date.now() + Math.random().toString(36).slice(2));
+
+/**
+ * Token de invitación: 256 bits de `crypto.getRandomValues`, en base64url.
+ *
+ * Sin fallback a `Math.random()`: es predecible y aquí el token ES la credencial
+ * que abre la invitación. Si el navegador no trae WebCrypto, preferimos fallar
+ * antes que emitir un QR adivinable. `crypto.getRandomValues` existe en todo
+ * navegador con soporte real desde hace años, y el sitio ya se sirve por HTTPS.
+ */
+const nuevoTokenInvitacion = () => {
+  const b = new Uint8Array(32);
+  crypto.getRandomValues(b);
+  return btoa(String.fromCharCode(...b))
+    .replace(/\+/g, "-")
+    .replace(/\//g, "_")
+    .replace(/=+$/, "");
+};
 
 export default function EventoMeseros({ eventoId }) {
   const [mesas, setMesas] = useState([]);
@@ -16,7 +32,8 @@ export default function EventoMeseros({ eventoId }) {
   const [nombre, setNombre] = useState("");
   const [maxPersonas, setMaxPersonas] = useState("");
   const [generando, setGenerando] = useState(false);
-  const [staffToken, setStaffToken] = useState(null);
+  const [staffToken, setStaffToken] = useState(null);   // solo en memoria, nunca releído
+  const [tieneLink, setTieneLink] = useState(false);
   const [genStaff, setGenStaff] = useState(false);
   const [copiado, setCopiado] = useState(false);
 
@@ -28,16 +45,24 @@ export default function EventoMeseros({ eventoId }) {
     ]);
     setMesas(ms);
     setInvitaciones(invs);
-    setStaffToken(ev?.staffToken || null);
+    // El token NO se relee de la tabla: solo existe en memoria durante la sesión
+    // de interfaz en la que se generó. Al recargar se ofrece generar uno nuevo.
+    setTieneLink(Boolean(ev?.staffTokenRotadoAt) && !ev?.staffTokenRevocadoAt);
     setCargando(false);
   }, [eventoId]);
   useEffect(() => { cargar(); }, [cargar]);
 
+  // El token lo genera y lo guarda el servidor (RPC `rotar_staff_token`): 256 bits,
+  // con hash, vigencia ligada a la fecha del evento y registro en auditoría. El
+  // navegador ya no inventa credenciales ni las escribe directo en la tabla.
   const generarStaffLink = async () => {
     setGenStaff(true);
-    const t = nuevoToken();
-    await base44.entities.Evento.update(eventoId, { staffToken: t });
-    setStaffToken(t);
+    try {
+      const t = await base44.rpc("rotar_staff_token", { p_evento: eventoId });
+      if (t) setStaffToken(t);
+    } catch (e) {
+      console.error("[meseros] no se pudo generar el link de staff:", e.message);
+    }
     setGenStaff(false);
   };
   const copiarStaff = () => {
@@ -60,7 +85,7 @@ export default function EventoMeseros({ eventoId }) {
     await base44.entities.Invitacion.create({
       eventoId, mesaId,
       nombreInvitado: nombre.trim() || null,
-      token: nuevoToken(),
+      token: nuevoTokenInvitacion(),
       maxPersonas: maxPersonas ? Number(maxPersonas) : mesaCap(mesaId),
       personasRegistradas: 0,
       estatus: "pendiente",
@@ -77,7 +102,7 @@ export default function EventoMeseros({ eventoId }) {
     for (const m of mesas) {
       if (conInvitacion.has(m.id)) continue;
       await base44.entities.Invitacion.create({
-        eventoId, mesaId: m.id, nombreInvitado: null, token: nuevoToken(),
+        eventoId, mesaId: m.id, nombreInvitado: null, token: nuevoTokenInvitacion(),
         maxPersonas: m.capacidad || 1, personasRegistradas: 0, estatus: "pendiente",
       });
     }
@@ -144,10 +169,20 @@ export default function EventoMeseros({ eventoId }) {
             </div>
           </div>
         ) : (
-          <button onClick={generarStaffLink} disabled={genStaff}
-            className="flex items-center gap-2 bg-[#C9A84C] text-[#0a0a0a] px-5 py-2.5 text-sm font-medium hover:bg-[#d4b558] transition-all disabled:opacity-50">
-            {genStaff ? <Loader2 size={13} className="animate-spin" /> : <Link2 size={14} />} Generar link de meseros
-          </button>
+          <div className="space-y-2">
+            {tieneLink && (
+              <p className="text-white/35 text-xs">
+                Ya hay un enlace activo, pero por seguridad no se guarda en claro y no
+                puede volver a mostrarse. Si lo perdiste, genera uno nuevo: el anterior
+                dejará de funcionar.
+              </p>
+            )}
+            <button onClick={generarStaffLink} disabled={genStaff}
+              className="flex items-center gap-2 bg-[#C9A84C] text-[#0a0a0a] px-5 py-2.5 text-sm font-medium hover:bg-[#d4b558] transition-all disabled:opacity-50">
+              {genStaff ? <Loader2 size={13} className="animate-spin" /> : <Link2 size={14} />}
+              {tieneLink ? "Generar nuevo enlace" : "Generar link de meseros"}
+            </button>
+          </div>
         )}
       </div>
 

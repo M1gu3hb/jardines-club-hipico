@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { base44 } from "@/api/base44Client";
-import { Plus, Loader2, Trash2, Check } from "lucide-react";
+import { Plus, Loader2, Trash2 } from "lucide-react";
 import { Field, Area } from "./_ui";
 
 const VACIO = { descripcion: "", cantidad: "1", precio: "", notas: "" };

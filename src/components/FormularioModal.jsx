@@ -6,6 +6,41 @@ import useLockBodyScroll from "../hooks/useLockBodyScroll";
 
 const TIPOS_EVENTO = ["Boda", "XV Años", "Cumpleaños", "Infantil", "Empresarial", "Otro"];
 
+// Mensajes de validación que el servidor puede devolver tal cual. Es una lista
+// cerrada a propósito: cualquier otro error (violación de constraint, fallo de
+// conexión, etc.) se resume en genérico para no filtrar nombres de tablas,
+// restricciones ni detalles internos de la base.
+const ERRORES_VALIDACION = new Set([
+  "Nombre inválido",
+  "Teléfono inválido",
+  "Correo inválido",
+  "Falta aceptar el aviso de privacidad",
+  "Número de personas inválido",
+  "Fecha tentativa inválida",
+]);
+
+/**
+ * Traduce el error a algo accionable, distinguiendo lo que el usuario puede
+ * corregir de lo que solo se resuelve reintentando.
+ */
+function mensajeDeError(e) {
+  const msg = String(e?.message || "");
+
+  // Rate limit: el trigger del servidor lo lanza con SQLSTATE 42501.
+  if (e?.code === "42501" || /demasiad/i.test(msg)) {
+    return "Recibimos varias solicitudes desde tu conexión. Espera unos minutos y vuelve a intentarlo — tus datos siguen aquí.";
+  }
+  // Validación con mensaje conocido: se muestra para que la persona lo corrija.
+  if (ERRORES_VALIDACION.has(msg)) {
+    return `${msg}. Revísalo y vuelve a enviar.`;
+  }
+  // Sin conexión o servidor inalcanzable.
+  if (e instanceof TypeError || /fetch|network|failed to fetch/i.test(msg)) {
+    return "No pudimos conectar. Revisa tu internet e inténtalo de nuevo — tus datos siguen aquí.";
+  }
+  return "No pudimos registrar tu solicitud en este momento. Inténtalo de nuevo en un minuto — tus datos siguen aquí.";
+}
+
 const initialForm = {
   salonSeleccionado: "",
   nombreCompleto: "",
@@ -92,7 +127,7 @@ export default function FormularioModal({ open, onClose, preselectedSalon, whats
     setLoading(true);
     setError("");
 
-    let folioGenerado = `JCH-${Math.random().toString(36).slice(-6).toUpperCase()}`;
+    let folioGenerado = "";
 
     try {
       const now = new Date();
@@ -114,30 +149,26 @@ export default function FormularioModal({ open, onClose, preselectedSalon, whats
         estatus: "Nueva",
       };
 
+      // El servidor genera y guarda el folio en la misma operación. Antes se
+      // intentaba un UPDATE posterior que RLS rechazaba en silencio, así que el
+      // folio del correo nunca coincidía con el de la base.
       const creada = await base44.entities.SolicitudEvento.create(dataToSave);
-      if (creada && creada.id) {
-        folioGenerado = `JCH-${creada.id.slice(-6).toUpperCase()}`;
-        base44.entities.SolicitudEvento.update(creada.id, { folio: folioGenerado }).catch(() => {});
-      }
+      // Sin folio del servidor no hay registro confirmado: no se muestra éxito.
+      if (!creada?.folio) throw new Error("SIN_CONFIRMACION");
+      folioGenerado = creada.folio;
 
-      // Enviar correo al administrador (función serverless → Gmail)
-      base44.functions.invoke("gmailSolicitud", {
-        data: {
-          folio: folioGenerado,
-          fechaEnvio,
-          horaEnvio,
-          nombreCompleto: form.nombreCompleto || "",
-          telefono: form.telefono || "",
-          email: form.email || "",
-          salonSeleccionado: form.salonSeleccionado || "Por definir",
-          tipoEvento: tipoEventoFinal || "",
-          fechaTentativa: form.fechaTentativa || "",
-          numeroPersonas: form.numeroPersonas || "",
-          comentarios: form.comentarios || "",
-        },
-      }).catch(() => {});
+      // Aviso por correo al administrador. Solo viaja el id: el servidor vuelve a
+      // leer la solicitud de la base y arma el correo con los datos canónicos, así
+      // que el navegador no puede inventar el contenido ni el destinatario.
+      // Es cortesía: si falla, la solicitud YA quedó registrada.
+      base44.functions.invoke("gmailSolicitud", { solicitudId: creada.id }).catch(() => {});
     } catch (e) {
+      // Nada de éxito falso: si PostgreSQL no confirmó, el usuario se entera y
+      // conserva lo que escribió para reintentar sin volver a capturarlo.
       console.error("[FormularioModal] Error al guardar solicitud:", e);
+      setError(mensajeDeError(e));
+      setLoading(false);
+      return;
     }
 
     justSentRef.current = true;

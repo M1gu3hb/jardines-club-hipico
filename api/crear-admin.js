@@ -6,118 +6,149 @@
 // misma URL secreta con su correo + contraseña, y recibe un correo de bienvenida.
 //
 // Body: { nombre, correo, password, telefono? }
-import { createClient } from "@supabase/supabase-js";
-import { plantillaOro, cajaCredenciales, enviarCorreo, SITIO_URL } from "./_lib/correo.js";
+import { plantillaOro, enviarCorreo, SITIO_URL } from "./_lib/correo.js";
+import {
+  escHtml, clienteAdmin, leerBody, autorizarJardines, rateLimit,
+  idemIniciar, idemCerrar, auditar, generico, rpcSeguro,
+} from "./_lib/guard.js";
 
 export default async function handler(req, res) {
-  if (req.method !== "POST") {
-    res.status(405).json({ error: "Método no permitido" });
-    return;
+  if (req.method !== "POST") return generico(res, 405);
+
+  const admin = clienteAdmin();
+  if (!admin) {
+    console.error("[crear-admin] Faltan SUPABASE_URL / SUPABASE_SERVICE_ROLE");
+    return generico(res, 500);
   }
 
-  const url = process.env.SUPABASE_URL || process.env.VITE_SUPABASE_URL;
-  const serviceRole = process.env.SUPABASE_SERVICE_ROLE;
-  if (!url || !serviceRole) {
-    res.status(500).json({ error: "Servidor sin configuración de Supabase" });
-    return;
+  // Autorización real: admin de Jardines. Un usuario de Vero recibe 403.
+  const aut = await autorizarJardines(req, admin, { rol: "admin" });
+  if (!aut.ok) {
+    await auditar(admin, "crear_admin", "denegado", { detalle: { motivo: `http_${aut.status}` } });
+    return generico(res, aut.status);
+  }
+  const perfil = aut.perfil;
+
+  const lectura = leerBody(req, 8 * 1024);
+  if (!lectura.ok) return generico(res, lectura.status);
+  const { nombre, correo, password, telefono } = lectura.body;
+
+  if (!nombre || !correo || !password) return generico(res, 400);
+  if (String(nombre).length > 120) return generico(res, 400);
+  if (String(correo).length > 160 || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(String(correo))) return generico(res, 400);
+  if (String(password).length < 8 || String(password).length > 200) return generico(res, 400);
+  if (telefono && String(telefono).length > 30) return generico(res, 400);
+
+  if (!(await rateLimit(admin, "crear-admin", aut.user.id, 10, 3600))) {
+    await auditar(admin, "crear_admin", "denegado", { detalle: { motivo: "rate_limit" } });
+    return generico(res, 429);
   }
 
-  const authHeader = req.headers.authorization || "";
-  const token = authHeader.startsWith("Bearer ") ? authHeader.slice(7) : null;
-  if (!token) {
-    res.status(401).json({ error: "Falta token de autorización" });
-    return;
-  }
+  const claveIdem = String(correo).trim().toLowerCase();
+  const idem = await idemIniciar(admin, "crear-admin", claveIdem, 120, 1);
+  if (idem === "en_curso") return generico(res, 429);
+  if (idem !== "procede" && idem !== "duplicado") return generico(res, 500);
 
-  let body = req.body;
-  if (typeof body === "string") {
-    try { body = JSON.parse(body); } catch { body = {}; }
-  }
-  const { nombre, correo, password, telefono } = body || {};
-  if (!nombre || !correo || !password) {
-    res.status(400).json({ error: "Faltan datos: nombre, correo, contraseña" });
-    return;
-  }
-  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(String(correo))) {
-    res.status(400).json({ error: "Correo inválido" });
-    return;
-  }
-  if (String(password).length < 8) {
-    res.status(400).json({ error: "La contraseña de un admin debe tener al menos 8 caracteres" });
-    return;
-  }
-
-  const admin = createClient(url, serviceRole, {
-    db: { schema: "jardines" },
-    auth: { persistSession: false, autoRefreshToken: false },
-  });
-
+  let nuevoId = null;
   try {
-    // 1) Verificar que quien llama es admin.
-    const { data: userData, error: userErr } = await admin.auth.getUser(token);
-    if (userErr || !userData?.user) {
-      res.status(401).json({ error: "Sesión inválida" });
-      return;
-    }
-    const { data: perfil } = await admin
-      .from("perfiles").select("rol, nombre").eq("user_id", userData.user.id).maybeSingle();
-    if (perfil?.rol !== "admin") {
-      res.status(403).json({ error: "Solo un administrador puede crear administradores" });
-      return;
-    }
 
     // 2) Crear el usuario de Auth (correo real, confirmado, rol admin).
+    // El rol admin se registra ANTES del alta en una invitación de aprovisionamiento
+    // que solo puede emitir el servidor. Así el trigger de auth.users toma el rol de
+    // una fuente controlada y nunca de `user_metadata` (que el usuario puede editar).
+    const rApro = await rpcSeguro(admin, "aprovisionar_usuario", {
+      p_email: String(correo).trim().toLowerCase(), p_rol: "admin",
+    });
+    if (!rApro.ok) {
+      await idemCerrar(admin, "crear-admin", claveIdem, false);
+      await auditar(admin, "crear_admin", "error", { detalle: { paso: "aprovisionar" } });
+      return generico(res, 500);
+    }
+
     const { data: created, error: createErr } = await admin.auth.admin.createUser({
       email: String(correo).trim().toLowerCase(),
       password,
       email_confirm: true,
-      user_metadata: { rol: "admin", nombre },
+      app_metadata: { app: "jardines" },
+      user_metadata: { nombre },
     });
     if (createErr) {
-      const msg = /already been registered|already exists/i.test(createErr.message || "")
-        ? "Ya existe una cuenta con ese correo"
-        : createErr.message;
-      res.status(409).json({ error: msg });
+      // El aprovisionamiento ya estaba emitido: si el alta falla hay que consumirlo
+      // ahora mismo. Si no, quedaría una concesión de ADMIN reutilizable durante
+      // 7 días para quien lograra registrarse con ese correo.
+      await admin.rpc("revocar_aprovisionamiento", {
+        p_email: String(correo).trim().toLowerCase(),
+      }).catch(() => {});
+      await idemCerrar(admin, "crear-admin", claveIdem, false);
+      const duplicado = /already been registered|already exists/i.test(createErr.message || "");
+      await auditar(admin, "crear_admin", "denegado",
+        { detalle: { motivo: duplicado ? "correo_duplicado" : "alta_fallida" } });
+      res.status(409).json({ error: duplicado ? "Ya existe una cuenta con ese correo" : "No se pudo crear la cuenta" });
       return;
     }
-    const nuevoId = created.user.id;
+    nuevoId = created.user.id;
 
-    // 3) Completar el perfil (el trigger ya lo creó con rol del metadata).
+    // 3) Confirmar el rol por la vía administrativa protegida (idempotente y auditada)
+    //    y completar los datos de contacto del perfil.
+    const rRol = await rpcSeguro(admin, "asignar_rol", {
+      p_user_id: nuevoId, p_rol: "admin", p_nombre: nombre,
+    });
+    if (!rRol.ok) {
+      await admin.auth.admin.deleteUser(nuevoId).catch(() => {});
+      await rpcSeguro(admin, "revocar_aprovisionamiento", { p_email: String(correo).trim().toLowerCase() });
+      await idemCerrar(admin, "crear-admin", claveIdem, false);
+      await auditar(admin, "crear_admin", "error", { detalle: { paso: "asignar_rol" } });
+      return generico(res, 500);
+    }
     await admin.from("perfiles")
-      .update({ rol: "admin", nombre, telefono: telefono || null, correo: String(correo).trim().toLowerCase() })
+      .update({ telefono: telefono || null, correo: String(correo).trim().toLowerCase() })
       .eq("user_id", nuevoId);
 
     // 4) Correo de bienvenida con sus accesos y el link del panel.
     let correoEnviado = false;
     try {
       const panelUrl = `${SITIO_URL}/${process.env.VITE_ADMIN_SLUG || "gestion-jch-9f27ax"}`;
+      // Enlace de un solo uso en lugar de la contraseña en el cuerpo del correo.
+      const { data: tokenAcceso } = await admin.rpc("crear_acceso_unico", {
+        p_user_id: nuevoId, p_proposito: "primer_acceso_admin", p_horas: 72,
+      });
+      const entrarUrl = tokenAcceso
+        ? `${SITIO_URL}/portal#entrar=${encodeURIComponent(tokenAcceso)}`
+        : panelUrl;
       const html = plantillaOro({
         pretitulo: "Acceso al panel",
         titulo: "Bienvenido al equipo",
         cuerpoHtml: `
-          <p style="margin:0 0 14px 0;">${String(nombre).split(/\s+/)[0]}, ${perfil.nombre || "un administrador"} te dio acceso al
+          <p style="margin:0 0 14px 0;">${escHtml(String(nombre).split(/\s+/)[0])}, ${escHtml(perfil.nombre || "un administrador")} te dio acceso al
           <strong style="color:#E6C870;">panel de administración</strong> de Jardines Club Hípico.</p>
           <p style="margin:0 0 6px 0;">Desde ahí puedes gestionar eventos, clientes, el sitio web y ver toda la actividad del portal.</p>
-          ${cajaCredenciales(String(correo).trim().toLowerCase(), password)}
-          <p style="margin:0;">Guarda este correo y no compartas tus accesos. El panel vive en una dirección privada:</p>`,
+          <p style="margin:0 0 6px 0;">Tu correo de acceso es <strong style="color:#E6C870;">${escHtml(String(correo).trim().toLowerCase())}</strong>. Entra con el botón: el enlace sirve una sola vez y caduca en 3 días.</p>
+          <p style="margin:0;">Tu contraseña te la comparte por separado quien te dio de alta. El panel vive en una dirección privada: <span style="color:#E6C870;">${panelUrl}</span></p>`,
         ctaTexto: "Entrar al panel",
-        ctaUrl: panelUrl,
+        ctaUrl: entrarUrl,
         notaPie: "Si no esperabas este acceso, avisa al administrador principal.",
       });
       await enviarCorreo({
         to: String(correo).trim().toLowerCase(),
         subject: "🔑 Tu acceso al panel — Jardines Club Hípico",
         html,
-        texto: `Tienes acceso al panel. Correo: ${correo} · Contraseña: ${password} · Panel: ${panelUrl}`,
+        // Sin contraseña en el cuerpo.
+        texto: `Tienes acceso al panel. Correo: ${correo}. Entra con este enlace de un solo uso: ${entrarUrl}`,
       });
       correoEnviado = true;
     } catch (e) {
       console.error("[crear-admin] correo bienvenida:", e.message);
     }
 
+    await idemCerrar(admin, "crear-admin", claveIdem, true);
+    await auditar(admin, "crear_admin", "ok", { entidad: "perfiles", entidadId: nuevoId, detalle: { correoEnviado } });
     res.status(200).json({ ok: true, userId: nuevoId, correoEnviado });
   } catch (e) {
     console.error("[crear-admin] Error:", e.message);
-    res.status(500).json({ error: "Error del servidor" });
+    if (nuevoId) await admin.auth.admin.deleteUser(nuevoId).catch(() => {});
+    await rpcSeguro(admin, "revocar_aprovisionamiento", { p_email: String(correo).trim().toLowerCase() });
+    await idemCerrar(admin, "crear-admin", claveIdem, false);
+    await auditar(admin, "crear_admin", "error", { detalle: { paso: "inesperado" } });
+    generico(res, 500);
   }
 }

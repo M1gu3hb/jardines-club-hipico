@@ -87,6 +87,24 @@ function makeEntity(name) {
     async filter(filter, sort) { return runQuery(table, { sort, filter }); },
     async get(id) { const { data } = await supabase.from(table).select("*").eq("id", id).maybeSingle(); return rowToObj(data); },
     async create(data) {
+      // Las solicitudes del formulario público ya no se insertan directo: pasan por
+      // la RPC `solicitud_crear`, que valida campos, aplica rate limit y fija los
+      // valores internos (estatus, folio, fechas) del lado del servidor.
+      if (table === "solicitudes") {
+        const { data: res, error } = await supabase.rpc("solicitud_crear", {
+          p_nombre_completo: data.nombreCompleto ?? "",
+          p_telefono: data.telefono ?? "",
+          p_email: data.email || null,
+          p_salon: data.salonSeleccionado || null,
+          p_tipo_evento: data.tipoEvento || null,
+          p_fecha_tentativa: data.fechaTentativa || null,
+          p_numero_personas: Number(data.numeroPersonas) || null,
+          p_comentarios: data.comentarios || null,
+          p_acepto: data.aceptoAvisoPrivacidad === true,
+        });
+        if (error) { console.error("[shim] create solicitudes", error.message); throw error; }
+        return rowToObj(res);
+      }
       const row = objToRow(data);
       if (!row.id) row.id = rid();
       const { error } = await supabase.from(table).insert(row);

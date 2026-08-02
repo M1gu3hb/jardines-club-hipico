@@ -2,6 +2,41 @@
 
 Registro de decisiones técnicas y de producto (formato: decisión · razón · consecuencia · archivos).
 
+## 2026-08-01 — Seguridad
+
+### D-SEC-1 — El rol NUNCA sale de `user_metadata`; se usa una fuente server-side
+- **Razón:** `raw_user_meta_data` lo escribe el propio usuario (es el `data` de `signUp`/`updateUser`).
+  Usarlo para autorizar es escalamiento de privilegios directo.
+- **Consecuencia:** el trigger solo concede `cliente`; elevar exige `jardines.asignar_rol`, con
+  `EXECUTE` exclusivo de `service_role`. El front ya no manda `rol` en `user_metadata`.
+- **Archivos:** `sec_02`, `api/crear-admin.js`, `api/crear-usuario-evento.js`.
+
+### D-SEC-2 — El trigger compartido de `auth.users` no crea perfiles cruzados
+- **Razón:** ese trigger se dispara también para los usuarios de Vero, y les creaba perfil de Jardines.
+- **Prueba de que Vero no cambia:** Vero autoriza con `public.is_admin()`, que lee solo
+  `public.admin_users`; nunca consulta `jardines.perfiles`.
+- **Consecuencia:** el trigger exige señal server-side de pertenencia a Jardines y nunca lanza
+  excepción, para no poder romper el alta de un usuario de Vero.
+- **Archivos:** `sec_02`.
+
+### D-SEC-3 — El evento del operativo se deriva o se valida; no se confía en `p_evento`
+- **Razón:** no existe tabla de asignación persona↔evento; los canales son globales. Inventar un
+  paso operativo nuevo habría cambiado la operación diaria.
+- **Consecuencia:** evento permitido = `operativo_activo` **y**, si la persona tiene asignaciones
+  explícitas, que esté entre ellas. Con cero asignaciones el comportamiento es el de siempre.
+- **Archivos:** `sec_03`.
+
+### D-SEC-4 — El token de staff en claro se conserva durante una ventana documentada
+- **Razón:** hay QR ya impresos y el panel necesita recompartir el enlace sin invalidarlos.
+- **Consecuencia:** se valida por hash (con doble lectura de compatibilidad) y el riesgo residual
+  queda documentado. El retiro está escrito en el archivo `.noapply`.
+- **Archivos:** `sec_04`, `PENDIENTE_jardines_sec_10_*.noapply`.
+
+### D-SEC-5 — Las configuraciones globales de Auth no se tocan
+- **Razón:** password policy, protección de contraseñas filtradas, JWT, SMTP y redirect URLs son
+  compartidas con Vero; cambiarlas podría afectar su inicio de sesión.
+- **Consecuencia:** se reportan como pendientes compartidos en `docs/SEGURIDAD.md` §9.
+
 ## 2026-07-03
 
 ### D1 — Migración estática (sin backend) en vez de recrear la base de datos

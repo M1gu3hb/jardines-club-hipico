@@ -1,0 +1,123 @@
+-- jardines_sec_10 — Retiro de la compatibilidad insegura del token de staff
+--
+-- ⚠️  ESTA MIGRACIÓN **NO ESTÁ APLICADA**. La extensión `.noapply` es intencional
+--     para que ninguna herramienta la ejecute por accidente.
+--
+-- POR QUÉ TODAVÍA NO
+--   sec_04 dejó el token de staff con hash, expiración, rotación, revocación,
+--   rate limit y auditoría, PERO conserva la columna `eventos.staff_token` en claro
+--   por dos razones operativas concretas:
+--
+--     1. Los QR y enlaces /staff/<token> que ya están en circulación tienen que
+--        seguir funcionando (hoy hay 1 token vivo, del evento "XV Esmeralda").
+--     2. El panel necesita poder VOLVER A COMPARTIR el enlace vigente por WhatsApp
+--        sin obligar al admin a rotarlo (lo que invalidaría el QR ya impreso).
+--
+--   Mientras la columna en claro exista, una fuga de lectura de la tabla `eventos`
+--   expone los tokens de staff activos. Ese es el riesgo residual documentado.
+--
+-- REQUISITOS PARA APLICARLA (en este orden)
+--   1. Verificar EN LA INTERFAZ que el botón "generar link de meseros" del panel
+--      usa la RPC `rotar_staff_token` y muestra el token devuelto (ya implementado
+--      en src/components/meseros/EventoMeseros.jsx, pendiente de prueba humana).
+--   2. Añadir al panel una vista que muestre el token UNA sola vez tras rotarlo,
+--      con aviso de "guárdalo ahora", ya que después dejará de ser recuperable.
+--   3. Rotar el token de cada evento con operación futura y repartir el enlace nuevo.
+--   4. Confirmar que ningún evento activo depende de un token emitido antes de
+--      sec_04 (consultar staff_token_rotado_at is not null).
+--   5. Elegir una ventana sin evento activo.
+--
+-- EFECTO
+--   A partir de aquí el token solo existe como hash: es irrecuperable desde la base
+--   y la única forma de obtener uno nuevo es rotarlo.
+
+begin;
+
+-- 1) Nadie puede quedar sin hash: si algún evento conserva token en claro sin hash,
+--    se calcula antes de borrar la columna.
+update jardines.eventos
+   set staff_token_hash = jardines_private.hash_clave('staff:' || staff_token)
+ where staff_token is not null and staff_token_hash is null;
+
+-- 2) Se retira la doble lectura: a partir de ahora SOLO se valida por hash.
+create or replace function jardines_private.evento_por_staff(p_staff text)
+returns uuid language plpgsql security definer set search_path = ''
+as $$
+declare v_ev jardines.eventos; v_hash text;
+begin
+  if coalesce(trim(p_staff), '') = '' then
+    perform jardines_private.fallo_token('staff');
+    perform jardines_private.error_generico();
+  end if;
+
+  if jardines_private.fallos_excedidos('staff') then
+    perform jardines_private.auditar('staff_token_uso', 'denegado', 'eventos', null, null,
+      jardines_private.hash_clave(p_staff), jsonb_build_object('motivo', 'rate_limit'));
+    perform jardines_private.error_generico();
+  end if;
+
+  v_hash := jardines_private.hash_clave('staff:' || p_staff);
+  select * into v_ev from jardines.eventos e where e.staff_token_hash = v_hash;
+
+  if v_ev.id is null then
+    perform jardines_private.fallo_token('staff');
+    perform jardines_private.auditar('staff_token_uso', 'denegado', 'eventos', null, null,
+      jardines_private.hash_clave(p_staff), jsonb_build_object('motivo', 'desconocido'));
+    perform jardines_private.error_generico();
+  end if;
+
+  if v_ev.staff_token_revocado_at is not null
+     or (v_ev.staff_token_expira is not null and v_ev.staff_token_expira < now()) then
+    perform jardines_private.fallo_token('staff');
+    perform jardines_private.auditar('staff_token_uso', 'denegado', 'eventos', v_ev.id, v_ev.id,
+      jardines_private.hash_clave(p_staff), jsonb_build_object('motivo', 'invalido'));
+    perform jardines_private.error_generico();
+  end if;
+
+  if not jardines_private.rate_limit_consumir('staff_ok', v_hash, 300, interval '1 minute') then
+    perform jardines_private.error_generico();
+  end if;
+
+  return v_ev.id;
+end $$;
+
+-- 3) rotar_staff_token deja de guardar el token en claro.
+create or replace function jardines.rotar_staff_token(p_evento uuid, p_dias integer default null)
+returns text language plpgsql security definer set search_path = ''
+as $$
+declare v_token text; v_expira timestamptz; v_fecha date;
+begin
+  if not jardines.is_admin() then
+    perform jardines_private.auditar('staff_token_rotar', 'denegado', 'eventos', p_evento, p_evento);
+    perform jardines_private.error_generico();
+  end if;
+
+  select e.fecha_evento into v_fecha from jardines.eventos e where e.id = p_evento;
+  if not found then perform jardines_private.error_generico(); end if;
+
+  v_token  := jardines_private.token_seguro();
+  v_expira := case
+                when p_dias is not null then now() + make_interval(days => p_dias)
+                when v_fecha is not null then (v_fecha + interval '2 days')::timestamptz
+                else now() + interval '30 days'
+              end;
+
+  update jardines.eventos
+     set staff_token_hash        = jardines_private.hash_clave('staff:' || v_token),
+         staff_token_expira      = v_expira,
+         staff_token_revocado_at = null,
+         staff_token_rotado_at   = now()
+   where id = p_evento;
+
+  perform jardines_private.auditar('staff_token_rotar', 'ok', 'eventos', p_evento, p_evento,
+    jardines_private.hash_clave(v_token), jsonb_build_object('expira', v_expira));
+
+  return v_token;  -- única vez que el token existe fuera del hash
+end $$;
+
+-- 4) Fuera la columna en claro y su trigger de sincronización.
+drop trigger  if exists trg_sync_staff_token_hash on jardines.eventos;
+drop function if exists jardines.sync_staff_token_hash();
+alter table jardines.eventos drop column if exists staff_token;
+
+commit;

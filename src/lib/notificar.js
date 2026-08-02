@@ -10,6 +10,22 @@
 import { base44 } from "@/api/base44Client";
 import { supabase } from "@/api/supabaseClient";
 
+/**
+ * Traducción del `tipo` interno a la acción que acepta /api/notificar.
+ *
+ * El contrato lo define la API: una lista cerrada de acciones, cada una ligada a
+ * un evento que el servidor vuelve a leer y a verificar. Si aquí falta un tipo,
+ * ese aviso se queda en el dashboard y no manda correo — nunca falla en silencio
+ * con un 400, que es justo lo que pasaba antes.
+ */
+export const ACCIONES_CORREO = {
+  resena: "resena",
+  interes: "interes",
+  confirmacion: "confirmacion",
+  documento: "documento",
+  nota: "nota",
+};
+
 export async function notificarDueno({ eventoId, tipo = "info", titulo, detalle = "", correo = true }) {
   // 1) Dashboard
   try {
@@ -19,17 +35,30 @@ export async function notificarDueno({ eventoId, tipo = "info", titulo, detalle 
   }
   // 2) Correo (opcional — la actividad ligera NO manda correo, solo dashboard)
   if (!correo) return;
+
+  // La API ya no acepta título ni HTML del navegador: redacta ella el correo a
+  // partir de una acción de lista cerrada y de datos que vuelve a leer de la
+  // base. Aquí solo se traduce el `tipo` interno a esa acción.
+  const accion = ACCIONES_CORREO[tipo];
+  if (!accion) return;              // tipo sin correo asociado: solo dashboard
+  if (!eventoId) {
+    console.error("[notificar] correo omitido: falta eventoId para", tipo);
+    return;
+  }
+
   try {
     const { data } = await supabase.auth.getSession();
     const token = data?.session?.access_token;
-    if (token) {
-      fetch("/api/notificar", {
-        method: "POST",
-        headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
-        body: JSON.stringify({ titulo, detalle }),
-      }).catch(() => {});
-    }
-  } catch { /* sin sesión no hay correo; el dashboard ya quedó */ }
+    if (!token) return;            // sin sesión no hay correo; el dashboard ya quedó
+    const r = await fetch("/api/notificar", {
+      method: "POST",
+      headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+      body: JSON.stringify({ accion, eventoId, nota: detalle || undefined }),
+    });
+    if (!r.ok) console.error("[notificar] correo:", r.status);
+  } catch (e) {
+    console.error("[notificar] correo:", e.message);
+  }
 }
 
 /**

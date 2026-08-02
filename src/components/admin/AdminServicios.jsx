@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { base44 } from "@/api/base44Client";
-import { Plus, Pencil, Trash2, Loader2, Check, X } from "lucide-react";
+import { Plus, Pencil, Trash2, Loader2, Check } from "lucide-react";
 
 export default function AdminServicios() {
   const [servicios, setServicios] = useState([]);

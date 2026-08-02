@@ -10,8 +10,11 @@
 // Variables de entorno requeridas en Vercel:
 //   SUPABASE_URL           -> https://<proyecto>.supabase.co
 //   SUPABASE_SERVICE_ROLE  -> service_role key (SECRETA; solo en el servidor)
-import { createClient } from "@supabase/supabase-js";
-import { plantillaOro, cajaCredenciales, enviarCorreo, SITIO_URL } from "./_lib/correo.js";
+import { plantillaOro, enviarCorreo, SITIO_URL } from "./_lib/correo.js";
+import {
+  escHtml, clienteAdmin, leerBody, autorizarJardines, rateLimit,
+  idemIniciar, idemCerrar, auditar, generico, rpcSeguro,
+} from "./_lib/guard.js";
 
 const DOMINIO_CLIENTE = "portal.jardines.local";
 
@@ -25,103 +28,99 @@ function usuarioAEmail(usuario) {
 }
 
 export default async function handler(req, res) {
-  if (req.method !== "POST") {
-    res.status(405).json({ error: "Método no permitido" });
-    return;
-  }
+  if (req.method !== "POST") return generico(res, 405);
 
-  const url = process.env.SUPABASE_URL;
-  const serviceRole = process.env.SUPABASE_SERVICE_ROLE;
-  if (!url || !serviceRole) {
+  const admin = clienteAdmin();
+  if (!admin) {
     console.error("[crear-usuario-evento] Faltan SUPABASE_URL / SUPABASE_SERVICE_ROLE");
-    res.status(500).json({ error: "Servidor sin configuración de Supabase" });
-    return;
+    return generico(res, 500);
   }
 
-  // Token del llamador (el admin logueado en el panel).
-  const authHeader = req.headers.authorization || "";
-  const token = authHeader.startsWith("Bearer ") ? authHeader.slice(7) : null;
-  if (!token) {
-    res.status(401).json({ error: "Falta token de autorización" });
-    return;
+  // Autorización real: admin de Jardines. Un usuario de Vero recibe 403.
+  const aut = await autorizarJardines(req, admin, { rol: "admin" });
+  if (!aut.ok) {
+    await auditar(admin, "crear_usuario_evento", "denegado", { detalle: { motivo: `http_${aut.status}` } });
+    return generico(res, aut.status);
   }
 
-  let body = req.body;
-  if (typeof body === "string") {
-    try { body = JSON.parse(body); } catch { body = {}; }
-  }
-  body = body || {};
-  const { usuario, password, eventoId, nombre } = body;
+  const lectura = leerBody(req, 8 * 1024);
+  if (!lectura.ok) return generico(res, lectura.status);
+  const { usuario, password, eventoId, nombre } = lectura.body;
 
-  if (!usuario || !password || !eventoId) {
-    res.status(400).json({ error: "Faltan datos: usuario, password, eventoId" });
-    return;
-  }
-  if (String(password).length < 6) {
-    res.status(400).json({ error: "La contraseña debe tener al menos 6 caracteres" });
-    return;
+  // Validación estricta de formato y longitud.
+  if (!usuario || !password || !eventoId) return generico(res, 400);
+  if (String(usuario).length > 60 || !/^[a-zA-Z0-9._-]{3,60}$/.test(String(usuario))) return generico(res, 400);
+  if (String(password).length < 8 || String(password).length > 200) return generico(res, 400);
+  if (nombre && String(nombre).length > 120) return generico(res, 400);
+  if (!/^[0-9a-f-]{36}$/i.test(String(eventoId))) return generico(res, 400);
+
+  if (!(await rateLimit(admin, "crear-usuario-evento", aut.user.id, 20, 3600))) {
+    await auditar(admin, "crear_usuario_evento", "denegado", { detalle: { motivo: "rate_limit" } });
+    return generico(res, 429);
   }
 
-  const admin = createClient(url, serviceRole, {
-    db: { schema: "jardines" },
-    auth: { persistSession: false, autoRefreshToken: false },
-  });
+  const claveIdem = `${eventoId}:${String(usuario).toLowerCase()}`;
+  const idem = await idemIniciar(admin, "crear-usuario-evento", claveIdem, 120, 1);
+  if (idem === "en_curso") return generico(res, 429);
+  if (idem !== "procede" && idem !== "duplicado") return generico(res, 500);
 
+  let nuevoId = null;
   try {
-    // 1) Verificar que el llamador es admin.
-    const { data: userData, error: userErr } = await admin.auth.getUser(token);
-    if (userErr || !userData?.user) {
-      res.status(401).json({ error: "Sesión inválida" });
-      return;
-    }
-    const { data: perfil } = await admin
-      .from("perfiles")
-      .select("rol")
-      .eq("user_id", userData.user.id)
-      .maybeSingle();
-    if (perfil?.rol !== "admin") {
-      res.status(403).json({ error: "No autorizado" });
-      return;
-    }
 
     // 2) Crear el usuario de Auth del cliente (email sintético, ya confirmado).
     const { limpio, email } = usuarioAEmail(usuario);
-    if (!limpio) {
-      res.status(400).json({ error: "Usuario inválido" });
-      return;
-    }
+    if (!limpio) return generico(res, 400);
+    // `app_metadata` solo lo puede escribir la Admin API (service_role): es la señal
+    // server-side que marca al usuario como de Jardines. El rol NO viaja en
+    // `user_metadata`, que el propio usuario puede modificar después.
     const { data: created, error: createErr } = await admin.auth.admin.createUser({
       email,
       password,
       email_confirm: true,
-      user_metadata: { rol: "cliente", nombre: nombre || usuario, usuario: limpio },
+      app_metadata: { app: "jardines" },
+      user_metadata: { nombre: nombre || usuario, usuario: limpio },
     });
     if (createErr) {
-      const msg = /already been registered|already exists/i.test(createErr.message || "")
-        ? "Ese usuario ya existe"
-        : createErr.message;
-      res.status(409).json({ error: msg });
+      await idemCerrar(admin, "crear-usuario-evento", claveIdem, false);
+      const duplicado = /already been registered|already exists/i.test(createErr.message || "");
+      await auditar(admin, "crear_usuario_evento", "denegado",
+        { detalle: { motivo: duplicado ? "usuario_duplicado" : "alta_fallida" } });
+      // Genérico salvo el caso de duplicado, que el admin necesita distinguir.
+      res.status(409).json({ error: duplicado ? "Ese usuario ya existe" : "No se pudo crear el usuario" });
       return;
     }
 
-    const nuevoId = created.user.id;
+    nuevoId = created.user.id;
 
-    // 3) Asegurar el perfil como cliente (el trigger ya lo crea; forzamos por si acaso).
-    await admin
-      .from("perfiles")
-      .update({ rol: "cliente", nombre: nombre || usuario })
-      .eq("user_id", nuevoId);
+    // 3) Fijar el rol por la vía administrativa protegida (queda auditado).
+    //    `asignar_rol` solo la puede ejecutar service_role, nunca el navegador.
+    const rRol = await rpcSeguro(admin, "asignar_rol", {
+      p_user_id: nuevoId, p_rol: "cliente", p_nombre: nombre || usuario,
+    });
+    if (!rRol.ok) {
+      await admin.auth.admin.deleteUser(nuevoId).catch(() => {});
+      await idemCerrar(admin, "crear-usuario-evento", claveIdem, false);
+      await auditar(admin, "crear_usuario_evento", "error", { detalle: { paso: "asignar_rol" } });
+      return generico(res, 500);
+    }
 
-    // 4) Ligar el evento a este usuario/credencial.
-    const { error: linkErr } = await admin
+    // 4) Ligar el evento. Se comprueba que afectó EXACTAMENTE al evento esperado:
+    //    con .update().eq() sin select, cero filas (evento inexistente) pasaba
+    //    como éxito y dejaba un usuario huérfano con credenciales válidas.
+    const { data: ligado, error: linkErr } = await admin
       .from("eventos")
       .update({ auth_user_id: nuevoId, usuario: limpio })
-      .eq("id", eventoId);
-    if (linkErr) {
-      // Rollback del usuario para no dejar credenciales huérfanas.
+      .eq("id", eventoId)
+      .select("id")
+      .maybeSingle();
+    if (linkErr || !ligado || ligado.id !== eventoId) {
       await admin.auth.admin.deleteUser(nuevoId).catch(() => {});
-      res.status(500).json({ error: "No se pudo ligar el evento: " + linkErr.message });
-      return;
+      await idemCerrar(admin, "crear-usuario-evento", claveIdem, false);
+      await auditar(admin, "crear_usuario_evento", "error", {
+        entidad: "eventos", entidadId: eventoId,
+        detalle: { paso: "ligar_evento", motivo: linkErr ? "error" : "cero_filas" },
+      });
+      return generico(res, 400);
     }
 
     // 5) Correo de bienvenida al cliente con sus credenciales + link de auto-entrada.
@@ -135,18 +134,24 @@ export default async function handler(req, res) {
         .eq("id", eventoId)
         .maybeSingle();
       if (ev?.cliente_email) {
-        const acceso = Buffer.from(`${limpio}:${password}`, "utf8").toString("base64");
-        const linkMagico = `${SITIO_URL}/portal#acceso=${encodeURIComponent(acceso)}`;
+        // Enlace de un solo uso, con caducidad, guardado solo como hash. Antes
+        // aquí viajaba base64(usuario:contraseña), que es reversible: quien viera
+        // el correo o el historial se quedaba con la credencial permanente.
+        const { data: tokenAcceso, error: taErr } = await admin.rpc("crear_acceso_unico", {
+          p_user_id: nuevoId, p_proposito: "primer_acceso_cliente", p_horas: 72,
+        });
+        if (taErr || !tokenAcceso) throw new Error("no se pudo emitir el acceso");
+        const linkMagico = `${SITIO_URL}/portal#entrar=${encodeURIComponent(tokenAcceso)}`;
         const nombreCliente = (ev.cliente_nombre || nombre || "").split(/\s+/)[0] || "Hola";
         const html = plantillaOro({
           pretitulo: "Tu portal está listo",
           titulo: ev.nombre_evento || "Tu evento",
           cuerpoHtml: `
-            <p style="margin:0 0 14px 0;">${nombreCliente}, ¡bienvenido a la familia de Jardines Club Hípico! 🎉</p>
+            <p style="margin:0 0 14px 0;">${escHtml(nombreCliente)}, ¡bienvenido a la familia de Jardines Club Hípico! 🎉</p>
             <p style="margin:0 0 6px 0;">Creamos tu <strong style="color:#E6C870;">portal exclusivo</strong> para que armes cada detalle de tu evento:
             cronograma, música, mesas, tus documentos y una lista de deseos con ideas para inspirarte.</p>
-            ${cajaCredenciales(limpio, password)}
-            <p style="margin:0;">Guarda este correo: estas son tus llaves. Con el botón de abajo entras directo, sin escribir nada.</p>`,
+            <p style="margin:0 0 6px 0;">Tu usuario es <strong style="color:#E6C870;">${escHtml(limpio)}</strong>. Con el botón de abajo entras directo, sin escribir nada.</p>
+            <p style="margin:0;">El enlace sirve una sola vez y caduca en 3 días. Si se te vence, pídenos otro.</p>`,
           ctaTexto: "Entrar a mi portal",
           ctaUrl: linkMagico,
           notaPie: "Si no esperabas este correo, ignóralo con confianza.",
@@ -155,7 +160,8 @@ export default async function handler(req, res) {
           to: ev.cliente_email,
           subject: `✨ Tu portal de "${ev.nombre_evento}" está listo — Jardines Club Hípico`,
           html,
-          texto: `Tu portal está listo. Usuario: ${limpio} · Contraseña: ${password} · Entra en ${SITIO_URL}/portal`,
+          // Sin contraseña en el cuerpo: el correo no es un lugar seguro para una credencial.
+          texto: `Tu portal está listo. Usuario: ${limpio}. Entra con este enlace de un solo uso: ${linkMagico}`,
         });
         correoEnviado = true;
       }
@@ -164,9 +170,16 @@ export default async function handler(req, res) {
       console.error("[crear-usuario-evento] correo bienvenida:", e.message);
     }
 
+    await idemCerrar(admin, "crear-usuario-evento", claveIdem, true);
+    await auditar(admin, "crear_usuario_evento", "ok", {
+      entidad: "eventos", entidadId: eventoId, eventoId, detalle: { correoEnviado },
+    });
     res.status(200).json({ ok: true, userId: nuevoId, usuario: limpio, correoEnviado });
   } catch (e) {
     console.error("[crear-usuario-evento] Error:", e.message);
-    res.status(500).json({ error: "Error del servidor" });
+    if (nuevoId) await admin.auth.admin.deleteUser(nuevoId).catch(() => {});
+    await idemCerrar(admin, "crear-usuario-evento", claveIdem, false);
+    await auditar(admin, "crear_usuario_evento", "error", { detalle: { paso: "inesperado" } });
+    generico(res, 500);
   }
 }

@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { base44 } from "@/api/base44Client";
-import { Upload, Trash2, Loader2, Plus, Play, Link } from "lucide-react";
+import { Trash2, Loader2, Plus, Play, Link } from "lucide-react";
 import { isVideo } from "../MediaViewer";
 
 export default function AdminGaleria() {
