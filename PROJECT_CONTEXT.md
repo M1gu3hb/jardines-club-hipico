@@ -1,162 +1,253 @@
 # PROJECT_CONTEXT.md
 
-> **ACTUALIZADO 2026-08-02.** Este documento describía la etapa ESTÁTICA del proyecto
-> (anterior a FASE-02). Ya no es cierta: **el sitio es dinámico y tiene base de datos viva**
-> en Supabase (schema `jardines`, proyecto `vuzyhbiwnnngeohysxcw`, compartido con Vero Seguros).
-> `src/api/base44Client.js` conserva el nombre por compatibilidad, pero **Base44 ya no existe ni
-> se usa**: por dentro es Supabase. Los JSON de `src/data/` son solo respaldo estático.
-> El modelo de seguridad vigente está en **`docs/SEGURIDAD.md`**.
+> **Documento principal de transferencia.** Si vas a trabajar en este proyecto, léelo completo
+> antes de tocar código. Última reescritura: **2026-08-03**.
 
-> Documento principal de transferencia. Léelo completo para entender el proyecto antes de tocar código.
+---
 
 ## 1. Objetivo del proyecto
 
-Sitio web de **Jardines Club Hípico**, un salón de eventos grande en Xochimilco, CDMX (bodas, XV
-años, corporativos, infantiles, eventos nocturnos). El objetivo del sitio es **generar cotizaciones**
-(leads): que el visitante conozca los espacios/servicios y envíe una solicitud, que se atiende por
-WhatsApp. Se **migró de Base44** a un proyecto Vite/React independiente para dejar de depender de esa
-plataforma, con todo el contenido y los medios auto-hospedados.
+Sitio web y portal de **Jardines Club Hípico**, un salón de eventos grande en Xochimilco, CDMX
+(bodas, XV años, corporativos, infantiles, eventos nocturnos).
+
+El proyecto tiene **dos objetivos** que llegaron en dos fases:
+
+1. **Captar cotizaciones (leads).** El visitante conoce los espacios y servicios y manda una
+   solicitud, que se atiende por WhatsApp. Esta era la FASE-01 (sitio estático migrado de Base44).
+2. **Operar el evento vendido.** Desde FASE-02 hay base de datos real: panel de administración,
+   portal del cliente, documentos, mesas e invitaciones digitales, cronograma, música, RSVP y un
+   módulo operativo para el personal del salón.
+
+Se migró de **Base44** a un proyecto Vite/React independiente para dejar de depender de esa
+plataforma. Base44 **ya no existe ni se usa**; solo sobrevive el nombre de un archivo.
 
 ## 2. Estado actual
 
-**Funciona (en producción):**
-- Sitio público completo e idéntico/mejorado respecto al original de Base44.
-- Formulario de cotización → envía correo por Gmail (probado, 200 OK).
-- Deploy automático: push a `main` en GitHub → Vercel redespliega.
-- Todas las secciones de conversión (hero de venta, confianza, cómo funciona, FAQ, etc.).
-- 5 imágenes generadas con Nano Banana ya integradas; descripciones en los 29 servicios/amenidades.
+**En producción y funcionando:**
+
+- Sitio público completo (hero, espacios, animación por scroll, servicios, amenidades, galería,
+  FAQ, contacto) — `https://jardinesclubhipico.com` vía Vercel.
+- Formulario de cotización → fila en `jardines.solicitudes` (RPC validada) + correo al dueño.
+- Panel de administración en ruta secreta: CMS del sitio, eventos, documentos, mesas,
+  invitaciones, reseñas, solicitudes, administradores.
+- Portal del cliente (`/portal`): su evento, documentos, invitación, sugerencias, reseña.
+- Primer acceso del cliente por **enlace de un solo uso** (`/portal#entrar=…`).
+- Vistas por QR: `/acceso/:token` (control de acceso), `/staff/:token` (meseros),
+  `/invitacion/:token` (invitación pública con RSVP).
+- Correos transaccionales por Gmail (Nodemailer) y un cron diario de recordatorios.
+- Deploy automático: push a `main` → Vercel.
+
+**Blindaje de seguridad (2026-08-01 → 2026-08-02):** 21 migraciones `jardines_sec_01..22`
+aplicadas en producción. Detalle completo en `docs/SEGURIDAD.md` y `docs/CHANGELOG.md`.
+
+**Estado formal: `ESPERANDO_VALIDACION_HUMANA_AUTENTICADA`.** El código está desplegado y
+verificado por pruebas automáticas, pero **no se declara CERRADO** hasta que Miguel confirme
+visualmente, con credenciales reales, los cinco flujos de §8.F. Es lo único que falta.
 
 **Incompleto / opcional:**
-- **Carrusel de reseñas**: `src/data/resenas.json` → array `resenas` vacío. El bloque Confianza
-  muestra números + rating de Google, pero el carrusel solo aparece cuando se llena ese array con
-  reseñas reales (el usuario debe pegarlas).
-- **Dominio propio**: aún no conectado. `index.html` tiene `og:url` con placeholder `jardinesclubhipico.com`.
+
+- Carrusel de reseñas: depende de que existan reseñas aprobadas en `jardines.resenas`.
+- No hay pantalla para asignar personal a eventos (`operativo_asignacion` existe, sin UI).
+- No hay pantalla de "cambiar mi contraseña" dentro del portal.
 
 **Roto:** nada conocido.
 
-**Panel admin (`/Admin`):** existe y lee el contenido, pero las ediciones son **en memoria** (no
-persisten) porque el sitio es estático. Es un remanente de Base44; sirve para previsualizar.
-
 ## 3. Stack técnico
 
-- **Frontend:** React 18, Vite 6, Tailwind CSS 3, Framer Motion, shadcn/ui (Radix), Lucide icons, react-router-dom.
-- **Datos:** estáticos en `src/data/site-data.json` (no hay base de datos en vivo).
-- **Backend:** solo una función serverless en Vercel: `api/solicitud.js` (Nodemailer + Gmail App Password).
-- **Hosting:** Vercel (equipo `mh-astral-systems`, proyecto `jardines-club-hipico`).
-- **Repo:** GitHub `M1gu3hb/jardines-club-hipico` (privado).
-- **Node:** v24. **Gestor:** npm.
+| Capa | Tecnología |
+|---|---|
+| Frontend | React 18, Vite 6, Tailwind CSS 3, Framer Motion, shadcn/ui (Radix), Lucide, react-router-dom 7, TanStack Query 5 |
+| Datos | **Supabase** — PostgreSQL 17, `us-east-1`, proyecto `vuzyhbiwnnngeohysxcw`, schemas `jardines` + `jardines_private` |
+| Cliente de datos | `@supabase/supabase-js` 2 detrás del shim `src/api/base44Client.js` |
+| Backend | 7 funciones serverless en `api/` (Node, Vercel) + Nodemailer 9 |
+| Auth | Supabase Auth (email/contraseña). Los clientes usan **usuario**, que se convierte en un correo sintético interno |
+| Hosting | Vercel (equipo `mh-astral-systems`, proyecto `jardines-club-hipico`) |
+| Repo | GitHub `M1gu3hb/jardines-club-hipico` (privado) |
+| Runtime | Node 24, npm |
+
+**Variables de entorno.** Front (`VITE_*`, públicas por diseño): `VITE_SUPABASE_URL`,
+`VITE_SUPABASE_ANON_KEY`, `VITE_ADMIN_SLUG`. Servidor (secretas, solo Vercel):
+`SUPABASE_URL`, `SUPABASE_SERVICE_ROLE`, `GMAIL_USER`, `GMAIL_APP_PASSWORD`, `MAIL_TO`,
+`CRON_SECRET`.
+
+> ⚠️ El proyecto de Supabase **está compartido con otra aplicación, Vero Seguros**, que vive en
+> el schema `public`. Ver el CANDADO ABSOLUTO en `CLAUDE.md` y `docs/SEGURIDAD.md` §1.
 
 ## 4. Arquitectura general
 
-- **SPA React** servida por Vite. Entrada: `src/main.jsx` → `src/App.jsx` (router, sin auth).
-- **Router** con 2 páginas: `Home` (`/`) y `Admin` (`/Admin`) — ver `src/pages.config.js`.
-- **Capa de datos = SHIM** (`src/api/base44Client.js`): imita la API del SDK de Base44
-  (`base44.entities.X.list/filter/create/update/delete`, `functions.invoke`, `integrations.Core.UploadFile`,
-  `auth`) pero sirviendo `src/data/site-data.json`. Lecturas = datos estáticos; escrituras (admin) =
-  store en memoria (no persiste). Gracias a esto, ningún componente se reescribió al quitar Base44.
-- **Medios** auto-hospedados en `public/media/` (img, frames de la animación, b44).
-- **Correo:** `FormularioModal` → shim `functions.invoke("gmailSolicitud")` → `POST /api/solicitud` (Vercel).
-- **SPA fallback:** `vercel.json` reescribe todo (excepto `/api`) a `/index.html`.
+```
+Navegador
+  └─ SPA React (Vite) ── main.jsx → App.jsx (AuthProvider + react-router)
+        ├─ /                    → Home (sitio público)
+        ├─ /<ADMIN_SLUG>        → RequireAdmin → Admin (panel)
+        ├─ /portal              → PortalPage (login + portal del cliente)
+        ├─ /acceso/:token       → AccesoPage  (QR de control de acceso)
+        ├─ /staff/:token        → StaffPage   (vista de meseros)
+        └─ /invitacion/:token   → InvitacionPublica (RSVP)
+
+Datos    componentes → base44Client.js (SHIM) → supabaseClient.js → PostgREST → schema `jardines`
+         Autorización = RLS en la base. El front NO decide permisos.
+Correo   componentes → /api/* (Vercel, service_role) → Nodemailer → Gmail
+Medios   públicos: public/media/**  ·  subidos: Storage (buckets clientes/planos/sitio/operativo)
+Deploy   push a main → Vercel build (vite) → producción
+```
 
 Detalle profundo: `docs/ARCHITECTURE.md`.
 
-## 5. Módulos principales (secciones de la Home, en orden)
+## 5. Módulos principales
 
-`src/pages/Home.jsx` monta, en orden:
-1. `HeroSection` (`#inicio`) — video de fondo, mensaje de venta, CTA "Cotiza tu evento", cartel "Próximamente".
-2. `Confianza` — números (+30 años, +500 eventos, 8 espacios) + rating Google + carrusel de reseñas (si hay).
-3. `SalonesSection` (`#salones`) — 8 espacios → abre `SalonOverlay` (detalle + galería + cotizar).
-4. `ScrollAnimationSection` — animación de 241 frames dirigida por scroll (`public/media/frames/`).
-5. `ServiciosAmenidades` (`#servicios`, `#amenidades`) — dos listas; entre ellas, `BarraDulces`.
-6. `BarraDulces` — servicio destacado en colaboración (Dulce Corazón, acento rosa).
-7. `ComoFunciona` (`#como-funciona`) — 3 pasos.
-8. `CtaCotizacion` — franja "Listo para cotizar".
-9. `GaleriaSection` (`#galeria`) — grid masonry de 69 fotos/videos → `MediaViewer`.
-10. `FaqSection` (`#faq`) — acordeón de 8 preguntas.
-11. `ContactoSection` (`#contacto`) — teléfono, correo, ubicación, WhatsApp, Facebook.
-12. `NoIncluyeSection` (`#no-incluye`) — avisos/información de servicios.
-13. Footer + `FormularioModal` + `ProximamenteModal` + WhatsApp flotante.
+**Sitio público** — `src/pages/Home.jsx` monta en orden: `HeroSection`, `Confianza`,
+`SalonesSection` (→ `SalonOverlay`), `ScrollAnimationSection` (241 frames),
+`ServiciosAmenidades` (+ `BarraDulces`), `ComoFunciona`, `CtaCotizacion`, `GaleriaSection`
+(→ `MediaViewer`), `FaqSection`, `ContactoSection`, `NoIncluyeSection`, footer,
+`FormularioModal`, `ProximamenteModal` y WhatsApp flotante.
 
-Referencia componente por componente: `docs/COMPONENTES.md`. Dónde tocar para cada cambio: `docs/MAPA.md`.
+**Panel admin** — `src/pages/Admin.jsx` + `src/components/admin/*`: CMS del sitio (config,
+salones, galería, servicios, amenidades, alimentos, reseñas), `AdminSolicitudes`,
+`AdminAdministradores` y el módulo de eventos (`admin/eventos/*`: datos, ficha, documentos,
+items contratados, RSVPs).
+
+**Portal del cliente** — `src/components/portal/*`: login, inicio, "ármalo", contratado,
+documentos, invitación, sugerencias, reseña, instalación PWA.
+
+**Mesas e invitaciones** — `src/components/mesas/*` (editor y reglas) e
+`src/components/invitacion/InvitacionPublica.jsx`.
+
+**Meseros / operativo** — `src/components/meseros/*` (acceso por QR, vista de staff, generación
+del enlace) + las tablas `operativo_*`.
+
+Referencia componente por componente: `docs/COMPONENTES.md`. Dónde tocar para cada cambio:
+`docs/MAPA.md`.
 
 ## 6. Entidades y base de datos
 
-No hay base de datos en vivo. El "modelo de datos" son las entidades que Base44 tenía, ahora
-**congeladas** en `src/data/site-data.json`. Claves: `config` (1), `salones` (8), `galeria` (69),
-`servicios` (14), `amenidades` (15), `serviciosExtra` (11), `alimentos` (3), `resenas` (en
-`resenas.json`). Detalle de campos/relaciones: `docs/DATABASE.md`.
+**Hay base de datos en vivo.** 32 tablas en `jardines` (contenido del sitio + operación del
+evento) y 6 tablas en `jardines_private` (secretos, auditoría, rate limit, idempotencia,
+aprovisionamiento, accesos de un solo uso). `jardines_private` **no** está expuesto en la Data
+API y `anon`/`authenticated` no tienen `USAGE` sobre él.
+
+Los componentes hablan con las tablas a través del mapa `TABLES` de `src/api/base44Client.js`
+(p. ej. `ConfigSitio` → `config_sitio`, `Salon` → `salones`, `Evento` → `eventos`).
+
+Esquema completo, funciones, RPCs y reglas: **`docs/DATABASE.md`**. Modelo de permisos:
+**`docs/SEGURIDAD.md`**.
 
 ## 7. Mapeo de archivos importantes
 
 Resumen (detalle en `docs/FILE_MAP.md`):
-- `src/data/site-data.json` — TODO el contenido (generado desde `scripts/raw/*.json`).
-- `src/data/resenas.json` — reseñas + números de confianza.
-- `src/api/base44Client.js` — SHIM de datos (no romper la API).
-- `src/pages/Home.jsx` — orquesta las secciones.
-- `src/components/*` — UI. `api/solicitud.js` — correo. `scripts/build-media.mjs` — genera datos + descarga medios.
-- `nano-banana/` — prompts + referencias para generar imágenes con Nano Banana.
+
+- `src/api/base44Client.js` — **SHIM de datos**. Única puerta a la base. No romper su API.
+- `src/api/supabaseClient.js` — cliente Supabase (`db.schema = "jardines"`).
+- `src/api/authContext.jsx` — sesión y rol; `src/components/auth/RequireAdmin.jsx` — guard.
+- `src/config/portal.js` — `ADMIN_SLUG`, dominio del correo sintético, link de reseña.
+- `src/pages/Home.jsx` / `src/pages/Admin.jsx` — orquestadores.
+- `api/_lib/guard.js` — **módulo central de seguridad de las rutas serverless**.
+- `api/*.js` — 7 rutas: solicitud, notificar, correo-cliente, crear-admin,
+  crear-usuario-evento, canjear-acceso, cron-recordatorios.
+- `supabase/migrations/*.sql` — migraciones forward-only.
+- `supabase/tests/seguridad.sql` — 63 aserciones de seguridad.
+- `scripts/test-contratos-api.mjs` — 71 contratos frontend ↔ API.
+- `vercel.json` — rewrites SPA, cabeceras HTTP (CSP, HSTS…) y el cron.
+- `src/data/site-data.json`, `src/data/resenas.json` — **fallback estático**, ya no la verdad.
 
 ## 8. Flujos críticos
 
-**A) Cotización (lead) → correo:**
-1. Usuario abre `FormularioModal` (CTA en varios lugares).
-2. Paso 0: elige espacio (o "aún no lo decido"). Paso 1: nombre, teléfono/WhatsApp, tipo de evento,
-   fecha, nº personas (+ correo/comentarios opcionales + aviso de privacidad).
-3. Al enviar: `base44.entities.SolicitudEvento.create()` (shim, genera folio `JCH-XXXXXX`) +
-   `base44.functions.invoke("gmailSolicitud", {data})` → `POST /api/solicitud`.
-4. `api/solicitud.js` (Vercel) envía el correo con Nodemailer + Gmail App Password a `MAIL_TO`
-   (default `mighuer427@gmail.com`).
-5. Pantalla de confirmación con folio + botón de WhatsApp.
+**A) Cotización (lead).** `FormularioModal` → `base44.entities.SolicitudEvento.create()` →
+RPC `jardines.solicitud_crear` (valida formato, aplica rate limit por IP y fija folio, estatus
+y fechas del lado del servidor) → el front recibe el folio real → `POST /api/solicitud` con
+solo el `solicitudId` → la función relee la fila con `service_role` y manda el correo al dueño.
+Si el servidor no devuelve folio, **no** se muestra pantalla de éxito.
 
-**B) Ver un espacio:** `SalonesSection` → click card → `SalonOverlay` (descripción larga,
-características, galería `SalonGallery`) → "Cotizar este salón" (abre el form con salón preseleccionado).
+**B) Alta de un cliente.** Admin en el panel → `POST /api/crear-usuario-evento` (verifica que
+quien llama es admin de Jardines) → registra el aprovisionamiento, crea el usuario con la Admin
+API, asigna rol vía `asignar_rol` y crea un **enlace de un solo uso** (`crear_acceso_unico`) →
+correo al cliente. La contraseña **no** viaja en el correo.
 
-**C) Galería:** `GaleriaSection` renderiza `galeria` en orden del arreglo (3 grids responsivos) → click
-abre `MediaViewer` (lightbox). Nota: `Home.jsx` usa `Galeria.list()` (sin sort) para que el orden del
-arreglo = orden mostrado.
+**C) Primer acceso del cliente.** El cliente abre `/portal#entrar=<token>` → `PortalLogin`
+manda el token a `POST /api/canjear-acceso` → canje **en dos fases**
+(`canjear_acceso_iniciar` → OTP → `canjear_acceso_confirmar`, con `canjear_acceso_liberar` si
+algo falla en medio, para no quemar el token) → `verifyOtp` → el **servidor** decide el destino
+según el rol leído en la base.
 
-**D) Regenerar contenido:** editar `scripts/raw/*.json` → `node scripts/build-media.mjs` → `npm run build`.
+**D) Documentos.** Admin sube el archivo al bucket `clientes` en la carpeta `<evento_id>/`
+(sin prefijo `evento-`: la policy compara `foldername(name)[1]` contra `eventos.id`) → registra
+la fila en `documentos` → `POST /api/correo-cliente` con `documentoId` → la función comprueba
+que el documento pertenece a ese evento y avisa al cliente.
+
+**E) Enlace de meseros.** El panel llama a la RPC `rotar_staff_token`, que devuelve el token
+**una sola vez** (256 bits). La columna en claro ya no existe: solo se guarda el HMAC. Tras
+recargar, el panel ofrece "Generar nuevo enlace". Todas las validaciones pasan por
+`jardines_private.evento_por_staff()`, que responde siempre el mismo error genérico.
+
+**F) Validación humana pendiente.** Miguel debe confirmar en pantalla, con credenciales reales:
+(1) alta de cliente, (2) enlace de primer acceso, (3) subir y abrir documentos, (4) aviso de
+cotización, (5) generar y abrir el link de meseros.
 
 ## 9. Decisiones tomadas
 
-Ver `docs/DECISIONS.md` (formato fecha/decisión/razón/consecuencia/archivos). Las clave:
-migración estática (no backend), shim de Base44, correo por Gmail App Password (no OAuth), reorden
-de galería por análisis visual, imágenes con Nano Banana (no Pollinations por calidad).
+Ver `docs/DECISIONS.md` (formato decisión · razón · consecuencia · archivos). Las clave:
+
+- **D2** — shim que imita el SDK de Base44, para no reescribir todos los componentes.
+- **D-SEC-1** — el rol **nunca** sale de `user_metadata`; solo de fuente server-side.
+- **D-SEC-2** — el trigger compartido de `auth.users` no crea perfiles cruzados con Vero.
+- **D-SEC-5** — la configuración global de Auth no se toca (es compartida).
+- **D-SEC-7** — semántica **at-least-once** en los correos: se prefiere un duplicado a un
+  correo perdido, porque Gmail y Postgres no comparten transacción.
+- **D-SEC-9** — el token de staff se retiró en claro (`sec_20`); solo vive como hash.
 
 ## 10. Bugs pendientes
 
-Ver `docs/BUGS_PENDING.md`. No hay bugs críticos abiertos.
+Ver `docs/BUGS_PENDING.md`. **No hay bugs críticos abiertos.** Quedan riesgos residuales
+documentados (tokens portadores por diseño, canales operativos globales, pendientes
+compartidos con Vero) y dos cosas menores de contenido/SEO.
 
 ## 11. Riesgos
 
-- **Repo pesado (~560 MB)** por videos/imágenes auto-hospedados. Push/deploy iniciales lentos.
-- **Admin no persiste** (estático): si alguien espera guardar desde `/Admin`, se confundirá.
-- **Dependencias externas menores no-Base44**: fuentes de Google (Inter), placeholders de Unsplash en
-  fallbacks que nunca se renderizan, PDFs de menús en Google Drive (`alimentos[].pdfUrl`).
-- **`GMAIL_APP_PASSWORD`** es un secreto en Vercel; no exponerlo. Si el correo deja de llegar, revisar
-  esa variable y los logs de la función.
+- **Base compartida con Vero Seguros.** Un cambio descuidado en `public`, en `auth` global o en
+  el trigger compartido puede romper una aplicación que no es esta. Ver el candado en `CLAUDE.md`.
+- **Producción compartida = las migraciones afectan al sitio en línea de inmediato**, aunque el
+  frontend nuevo siga en una rama. Primero lo aditivo, luego el front, y al final el retiro.
+- **Tokens de mesa, invitación y staff son credenciales portadoras**: quien tenga el QR entra.
+  Es el diseño del producto; se mitiga con 256 bits, expiración, revocación y rate limit.
+- **`operativo_canales` es global, no por evento.** Con dos eventos simultáneos el personal
+  compartiría canal de radio. Hoy el salón opera un evento a la vez.
+- **Repo pesado (~560 MB)** por los medios auto-hospedados: clonar y desplegar es lento.
+- **`GMAIL_APP_PASSWORD`, `SUPABASE_SERVICE_ROLE` y `CRON_SECRET`** son secretos de Vercel. Si
+  el correo o el cron dejan de funcionar, revisa esas variables antes que el código.
 
 ## 12. Próximos pasos
 
-Ver `docs/NEXT_STEPS.md`. Resumen: (Después) llenar `resenas.json` con reseñas reales; conectar dominio
-y actualizar `og:url`. (Ideas) más testimonios, blog, analítica.
+Ver `docs/NEXT_STEPS.md`. Resumen: cerrar la validación humana pendiente (§8.F); después,
+pantalla para asignar personal a eventos, cambio de contraseña dentro del portal, canales
+operativos por evento y acordar con Vero los pendientes compartidos.
 
 ## 13. Prompts útiles
 
-Ver `docs/PROMPTS.md` (incluye los prompts de Nano Banana y un prompt para continuar el proyecto).
+Ver `docs/PROMPTS.md`: prompt de arranque para una sesión nueva, el **prompt fijo de
+documentación viva** (el que se usa para transferir el proyecto a otra cuenta o IA), cómo
+editar contenido, prompts de Nano Banana y deploy manual.
 
 ## 14. Cosas que NO se deben romper
 
-- El **shim** `base44Client.js` y su API (los componentes dependen de ella).
-- El pipeline `scripts/raw/*.json` → `build-media.mjs` → `site-data.json`.
-- Los medios en `public/media/` (rutas `/media/...`).
-- La función `api/solicitud.js` y las variables `GMAIL_USER` / `GMAIL_APP_PASSWORD` / `MAIL_TO` en Vercel.
-- El tema oscuro + dorado `#C9A84C`. Los videos del hero (ya comprimidos).
-- `vercel.json` (fallback SPA).
+- El **shim** `src/api/base44Client.js` y su API pública (todos los componentes dependen de ella).
+- **RLS** en todas las tablas de `jardines`, y la regla de activarlo a mano en cada tabla nueva.
+- El `search_path = ''` y los grants mínimos de las funciones `SECURITY DEFINER`.
+- `api/_lib/guard.js`: autorización, rate limit, idempotencia y escapado de HTML de las rutas.
+- El **candado de Vero** (schema `public`, bucket `site-media`, Auth global).
+- Las cabeceras y el cron de `vercel.json`, y el fallback SPA.
+- Los medios en `public/media/` (rutas `/media/...`) y los videos del hero (ya comprimidos).
+- El tema oscuro + dorado `#C9A84C`.
+- Que `/Admin` siga siendo 404 y el panel solo viva tras `ADMIN_SLUG` + `RequireAdmin`.
 
 ## 15. Última actualización
 
-**2026-07-03** — Documentación viva creada (`CLAUDE.md`, `PROJECT_CONTEXT.md`, `docs/*`). El proyecto
-quedó completo: migración + mejoras de conversión + Dulce Corazón + descripciones + 5 imágenes Nano
-Banana. Ver `docs/CHANGELOG.md` para el historial completo. Último commit relevante: imágenes generadas
-integradas. Pendiente único: carrusel de reseñas (falta contenido del cliente).
+**2026-08-03** — Reescritura completa de la documentación viva para transferencia a otra
+cuenta o IA. Se eliminaron los cuerpos obsoletos que aún describían la etapa estática
+("no hay base de datos en vivo") en `PROJECT_CONTEXT.md`, `docs/ARCHITECTURE.md`,
+`docs/DATABASE.md` y `docs/PROMPTS.md`, y se reescribió `docs/FILE_MAP.md`, que llevaba
+sin actualizarse desde FASE-01.
+
+Estado del código: rama `claude/jardines-security-hardening-rkse8k`; `main` desplegado en
+producción con el blindaje `sec_01..22`. Estado formal:
+**`ESPERANDO_VALIDACION_HUMANA_AUTENTICADA`** (ver §8.F). Historial completo en
+`docs/CHANGELOG.md`.

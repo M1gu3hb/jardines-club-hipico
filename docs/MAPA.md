@@ -8,25 +8,30 @@ página**, **cómo fluyen los datos** y **dónde tocar** para cada tipo de cambi
 ## 1. Arquitectura en 30 segundos
 
 - **SPA React** servida por Vite. Punto de entrada: [`src/main.jsx`](../src/main.jsx) → [`src/App.jsx`](../src/App.jsx).
-- **Router** (`react-router-dom`) con 2 páginas: `Home` (`/`) y `Admin` (`/Admin`).
-  Registradas en [`src/pages.config.js`](../src/pages.config.js).
-- **Layout global** ([`src/Layout.jsx`](../src/Layout.jsx)) envuelve todo: fija fuentes,
-  fondo `#0a0a0a`, scrollbar dorada y los **tokens skeuomorphism** (`.skeu-card`,
-  `.skeu-gold-btn`, etc.) usados en toda la UI.
-- **Datos estáticos**: todo el contenido vive en [`src/data/site-data.json`](../src/data/site-data.json).
-  Los componentes lo consumen a través del **shim** [`src/api/base44Client.js`](../src/api/base44Client.js),
-  que imita la API del viejo SDK de Base44 (`base44.entities.X.list()/filter()`, etc.).
-- **Sin backend salvo el correo**: la única pieza de servidor es [`api/solicitud.js`](../api/solicitud.js)
-  (función serverless de Vercel) que manda el formulario por Gmail.
+- **Router** (`react-router-dom`): `/` (Home), la ruta secreta del panel, `/portal`,
+  `/acceso/:token`, `/staff/:token` y `/invitacion/:token`. **`/Admin` es 404 a propósito.**
+- **Layout global** ([`src/Layout.jsx`](../src/Layout.jsx)) envuelve las páginas públicas: fija
+  fuentes, fondo `#0a0a0a`, scrollbar dorada y los **tokens skeuomorphism** (`.skeu-card`,
+  `.skeu-gold-btn`, etc.).
+- **Datos en Supabase**: el contenido vive en el schema `jardines`. Los componentes lo consumen
+  por el **shim** [`src/api/base44Client.js`](../src/api/base44Client.js), que conserva la API del
+  viejo SDK de Base44 (`base44.entities.X.list()/filter()`, etc.) pero habla con Supabase.
+  Los JSON de `src/data/` son solo **fallback**.
+- **Backend:** 7 funciones serverless en [`api/`](../api) (Vercel).
 
 ```
-main.jsx → App.jsx (Router)
-                 ├── "/"      → Layout → Home.jsx  ← contenido público
-                 └── "/Admin" → Layout → Admin.jsx ← panel de edición
+main.jsx → App.jsx (AuthProvider + Router)
+                 ├── "/"              → Layout → Home.jsx   ← contenido público
+                 ├── "/<ADMIN_SLUG>"  → RequireAdmin → Admin.jsx
+                 ├── "/portal"        → PortalPage          ← portal del cliente
+                 └── "/acceso|/staff|/invitacion/:token"     ← vistas por QR
 
-Home.jsx  ──lee──►  base44Client.js (shim)  ──sirve──►  src/data/site-data.json
-FormularioModal ──envía──► /api/solicitud (Vercel) ──► Gmail
+Home.jsx  ──lee──►  base44Client.js (shim)  ──►  Supabase (schema `jardines`, RLS)
+FormularioModal ──RPC solicitud_crear──► base ──► POST /api/solicitud ──► Gmail
 ```
+
+> Este documento cubre el **sitio público**. Para el panel, el portal, las mesas y el módulo
+> operativo, ver [`ARCHITECTURE.md`](ARCHITECTURE.md) y [`FILE_MAP.md`](FILE_MAP.md).
 
 ---
 
@@ -61,25 +66,26 @@ Cada sección es un componente en [`src/components/`](../src/components):
 
 ## 3. Flujo de datos (importante para editar contenido)
 
-Todo el contenido editable proviene de [`src/data/site-data.json`](../src/data/site-data.json),
-con estas claves:
+Todo el contenido editable vive en **Supabase** (schema `jardines`). El shim traduce nombre de
+entidad → tabla:
 
-| Clave en site-data.json | Entidad original | Lo consume |
+| Entidad (front) | Tabla | Lo consume |
 |---|---|---|
-| `config` | ConfigSitio | Home (logo, WhatsApp, teléfono, correo, ubicación, cartel "Próximamente") |
-| `salones` | Salon | `SalonesSection`, `FormularioModal` (lista de espacios) |
-| `galeria` | Galeria | `GaleriaSection` |
-| `servicios` | ServicioItem | `ServiciosAmenidades` (bloque "Servicios") |
-| `amenidades` | AmenidadItem | `ServiciosAmenidades` (bloque "Amenidades") + `FormularioModal` |
-| `serviciosExtra` | ServicioExtra | `FormularioModal` (checkboxes de servicios extra) |
-| `alimentos` | AlimentoMenu | `FormularioModal` (menús + PDF) |
+| `ConfigSitio` | `config_sitio` | Home (logo, WhatsApp, teléfono, correo, ubicación, cartel "Próximamente") |
+| `Salon` | `salones` | `SalonesSection`, `FormularioModal` (lista de espacios) |
+| `Galeria` | `galeria` | `GaleriaSection` |
+| `ServicioItem` | `servicios` | `ServiciosAmenidades` (bloque "Servicios") |
+| `AmenidadItem` | `amenidades` | `ServiciosAmenidades` (bloque "Amenidades") + `FormularioModal` |
+| `ServicioExtra` | `servicios_extra` | `FormularioModal` (histórico del formulario largo) |
+| `AlimentoMenu` | `alimentos` | `FormularioModal` (menús + PDF) |
+| `Resena` / `ResenasConfig` | `resenas` / `resenas_config` | `Confianza` (solo las `aprobada = true`) |
 
-El shim [`base44Client.js`](../src/api/base44Client.js) carga ese JSON en un store en memoria
-y responde a las llamadas `.list()`, `.filter()`, `.create()`, `.update()`, `.delete()`.
-Las **lecturas** salen del JSON; las **escrituras** (panel admin) mutan la memoria y **no
-persisten** al recargar.
+El shim [`base44Client.js`](../src/api/base44Client.js) responde a `.list()`, `.filter()`,
+`.get()`, `.create()`, `.update()`, `.delete()` contra la base, traduciendo camelCase ↔
+snake_case. **Quién puede escribir lo decide RLS**, no el front: si una escritura "no hace
+nada", sospecha primero de una policy (el shim registra el error en consola con `[shim]`).
 
-Para **editar contenido de forma permanente**, ver [`DATOS.md`](DATOS.md).
+Para **editar contenido**, se usa el panel admin — ver [`DATOS.md`](DATOS.md).
 
 ---
 
@@ -87,15 +93,15 @@ Para **editar contenido de forma permanente**, ver [`DATOS.md`](DATOS.md).
 
 | Quiero cambiar... | Archivo(s) a tocar |
 |---|---|
-| Teléfono / WhatsApp / correo / ubicación | `src/data/site-data.json` → `config` (`telefonoContacto`, `whatsappNumero`, `correoAdmin`, `ubicacionTexto`, `ubicacionLinkMapa`) |
-| Logo | Reemplazar `public/media/img/aMxWuH8.png` o cambiar `config.logoUrl` |
-| Textos/fotos de un salón | `src/data/site-data.json` → `salones[]` |
-| Fotos de la galería | `src/data/site-data.json` → `galeria[]` |
-| Servicios / amenidades | `src/data/site-data.json` → `servicios[]` / `amenidades[]` |
-| Opciones del formulario (servicios extra, alimentos) | `src/data/site-data.json` → `serviciosExtra[]` / `alimentos[]` |
-| Cartel "Próximamente" (imagen/título/texto) | `config.proximamente*` (o `proximamenteActivo:false` para ocultarlo) |
+| Teléfono / WhatsApp / correo / ubicación | **Panel admin → Configuración** (tabla `config_sitio`) |
+| Logo | Panel admin → Configuración (`logo_url`), o reemplazar `public/media/img/aMxWuH8.png` |
+| Textos/fotos de un salón | **Panel admin → Salones** (tabla `salones`) |
+| Fotos de la galería | **Panel admin → Galería** (tabla `galeria`) |
+| Servicios / amenidades | **Panel admin → Servicios / Amenidades** |
+| Opciones del formulario (servicios extra, alimentos) | **Panel admin** (tablas `servicios_extra` / `alimentos`) |
+| Cartel "Próximamente" (imagen/título/texto) | Panel admin → Configuración (`proximamente_*`; `proximamente_activo = false` lo oculta) |
 | Textos del hero (título, subtítulos) | `src/components/HeroSection.jsx` (están escritos en el JSX) |
-| Reseñas del carrusel / números de confianza / rating | `src/data/resenas.json` |
+| Reseñas del carrusel / números de confianza / rating | **Panel admin → Reseñas** (tablas `resenas` / `resenas_config`) |
 | Preguntas del FAQ | `src/components/FaqSection.jsx` (array `FAQS`) |
 | Pasos de "Cómo funciona" | `src/components/ComoFunciona.jsx` (array `PASOS`) |
 | Videos de fondo del hero | Reemplazar `public/media/img/NBa3E9g.mp4` y `uykWsK9.mp4`, o editar el array `VIDEOS` en `HeroSection.jsx` |
@@ -103,8 +109,9 @@ Para **editar contenido de forma permanente**, ver [`DATOS.md`](DATOS.md).
 | Colores / estilos globales | `src/Layout.jsx` (tokens `.skeu-*`) y `src/index.css` / `tailwind.config.js`. El dorado de marca es `#C9A84C` |
 | Orden de las secciones | `src/pages/Home.jsx` (`<main>`) y `src/components/Sidebar.jsx` (menú) |
 | Menú lateral (items) | `src/components/Sidebar.jsx` |
-| A qué correo llega el formulario | Variable `MAIL_TO` en Vercel (o el default en `api/solicitud.js`) |
-| Contraseña del admin | `src/pages/Admin.jsx` (`ADMIN_USER` / `ADMIN_PASS`) |
+| A qué correo llega el formulario | Variable `MAIL_TO` en Vercel |
+| Quién es admin | Alta desde el panel (`/api/crear-admin`). El rol vive en `jardines.perfiles`; **no** hay contraseña en el código |
+| La ruta del panel | `ADMIN_SLUG` en `src/config/portal.js`, o la env `VITE_ADMIN_SLUG` |
 | La animación de scroll (frames) | `public/media/frames/` + `src/components/ScrollAnimationSection.jsx` |
 | Los textos flotantes de la animación | `src/components/ScrollAnimationCaptions.jsx` |
 
@@ -126,18 +133,23 @@ Definidos como CSS global en [`src/Layout.jsx`](../src/Layout.jsx):
 
 ## 6. El formulario de cotización
 
-[`src/components/FormularioModal.jsx`](../src/components/FormularioModal.jsx) — modal multi-paso (6 pasos):
+[`src/components/FormularioModal.jsx`](../src/components/FormularioModal.jsx) — modal **corto, de
+2 pasos** (D5, para bajar la fricción):
 
-1. Selección de espacio → 2. Datos del cliente → 3. Datos del evento →
-4. Montaje y alimentos → 5. Servicios y amenidades → 6. Comentarios + aviso de privacidad.
+0. Elegir espacio (o "aún no lo decido") → 1. Nombre, teléfono/WhatsApp, tipo de evento, fecha y
+   nº de personas (+ correo y comentarios opcionales + aviso de privacidad).
 
 Al enviar:
-1. `base44.entities.SolicitudEvento.create()` (el shim genera un folio `JCH-XXXXXX`).
-2. `base44.functions.invoke("gmailSolicitud", {data})` → el shim hace `POST /api/solicitud`.
-3. [`api/solicitud.js`](../api/solicitud.js) manda el correo por Gmail (nodemailer + App Password).
-4. Muestra pantalla de confirmación con el folio y botón de WhatsApp.
+1. `base44.entities.SolicitudEvento.create()` → el shim llama a la RPC
+   `jardines.solicitud_crear`, que **valida en el servidor**, aplica rate limit por IP y asigna
+   el **folio real**. El front nunca inventa folios.
+2. `POST /api/solicitud` con **solo** el `solicitudId`; la función relee la fila con
+   `service_role` y arma el correo con los datos canónicos de la base.
+3. Pantalla de confirmación con el folio del servidor y botón de WhatsApp. Si el servidor no
+   devolvió folio, **no** se muestra éxito: `ERRORES_VALIDACION` / `mensajeDeError()` explican qué pasó.
 
-> El correo destino se controla con la variable `MAIL_TO` en Vercel (default `mighuer427@gmail.com`).
+> El correo destino se controla con la variable `MAIL_TO` en Vercel. Si el envío falla, el lead
+> **igual quedó guardado** en `jardines.solicitudes`.
 
 ---
 
@@ -150,12 +162,21 @@ Los textos que flotan encima los pone [`ScrollAnimationCaptions.jsx`](../src/com
 
 ---
 
-## 8. Panel de administración (`/Admin`)
+## 8. Panel de administración
 
 [`src/pages/Admin.jsx`](../src/pages/Admin.jsx) + [`src/components/admin/`](../src/components/admin).
-Login con `admin` / `hipico2024` (sessionStorage). Pestañas: Config, Salones, Servicios,
-Amenidades, Galería, Alimentos, Servicios extra, Solicitudes.
 
-En esta versión **estática** el admin lee del snapshot y edita **en memoria** (no persiste).
-Es útil para previsualizar cambios; para hacerlos permanentes, editar los datos en el código
-(ver [`DATOS.md`](DATOS.md)).
+**No vive en `/Admin`** (esa ruta devuelve 404 a propósito): vive en la ruta secreta `ADMIN_SLUG`
+([`src/config/portal.js`](../src/config/portal.js), sobreescribible con `VITE_ADMIN_SLUG`) y
+detrás de [`RequireAdmin`](../src/components/auth/RequireAdmin.jsx).
+
+El acceso es con cuenta de Supabase Auth y rol `admin` en `jardines.perfiles`. **La autorización
+real la aplica RLS en la base**, no el navegador; la ruta secreta es solo una capa extra. Ya no
+hay usuario ni contraseña escritos en el código.
+
+Secciones: Configuración, Salones, Galería, Servicios, Amenidades, Alimentos, Reseñas,
+Solicitudes, Administradores y el módulo de **Eventos** (datos, ficha, documentos, items
+contratados, RSVPs, mesas e invitaciones).
+
+**Los cambios persisten en Supabase**: no hace falta editar JSON ni redesplegar. Ver
+[`DATOS.md`](DATOS.md).

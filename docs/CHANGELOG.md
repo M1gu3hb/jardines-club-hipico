@@ -1,5 +1,112 @@
 # CHANGELOG.md
 
+## 2026-08-03 — Documentación viva reescrita para transferencia
+
+### Cambios realizados
+- Reescritos los documentos que aún describían la etapa **estática** (FASE-01) bajo un banner de
+  "esto ya no es cierto": `PROJECT_CONTEXT.md`, `docs/ARCHITECTURE.md`, `docs/DATABASE.md`,
+  `docs/DATOS.md` y `docs/PROMPTS.md`. Ahora el cuerpo describe la realidad: base de datos viva
+  en Supabase, portal, panel, rutas serverless y modelo de permisos.
+- **`docs/FILE_MAP.md` reescrito por completo** — llevaba sin actualizarse desde FASE-01 y no
+  mencionaba `api/`, `supabase/`, el portal, las mesas ni el módulo operativo.
+- `CLAUDE.md` ampliado: candado de Vero, regla de secretos, orden de despliegue, reglas de RLS y
+  `SECURITY DEFINER` para tablas y funciones nuevas, y la batería que debe pasar antes de subir.
+- `PROJECT_CONTEXT.md` reestructurado en las 15 secciones del prompt de transferencia.
+- `docs/PROMPTS.md`: se guardó el **prompt fijo de documentación viva** (el que se usa para
+  transferir el proyecto a otra cuenta o IA) y se reescribió el prompt de arranque, que todavía
+  decía "el sitio es estático".
+- `docs/DECISIONS.md`: añadidas D-SEC-6 … D-SEC-11 (idempotencia recuperable, semántica
+  at-least-once, canje en dos fases, retiro del token en claro, pruebas de contrato, operativo
+  fail-closed) y D-DOC-1 / D-DOC-2.
+- `docs/BUGS_PENDING.md` y `docs/NEXT_STEPS.md` reorganizados; se marcó obsoleto el bug B1
+  ("el panel no persiste"), que dejó de ser cierto en FASE-02.
+- `docs/SEGURIDAD.md`: corregido el encabezado — son `sec_01..22` y el estado real es
+  `ESPERANDO_VALIDACION_HUMANA_AUTENTICADA`, no "CERRADO".
+
+### Archivos modificados
+`CLAUDE.md`, `PROJECT_CONTEXT.md`, `docs/ARCHITECTURE.md`, `docs/DATABASE.md`,
+`docs/FILE_MAP.md`, `docs/DATOS.md`, `docs/PROMPTS.md`, `docs/DECISIONS.md`,
+`docs/BUGS_PENDING.md`, `docs/NEXT_STEPS.md`, `docs/CHANGELOG.md`, `docs/SEGURIDAD.md`.
+
+### Entidades/BD afectadas
+Ninguna. Solo lectura de la base para verificar el esquema documentado (32 tablas en
+`jardines`, 6 en `jardines_private`, 55 funciones, 5 buckets).
+
+### Bugs resueltos
+Documentación contradictoria: el aviso decía "hay base de datos" y el cuerpo decía "no hay base
+de datos en vivo". Una IA que leyera el cuerpo habría trabajado con premisas falsas.
+
+### Bugs nuevos: ninguno.
+
+### Decisiones tomadas: D-DOC-1, D-DOC-2 (ver `docs/DECISIONS.md`).
+
+### Próximo paso
+Validación humana autenticada de los 5 flujos (ver `docs/NEXT_STEPS.md` §1).
+
+## 2026-08-02 — Cierre del blindaje (migraciones `jardines_sec_11..22`)
+
+### Cambios realizados
+- **Token de staff retirado en claro (`sec_20`).** La columna `eventos.staff_token` ya no
+  existe: solo queda el HMAC. La rotación devuelve el token **una sola vez** y el panel no puede
+  reconsultarlo; tras recargar ofrece "Generar nuevo enlace".
+- **INSERT público de `solicitudes` retirado (`sec_21`)** una vez desplegado el frontend que usa
+  la RPC. `anon` ya no escribe directo en ninguna tabla.
+- **Rutas `api/` reescritas sobre un guard común** (`api/_lib/guard.js`): autorización que exige
+  perfil de Jardines (un usuario de Vero recibe 403), límite de tamaño del cuerpo, rate limit
+  fail-closed, idempotencia recuperable, escapado de HTML y respuestas genéricas.
+- **`/api/notificar`**: lista cerrada de acciones y verificación en la base de que la acción
+  ocurrió de verdad, en vez de aceptar HTML arbitrario de cualquier sesión.
+- **`/api/cron-recordatorios`**: pasa a **fail-closed** (antes se ejecutaba sin `CRON_SECRET`),
+  comparación en tiempo constante, idempotencia por mensaje y semántica **at-least-once** documentada.
+- **Enlace de primer acceso de un solo uso** (`sec_16`) con **canje en dos fases** (`sec_19`):
+  ya no viajan contraseñas en los correos ni credenciales en base64 en la URL.
+- **`search_path = ''`** en las 10 funciones `SECURITY DEFINER` que faltaban (`sec_17`) y retiro
+  de la confianza por dominio de correo en `handle_new_user` (`sec_18`).
+- **Operativo fail-closed** (`sec_14`) con `acceso_global` explícito para los 3 operativos
+  existentes (`sec_18`).
+- **Cabeceras HTTP** en `vercel.json`: CSP en modo enforcing, HSTS, `nosniff`, `Referrer-Policy`,
+  `Permissions-Policy`, `X-Frame-Options`.
+- **Suites reproducibles:** `supabase/tests/seguridad.sql` (63 aserciones en `BEGIN/ROLLBACK`) y
+  `scripts/test-contratos-api.mjs` (71 contratos estáticos frontend ↔ API, `npm run test:contratos`).
+- **`no-undef` activado** en `eslint.config.js`: estaba anulado porque el bloque `rules`
+  sobreescribía `pluginJs.configs.recommended`.
+- **`sec_22`**: retirada de la única fila de perfil cruzado Vero → Jardines, con precondición estricta.
+
+### Archivos modificados
+- Nuevos: `supabase/migrations/*_jardines_sec_{11..22}_*.sql`, `api/_lib/guard.js`,
+  `api/canjear-acceso.js`, `scripts/test-contratos-api.mjs`, `supabase/tests/seguridad.sql`.
+- Modificados: `api/{solicitud,notificar,correo-cliente,crear-admin,crear-usuario-evento,cron-recordatorios}.js`,
+  `src/api/base44Client.js`, `src/lib/notificar.js`, `src/components/FormularioModal.jsx`,
+  `src/components/portal/PortalLogin.jsx`, `src/components/meseros/EventoMeseros.jsx`,
+  `src/components/admin/eventos/EventoDocumentos.jsx`, `eslint.config.js`, `vercel.json`,
+  `package.json`.
+
+### Entidades/BD afectadas
+`jardines` y `jardines_private`. Nuevas: `api_idempotencia`/`idempotencia`, `acceso_unico`.
+Eliminada: la columna `eventos.staff_token`. **`public` (Vero) sin cambios**: 12 checksums
+idénticos antes y después.
+
+### Bugs resueltos
+- `/api/notificar` estaba desalineado con `src/lib/notificar.js`: el front mandaba
+  `{titulo, detalle}` y la API exigía `{accion, eventoId, nota}`. Todos los correos daban 400 en
+  silencio. De ahí nace la suite de contratos.
+- Trigger de auditoría que leía `new.evento_id` dentro de un `CASE` y rompía toda escritura sobre
+  `operativo_personal` (`sec_12`).
+- Formulario público roto por revocar el INSERT antes de desplegar el front (`sec_13`), origen de
+  la regla de orden de despliegue de `docs/SEGURIDAD.md` §8.bis.
+- Regresión del operativo: tras `sec_14`, 3 operativos quedaron con cero asignaciones y sin UI
+  para crearlas (`sec_18`).
+- Errores de supabase-js que se ignoraban: la librería resuelve con `{ data, error }` en vez de
+  rechazar, así que los `.catch()` no atrapaban nada.
+
+### Bugs nuevos: ninguno detectado.
+
+### Decisiones tomadas: D-SEC-6 … D-SEC-11 (ver `docs/DECISIONS.md`).
+
+### Próximo paso
+Validación humana autenticada de los 5 flujos: el estado formal es
+`ESPERANDO_VALIDACION_HUMANA_AUTENTICADA`, **no CERRADO**.
+
 ## 2026-08-01 — Endurecimiento de seguridad de Jardines (migraciones `jardines_sec_01..09`)
 
 ### Cambios realizados

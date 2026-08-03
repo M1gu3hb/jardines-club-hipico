@@ -2,6 +2,74 @@
 
 Registro de decisiones técnicas y de producto (formato: decisión · razón · consecuencia · archivos).
 
+## 2026-08-03 — Documentación
+
+### D-DOC-1 — Reescribir los cuerpos obsoletos en vez de dejar banners encima
+- **Razón:** `PROJECT_CONTEXT.md`, `docs/ARCHITECTURE.md`, `docs/DATABASE.md`, `docs/DATOS.md` y
+  `docs/PROMPTS.md` llevaban un aviso de "esto ya no es cierto" sobre un cuerpo que seguía
+  diciendo "no hay base de datos en vivo". Una IA que leyera el cuerpo actuaría con datos falsos.
+- **Consecuencia:** los cinco se reescribieron completos y `docs/FILE_MAP.md` también (llevaba
+  sin actualizarse desde FASE-01). La regla anti-documentación muerta queda escrita en `CLAUDE.md`.
+- **Archivos:** `CLAUDE.md`, `PROJECT_CONTEXT.md`, `docs/{ARCHITECTURE,DATABASE,FILE_MAP,DATOS,PROMPTS}.md`.
+
+### D-DOC-2 — La documentación dice `ESPERANDO_VALIDACION_HUMANA_AUTENTICADA`, no "cerrado"
+- **Razón:** el código está desplegado y las pruebas automáticas pasan, pero cinco flujos solo
+  se pueden comprobar con credenciales reales frente a la pantalla. Documentar "cerrado" antes
+  de eso convierte una suposición en un hecho para la siguiente sesión.
+- **Consecuencia:** el estado formal aparece igual en `PROJECT_CONTEXT.md`, `docs/SEGURIDAD.md`,
+  `docs/BUGS_PENDING.md` y `docs/NEXT_STEPS.md`, con la lista exacta de lo que falta validar.
+
+## 2026-08-02 — Seguridad (segunda tanda)
+
+### D-SEC-6 — Idempotencia **recuperable**, no una simple marca de "ya se hizo"
+- **Razón:** la primera versión consumía la clave antes de saber si el correo había salido. Un
+  fallo transitorio de Gmail dejaba el aviso perdido para siempre, porque el reintento se veía
+  como duplicado.
+- **Consecuencia:** estados `procesando` / `completado` / `fallido` con *lease* que expira
+  (`api_idem_iniciar` / `api_idem_cerrar`). Un doble clic no duplica; un fallo real sí se reintenta.
+- **Archivos:** `sec_19`, `api/_lib/guard.js`, todas las rutas de `api/`.
+
+### D-SEC-7 — Los correos son **at-least-once**, y se dice explícitamente
+- **Razón:** Gmail y PostgreSQL no comparten transacción. No existe "exactamente una vez": hay
+  que elegir entre poder duplicar y poder perder.
+- **Consecuencia:** se elige duplicar. Está escrito en la cabecera de `api/cron-recordatorios.js`
+  y hay un contrato que verifica que esa nota siga ahí.
+- **Archivos:** `api/cron-recordatorios.js`, `scripts/test-contratos-api.mjs`.
+
+### D-SEC-8 — Canje del enlace de primer acceso **en dos fases**
+- **Razón:** con un solo paso, si fallaba la generación del OTP el token ya se había quemado y
+  el cliente se quedaba fuera sin manera de entrar.
+- **Consecuencia:** `canjear_acceso_iniciar` toma un lease, `canjear_acceso_confirmar` lo
+  consume y `canjear_acceso_liberar` lo devuelve si algo falla en medio. El **servidor** decide
+  el destino según el rol leído en la base, no el cliente.
+- **Archivos:** `sec_19`, `api/canjear-acceso.js`, `src/components/portal/PortalLogin.jsx`.
+
+### D-SEC-9 — Retirar del todo el token de staff en claro
+- **Razón:** D-SEC-4 lo conservó durante una ventana de compatibilidad por los QR impresos. Una
+  vez validada la rotación, mantenerlo solo dejaba superficie de fuga.
+- **Consecuencia:** la columna `eventos.staff_token` **ya no existe**. Solo queda el HMAC; la
+  rotación devuelve el token **una sola vez** y el panel no puede reconsultarlo — tras recargar
+  ofrece "Generar nuevo enlace". Inexistente, revocado y expirado dan la misma respuesta.
+- **Archivos:** `sec_20`, `src/components/meseros/EventoMeseros.jsx`.
+
+### D-SEC-10 — Pruebas de contrato estáticas entre frontend y `api/`
+- **Razón:** `src/lib/notificar.js` mandaba `{titulo, detalle}` mientras `api/notificar.js` ya
+  exigía `{accion, eventoId, nota}`. Compilaba, pasaba el lint y **todos los correos morían con
+  un 400 en silencio**. Ninguna prueba de base de datos podía verlo: el desajuste estaba entre
+  dos archivos de JavaScript.
+- **Consecuencia:** `scripts/test-contratos-api.mjs` (71 comprobaciones, sin red ni
+  credenciales) corre en CI. Además se activó `no-undef` en ESLint, que estaba anulado porque el
+  bloque `rules` sobreescribía `pluginJs.configs.recommended`.
+- **Archivos:** `scripts/test-contratos-api.mjs`, `eslint.config.js`, `package.json`.
+
+### D-SEC-11 — El operativo falla **cerrado**, con permiso explícito para el caso normal
+- **Razón:** antes, cero asignaciones significaba "puede con todo", que es exactamente el
+  comportamiento inseguro cuando alguien olvida configurar.
+- **Consecuencia:** sin permiso no hay acceso. Como la plantilla del salón es fija y opera un
+  evento a la vez, los 3 operativos existentes recibieron `acceso_global = true` explícito. Si
+  algún día hay dos eventos simultáneos, hace falta UI para `operativo_asignacion`.
+- **Archivos:** `sec_14`, `sec_18`.
+
 ## 2026-08-01 — Seguridad
 
 ### D-SEC-1 — El rol NUNCA sale de `user_metadata`; se usa una fuente server-side
@@ -28,9 +96,10 @@ Registro de decisiones técnicas y de producto (formato: decisión · razón · 
 
 ### D-SEC-4 — El token de staff en claro se conserva durante una ventana documentada
 - **Razón:** hay QR ya impresos y el panel necesita recompartir el enlace sin invalidarlos.
-- **Consecuencia:** se valida por hash (con doble lectura de compatibilidad) y el riesgo residual
-  queda documentado. El retiro está escrito en el archivo `.noapply`.
-- **Archivos:** `sec_04`, `PENDIENTE_jardines_sec_10_*.noapply`.
+- **Consecuencia:** se validó por hash (con doble lectura de compatibilidad) durante la ventana.
+- **Archivos:** `sec_04`.
+- **SUPERADA el 2026-08-02 por D-SEC-9:** `sec_20` eliminó la columna y el archivo `.noapply` ya
+  no existe (su contenido acabó ahí). Por eso no hay migración `sec_10`.
 
 ### D-SEC-5 — Las configuraciones globales de Auth no se tocan
 - **Razón:** password policy, protección de contraseñas filtradas, JWT, SMTP y redirect URLs son

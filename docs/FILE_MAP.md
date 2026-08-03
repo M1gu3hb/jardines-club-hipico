@@ -1,68 +1,145 @@
-# FILE_MAP.md
+# FILE_MAP.md — Mapa de archivos importantes
 
-## Mapa de archivos importantes
+> Reescrito el **2026-08-03**. La versión anterior describía la etapa estática (FASE-01) y ya no
+> correspondía a la realidad. Formato: archivo · qué hace · de qué depende · riesgo si se toca.
 
-### Raíz
-- `CLAUDE.md` — instrucciones permanentes para IA. **No romper** las reglas de proyecto.
-- `PROJECT_CONTEXT.md` — transferencia principal. Mantener actualizado.
-- `index.html` — HTML base, meta/OG, JSON-LD (WebSite + EventVenue para SEO), favicon. Riesgo: `og:url`
-  es placeholder hasta conectar dominio.
-- `vercel.json` — rewrites SPA (`/api` excluido). No romper.
-- `vite.config.js` — plugin react + alias `@`→`src`. (Ya no usa el plugin de Base44.)
-- `package.json` — deps. Ya NO tiene `@base44/*`. Tiene `nodemailer` (para `api/solicitud.js`).
+## Raíz
 
-### `src/data/` — CONTENIDO
-- `site-data.json` — **TODO el contenido** (generado). Riesgo alto: es la fuente que consume el shim.
-- `resenas.json` — reseñas + números de confianza. Editar para activar el carrusel.
+| Archivo | Qué hace | Riesgo |
+|---|---|---|
+| `CLAUDE.md` | Instrucciones permanentes para IA. Incluye el candado de Vero. | **Alto** — es la regla, no la sugerencia |
+| `PROJECT_CONTEXT.md` | Transferencia principal del proyecto. | Alto — si queda obsoleto, la siguiente sesión rompe cosas |
+| `vercel.json` | Rewrites SPA, **cabeceras HTTP** (CSP, HSTS…), cron. | **Alto** — un origen no declarado en la CSP se bloquea en producción, no en local |
+| `eslint.config.js` | Flat config con `no-undef` **activo**. | Alto — declarar `rules` sobreescribe `recommended`; ese error dejó pasar un símbolo borrado |
+| `index.html` | HTML base, meta/OG, JSON-LD (WebSite + EventVenue). | Medio |
+| `vite.config.js` | Plugin react + alias `@` → `src`. | Bajo |
+| `package.json` | Deps y scripts (`lint`, `build`, `typecheck`, `test:contratos`). | Medio |
+| `jsconfig.json` | Config de `tsc` para el typecheck. | Bajo |
+| `tailwind.config.js`, `postcss.config.js`, `components.json` | Estilos y shadcn/ui. | Bajo |
 
-### `src/api/`
-- `base44Client.js` — **SHIM** de datos (imita el SDK de Base44). **No reintroducir Base44.** Depende de
-  `site-data.json`. Riesgo alto: todos los componentes usan `base44.entities.*`.
+## `api/` — funciones serverless (Vercel, Node)
 
-### `src/`
-- `main.jsx` — monta `<App/>`.
-- `App.jsx` — router (sin auth). Riesgo: no reintroducir wrappers de auth de Base44.
-- `Layout.jsx` — estilos globales + tokens `.skeu-*`. Riesgo: aquí vive el dorado y el fondo.
-- `pages.config.js` — registro de páginas (Home/Admin) + Layout.
-- `pages/Home.jsx` — **orquesta todas las secciones** y el estado de modales/scroll-spy. Riesgo alto.
-- `pages/Admin.jsx` — login (admin/hipico2024, sessionStorage) + dashboard. Edición no persiste.
-- `lib/utils.js` (`cn`), `lib/query-client.js`, `lib/PageNotFound.jsx`.
-- `hooks/useLockBodyScroll.js` — bloquea scroll con `overflow:hidden` (NO usar position:fixed; causaba
-  salto con `scroll-behavior:smooth`). `hooks/useBackButtonClose.js`, `hooks/use-mobile.jsx`.
+| Archivo | Qué hace | Riesgo |
+|---|---|---|
+| `_lib/guard.js` | **Módulo central de seguridad:** `clienteAdmin`, `autorizarJardines`, `leerBody`, `rateLimit`, `idemIniciar`/`idemCerrar`, `escHtml`, `rpcSeguro`, `escrituraOk`, `compensarAlta`, `auditar`, `ipCliente`, `generico`, `igualSeguro`. | **Muy alto** — todas las rutas dependen de él |
+| `_lib/correo.js` | `plantillaOro`, `enviarCorreo`, `SITIO_URL`. | Medio |
+| `solicitud.js` | Avisa al dueño de un lead. Relee la fila con `service_role`; el body solo trae `solicitudId`. | Alto |
+| `notificar.js` | Notifica al admin. Lista **cerrada** de acciones; `accionOcurrio()` verifica en la base que la acción pasó de verdad. | Alto |
+| `correo-cliente.js` | Avisa al cliente de su cotización. Comprueba que el documento sea de ese evento. | Alto |
+| `crear-admin.js` | Alta de administrador. Enlace de un solo uso, sin contraseña en el correo. | **Muy alto** |
+| `crear-usuario-evento.js` | Alta de cliente + enlace de primer acceso + compensación si algo falla. | **Muy alto** |
+| `canjear-acceso.js` | Canje en dos fases; el **servidor** decide el destino según el rol. | **Muy alto** |
+| `cron-recordatorios.js` | Digest diario + recordatorio de reseña. **Fail-closed** sin `CRON_SECRET`. Semántica at-least-once. | Alto |
 
-### `src/components/` (públicos)
-- `HeroSection.jsx` — hero + videos de fondo (`/media/img/NBa3E9g.mp4`, `uykWsK9.mp4`). Textos de venta en el JSX.
-- `Confianza.jsx` — números + rating Google + carrusel de reseñas (lee `resenas.json`).
-- `SalonesSection.jsx` / `SalonOverlay.jsx` / `SalonGallery.jsx` — espacios y su detalle/galería.
-- `ScrollAnimationSection.jsx` — 241 frames (`/media/frames/frame-NNN.jpg`). `ScrollAnimationCaptions.jsx`, `ScrollHint.jsx`.
-- `ServiciosAmenidades.jsx` — dos `ItemsSection` + `<BarraDulces/>` entre ellas.
-- `ServiceAmenityCard.jsx` — tarjeta: miniatura + expandible (imagen/video + descripción debajo). Expandible si hay media O descripción.
-- `BarraDulces.jsx` — destacado en colaboración (Dulce Corazón). Flyer `/media/img/dulce-corazon.png`.
-- `ComoFunciona.jsx` — 3 pasos (sin botón; el CTA está en `CtaCotizacion` abajo).
-- `CtaCotizacion.jsx` — franja "Listo para cotizar".
-- `GaleriaSection.jsx` — grid masonry (3 layouts responsivos) → `MediaViewer`. Renderiza `galeria` en orden.
-- `MediaViewer.jsx` — lightbox imagen/video. Exporta `isVideo(url)`.
-- `ContactoSection.jsx` — teléfono/correo/ubicación/WhatsApp/Facebook.
-- `NoIncluyeSection.jsx` — muestra `config.informacionServicios`.
-- `FaqSection.jsx` — acordeón (array `FAQS` en el archivo). Diseño con badge "P" + flecha.
-- `FormularioModal.jsx` — **formulario corto** (2 pasos) → correo. Riesgo alto (flujo de conversión).
-- `ProximamenteModal.jsx`, `ProximamenteCartel.jsx`, `HeroTrustBar.jsx` (huérfano, no usado), `SplashScreen.jsx`, `Sidebar.jsx`, `soundSystem.jsx`, `ItemImageOverlay.jsx`.
+## `src/api/` — capa de datos
+
+| Archivo | Qué hace | Riesgo |
+|---|---|---|
+| `base44Client.js` | **SHIM.** Única puerta a la base. Mapa `TABLES`, camelCase↔snake_case, `create()` de solicitudes vía RPC, `update()` con `.select().maybeSingle()`. | **Muy alto** — todos los componentes usan `base44.entities.*` |
+| `supabaseClient.js` | Cliente Supabase con `db.schema = "jardines"`. | **Muy alto** — apuntar a `public` toca otra aplicación |
+| `authContext.jsx` | Sesión + rol leído de `jardines.perfiles`. | Alto |
+
+## `src/` — núcleo
+
+| Archivo | Qué hace | Riesgo |
+|---|---|---|
+| `App.jsx` | Router. Filtra `Admin` de las páginas públicas: **`/Admin` es 404**; el panel vive en `/${ADMIN_SLUG}` tras `RequireAdmin`. | **Alto** |
+| `Layout.jsx` | Estilos globales, tokens `.skeu-*`, dorado `#C9A84C`, fondo `#0a0a0a`. | Medio |
+| `main.jsx`, `pages.config.js` | Montaje y registro de páginas (auto-generado). | Bajo |
+| `config/portal.js` | `ADMIN_SLUG`, `CLIENTE_EMAIL_DOMINIO`, `usuarioAEmail()`, link de reseña. | Alto |
+| `components/auth/RequireAdmin.jsx` | Guard del panel. | **Alto** |
+| `pages/Home.jsx` | Orquesta las secciones públicas, modales y scroll-spy. | Alto |
+| `pages/Admin.jsx` | Panel de administración. | Alto |
+
+## `src/components/` — sitio público
+
+`HeroSection` (videos de fondo, ya comprimidos), `Confianza`, `SalonesSection` +
+`SalonOverlay` + `SalonGallery`, `ScrollAnimationSection` (241 frames en `/media/frames/`) +
+`ScrollAnimationCaptions` + `ScrollHint`, `ServiciosAmenidades` + `ServiceAmenityCard` +
+`BarraDulces`, `ComoFunciona`, `CtaCotizacion`, `GaleriaSection` + `MediaViewer` (exporta
+`isVideo`), `FaqSection`, `ContactoSection`, `NoIncluyeSection`, `ProximamenteModal` /
+`ProximamenteCartel`, `SplashScreen`, `StaggeredMenu`, `Sidebar`, `SoundToggle`,
+`soundSystem`, `AnimatedItem`, `MediaCarrusel`, `ItemImageOverlay`.
+
+- **`FormularioModal.jsx`** — riesgo **alto**: es el flujo de conversión. Tiene
+  `ERRORES_VALIDACION` + `mensajeDeError()`, y **nunca muestra éxito sin folio del servidor**.
+- `HeroTrustBar.jsx`, `FormularioSection.jsx` — huérfanos, no montados.
 - `components/ui/*` — primitivas shadcn/ui. No tocar salvo rediseño.
-- `components/admin/*` — panel admin (edición en memoria).
 
-### `api/`
-- `solicitud.js` — función serverless: envía el formulario por Gmail. Vars: `GMAIL_USER`, `GMAIL_APP_PASSWORD`, `MAIL_TO`.
+## `src/components/admin/` — panel
 
-### `scripts/`
-- `build-media.mjs` — genera `site-data.json` + descarga medios. Correr tras editar `scripts/raw/*`.
-- `raw/*.json` — **fuente de verdad** del contenido (config, salones, galeria, servicios, amenidades, serviciosExtra, alimentos).
-- `reorder-galeria.mjs` — documentó el reorden de la galería (histórico).
-- `gen-images.mjs` — generador Nano Banana vía API (requiere `GEMINI_API_KEY` con billing).
-- `montage.mjs` — arma hojas de contacto (requiere `npm i sharp`; utilitario de análisis).
+CMS: `AdminConfig`, `AdminSalones`, `AdminGaleria`, `AdminServicioItems`,
+`AdminAmenidadItems`, `AdminServicios`, `AdminAlimentos`, `AdminResenas`.
+Operación: `AdminInicio`, `AdminDashboard`, `AdminLogin`, `AdminSolicitudes`,
+`AdminAdministradores`.
 
-### `nano-banana/`
-- Prompts + imágenes de referencia para generar imágenes con Nano Banana. `README.md` + 5 subcarpetas.
+`admin/eventos/`: `AdminEventos`, `EventoDatos`, `EventoFicha`, `EventoItems`, `EventoRsvps` y
+**`EventoDocumentos.jsx`** — riesgo alto: la carpeta de Storage debe ser **`<eventoId>/`** sin
+prefijo `evento-`, y manda `documentoId` (no el nombre del documento) a `/api/correo-cliente`.
 
-### `public/media/`
-- `img/` — imágenes y videos (incluye las 5 generadas: sanitarios/seguridad/montaje/horarios/trampolin.jpg + `dulce-corazon.png`).
-- `frames/` — 241 frames de la animación. `b44/` — anuncio "Próximamente".
+## `src/components/portal/` — portal del cliente
+
+`PortalPage`, `PortalShell`, `Dock`, `PortalInicio`, `PortalArmalo`, `PortalContratado`,
+`PortalDocumentos`, `PortalInvitacion`, `PortalSugerencias`, `PortalResena`, `PortalInactivo`,
+`PortalInstall`, `Celebracion`.
+
+- **`PortalLogin.jsx`** — riesgo alto: lee `#entrar=<token>`, lo manda a
+  `/api/canjear-acceso`, hace `verifyOtp` y **respeta el `destino` que decide el servidor**.
+  Ya no decodifica credenciales en base64.
+
+## Otros módulos
+
+- `src/components/mesas/` — `EventoMesasAdmin`, `MesaEditor`, `MesaReglas`.
+- `src/components/evento/` — `EventoCronograma`, `EventoMusica`, `SelectorHora`.
+- `src/components/invitacion/InvitacionPublica.jsx` — invitación pública con RSVP.
+- `src/components/meseros/` — `AccesoPage`, `StaffPage`, `QrImg` y **`EventoMeseros.jsx`**
+  (riesgo alto): genera tokens con `crypto.getRandomValues` (256 bits), **no** lee ningún
+  `staffToken` de la fila (la columna ya no existe) y ofrece "Generar nuevo enlace".
+
+## `src/lib/` y `src/hooks/`
+
+`lib/notificar.js` (**mapa `ACCIONES_CORREO`; el contrato con `/api/notificar` lo vigila
+`test-contratos-api.mjs`**), `lib/catalogo.js`, `lib/sugerencias.js`,
+`lib/cronogramaSugerencias.js`, `lib/fechas.js`, `lib/media.js`, `lib/utils.js` (`cn`),
+`lib/query-client.js`, `lib/PageNotFound.jsx`.
+
+`hooks/useLockBodyScroll.js` — con `overflow:hidden`, **no** `position:fixed` (causaba salto de
+scroll, D8). `hooks/useBackButtonClose.js`, `hooks/use-mobile.jsx`.
+
+## `supabase/`
+
+- `migrations/*.sql` — 21 migraciones forward-only `jardines_sec_01..22`. **No reescribir las
+  aplicadas.**
+- `tests/seguridad.sql` — 63 aserciones en `BEGIN/ROLLBACK`, datos sintéticos con prefijo `sint-`.
+
+## `scripts/`
+
+| Archivo | Qué hace |
+|---|---|
+| `test-contratos-api.mjs` | **71 contratos estáticos** frontend ↔ `api/`. Sin red ni credenciales; corre en CI |
+| `build-media.mjs` | Genera el **fallback** `src/data/site-data.json` desde `raw/*.json` y descarga medios |
+| `seed-supabase.mjs` | Seed inicial de la base (histórico, no re-ejecutar a ciegas) |
+| `raw/*.json` | Fuente del fallback estático. **Ya no es la fuente de verdad del sitio** |
+| `seed/` | Datos del seed |
+| `reorder-galeria.mjs`, `gen-images.mjs`, `montage.mjs` | Utilitarios históricos |
+
+## `src/data/` — fallback estático
+
+`site-data.json` y `resenas.json`. **Ya no son la verdad**: existen por si Supabase no responde.
+Para cambiar contenido se usa el panel admin.
+
+## `public/media/`
+
+`img/` (imágenes y videos, incluidas las 5 generadas con Nano Banana y `dulce-corazon.png`),
+`frames/` (241 frames de la animación), `b44/`. Rutas siempre `/media/...`.
+
+## `docs/`
+
+`SEGURIDAD.md` (modelo de seguridad — **lectura obligatoria antes de tocar SQL o `api/`**),
+`ARCHITECTURE.md`, `DATABASE.md`, `FILE_MAP.md`, `DECISIONS.md`, `BUGS_PENDING.md`,
+`NEXT_STEPS.md`, `CHANGELOG.md`, `PROMPTS.md`, y los mapas de UI `MAPA.md`, `COMPONENTES.md`,
+`DATOS.md`, `DEPLOY.md`, `PLAN-EJECUCION.md`.
+
+## `nano-banana/`
+
+Prompts + imágenes de referencia para generar imágenes en el estilo del lugar.

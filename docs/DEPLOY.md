@@ -1,60 +1,100 @@
-# Deploy, correo y dominio
+# Deploy, variables de entorno, correo y dominio
+
+> Actualizado el **2026-08-03**.
 
 ## Vercel
 
-El proyecto es un sitio Vite estático + una función serverless (`api/solicitud.js`).
-Vercel detecta Vite automáticamente:
+Sitio Vite + **7 funciones serverless** en `api/`. Vercel detecta Vite automáticamente:
 
-- **Framework preset:** Vite
-- **Build command:** `npm run build`
-- **Output directory:** `dist`
-- **Install command:** `npm install`
-- **Rewrites (SPA):** definidos en [`vercel.json`](../vercel.json)
+- **Framework preset:** Vite · **Build:** `npm run build` · **Output:** `dist` · **Install:** `npm install`
+- **Rewrites (SPA), cabeceras HTTP y cron:** todo en [`vercel.json`](../vercel.json)
+- Equipo `mh-astral-systems`, proyecto `jardines-club-hipico`
 
-Cada push a la rama `main` de GitHub dispara un deploy automático.
+Cada push a `main` dispara un deploy automático. Deploy manual:
 
-## Formulario → Gmail (variables de entorno)
+```bash
+vercel deploy --prod --scope mh-astral-systems
+```
 
-El formulario se envía por correo mediante [`api/solicitud.js`](../api/solicitud.js), que usa
-**Gmail con una contraseña de aplicación** (App Password). Configura en Vercel
-(Project → Settings → Environment Variables) estas variables:
+## Variables de entorno
 
-| Variable | Valor |
+**Front (`VITE_*`) — se compilan dentro del bundle, son públicas por diseño:**
+
+| Variable | Para qué |
 |---|---|
-| `GMAIL_USER` | El correo Gmail desde el que se envía (ej. `tucuenta@gmail.com`) |
-| `GMAIL_APP_PASSWORD` | La contraseña de aplicación de 16 caracteres de esa cuenta |
-| `MAIL_TO` | (opcional) A dónde llegan las solicitudes. Default: `mighuer427@gmail.com` |
+| `VITE_SUPABASE_URL` | URL del proyecto Supabase |
+| `VITE_SUPABASE_ANON_KEY` | Clave anónima. **Nunca la `service_role`** |
+| `VITE_ADMIN_SLUG` | (opcional) sobreescribe la ruta secreta del panel sin tocar código |
 
-### Cómo generar la contraseña de aplicación de Gmail
+**Servidor — secretas, solo en Vercel, solo se leen desde `api/`:**
 
-1. La cuenta debe tener **Verificación en 2 pasos** activada:
-   <https://myaccount.google.com/signinoptions/twosv>
-2. Crea la contraseña de aplicación en:
-   <https://myaccount.google.com/apppasswords>
-3. Ponle un nombre (ej. "Jardines Web"), cópiala (16 caracteres) y pégala en
-   `GMAIL_APP_PASSWORD` en Vercel. Quita los espacios.
-4. Pon el mismo correo en `GMAIL_USER`.
-5. Redeploy para que tome las variables.
+| Variable | Para qué |
+|---|---|
+| `SUPABASE_URL` | URL del proyecto |
+| `SUPABASE_SERVICE_ROLE` | Clave de servicio. **Jamás en el front, en logs ni en commits** |
+| `GMAIL_USER` | Cuenta Gmail desde la que salen los correos |
+| `GMAIL_APP_PASSWORD` | Contraseña de aplicación de 16 caracteres de esa cuenta |
+| `MAIL_TO` | A dónde llegan las solicitudes |
+| `CRON_SECRET` | Autoriza `/api/cron-recordatorios`. **Sin ella el cron no corre** (fail-closed) |
 
-> Si `GMAIL_USER`/`GMAIL_APP_PASSWORD` no están configuradas, el formulario igual muestra
-> la confirmación al usuario (con su folio), pero **no** se envía el correo. Revisa los
-> logs de la función en Vercel si no llegan correos.
+No hay `.env` en el repo (está en `.gitignore`). Tras cambiar una variable hay que redeploy.
+
+## Cabeceras HTTP
+
+`vercel.json` fija CSP en modo **enforcing**, HSTS (1 año), `X-Content-Type-Options: nosniff`,
+`Referrer-Policy`, `Permissions-Policy` y `X-Frame-Options: DENY`; y `Cache-Control: no-store`
+en `/api/*`.
+
+> Si agregas un origen externo (CDN, fuente, imagen, endpoint), **decláralo en la CSP** o el
+> navegador lo bloqueará en producción sin fallar en local.
+
+## Cron
+
+`vercel.json` programa `GET /api/cron-recordatorios` a las **15:00 UTC** diarias: manda el
+digest del día y el recordatorio de reseña. La ruta compara `CRON_SECRET` en tiempo constante y
+**falla cerrada** si la variable no existe. La semántica de envío es **at-least-once**: se
+prefiere un correo duplicado a uno perdido.
+
+## Correo (Gmail App Password)
+
+1. La cuenta debe tener **Verificación en 2 pasos**: <https://myaccount.google.com/signinoptions/twosv>
+2. Crea la contraseña de aplicación en <https://myaccount.google.com/apppasswords>
+3. Cópiala (16 caracteres, sin espacios) a `GMAIL_APP_PASSWORD` y pon el correo en `GMAIL_USER`.
+4. Redeploy.
+
+> Si faltan las credenciales, `/api/solicitud` responde 500 y **no** sale el correo — pero el
+> lead **sí quedó guardado** en `jardines.solicitudes` (lo escribe la RPC antes de llamar a la
+> ruta), así que no se pierde. Revisa los logs de la función en Vercel.
+
+## Base de datos
+
+Las migraciones viven en `supabase/migrations/` y son **forward-only**. La base es **producción
+compartida con otra aplicación (Vero Seguros)**: una migración aplicada afecta al sitio en línea
+de inmediato, aunque el frontend nuevo siga en una rama.
+
+**Orden obligatorio:** primero lo aditivo → se despliega el frontend → y solo entonces se retira
+lo viejo. Ver `docs/SEGURIDAD.md` §8.bis (esa regla nació de romper el formulario público).
+
+## Antes de desplegar
+
+```bash
+npm run lint            # 0 problemas
+npm run build           # exit 0
+npm run test:contratos  # 71/71
+npm run typecheck       # 155 = línea base histórica; no debe SUBIR
+```
 
 ## Conectar un dominio propio
 
-1. En Vercel: **Project → Settings → Domains → Add**. Escribe tu dominio
-   (ej. `jardinesclubhipico.com`).
-2. Vercel te dará los registros DNS a configurar en tu proveedor de dominio:
-   - Para el dominio raíz (`jardinesclubhipico.com`): un registro **A** a `76.76.21.21`.
-   - Para `www`: un registro **CNAME** a `cname.vercel-dns.com`.
-   (Vercel muestra los valores exactos; usa esos.)
-3. Guarda los registros en tu proveedor DNS y espera la verificación (minutos a horas).
-4. Una vez verificado, actualiza en [`index.html`](../index.html) los metadatos
-   `og:url` y el `url` del bloque JSON-LD al dominio final, y vuelve a hacer deploy
-   (mejora el SEO/compartir en redes).
+1. Vercel → **Project → Settings → Domains → Add**.
+2. Configura en tu proveedor DNS los registros que muestre Vercel (normalmente un **A** al
+   dominio raíz y un **CNAME** `cname.vercel-dns.com` para `www`). Usa los valores exactos que
+   te dé el panel.
+3. Espera la verificación (minutos a horas).
+4. Actualiza `og:url` y el `url` del bloque JSON-LD en [`index.html`](../index.html) y redeploy.
 
 ## Notas
 
-- El repo pesa (~560 MB por los videos e imágenes auto-hospedados). El primer push a
-  GitHub y el primer deploy pueden tardar.
-- No hay `.env` en el repo (está en `.gitignore`). Los secretos viven solo en Vercel.
+- El repo pesa ~560 MB por los medios auto-hospedados: el primer clone y el primer deploy tardan.
+- El panel admin **no** está en `/Admin` (esa ruta es 404): vive en `ADMIN_SLUG`
+  (`src/config/portal.js`).

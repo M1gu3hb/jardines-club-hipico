@@ -1,7 +1,14 @@
 # SEGURIDAD.md — Modelo de seguridad de Jardines Club Hípico
 
-> Última revisión: **2026-08-02** — CERRADO. Migraciones `jardines_sec_01..21` aplicadas en producción.
-> Proyecto Supabase `vuzyhbiwnnngeohysxcw` (PostgreSQL 17, `us-east-1`), **compartido con Vero Seguros**.
+> Última revisión: **2026-08-03**. 21 migraciones (`jardines_sec_01..22`, sin `sec_10`) aplicadas
+> en producción. Proyecto Supabase `vuzyhbiwnnngeohysxcw` (PostgreSQL 17, `us-east-1`),
+> **compartido con Vero Seguros**.
+>
+> **Estado formal: `ESPERANDO_VALIDACION_HUMANA_AUTENTICADA`, no CERRADO.** Las pruebas
+> automáticas pasan y el código está desplegado, pero cinco flujos solo se comprueban con
+> credenciales reales frente a la pantalla: alta de cliente, enlace de primer acceso, subir y
+> abrir documentos, aviso de cotización, y generar/abrir el link de meseros. Ver
+> `docs/NEXT_STEPS.md` §1.
 
 ## 1. Regla de convivencia con Vero Seguros
 
@@ -69,8 +76,9 @@ comando y tabla (sin solapamientos permisivos).
 - Los helpers (`is_admin`, `es_admin`, `is_my_event`, `client_can_edit`, `mi_personal_id`,
   `mis_canales*`, `eventos_operativos_permitidos`) tienen `EXECUTE` **solo** para `authenticated`, y
   únicamente porque las políticas RLS se evalúan con los privilegios de quien consulta.
-- Las funciones de trigger (`handle_new_user`, `resena_moderacion`, `sync_staff_token_hash`,
-  `auditar_cambio_operativo`) **no** son invocables por la API.
+- Las funciones de trigger (`handle_new_user`, `solicitud_saneo`, `resena_moderacion`,
+  `auditar_cambio_operativo`) **no** son invocables por la API. `sync_staff_token_hash` dejó de
+  existir con `sec_20`: ya no hay columna en claro que sincronizar.
 - Todas las `SECURITY DEFINER` usan `search_path = ''` y nombres completamente calificados.
 - `jardines_private` no está expuesto en la Data API y `anon`/`authenticated` no tienen `USAGE`.
 
@@ -143,9 +151,11 @@ aunque el frontend nuevo siga en la rama. En `sec_05` se revocó el INSERT de `a
 hasta que `sec_13` lo restableció (ya saneado).
 
 Regla para la próxima vez: **primero lo aditivo, se despliega el frontend, y solo entonces se retira
-lo viejo.** Hoy conviven los dos caminos y ambos pasan por el mismo trigger de saneo, así que dan las
-mismas garantías. El INSERT directo de `anon` se puede revocar cuando el frontend nuevo esté
-desplegado y verificado.
+lo viejo.**
+
+Ese retiro ya se completó: con el frontend nuevo desplegado y verificado, `sec_21` revocó el
+INSERT de `anon` y `authenticated` sobre `solicitudes`. Hoy la única vía de escritura pública es
+la RPC `solicitud_crear`.
 
 ## 9. Pendientes compartidos (requieren decisión, afectan a Vero)
 

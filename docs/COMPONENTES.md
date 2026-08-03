@@ -55,7 +55,19 @@ Los props se muestran tal como los pasa [`Home.jsx`](../src/pages/Home.jsx).
 
 ## Panel admin (`src/components/admin/`)
 
-`AdminLogin`, `AdminDashboard` (tabs), `AdminConfig`, `AdminSalones`, `AdminServicios`
-(servicios extra), `AdminServicioItems`, `AdminAmenidadItems`, `AdminGaleria`,
-`AdminAlimentos`, `AdminSolicitudes`. Todos leen/escriben vía el shim (edición **en memoria**,
-sin persistencia en esta versión estática).
+CMS: `AdminConfig`, `AdminSalones`, `AdminGaleria`, `AdminServicioItems`, `AdminAmenidadItems`,
+`AdminServicios` (servicios extra), `AdminAlimentos`, `AdminResenas`.
+Operación: `AdminLogin`, `AdminInicio`, `AdminDashboard`, `AdminSolicitudes`,
+`AdminAdministradores`, y `admin/eventos/*` (`AdminEventos`, `EventoDatos`, `EventoFicha`,
+`EventoDocumentos`, `EventoItems`, `EventoRsvps`).
+
+Todos leen y escriben vía el shim, y **persisten en Supabase**. Quién puede escribir lo decide
+RLS, no la UI.
+
+## Portal, mesas, meseros e invitación
+
+`src/components/portal/*` (login, inicio, ármalo, contratado, documentos, invitación,
+sugerencias, reseña, instalación PWA), `src/components/mesas/*` (editor y reglas),
+`src/components/meseros/*` (acceso por QR, vista de staff, generación del enlace),
+`src/components/invitacion/InvitacionPublica.jsx` y `src/components/evento/*` (cronograma,
+música). Detalle y riesgos por archivo en [`FILE_MAP.md`](FILE_MAP.md).
