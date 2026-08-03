@@ -230,7 +230,14 @@ for (const ruta of [
     "plano: quitar exige confirmación antes de borrar el archivo",
     /const post = await confirmar\(\)[\s\S]{0,500}borrarObjeto\(path\)/.test(s),
   );
-  check("plano: se guarda el path para poder limpiar el bucket", /imagenPlanoPath/.test(s));
+  // Atado a la ESCRITURA. El identificador sobrevive en las dos lecturas
+  // (`actual?.imagenPlanoPath`, `plano.imagenPlanoPath`), que son justo las que no
+  // importan: sin el path en `datos` cada reemplazo deja un huérfano público sin asa,
+  // y con `/imagenPlanoPath/` a secas quitarlo de la escritura pasaba 94/94.
+  check(
+    "plano: el path se ESCRIBE en la fila (si no, el huérfano no se puede limpiar)",
+    /const\s+datos\s*=\s*\{[^}]*imagenPlanoPath\s*:/.test(s),
+  );
   check(
     "plano: no se escriben medidas nulas sobre unas válidas",
     /if \(medidas\) \{ datos\.ancho/.test(s),
@@ -260,18 +267,45 @@ for (const ruta of [
     "operativo: el guardarraíl usa ese conteo cruzado",
     /vigentes = vigentesDe\(persona\.id\)\.length[\s\S]{0,200}accesoGlobal && vigentes === 0/.test(s),
   );
+  // "Visibles y revocables" es una propiedad de UI, así que se mira la UI. Con
+  // `/inertesDe/` a secas bastaba con que el identificador apareciera en algún
+  // sitio: borrar el bloque JSX que las pinta las devolvía a ser invisibles e
+  // irrevocables —el agravante del hallazgo— y pasaba 94/94. Borrar solo la
+  // definición, también.
+  {
+    const def = (s.match(/const inertesDe = [\s\S]*?;\n/) || [""])[0];
+    check(
+      "operativo: `inertesDe` selecciona lo que NO da acceso",
+      /!idsActivos\.has\(a\.eventoId\)/.test(def),
+      def.trim() || "no se encontró inertesDe",
+    );
+  }
   check(
-    "operativo: las asignaciones a eventos cerrados son visibles y revocables",
-    /inertesDe/.test(s),
+    "operativo: las asignaciones a eventos cerrados se PINTAN y se pueden revocar",
+    // `a.eventoId` en el handler distingue este render del de los chips activos,
+    // que pasa `ev` y dejaría el contrato satisfecho sin pintar ninguna inerte.
+    /inertesDe\([^)]*\)\.map\(/.test(s) && /alternarAsignacion\(\s*p,\s*\{[^}]*a\.eventoId/.test(s),
   );
   check(
     "operativo: la carga no confunde 'vacío' con 'falló'",
     /filterEstricto/.test(s) && !/OperativoPersonal\.list\(\)/.test(s),
   );
+  // Atado al `disabled` del botón, no a que la función exista: restaurar el
+  // `disabled` viejo reintroducía la carrera literal —revocar la última asignación
+  // y pulsar "Acceso a todos" antes de que terminara— con `ocupadaPersona` todavía
+  // definida en el archivo, y la suite pasaba entera.
   check(
     "operativo: el botón global se bloquea con cualquier operación en vuelo",
-    /ocupadaPersona/.test(s),
+    /disabled=\{\s*ocupadaPersona\(\s*p\.id\s*\)/.test(s),
   );
+  {
+    const def = (s.match(/const ocupadaPersona = [\s\S]*?;\n/) || [""])[0];
+    check(
+      "operativo: `ocupadaPersona` cubre el botón global Y los chips",
+      /g:\$\{personalId\}/.test(def) && /startsWith\(/.test(def),
+      def.trim() || "no se encontró ocupadaPersona",
+    );
+  }
 }
 {
   const s = leerCodigo("src/api/base44Client.js");
