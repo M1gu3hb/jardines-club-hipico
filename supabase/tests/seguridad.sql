@@ -252,9 +252,13 @@ join pg_namespace n on n.oid = p.pronamespace and n.nspname = 'jardines_private'
 join lateral aclexplode(coalesce(p.proacl, acldefault('f', p.proowner))) a on a.privilege_type = 'EXECUTE'
 where a.grantee = 0;
 
+-- La excepción de `solicitudes` era el resto de la ventana de compatibilidad que cerró
+-- `sec_21` al revocar el INSERT de anon. Mientras estuvo el filtro, esta aserción habría
+-- pasado igual si alguien reintrodujera escritura pública sobre esa tabla — justo el
+-- invariante que CLAUDE.md dice que esta prueba garantiza. Sin filtro.
 insert into _t
-select 'B6','anon sin INSERT/UPDATE/DELETE salvo solicitudes',
-       string_agg(distinct table_name, ','), count(*) filter (where table_name <> 'solicitudes') = 0
+select 'B6','anon sin INSERT/UPDATE/DELETE en ninguna tabla',
+       coalesce(string_agg(distinct table_name, ','), '(ninguna)'), count(*) = 0
 from information_schema.role_table_grants
 where table_schema = 'jardines' and grantee = 'anon'
   and privilege_type in ('INSERT','UPDATE','DELETE');

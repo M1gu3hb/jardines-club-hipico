@@ -1,51 +1,71 @@
 # NEXT_STEPS.md
 
-## Urgente
-_(Nada urgente. El sitio está completo y en producción.)_
+> Estado a **2026-08-03**. Ordenado por prioridad real.
+
+## Urgente — bloquea el cierre del proyecto
+
+1. **Validación humana autenticada.** Es lo único que impide declarar CERRADO el blindaje de
+   seguridad. Miguel debe confirmar **visualmente, con credenciales reales**:
+   1. Alta de cliente desde el panel.
+   2. Enlace de primer acceso (que el cliente entre con él).
+   3. Subir un documento y que el cliente lo abra desde su portal.
+   4. Aviso de cotización (que llegue el correo).
+   5. Generar el link de meseros y abrirlo.
+
+   Hasta entonces el estado formal es **`ESPERANDO_VALIDACION_HUMANA_AUTENTICADA`**.
 
 ## Importante
-- **Carrusel de reseñas:** llenar `src/data/resenas.json` → array `resenas` con 4-6 reseñas reales de
-  Google (`{ "autor": "...", "texto": "...", "estrellas": 5, "evento": "Boda" }`). El carrusel se
-  activa solo. El cliente debe proporcionar las reseñas.
-- **Conectar dominio propio** en Vercel (Settings → Domains) y actualizar `og:url` + JSON-LD `url` en
-  `index.html` al dominio real; redeploy. Ver `docs/DEPLOY.md`.
+
+2. **Interfaz para asignar personal a eventos.** Hoy los 3 operativos tienen
+   `acceso_global = true` porque la plantilla es fija y el salón opera un evento a la vez. Si
+   algún día hay dos eventos simultáneos con equipos distintos, hace falta una pantalla para
+   `jardines.operativo_asignacion` — la tabla y las políticas ya existen (`sec_14`, `sec_18`).
+
+3. **Cambio de contraseña dentro del portal.** El primer acceso es por enlace de un solo uso y
+   la contraseña se comparte por separado; una vista de "cambiar mi contraseña" cierra el ciclo
+   sin que el admin tenga que intervenir.
+
+4. **Acordar con Vero los pendientes compartidos** (`docs/SEGURIDAD.md` §9): protección de
+   contraseñas filtradas desactivada, `public.is_admin()` y `public.rls_auto_enable()`
+   ejecutables por `anon`, y `public.content_audit(actor)` sin índice de FK. **Son suyos: no se
+   tocan sin su visto bueno.**
 
 ## Después
-- Verificar/ajustar el remitente del correo si se quiere que salga de `jardinesclubhipico@gmail.com`
-  en vez de `mighuer427@gmail.com` (cambiar `GMAIL_USER`/`MAIL_TO` en Vercel + generar App Password de esa cuenta).
-- Optimizar peso de imágenes grandes (algunas imgur pesan varios MB) para mejorar carga en móvil, sin
-  tocar los videos del hero.
-- Considerar quitar el panel `/Admin` o dejarlo claramente como "solo vista" (no persiste).
+
+5. **Canales operativos por evento.** `operativo_canales` es global; dos eventos simultáneos
+   compartirían canal de radio. Ver riesgo residual en `docs/BUGS_PENDING.md`.
+
+6. **Conectar el dominio propio en Vercel.** Al hacerlo hay que tocar **cuatro** sitios, no uno:
+   - `index.html`: `og:url` (línea 17) y el `url` de **los dos** bloques JSON-LD (34 y 46).
+   - `api/_lib/correo.js`: la constante `SITIO_URL` está **hardcodeada** al dominio de Vercel;
+     si no se cambia, todos los correos transaccionales seguirán enlazando ahí (B8).
+   - Redeploy. Ver `docs/DEPLOY.md`.
+
+7. **Reseñas reales aprobadas** en el panel, para que el carrusel de Confianza tenga contenido.
+
+8. **Remitente del correo.** Si se quiere que salga de una cuenta propia en vez de la actual,
+   hay que cambiar `GMAIL_USER` / `MAIL_TO` en Vercel y generar un App Password de esa cuenta.
+
+9. **Peso de las imágenes.** Algunas migradas de imgur pesan varios MB. Optimizarlas mejoraría
+   la carga en móvil. **No tocar los videos del hero** (ya comprimidos).
 
 ## Ideas futuras
+
 - Más testimonios / sección de eventos realizados con métricas.
-- Analítica (GA4 / Vercel Analytics) para medir conversiones del formulario.
-- Página/idioma o versiones por tipo de evento (bodas, XV, corporativos).
-- Si el cliente quiere editar contenido sin código: migrar a un CMS o backend (Supabase) reusando el
-  modelo de `docs/DATABASE.md`.
+- Analítica (GA4 o Vercel Analytics) para medir la conversión del formulario.
+- Versiones o secciones por tipo de evento (bodas, XV, corporativos).
+- Bajar la deuda de `typecheck`: hoy son 155 errores de línea base. La regla mínima es que no
+  suba; reducirla sería mejora real.
 
-## Seguridad (2026-08-01)
+## Deuda de seguridad
 
-1. **Probar en la interfaz** el botón "generar link de meseros" (ahora usa `rotar_staff_token`) y el
-   envío del formulario público (ahora usa `solicitud_crear`). Es lo único que falta por validar con
-   una persona frente a la pantalla.
-2. Mostrar en el panel el token devuelto por la rotación **una sola vez**, con aviso de guardarlo.
-3. Cuando 1 y 2 estén verificados, aplicar
-   `supabase/migrations/PENDIENTE_jardines_sec_10_retiro_compat_staff_token.sql.noapply`.
-4. Acordar con Vero los pendientes compartidos de `docs/SEGURIDAD.md` §9.
-5. Reescribir `PROJECT_CONTEXT.md`, `docs/DATABASE.md` y `docs/ARCHITECTURE.md`: siguen describiendo
-   la etapa estática y ya no corresponden a la realidad.
+**Resuelta en código y migraciones; pendiente de validación humana.** Las 21 migraciones
+`sec_01..22` se aplicaron y los hallazgos de la auditoría están cerrados **en el repo**. Lo que
+falta no es código: son los 5 flujos del §1, que solo se comprueban con credenciales reales.
+Mientras eso no ocurra, el estado es `ESPERANDO_VALIDACION_HUMANA_AUTENTICADA` y **§1 sigue
+siendo bloqueante**.
 
-## 2026-08-02 — Tras el cierre del blindaje
-
-Ya no queda nada bloqueante. Lo que sigue es mejora, no deuda de seguridad:
-
-1. **Interfaz para asignar personal a eventos.** Hoy los 3 operativos tienen
-   `acceso_global=true` porque la plantilla es fija y el salón opera un evento a la vez.
-   Si algún día hay dos eventos simultáneos con equipos distintos, hace falta una pantalla
-   para `jardines.operativo_asignacion` (la tabla y las políticas ya existen).
-2. **Cambio de contraseña dentro del portal.** El primer acceso es por enlace de un solo uso;
-   la contraseña se comparte por separado. Una pantalla de "cambiar mi contraseña" cerraría el ciclo.
-3. **Canales operativos por evento.** `operativo_canales` es global: dos eventos simultáneos
-   compartirían canal. Ver riesgo residual en `docs/SEGURIDAD.md`.
-4. **Pendientes compartidos con Vero** (requieren su visto bueno, ver `docs/SEGURIDAD.md` §9).
+Queda además deuda **no bloqueante** detectada el 2026-08-03, toda en `docs/BUGS_PENDING.md`:
+la suite prueba las RPCs superadas en vez de las vigentes (B6), tres funciones residuales sin
+llamadores esperan `DROP`, la CSP conserva `'unsafe-inline'`, y no hay fallback si Supabase cae
+(B5).

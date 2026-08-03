@@ -1,9 +1,20 @@
 # PLAN-EJECUCION.md — Auditoría (FASE 00) y decisiones de ejecución
 
-Migración de sitio estático → dinámico con **Supabase** + portal de eventos. Ver `../plan/FASE-*.md`.
+> **DOCUMENTO HISTÓRICO.** Es el plan con el que se ejecutó la migración de estático → dinámico
+> (FASE-02, julio 2026). Se conserva porque explica *por qué* el proyecto quedó como quedó, pero
+> **no describe el estado actual** y no debe usarse como referencia. Para el estado real:
+> [`PROJECT_CONTEXT.md`](../PROJECT_CONTEXT.md), [`ARCHITECTURE.md`](ARCHITECTURE.md),
+> [`DATABASE.md`](DATABASE.md) y [`SEGURIDAD.md`](SEGURIDAD.md).
+>
+> Lo que ya no aplica de este documento: el login del admin en `/Admin` con credenciales en el
+> código (hoy es Supabase Auth + rol + ruta secreta), y el modelo de permisos previo al
+> blindaje `sec_01..22`.
+
+Migración de sitio estático → dinámico con **Supabase** + portal de eventos.
+*(Los `plan/FASE-*.md` que citaba la versión original no están en el repo.)*
 
 ## Proyecto Supabase
-- **JCH + MH** (`vuzyhbiwnnngeohysxcw`), org `M1gu3l97`. URL `https://vuzyhbiwnnngeohysxcw.supabase.co`.
+- Proyecto `vuzyhbiwnnngeohysxcw`. URL `https://vuzyhbiwnnngeohysxcw.supabase.co`.
 - **Todo Jardines vive en el schema `jardines`** (el proyecto Supabase se comparte con otro sitio ajeno).
 - Env (front): `VITE_SUPABASE_URL`, `VITE_SUPABASE_ANON_KEY` (anon key es público). Server (`api/`):
   `SUPABASE_URL`, `SUPABASE_SERVICE_ROLE` (secreto, lo pone el dueño en Vercel), `GMAIL_*`, `MAIL_TO`.
@@ -46,14 +57,19 @@ Firmas que consumen los componentes (NO cambian):
    conservando los `id` originales de Base44. El JSON se conserva como respaldo/seed.
 5. **Auth cliente sin correo:** Supabase Auth con email sintético `${usuario}@portal.jardines.local`. Creación de
    usuarios de cliente server-side (`api/crear-usuario-evento.js` con service_role). Admin: cuenta única rol `admin`.
-6. **Admin secreto:** ruta no adivinable (se define slug); guard por rol `admin`; se elimina el login hardcodeado `admin/hipico2024`.
+6. **Admin secreto:** ruta no adivinable (se define slug); guard por rol `admin`; se elimina el login hardcodeado `admin` / contraseña fija en el código.
 
-## Estado actual del admin y nav
-- `/Admin`: `src/pages/Admin.jsx` (login sessionStorage `admin`/`hipico2024`) → `AdminDashboard` con tabs
-  (`AdminConfig, AdminSalones, AdminServicios, AdminServicioItems, AdminAmenidadItems, AdminGaleria, AdminAlimentos, AdminSolicitudes`).
-- Nav de secciones: `src/components/Sidebar.jsx` (`navItems`), scroll a `#id`. → FASE-09 lo cambia a StaggeredMenu.
+## Punto de partida del admin y el nav (estado en FASE-00, ya superado)
+- `/Admin`: `src/pages/Admin.jsx` con login por `sessionStorage` y credenciales fijas en el
+  código → `AdminDashboard` con tabs (`AdminConfig, AdminSalones, AdminServicios,
+  AdminServicioItems, AdminAmenidadItems, AdminGaleria, AdminAlimentos, AdminSolicitudes`).
+- Nav de secciones: `src/components/Sidebar.jsx` (`navItems`), scroll a `#id`.
+
+**Cómo quedó:** el login fijo se eliminó (hoy es Supabase Auth + rol + ruta secreta), `/Admin`
+devuelve 404, y `Sidebar.jsx` lo sustituyó `StaggeredMenu` — quedó huérfano. Estado real en
+`docs/MAPA.md` y `docs/FILE_MAP.md`.
 
 ## Riesgos / notas
 - `service_role` no se puede extraer por MCP → el dueño debe ponerlo en Vercel para las funciones `api/`.
 - Exponer `jardines` a PostgREST puede requerir confirmar en el dashboard si el `ALTER ROLE` no basta.
-- Repo pesado (~560 MB medios); los medios en `/media/` siguen sirviendo (no se migran a Storage salvo nuevos uploads del CMS).
+- Repo pesado (hoy **586 MB** de medios); los medios en `/media/` siguen sirviendo (no se migran a Storage salvo nuevos uploads del CMS).

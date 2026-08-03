@@ -1,5 +1,261 @@
 # CHANGELOG.md
 
+## 2026-08-03 (c) — Inventario de grants por nivel + hallazgos deferidos
+
+### Cambios realizados
+
+**Bloqueante — regresión introducida por el bloque (b).** Al corregir el hallazgo 4, `DATABASE.md`
+pasó a afirmar que las RPCs ejecutables por `anon` eran **las únicas 4**. Son **8**: el bloque D.5
+de `sec_06` concede `execute … to anon, authenticated` sobre siete funciones y `sec_13` añade
+`solicitud_crear`. Las cuatro omitidas (`info_invitacion_staff`, `registrar_acceso_staff`,
+`progreso_mesas_staff`, `registrar_llegada_mesa`) estaban agrupadas bajo una etiqueta que sugería
+sesión, mezcladas con otras que sí la exigen.
+
+**§D reestructurado por `EXECUTE` real**, en tres niveles, verificado contra
+`pg_proc`/`aclexplode` en producción:
+
+- **Nivel 1 — `anon` + `authenticated` (8):** subdividido en "abiertas al público" (4) y "exigen
+  además token de staff válido" (4). Estas últimas se comportan bien —resuelven por
+  `evento_por_staff`, con rate limit y respuesta genérica— pero **el grant no las distingue** de
+  las abiertas: el staff opera sin sesión, con el token en la URL del QR. Se anota explícitamente.
+- **Nivel 2 — solo `authenticated`:** helpers de RLS, `info_invitacion`, `operativo_*`,
+  `registrar_acceso` y las de admin cuyo rol comprueba el cuerpo, no el `EXECUTE`.
+- **Nivel 3 — solo `service_role`**, más las residuales y las funciones de trigger.
+
+El criterio es el inventario por grant porque la pregunta de toda revisión de seguridad es
+*"¿qué alcanza alguien sin sesión?"*, y agrupar por sensación de acceso la responde mal.
+
+**Hallazgos deferidos del primer informe:**
+
+- **Nuevo §D.bis en `DATABASE.md`:** `api_idempotencia`, `canjear_acceso_unico` e
+  `info_mesa_publica` siguen vivas sin llamadores, y **`seguridad.sql` prueba las dos primeras en
+  vez de las vigentes** — la idempotencia recuperable y el canje en dos fases solo tienen
+  cobertura textual. Abierto como B6; el `DROP` va en un bloque aparte con verificación previa.
+- **Cuarto huérfano:** `ItemImageOverlay.jsx` (0 imports). Son 4, no 3.
+- **`seed-supabase.mjs` no toca la base:** sin `supabase-js`, sin env, sin red — genera
+  `scripts/seed/*.sql`. Corregido en `CLAUDE.md`, `ARCHITECTURE.md`, `DATOS.md`, `FILE_MAP.md`.
+- **`build-media.mjs` descarga 571 MB por red** desde `i.imgur.com` y `media.base44.com`, un CDN
+  que puede desaparecer. Advertido donde se documentaba solo como generador de JSON.
+- **Última dependencia de imgur:** `index.html` sirve el logo del JSON-LD desde `i.imgur.com` y la
+  CSP lo autoriza solo por eso, pese a que el activo ya está auto-hospedado. Documentado en D3 y
+  abierto como B7 (el arreglo es código: bloque aparte).
+- **`SITIO_URL` hardcodeada** al dominio de Vercel: todos los correos enlazan ahí. B8, ligado al
+  pendiente de dominio.
+- **La CSP conserva `'unsafe-inline'`** en `script-src` y `style-src`: no protege contra XSS
+  inline, solo acota orígenes. Anotado como deuda en `ARCHITECTURE.md`.
+- **`functions.invoke()` falla en silencio:** solo reconoce dos nombres y devuelve `{}` con
+  cualquier otro. Las demás rutas usan métodos propios.
+- **Estado unificado:** "resuelto en código y migraciones, pendiente de validación humana", y se
+  separa lo que el repo prueba de lo que solo afirma sobre producción. **No hay CI: no existe
+  `.github/`.**
+- **Datos personales retirados** (`PROMPTS.md` §regla de secretos): correo en `DECISIONS.md` —que
+  además estaba mal, era `MAIL_TO`, no el remitente— y la org en `PLAN-EJECUCION.md`.
+- **Higiene:** `SEGURIDAD.md` y los 4 docs de UI añadidos a la lista obligatoria de `PROMPTS.md`;
+  8 componentes montados que faltaban en `COMPONENTES.md` y `_ui.jsx` en `FILE_MAP.md`;
+  `FormularioModal` son 2 pasos y solo consume `Salon`; `informacionServicios` **sí** tiene
+  contenido (465 caracteres, 3 párrafos en producción); orden real del `<main>` en `MAPA.md`;
+  `search_path` en **7** funciones, no 10; repo **586 MB** e `img/` **230** archivos;
+  `GEMINI_API_KEY` documentada; `proximamente_fecha` marcada huérfana; el módulo operativo
+  **entero** sin frontend; batería de `DEPLOY.md` con `seguridad.sql`; los **dos** bloques JSON-LD.
+
+### Archivos modificados
+`CLAUDE.md`, `PROJECT_CONTEXT.md`, `README.md`, `docs/ARCHITECTURE.md`, `docs/DATABASE.md`,
+`docs/FILE_MAP.md`, `docs/DATOS.md`, `docs/MAPA.md`, `docs/COMPONENTES.md`, `docs/DEPLOY.md`,
+`docs/DECISIONS.md`, `docs/PROMPTS.md`, `docs/NEXT_STEPS.md`, `docs/BUGS_PENDING.md`,
+`docs/PLAN-EJECUCION.md`, `docs/CHANGELOG.md`.
+
+### Entidades/BD afectadas
+Ninguna. **Sin migraciones.** Solo consultas de lectura para verificar grants,
+`informacion_servicios` y `proximamente_fecha`.
+
+### Bugs resueltos
+La regresión del inventario de RPCs. Documentación que describía al revés dos scripts
+(`seed-supabase`, `build-media`), que daba por genérico un `invoke()` que falla en silencio, y
+que se contradecía sobre el estado del proyecto.
+
+### Bugs nuevos
+Ninguno introducido. **Detectados y documentados:** B6 (la suite prueba las RPCs superadas),
+B7 (dependencia de imgur), B8 (`SITIO_URL` hardcodeada).
+
+### Decisiones tomadas
+D3 ampliada con la excepción de imgur y con que `build-media` no es offline.
+
+### Próximo paso
+Validación humana autenticada de los 5 flujos (`docs/NEXT_STEPS.md` §1).
+
+## 2026-08-03 (b) — Correcciones de la auditoría de documentación sobre `370ee5c`
+
+### Cambios realizados
+Seis afirmaciones de la reescritura anterior mandaban a alguien al archivo equivocado o a
+confiar en una protección inexistente. Todas verificadas contra el código y la base antes de
+corregirlas:
+
+1. **El "fallback estático" no existe.** `site-data.json` no lo importa nadie en `src/` ni en
+   `api/` (0 resultados): solo alimenta `scripts/seed-supabase.mjs` y `scripts/montage.mjs`. El
+   único JSON vivo es `resenas.json` (`Confianza.jsx`). **Si Supabase cae, el sitio se renderiza
+   vacío** — riesgo real que la doc anterior ocultaba. Corregido en los 10 sitios donde aparecía.
+2. **El menú lateral ya no es `Sidebar.jsx`** (huérfano, 0 imports). El real es `StaggeredMenu`,
+   con los items en `MENU_ITEMS` de `Home.jsx`.
+3. **Los estilos globales no viven en `Layout.jsx`** (son 10 líneas, solo el fondo). Están en
+   `src/styles/theme.css`, importado en `main.jsx` — por eso aplican también al portal, al admin
+   y a `/acceso`. Ese archivo **no aparecía en ningún documento**; ahora está en `FILE_MAP.md`.
+4. **Tres RPCs mal clasificadas:** `info_invitacion` es de `authenticated`, no pública;
+   `info_mesa_publica` está revocada para `anon`/`authenticated` y su cuerpo **no** tiene rate
+   limit ni error genérico (al revés de lo que decía la doc); `revocar_acceso_unico` es de
+   `service_role`, no de admin.
+5. **`VITE_ADMIN_SLUG` y `VITE_SUPABASE_URL` no son solo del build:** cuatro rutas de `api/` las
+   leen en runtime. Documentado, con el aviso de que cambiar el slug sin exponerlo al runtime de
+   las funciones deja todos los enlaces al panel de todos los correos apuntando al valor viejo.
+6. **`DECISIONS.md` D1/D2/D3** quedaron sin sello. D1 marcada SUPERADA; D2 y D3 marcadas con su
+   estado real (ver "Discrepancias" abajo).
+
+**Y el agujero en la suite:** la aserción B6 de `supabase/tests/seguridad.sql` excluía
+`solicitudes` del invariante "`anon` sin INSERT/UPDATE/DELETE" con
+`count(*) filter (where table_name <> 'solicitudes') = 0`. Era un resto de la ventana de
+compatibilidad que `sec_21` cerró: la suite habría pasado igual si alguien reintrodujera
+escritura pública sobre esa tabla, y `CLAUDE.md` presenta esa prueba como la garantía del
+invariante. Ahora es `count(*) = 0` sin filtro.
+
+### Discrepancias con la auditoría (no aplicadas, a propósito)
+- **D2 y D3 no son "SUPERADA".** D2: la decisión de conservar la API del shim sigue vigente; lo
+  superado es el "100% local". D3: los medios **siguen** auto-hospedados en `public/media/`
+  (videos del hero, 241 frames, flyer), solo que ahora los uploads del CMS van a Storage. Se
+  sellaron con su estado real en vez de marcarlas obsoletas.
+- El informe `docs/auditoria/AUDITORIA-DOCS-370ee5c.md` **no está en el repo**, así que cada
+  hallazgo se verificó de forma independiente contra el código y la base.
+
+### Archivos modificados
+`CLAUDE.md`, `PROJECT_CONTEXT.md`, `README.md`, `docs/ARCHITECTURE.md`, `docs/DATABASE.md`,
+`docs/FILE_MAP.md`, `docs/DATOS.md`, `docs/MAPA.md`, `docs/COMPONENTES.md`, `docs/DEPLOY.md`,
+`docs/DECISIONS.md`, `docs/PROMPTS.md`, `docs/CHANGELOG.md`, `docs/BUGS_PENDING.md`,
+`supabase/tests/seguridad.sql`.
+
+### Entidades/BD afectadas
+Ninguna. **No se aplicó ninguna migración.** Solo consultas de lectura para verificar grants y
+la aserción B6.
+
+### Bugs resueltos
+Documentación que mandaba al archivo equivocado (`Sidebar.jsx`, `Layout.jsx`) y que prometía dos
+protecciones inexistentes (fallback ante caída de Supabase; rate limit en `info_mesa_publica`).
+Más el agujero de la suite B6.
+
+### Bugs nuevos
+Ninguno introducido. **Detectado y documentado:** no hay fallback si Supabase no responde
+(ver `docs/BUGS_PENDING.md`).
+
+### Decisiones tomadas
+Sello de estado en D1 (SUPERADA), D2 y D3 (vigentes, con matiz).
+
+### Próximo paso
+Validación humana autenticada de los 5 flujos (`docs/NEXT_STEPS.md` §1).
+
+## 2026-08-03 — Documentación viva reescrita para transferencia
+
+### Cambios realizados
+- Reescritos los documentos que aún describían la etapa **estática** (FASE-01) bajo un banner de
+  "esto ya no es cierto": `PROJECT_CONTEXT.md`, `docs/ARCHITECTURE.md`, `docs/DATABASE.md`,
+  `docs/DATOS.md` y `docs/PROMPTS.md`. Ahora el cuerpo describe la realidad: base de datos viva
+  en Supabase, portal, panel, rutas serverless y modelo de permisos.
+- **`docs/FILE_MAP.md` reescrito por completo** — llevaba sin actualizarse desde FASE-01 y no
+  mencionaba `api/`, `supabase/`, el portal, las mesas ni el módulo operativo.
+- `CLAUDE.md` ampliado: candado de Vero, regla de secretos, orden de despliegue, reglas de RLS y
+  `SECURITY DEFINER` para tablas y funciones nuevas, y la batería que debe pasar antes de subir.
+- `PROJECT_CONTEXT.md` reestructurado en las 15 secciones del prompt de transferencia.
+- `docs/PROMPTS.md`: se guardó el **prompt fijo de documentación viva** (el que se usa para
+  transferir el proyecto a otra cuenta o IA) y se reescribió el prompt de arranque, que todavía
+  decía "el sitio es estático".
+- `docs/DECISIONS.md`: añadidas D-SEC-6 … D-SEC-11 (idempotencia recuperable, semántica
+  at-least-once, canje en dos fases, retiro del token en claro, pruebas de contrato, operativo
+  fail-closed) y D-DOC-1 / D-DOC-2.
+- `docs/BUGS_PENDING.md` y `docs/NEXT_STEPS.md` reorganizados; se marcó obsoleto el bug B1
+  ("el panel no persiste"), que dejó de ser cierto en FASE-02.
+- `docs/SEGURIDAD.md`: corregido el encabezado — son `sec_01..22` y el estado real es
+  `ESPERANDO_VALIDACION_HUMANA_AUTENTICADA`, no "CERRADO".
+
+### Archivos modificados
+`CLAUDE.md`, `PROJECT_CONTEXT.md`, `docs/ARCHITECTURE.md`, `docs/DATABASE.md`,
+`docs/FILE_MAP.md`, `docs/DATOS.md`, `docs/PROMPTS.md`, `docs/DECISIONS.md`,
+`docs/BUGS_PENDING.md`, `docs/NEXT_STEPS.md`, `docs/CHANGELOG.md`, `docs/SEGURIDAD.md`.
+
+### Entidades/BD afectadas
+Ninguna. Solo lectura de la base para verificar el esquema documentado (32 tablas en
+`jardines`, 6 en `jardines_private`, 55 funciones, 5 buckets).
+
+### Bugs resueltos
+Documentación contradictoria: el aviso decía "hay base de datos" y el cuerpo decía "no hay base
+de datos en vivo". Una IA que leyera el cuerpo habría trabajado con premisas falsas.
+
+### Bugs nuevos: ninguno.
+
+### Decisiones tomadas: D-DOC-1, D-DOC-2 (ver `docs/DECISIONS.md`).
+
+### Próximo paso
+Validación humana autenticada de los 5 flujos (ver `docs/NEXT_STEPS.md` §1).
+
+## 2026-08-02 — Cierre del blindaje (migraciones `jardines_sec_11..22`)
+
+### Cambios realizados
+- **Token de staff retirado en claro (`sec_20`).** La columna `eventos.staff_token` ya no
+  existe: solo queda el HMAC. La rotación devuelve el token **una sola vez** y el panel no puede
+  reconsultarlo; tras recargar ofrece "Generar nuevo enlace".
+- **INSERT público de `solicitudes` retirado (`sec_21`)** una vez desplegado el frontend que usa
+  la RPC. `anon` ya no escribe directo en ninguna tabla.
+- **Rutas `api/` reescritas sobre un guard común** (`api/_lib/guard.js`): autorización que exige
+  perfil de Jardines (un usuario de Vero recibe 403), límite de tamaño del cuerpo, rate limit
+  fail-closed, idempotencia recuperable, escapado de HTML y respuestas genéricas.
+- **`/api/notificar`**: lista cerrada de acciones y verificación en la base de que la acción
+  ocurrió de verdad, en vez de aceptar HTML arbitrario de cualquier sesión.
+- **`/api/cron-recordatorios`**: pasa a **fail-closed** (antes se ejecutaba sin `CRON_SECRET`),
+  comparación en tiempo constante, idempotencia por mensaje y semántica **at-least-once** documentada.
+- **Enlace de primer acceso de un solo uso** (`sec_16`) con **canje en dos fases** (`sec_19`):
+  ya no viajan contraseñas en los correos ni credenciales en base64 en la URL.
+- **`search_path = ''`** en las 7 funciones `SECURITY DEFINER` que faltaban (`sec_17`) y retiro
+  de la confianza por dominio de correo en `handle_new_user` (`sec_18`).
+- **Operativo fail-closed** (`sec_14`) con `acceso_global` explícito para los 3 operativos
+  existentes (`sec_18`).
+- **Cabeceras HTTP** en `vercel.json`: CSP en modo enforcing, HSTS, `nosniff`, `Referrer-Policy`,
+  `Permissions-Policy`, `X-Frame-Options`.
+- **Suites reproducibles:** `supabase/tests/seguridad.sql` (63 aserciones en `BEGIN/ROLLBACK`) y
+  `scripts/test-contratos-api.mjs` (71 contratos estáticos frontend ↔ API, `npm run test:contratos`).
+- **`no-undef` activado** en `eslint.config.js`: estaba anulado porque el bloque `rules`
+  sobreescribía `pluginJs.configs.recommended`.
+- **`sec_22`**: retirada de la única fila de perfil cruzado Vero → Jardines, con precondición estricta.
+
+### Archivos modificados
+- Nuevos: `supabase/migrations/*_jardines_sec_{11..22}_*.sql`, `api/_lib/guard.js`,
+  `api/canjear-acceso.js`, `scripts/test-contratos-api.mjs`, `supabase/tests/seguridad.sql`.
+- Modificados: `api/{solicitud,notificar,correo-cliente,crear-admin,crear-usuario-evento,cron-recordatorios}.js`,
+  `src/api/base44Client.js`, `src/lib/notificar.js`, `src/components/FormularioModal.jsx`,
+  `src/components/portal/PortalLogin.jsx`, `src/components/meseros/EventoMeseros.jsx`,
+  `src/components/admin/eventos/EventoDocumentos.jsx`, `eslint.config.js`, `vercel.json`,
+  `package.json`.
+
+### Entidades/BD afectadas
+`jardines` y `jardines_private`. Nuevas: `api_idempotencia`/`idempotencia`, `acceso_unico`.
+Eliminada: la columna `eventos.staff_token`. **`public` (Vero) sin cambios**: 12 checksums
+idénticos antes y después.
+
+### Bugs resueltos
+- `/api/notificar` estaba desalineado con `src/lib/notificar.js`: el front mandaba
+  `{titulo, detalle}` y la API exigía `{accion, eventoId, nota}`. Todos los correos daban 400 en
+  silencio. De ahí nace la suite de contratos.
+- Trigger de auditoría que leía `new.evento_id` dentro de un `CASE` y rompía toda escritura sobre
+  `operativo_personal` (`sec_12`).
+- Formulario público roto por revocar el INSERT antes de desplegar el front (`sec_13`), origen de
+  la regla de orden de despliegue de `docs/SEGURIDAD.md` §8.bis.
+- Regresión del operativo: tras `sec_14`, 3 operativos quedaron con cero asignaciones y sin UI
+  para crearlas (`sec_18`).
+- Errores de supabase-js que se ignoraban: la librería resuelve con `{ data, error }` en vez de
+  rechazar, así que los `.catch()` no atrapaban nada.
+
+### Bugs nuevos: ninguno detectado.
+
+### Decisiones tomadas: D-SEC-6 … D-SEC-11 (ver `docs/DECISIONS.md`).
+
+### Próximo paso
+Validación humana autenticada de los 5 flujos: el estado formal es
+`ESPERANDO_VALIDACION_HUMANA_AUTENTICADA`, **no CERRADO**.
+
 ## 2026-08-01 — Endurecimiento de seguridad de Jardines (migraciones `jardines_sec_01..09`)
 
 ### Cambios realizados
@@ -27,7 +283,9 @@
 
 ### Archivos modificados
 - Nuevos: `supabase/migrations/2026080121*_jardines_sec_0{1..9}_*.sql`, `docs/SEGURIDAD.md`,
-  `supabase/migrations/PENDIENTE_jardines_sec_10_retiro_compat_staff_token.sql.noapply`.
+  `supabase/migrations/PENDIENTE_jardines_sec_10_retiro_compat_staff_token.sql.noapply`
+  (**hecho por `sec_20` el 2026-08-02**; el archivo `.noapply` ya no existe, y por eso no hay
+  migración `sec_10`).
 - Modificados: `api/crear-admin.js`, `api/crear-usuario-evento.js`, `src/api/base44Client.js`,
   `src/components/FormularioModal.jsx`, `src/components/meseros/EventoMeseros.jsx`,
   `src/components/admin/eventos/EventoDocumentos.jsx`.
@@ -51,6 +309,7 @@ cambios**: recuentos y checksums idénticos antes/después.
 ### Próximo paso
 Probar en la interfaz el botón "generar link de meseros" y, una vez validado, aplicar
 `PENDIENTE_jardines_sec_10_retiro_compat_staff_token.sql.noapply` para retirar el token en claro.
+*(**hecho por `sec_20` el 2026-08-02.** Registro histórico: no queda nada pendiente aquí.)*
 
 ## 2026-07-03 — Documentación viva del proyecto
 

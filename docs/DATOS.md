@@ -1,96 +1,103 @@
 # Datos y contenido
 
-> **ACTUALIZADO 2026-08-02.** Este documento describía la etapa ESTÁTICA del proyecto
-> (anterior a FASE-02). Ya no es cierta: **el sitio es dinámico y tiene base de datos viva**
-> en Supabase (schema `jardines`, proyecto `vuzyhbiwnnngeohysxcw`, compartido con Vero Seguros).
-> `src/api/base44Client.js` conserva el nombre por compatibilidad, pero **Base44 ya no existe ni
-> se usa**: por dentro es Supabase. Los JSON de `src/data/` son solo respaldo estático.
-> El modelo de seguridad vigente está en **`docs/SEGURIDAD.md`**.
+> Reescrito el **2026-08-03**. La versión anterior describía la etapa estática (FASE-01).
+> Hoy el contenido vive en **Supabase**. **No hay copia de respaldo en runtime**: si la base no
+> responde, el sitio se renderiza vacío.
 
-Todo el contenido editable está congelado en **[`src/data/site-data.json`](../src/data/site-data.json)**.
-Es un snapshot de los datos que había en Base44 el día de la migración.
+## Dónde vive el contenido
 
-## Estructura de `site-data.json`
+**La fuente de verdad es la base de datos** (Supabase, schema `jardines`). El esquema completo
+está en `docs/DATABASE.md`. Este documento explica cómo se **edita** ese contenido.
 
-```jsonc
-{
-  "config":       { /* ConfigSitio: 1 objeto */ },
-  "salones":      [ /* Salon: 8 espacios */ ],
-  "galeria":      [ /* Galeria: 69 imágenes/videos */ ],
-  "servicios":    [ /* ServicioItem: 14 */ ],
-  "amenidades":   [ /* AmenidadItem: 15 */ ],
-  "serviciosExtra": [ /* ServicioExtra: 11 (checkboxes del formulario) */ ],
-  "alimentos":    [ /* AlimentoMenu: 3 (menús + PDF) */ ],
-  "framesTotal":  241
-}
-```
+| Capa | Qué es | ¿Se edita? |
+|---|---|---|
+| `jardines.*` en Supabase | Contenido real del sitio y de los eventos | **Sí, desde el panel admin** |
+| `src/data/site-data.json` | Snapshot de FASE-01. **Nadie lo importa** en `src/` ni en `api/`: solo alimenta `scripts/seed-supabase.mjs` y `scripts/montage.mjs` | Solo regenerándolo |
+| `src/data/resenas.json` | **Sí se usa en runtime:** lo importa `src/components/Confianza.jsx` | Solo editándolo |
+| `scripts/raw/*.json` | Fuente de `site-data.json` | Solo si se regenera el seed |
 
-### `config` (campos usados por la web)
+> ⚠️ **No existe fallback estático del contenido.** La documentación anterior afirmaba que
+> `site-data.json` cubría una caída de Supabase; no es cierto y nunca se implementó. Si la base
+> no responde, las secciones que leen de ella salen vacías. Es un riesgo real y sin mitigar.
 
-| Campo | Uso |
-|---|---|
-| `logoUrl` | Logo (sidebar, hero, splash) |
-| `telefonoContacto` | Tarjeta de teléfono en Contacto |
-| `whatsappNumero` | Botones de WhatsApp (solo dígitos, ej. `525548663656`) |
-| `correoAdmin` | Tarjeta de correo en Contacto |
-| `ubicacionTexto` | Texto de ubicación (actualmente vacío → muestra "Ciudad de México") |
-| `ubicacionLinkMapa` | Link "Ver mapa" |
-| `proximamenteActivo` | `true`/`false` para mostrar el cartel "Próximamente" |
-| `proximamenteImagenUrl`, `proximamenteTitulo`, `proximamenteDescripcion`, `proximamenteTextoBoton` | Contenido del cartel/anuncio |
-| `informacionServicios` | Texto de la sección `#no-incluye`. **Actualmente `null`** → la sección sale vacía (fiel a Base44) |
-| `textoNoIncluye` | Texto real de "no incluye" (NO se muestra; el componente lee `informacionServicios`) |
+## Cómo editar contenido (lo normal)
 
-> **Para mostrar el texto de "no incluye":** copia el valor de `textoNoIncluye` a
-> `informacionServicios` en `site-data.json`, o cambia el prop en
-> [`Home.jsx`](../src/pages/Home.jsx) a `texto={config?.textoNoIncluye}`.
+1. Entra al panel admin (ruta secreta `ADMIN_SLUG`, ver `src/config/portal.js`).
+2. Edita la sección correspondiente: Configuración, Salones, Galería, Servicios, Amenidades,
+   Alimentos o Reseñas.
+3. Guarda. Persiste en Supabase y el sitio lo refleja sin redeploy.
 
-### `salones[]`
+**No** edites `src/data/site-data.json` para cambiar el sitio: no lo lee nadie en runtime, así que
+no cambiaría nada de lo que ve el visitante.
 
-Campos: `nombre`, `descripcion`, `descripcionLarga`, `capacidad`, `capacidadMin/Max`,
-`imagenPrincipal`, `imagenes[]`, `caracteristicas[]`, `activo`, `orden`, `id`.
-El orden en la web lo da `orden` (1..8).
+## Imágenes y videos
 
-### `galeria[]`, `servicios[]`, `amenidades[]`
+Hay dos caminos, según el origen:
 
-- `galeria`: `{ imagenUrl }`.
-- `servicios`/`amenidades`: `{ titulo, descripcion, imagenUrl, imagenesUrl[], activo, id }`.
+- **Medios del repo** (`public/media/`): ponlos ahí y usa la ruta `/media/img/<archivo>`.
+  Los videos se detectan por extensión (`.mp4|webm|mov|ogg|m4v`).
+- **Medios subidos desde el panel**: van a Storage. Buckets y límites en `docs/DATABASE.md` §E
+  y `docs/SEGURIDAD.md` §7.
 
-Todas las rutas de medios apuntan a `/media/...` (locales).
+> Si agregas un origen **externo** de imágenes o fuentes, hay que declararlo en la CSP de
+> `vercel.json` o el navegador lo bloqueará en producción sin fallar en local.
 
-## Cómo editar contenido (permanente)
+## Entidades de contenido del sitio
 
-1. Edita **[`src/data/site-data.json`](../src/data/site-data.json)** directamente.
-2. Si agregas una **imagen o video nuevo**, ponlo en `public/media/img/` y usa la ruta
-   `/media/img/tu-archivo.jpg` en el JSON.
-3. `npm run build` y redeploy (o push a GitHub si Vercel está conectado al repo).
+| Entidad (front) | Tabla | Filas | Notas |
+|---|---|---|---|
+| `ConfigSitio` | `config_sitio` | 1 | Teléfono, WhatsApp, ubicación, cartel "Próximamente", colores |
+| `Salon` | `salones` | 8 | `orden` manda; `activo=false` lo oculta |
+| `Galeria` | `galeria` | 69 | Imágenes y videos |
+| `ServicioItem` | `servicios` | 14 | `descripcion` se ve al **expandir** la tarjeta |
+| `AmenidadItem` | `amenidades` | 15 | Igual estructura que servicios |
+| `ServicioExtra` | `servicios_extra` | 11 | Histórico del formulario largo |
+| `AlimentoMenu` | `alimentos` | 3 | `pdf_url` en Google Drive |
+| `Resena` / `ResenasConfig` | `resenas` / `resenas_config` | — | Solo se muestran las `aprobada = true` |
 
-> El panel `/Admin` permite previsualizar cambios en memoria, pero **no** los guarda.
-> La fuente de verdad del contenido es `site-data.json`.
+Campos completos y reglas de negocio: `docs/DATABASE.md`.
 
-## Medios (`public/media/`)
+Detalles de campos que suelen confundir:
+
+- `whatsapp_numero` va **solo con dígitos**, sin `+` ni espacios (ej. `525548663656`).
+- La sección `#no-incluye` lee `informacion_servicios`, **no** `texto_no_incluye` (esta última
+  es histórica y no se muestra).
+- Si `proximamente_activo = false`, el cartel del hero no aparece aunque tenga contenido.
+- `portal_sugerible` en servicios y amenidades es lo que el portal ofrece en "ármalo".
+
+## Medios en el repo (`public/media/`)
 
 | Carpeta | Contenido | Origen |
 |---|---|---|
-| `img/` | 224 imágenes y videos | migrados de imgur |
-| `frames/` | 241 frames `frame-001.jpg` … `frame-241.jpg` | animación de scroll (migrada de Base44) |
-| `b44/` | `62261123a_VWSTYLEANUNCIO.jpg` | anuncio "Próximamente" (migrado de Base44) |
+| `img/` | 230 imágenes y videos | migrados de imgur |
+| `frames/` | `frame-001.jpg` … `frame-241.jpg` | animación de scroll |
+| `b44/` | anuncio "Próximamente" | migrado en FASE-01 |
 
-## Regenerar el snapshot (avanzado)
+Los videos del hero **ya están comprimidos**: no comprimirlos más.
 
-El snapshot se generó con [`scripts/build-media.mjs`](../scripts/build-media.mjs) a partir de los
-JSON crudos en [`scripts/raw/`](../scripts/raw). Ese script **descarga los medios** y **reescribe
-las URLs** a rutas locales, limpiando artefactos (p.ej. un `" ×"` que traían algunas URLs).
+## Regenerar `site-data.json` (avanzado, rara vez)
 
 ```bash
-node scripts/build-media.mjs
+node scripts/build-media.mjs   # DESCARGA ~570 MB de medios por red + genera site-data.json
+npm run build
 ```
 
-Solo es necesario si cambias los datos crudos de `scripts/raw/`. Para ediciones normales,
-edita directamente `src/data/site-data.json`.
+⚠️ `build-media.mjs` **no es un generador offline**: descarga los medios desde `i.imgur.com` y
+`media.base44.com`. Ese segundo origen es un CDN de Base44 que puede desaparecer sin aviso; si
+eso ocurre, `public/media/` versionado en git es la única copia.
+
+Esto **no cambia nada de lo que ve el visitante**: ese JSON no se importa en runtime. Solo sirve
+como entrada de `scripts/seed-supabase.mjs`, que tampoco toca la base — **genera
+`scripts/seed/*.sql`**, y esos `.sql` son los que se aplican aparte (histórico; no re-ejecutar a
+ciegas sobre datos vivos).
 
 ## El shim de datos
 
-[`src/api/base44Client.js`](../src/api/base44Client.js) expone la misma API que el SDK de Base44
-(`base44.entities.<Entidad>.list()/filter()/create()/update()/delete()`,
-`base44.functions.invoke()`, `base44.integrations.Core.UploadFile()`), pero sirviendo el snapshot
-local. Gracias a esto, **ningún componente tuvo que reescribirse** al quitar Base44.
+`src/api/base44Client.js` expone la misma API que tenía el SDK de Base44
+(`base44.entities.<Entidad>.list()/filter()/get()/create()/update()/delete()`,
+`base44.functions.invoke()`, `base44.integrations.Core.UploadFile()`), pero por dentro habla con
+Supabase y traduce camelCase ↔ snake_case. Gracias a eso **ningún componente tuvo que
+reescribirse**, ni al quitar Base44 ni al conectar la base real.
+
+Quien escribe decide RLS, no el front: si una escritura no aparece, casi siempre es una policy,
+no un bug de UI.
