@@ -1,8 +1,11 @@
 // api/cron-recordatorios.js — Vercel Cron (una vez al día, ver vercel.json).
 //
 // El asistente que no duerme:
-//  - Correo DIGEST al dueño: próximos 7 días, saldos pendientes, solicitudes
-//    estancadas, y eventos ya realizados sin reseña.
+//  - LIMPIEZA: borra la actividad del portal con más de 7 días (se borra, no se
+//    archiva) y reporta cuántas se fueron en el digest.
+//  - Correo DIGEST al dueño: solicitudes de las últimas 24 h, solicitudes que se
+//    enfrían, próximos 7 días, saldos pendientes, y eventos ya realizados sin
+//    reseña. Cada bloque dice QUÉ HACER, no solo el número.
 //  - Re-invitación de RESEÑA al cliente para eventos pasados sin reseña
 //    (idempotente vía eventos.resena_recordada).
 //
@@ -74,6 +77,7 @@ export default async function handler(req, res) {
   const hace2 = iso(new Date(hoy.getTime() - 2 * 86400000));
   const hace10 = iso(new Date(hoy.getTime() - 10 * 86400000));
   const hace3dias = new Date(hoy.getTime() - 3 * 86400000).toISOString();
+  const hace24h = new Date(hoy.getTime() - 86400000).toISOString();
 
   try {
     const [{ data: eventos }, { data: solicitudes }, { data: resenas }] = await Promise.all([
@@ -91,7 +95,11 @@ export default async function handler(req, res) {
     // Saldos pendientes (con fecha futura)
     const saldos = evs.filter((e) => Number(e.monto_total) > 0 && (Number(e.monto_total) - Number(e.anticipo_monto || 0)) > 0
       && e.fecha_evento && e.fecha_evento >= hoyStr && e.estatus !== "Cancelado");
-    // Solicitudes estancadas (Nueva > 3 días)
+    // Solicitudes NUEVAS de las últimas 24 h: trabajo que ENTRÓ.
+    // Es distinto de "estancadas" y por eso va en su propio bloque: una pide atención hoy,
+    // la otra lleva días enfriándose. Mezclarlas hacía que el dueño solo viera la segunda.
+    const recientes = (solicitudes || []).filter((s) => s.created_at >= hace24h);
+    // Solicitudes estancadas (Nueva > 3 días): trabajo que se está ENFRIANDO.
     const estancadas = (solicitudes || []).filter((s) => (s.estatus || "Nueva") === "Nueva" && s.created_at < hace3dias);
     // Eventos pasados (2–10 días) sin reseña y sin recordar
     const paraResena = evs.filter((e) => e.fecha_evento && e.fecha_evento >= hace10 && e.fecha_evento <= hace2
@@ -128,21 +136,42 @@ export default async function handler(req, res) {
     // 1) Digest al dueño (solo si hay algo que reportar)
     let digestEnviado = false;
     let digestOmitido = null;
-    if (proximos.length || saldos.length || estancadas.length || paraResena.length) {
-      const bloque = (titulo, items) => items.length
-        ? `<p style="margin:16px 0 6px 0;color:#E6C870;font-weight:bold;font-size:13px;">${titulo}</p>` +
+    if (recientes.length || proximos.length || saldos.length || estancadas.length || paraResena.length) {
+      /**
+       * Un bloque = título + QUÉ HACER + lista. La instrucción no es adorno: un número suelto
+       * ("3 solicitudes sin atender") no dice si hay que llamar, cobrar o esperar, y el dueño
+       * abre esto entre eventos.
+       */
+      const bloque = (titulo, quehacer, items) => items.length
+        ? `<p style="margin:18px 0 2px 0;color:#E6C870;font-weight:bold;font-size:13px;">${titulo}</p>` +
+          `<p style="margin:0 0 7px 0;color:#8a8a8a;font-size:11px;">${escHtml(quehacer)}</p>` +
           items.map((t) => `<p style="margin:0 0 4px 0;">• ${escHtml(t)}</p>`).join("")
         : "";
       const cuerpo =
-        bloque("📅 Próximos 7 días", proximos.map((e) => `${e.nombre_evento} — ${fecha(e.fecha_evento)}`)) +
-        bloque("💰 Saldos pendientes", saldos.map((e) => `${e.nombre_evento}: resta ${fmt(Number(e.monto_total) - Number(e.anticipo_monto || 0))} (${fecha(e.fecha_evento)})`)) +
-        bloque("🥶 Solicitudes sin atender", estancadas.map((s) => `${s.nombre_completo || "Sin nombre"} (lleva días en "Nueva")`)) +
-        bloque("⭐ Eventos sin reseña", paraResena.map((e) => `${e.nombre_evento} — les enviamos recordatorio de reseña`)) ||
+        bloque("🆕 Solicitudes de las últimas 24 h",
+          "Contéstalas hoy por WhatsApp y muévelas a «En proceso» en el panel.",
+          recientes.map((s) => `${s.nombre_completo || "Sin nombre"} — ${s.estatus || "Nueva"}`)) +
+        bloque("🥶 Solicitudes que se están enfriando",
+          "Llevan más de 3 días en «Nueva». Atiéndelas o márcalas «Descartada» para sacarlas de aquí.",
+          estancadas.map((s) => `${s.nombre_completo || "Sin nombre"} (lleva días en "Nueva")`)) +
+        bloque("📅 Próximos 7 días",
+          "Confirma montaje, personal y horarios con cada cliente.",
+          proximos.map((e) => `${e.nombre_evento} — ${fecha(e.fecha_evento)}`)) +
+        bloque("💰 Saldos pendientes",
+          "Cobra antes del evento: después es mucho más difícil.",
+          saldos.map((e) => `${e.nombre_evento}: resta ${fmt(Number(e.monto_total) - Number(e.anticipo_monto || 0))} (${fecha(e.fecha_evento)})`)) +
+        bloque("⭐ Eventos sin reseña",
+          "Ya les escribimos nosotros. Si conoces bien al cliente, un mensaje tuyo ayuda.",
+          paraResena.map((e) => `${e.nombre_evento} — les enviamos recordatorio de reseña`)) ||
         "<p>Todo en orden por hoy. 🎉</p>";
+      // Pie de mantenimiento: que la limpieza automática sea VISIBLE. Si algún día deja de
+      // correr, el dueño lo nota aquí en vez de descubrirlo con la tabla saturada.
+      const pieLimpieza = `<p style="margin:22px 0 0 0;padding-top:12px;border-top:1px solid #26262690;color:#6f6f6f;font-size:11px;">` +
+        `🧹 Limpieza automática: se borraron ${notifsBorradas} avisos de actividad con más de 7 días.</p>`;
       const html = plantillaOro({
         pretitulo: "Resumen del día",
         titulo: "Tu agenda de hoy",
-        cuerpoHtml: cuerpo,
+        cuerpoHtml: cuerpo + pieLimpieza,
         ctaTexto: "Abrir mi panel",
         ctaUrl: `${SITIO_URL}/${process.env.VITE_ADMIN_SLUG || "gestion-jch-9f27ax"}`,
         notaPie: "Resumen automático diario de Jardines Club Hípico.",
@@ -227,7 +256,7 @@ export default async function handler(req, res) {
 
     res.status(200).json({
       ok: true, digestEnviado, digestOmitido, resenasInvitadas, notifsBorradas,
-      proximos: proximos.length, saldos: saldos.length, estancadas: estancadas.length,
+      proximos: proximos.length, saldos: saldos.length, estancadas: estancadas.length, recientes: recientes.length,
       incidentes,
     });
   } catch (e) {

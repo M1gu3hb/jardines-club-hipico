@@ -539,6 +539,38 @@ for (const ruta of [
     /\.select\("id"\)/.test(limpieza) && /\(borradas \|\| \[\]\)\.length/.test(limpieza),
     limpieza ? "" : "no se encontró la limpieza",
   );
+  // El digest tiene que distinguir "entró hoy" de "se está enfriando": son dos cosas
+  // distintas y antes solo se reportaba la segunda, así que el dueño no veía el trabajo nuevo.
+  {
+    // Anclado a código, no a un comentario: `leerCodigo` los quita, así que `// 1) Digest`
+    // no existe en la cadena que se inspecciona y el recorte salía vacío.
+    const digest = entre(cron, "let digestEnviado = false;", "const claveDigest");
+    check(
+      "cron: el digest separa las solicitudes recientes de las estancadas",
+      /recientes\.map\(/.test(digest) && /estancadas\.map\(/.test(digest),
+      digest ? "" : "no se encontró el digest",
+    );
+    check(
+      "cron: `recientes` son las de las últimas 24 h, no todas",
+      /const recientes = \(solicitudes \|\| \[\]\)\.filter\([\s\S]*?created_at >= hace24h\)/.test(cron) &&
+        /const hace24h = new Date\(hoy\.getTime\(\) - 86400000\)/.test(cron),
+    );
+    check(
+      "cron: el digest se manda también cuando SOLO hay solicitudes recientes",
+      /if \(recientes\.length \|\|/.test(digest),
+      digest ? "" : "no se encontró el digest",
+    );
+    check(
+      "cron: cada bloque dice qué hacer, no solo el número",
+      /const bloque = \(titulo, quehacer, items\)/.test(digest) && /escHtml\(quehacer\)/.test(digest),
+      digest ? "" : "no se encontró el digest",
+    );
+    check(
+      "cron: el digest reporta cuántos avisos borró la limpieza",
+      /pieLimpieza[\s\S]*?\$\{notifsBorradas\}/.test(digest) && /cuerpo \+ pieLimpieza/.test(cron),
+      digest ? "" : "no se encontró el digest",
+    );
+  }
   check(
     "cron: la limpieza queda auditada en sus dos caminos",
     /auditar\(admin, "cron_limpieza_notificaciones", "ok"/.test(limpieza) &&
