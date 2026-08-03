@@ -37,18 +37,22 @@ plataforma. Base44 **ya no existe ni se usa**; solo sobrevive el nombre de un ar
 - Correos transaccionales por Gmail (Nodemailer) y un cron diario de recordatorios.
 - Deploy automático: push a `main` → Vercel.
 
-**Blindaje de seguridad (2026-08-01 → 2026-08-02):** 21 migraciones `jardines_sec_01..22`
+**Blindaje de seguridad (2026-08-01 → 2026-08-03):** 23 migraciones `jardines_sec_01..24`
 aplicadas en producción. Detalle completo en `docs/SEGURIDAD.md` y `docs/CHANGELOG.md`.
 
 **Estado formal: `ESPERANDO_VALIDACION_HUMANA_AUTENTICADA`.** El código está desplegado y
 verificado por pruebas automáticas, pero **no se declara CERRADO** hasta que Miguel confirme
 visualmente, con credenciales reales, los cinco flujos de §8.F. Es lo único que falta.
 
+- Panel → **Personal del evento**: asigna operativos a eventos, con el guardarraíl que impide
+  dejar a alguien sin acceso.
+- Panel → **Salones**: sube el plano real de cada salón, que es el lienzo del editor de mesas.
+
 **Incompleto / opcional:**
 
 - Carrusel de reseñas: depende de que existan reseñas aprobadas en `jardines.resenas`.
-- No hay pantalla para asignar personal a eventos (`operativo_asignacion` existe, sin UI).
-- No hay pantalla de "cambiar mi contraseña" dentro del portal.
+- No hay pantalla de "cambiar mi contraseña" dentro del portal (J-05).
+- `operativo_activo` no se maneja desde el panel: se enciende y apaga en la base (J-07).
 
 **Roto:** nada conocido.
 
@@ -154,7 +158,7 @@ Resumen (detalle en `docs/FILE_MAP.md`):
   crear-usuario-evento, canjear-acceso, cron-recordatorios.
 - `supabase/migrations/*.sql` — migraciones forward-only.
 - `supabase/tests/seguridad.sql` — 63 aserciones de seguridad.
-- `scripts/test-contratos-api.mjs` — 71 contratos frontend ↔ API.
+- `scripts/test-contratos-api.mjs` — 99 contratos frontend ↔ API.
 - `vercel.json` — rewrites SPA, cabeceras HTTP (CSP, HSTS…) y el cron.
 - `src/data/resenas.json` — **el único JSON vivo**: lo importa `src/components/Confianza.jsx`.
 - `src/data/site-data.json` — **no lo importa nadie** en `src/` ni en `api/`. Es solo la entrada
@@ -195,7 +199,7 @@ recargar, el panel ofrece "Generar nuevo enlace". Todas las validaciones pasan p
 > ⚠️ **Todos los correos enlazan al dominio de Vercel, no al propio.** `api/_lib/correo.js:5`
 > fija `SITIO_URL = "https://jardines-club-hipico.vercel.app"` como constante, sin leer ninguna
 > variable de entorno — igual que el logo embebido. Al conectar el dominio propio hay que
-> cambiarlo ahí también, o los correos seguirán apuntando al viejo. Ver `docs/BUGS_PENDING.md` (B8).
+> cambiarlo ahí también, o los correos seguirán apuntando al viejo. Ver `docs/BUGS_PENDING.md` (J-01).
 
 **F) Validación humana pendiente.** Miguel debe confirmar en pantalla, con credenciales reales:
 (1) alta de cliente, (2) enlace de primer acceso, (3) subir y abrir documentos, (4) aviso de
@@ -265,7 +269,17 @@ cuenta o IA. Se eliminaron los cuerpos obsoletos que aún describían la etapa e
 `docs/DATABASE.md` y `docs/PROMPTS.md`, y se reescribió `docs/FILE_MAP.md`, que llevaba
 sin actualizarse desde FASE-01.
 
-Estado del código: rama `claude/jardines-security-hardening-rkse8k`; `main` desplegado en
-producción con el blindaje `sec_01..22`. Estado formal:
-**`ESPERANDO_VALIDACION_HUMANA_AUTENTICADA`** (ver §8.F). Historial completo en
-`docs/CHANGELOG.md`.
+**2026-08-03 (bloque 6)** — Se cierra la red de pruebas. Una auditoría mutó los 16 contratos que
+añadió el bloque 5 y encontró **7 que no comprobaban lo que su nombre afirmaba** (3 vacuos, 1
+frágil, 2 propiedades sin contrato, 1 acoplado al formato), todos por el mismo patrón: un `grep`
+de identificador suelto sobre todo el archivo. Corregidos y validados **mutando la regresión real
+en el archivo real**; contratos **94 → 99**. La regla queda escrita en `CLAUDE.md`,
+`docs/PROMPTS.md` §9 y `docs/DECISIONS.md` D-COD-15. **Ningún cambio de producto, ninguna
+migración.** Se corrigió además la afirmación del bloque 5C en `docs/CHANGELOG.md`, que decía que
+los 16 se habían verificado mutando.
+
+Estado del código: rama `claude/jardines-security-hardening-rkse8k` (PR #5, **sin mergear** —
+`main` sigue desplegado sin los bloques 3–6). La base sí tiene ya `sec_01..24` aplicadas, porque
+es producción compartida. Batería: `lint` 0, `build` exit 0, `test:contratos` 99/99, `typecheck`
+59. Estado formal: **`ESPERANDO_VALIDACION_HUMANA_AUTENTICADA`** (ver §8.F). Historial completo
+en `docs/CHANGELOG.md`.

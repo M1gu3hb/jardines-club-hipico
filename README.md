@@ -25,7 +25,7 @@ npm run dev             # http://localhost:5173
 npm run build           # genera dist/
 npm run lint            # eslint
 npm run test:contratos  # contratos frontend ↔ api/ (estático, sin red)
-npm run typecheck       # 155 errores = línea base histórica; no debe subir
+npm run typecheck       # 59 errores = línea base actual; no debe subir
 npm run preview         # sirve dist/ localmente
 ```
 
@@ -43,11 +43,11 @@ npm run preview         # sirve dist/ localmente
 │   ├── canjear-acceso.js     # Canje del enlace de un solo uso (dos fases)
 │   └── cron-recordatorios.js # Digest diario (cron de Vercel)
 ├── supabase/
-│   ├── migrations/           # Migraciones forward-only (jardines_sec_01..22)
-│   └── tests/seguridad.sql   # 63 aserciones de seguridad
+│   ├── migrations/           # Migraciones forward-only (jardines_sec_01..24)
+│   └── tests/seguridad.sql   # Suite de seguridad (BEGIN/ROLLBACK, sin rastro)
 ├── public/media/             # img/ · frames/ (241) · b44/
 ├── scripts/
-│   ├── test-contratos-api.mjs  # 71 contratos frontend ↔ api/
+│   ├── test-contratos-api.mjs  # 99 contratos frontend ↔ api/
 │   ├── build-media.mjs         # DESCARGA ~570 MB de medios por red + genera site-data.json
 │   └── seed-supabase.mjs       # NO toca la base: genera scripts/seed/*.sql (histórico)
 ├── src/

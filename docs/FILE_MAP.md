@@ -66,9 +66,9 @@ sus items vienen de `MENU_ITEMS` en `Home.jsx`), `SoundToggle`, `soundSystem`, `
 
 - **`FormularioModal.jsx`** — riesgo **alto**: es el flujo de conversión. Tiene
   `ERRORES_VALIDACION` + `mensajeDeError()`, y **nunca muestra éxito sin folio del servidor**.
-- **Huérfanos (0 imports), no montados — son 4:** `Sidebar.jsx`, `HeroTrustBar.jsx`,
-  `FormularioSection.jsx`, `ItemImageOverlay.jsx`. `Sidebar` fue el menú lateral hasta que lo
-  sustituyó `StaggeredMenu`. Editar cualquiera de los cuatro no cambia nada en el sitio.
+- **Los 4 huérfanos se borraron** el 2026-08-03 (`Sidebar.jsx`, `HeroTrustBar.jsx`,
+  `FormularioSection.jsx`, `ItemImageOverlay.jsx`): 0 imports, y `Sidebar` inducía a error porque
+  parecía el menú. Están en el historial de git. El menú real es `StaggeredMenu`.
 - `components/ui/*` — primitivas shadcn/ui. No tocar salvo rediseño.
 
 ## `src/components/admin/` — panel
@@ -76,7 +76,11 @@ sus items vienen de `MENU_ITEMS` en `Home.jsx`), `SoundToggle`, `soundSystem`, `
 CMS: `AdminConfig`, `AdminSalones`, `AdminGaleria`, `AdminServicioItems`,
 `AdminAmenidadItems`, `AdminServicios`, `AdminAlimentos`, `AdminResenas`.
 Operación: `AdminInicio`, `AdminDashboard`, `AdminLogin`, `AdminSolicitudes`,
-`AdminAdministradores`.
+`AdminAdministradores`, y **`AdminOperativo.jsx`** — riesgo alto: asigna personal a eventos y
+**bloquea** apagar `acceso_global` a quien tenga 0 asignaciones, porque `operativo_eventos_permitidos`
+resuelve con un OR y dejarlo sin ninguna de las dos vías lo deja en 0 eventos.
+`SalonPlanoUpload.jsx` — sube el plano del salón al bucket `planos`; confirma cada escritura
+releyendo y borra el objeto anterior al reemplazar.
 
 `admin/eventos/`: `AdminEventos`, `EventoDatos`, `EventoFicha`, `EventoItems`, `EventoRsvps`,
 `_ui.jsx` (primitivas compartidas del módulo de eventos) y
@@ -114,15 +118,16 @@ scroll, D8). `hooks/useBackButtonClose.js`, `hooks/use-mobile.jsx`.
 
 ## `supabase/`
 
-- `migrations/*.sql` — 21 migraciones forward-only `jardines_sec_01..22`. **No reescribir las
+- `migrations/*.sql` — 23 migraciones forward-only `jardines_sec_01..24`. **No reescribir las
   aplicadas.**
-- `tests/seguridad.sql` — 63 aserciones en `BEGIN/ROLLBACK`, datos sintéticos con prefijo `sint-`.
+- `tests/seguridad.sql` — suite en `BEGIN/ROLLBACK`, datos sintéticos con prefijo `sint-`.
+  Desde `sec_23` prueba las RPC **vigentes** (`api_idem_*`, `canjear_acceso_*`), no las retiradas.
 
 ## `scripts/`
 
 | Archivo | Qué hace |
 |---|---|
-| `test-contratos-api.mjs` | **71 contratos estáticos** frontend ↔ `api/`. Sin red ni credenciales, así que **podría** correr en CI — pero no hay `.github/`: hoy se ejecuta a mano |
+| `test-contratos-api.mjs` | **99 contratos estáticos** frontend ↔ `api/`. Sin red ni credenciales, así que **podría** correr en CI — pero no hay `.github/`: hoy se ejecuta a mano |
 | `build-media.mjs` | **Descarga ~570 MB de medios por red** (`i.imgur.com`, `media.base44.com`) a `public/media/` y genera `src/data/site-data.json`. Idempotente, pero **no offline**: depende de un CDN de Base44 que puede desaparecer |
 | `seed-supabase.mjs` | **No toca la base.** Sin `supabase-js`, sin env, sin red: solo genera `scripts/seed/*.sql` (uno por tabla), que se aplican aparte. Histórico |
 | `raw/*.json` | Fuente de `site-data.json`. **Ya no es la fuente de verdad del sitio** |

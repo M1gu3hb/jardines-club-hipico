@@ -1,8 +1,8 @@
 import { useState, useEffect, useCallback } from "react";
 import { base44 } from "@/api/base44Client";
+import { tokenSeguro } from "@/lib/tokenSeguro";
 import { Loader2, Check, Share2, Copy, ExternalLink, Users, Shirt, MessageSquare, Sparkles } from "lucide-react";
 
-const nuevoToken = () => (crypto.randomUUID ? crypto.randomUUID() : "inv-" + Date.now() + Math.random().toString(36).slice(2));
 const invitacionUrl = (token) => `${window.location.origin}/invitacion/${token}`;
 
 /**
@@ -19,8 +19,9 @@ export default function PortalInvitacion({ evento }) {
   const [guardando, setGuardando] = useState(false);
   const [ok, setOk] = useState(false);
   const [copiado, setCopiado] = useState(false);
+  const [error, setError] = useState("");
   const [rsvps, setRsvps] = useState([]);
-  const set = (k, v) => { setForm((f) => ({ ...f, [k]: v })); setOk(false); };
+  const set = (k, v) => { setForm((f) => ({ ...f, [k]: v })); setOk(false); setError(""); };
 
   const cargarRsvps = useCallback(() => {
     base44.entities.Rsvp.filter({ eventoId: evento.id }, "-created_date").then(setRsvps).catch(() => {});
@@ -29,17 +30,25 @@ export default function PortalInvitacion({ evento }) {
 
   const guardar = async (activar) => {
     setGuardando(true);
-    const token = form.invitacionToken || nuevoToken();
-    const patch = {
-      invitacionToken: token,
-      invitacionActiva: activar !== undefined ? activar : !!form.invitacionActiva,
-      invitacionMensaje: form.invitacionMensaje || null,
-      invitacionDressCode: form.invitacionDressCode || null,
-    };
-    await base44.entities.Evento.update(evento.id, patch);
-    setForm((f) => ({ ...f, ...patch }));
-    setGuardando(false);
-    setOk(true);
+    setError("");
+    try {
+      // El token ES la credencial de /invitacion/<token>: se genera con WebCrypto
+      // y sin fallback. Ver src/lib/tokenSeguro.js.
+      const token = form.invitacionToken || tokenSeguro();
+      const patch = {
+        invitacionToken: token,
+        invitacionActiva: activar !== undefined ? activar : !!form.invitacionActiva,
+        invitacionMensaje: form.invitacionMensaje || null,
+        invitacionDressCode: form.invitacionDressCode || null,
+      };
+      await base44.entities.Evento.update(evento.id, patch);
+      setForm((f) => ({ ...f, ...patch }));
+      setOk(true);
+    } catch (e) {
+      setError(e?.message || "No se pudo guardar. Intenta de nuevo.");
+    } finally {
+      setGuardando(false);
+    }
   };
 
   const copiar = () => {
@@ -84,6 +93,7 @@ export default function PortalInvitacion({ evento }) {
             {activa ? "Guardar cambios" : "Crear y activar invitación"}
           </button>
           {ok && <span className="text-green-400/80 text-xs">Guardado ✓</span>}
+          {error && <span className="text-red-400/90 text-xs">{error}</span>}
         </div>
       </div>
 

@@ -142,7 +142,17 @@ que se hizo el seed inicial (histórico). **Si Supabase no responde, el sitio se
   señal server-side de que el usuario es de Jardines (para no crear perfiles a usuarios de Vero).
 
 ### SalonPlano → `salon_planos`
-- `salon_id` (CASCADE), `imagen_plano_url`, `ancho`, `alto`, `notas`. Lienzo del editor de mesas.
+- `salon_id` (CASCADE), `imagen_plano_url`, **`imagen_plano_path`**, `ancho`, `alto`, `notas`.
+  Lienzo del editor de mesas.
+- **Una fila por salón**, garantizado por `salon_planos_salon_id_uniq` (`sec_24`). Antes la regla
+  vivía solo en el estado de React, y como el shim devuelve `[]` cuando la lectura falla, un fallo
+  transitorio podía crear una segunda fila: con duplicados, `r[0]` es arbitrario y el panel podía
+  enseñar un plano mientras `MesaEditor` pintaba otro.
+- **`imagen_plano_path`** guarda la ruta del objeto en el bucket. Sin ella no se puede borrar el
+  archivo al reemplazar o quitar el plano — y el bucket es público con el listado cerrado, así que
+  el huérfano seguía descargable y sin forma de localizarlo.
+- `ancho`/`alto` son las medidas **reales** de la imagen: el editor los usa como `aspectRatio` y
+  las mesas se posicionan en `%` sobre ese lienzo. No escribir `null` encima de unas válidas.
 
 ### SolicitudEvento → `solicitudes`
 - **Propósito:** leads del formulario público. **Sí se guardan** (antes solo se mandaban por correo).
@@ -170,7 +180,9 @@ que se hizo el seed inicial (histórico). **Si Supabase no responde, el sitio se
 > tiene es la generación del enlace de meseros, que va por `rotar_staff_token`.
 
 - `operativo_asignacion`: `personal_id`, `evento_id`, `revocada_at`. **Sin UI**; hoy
-  los 3 operativos tienen `acceso_global = true` porque el salón opera un evento a la vez.
+  (**dato de producción al 2026-08-03, no un invariante**) los 3 operativos existentes tienen
+  `acceso_global = true` porque el salón opera un evento a la vez. `sec_18` opera sobre un
+  conjunto dinámico: si se dan de alta más operativos, este recuento cambia.
 - **Regla:** el evento del operativo **se deriva o se valida**; nunca se confía en el `p_evento`
   que manda el cliente (`operativo_ubicar`). Comportamiento **fail-closed** desde `sec_14`.
 
@@ -204,17 +216,16 @@ migraciones.
 Son todas las que `anon` puede ejecutar. Ninguna función de `jardines` tiene `EXECUTE` para
 `PUBLIC` (`sec_11`).
 
-**1a. Abiertas al público** — no piden nada previo; se protegen con rate limit por IP y error
-genérico:
+**1a. Abiertas al público (3)** — no piden nada previo; se protegen con rate limit por IP y
+error genérico:
 
 | RPC | Para qué |
 |---|---|
 | `solicitud_crear` | Formulario de cotización (`sec_13` le dio el grant) |
 | `rsvp_crear` | RSVP desde la invitación |
 | `info_invitacion_publica` | Leer una invitación por su token |
-| `info_mesa_token` | Leer una mesa presentando token de staff **y** de mesa |
 
-**1b. Exigen además un token de staff válido** — el grant es el mismo (`anon`), porque **el
+**1b. Exigen además un token de staff válido (5)** — el grant es el mismo (`anon`), porque **el
 staff opera sin sesión, con el token en la URL del QR**. Todas resuelven el token por
 `jardines_private.evento_por_staff()`, con rate limit y la **misma** respuesta genérica para
 inexistente, expirado, revocado o bloqueado:
@@ -225,6 +236,7 @@ inexistente, expirado, revocado o bloqueado:
 | `registrar_acceso_staff` | Registrar entrada de invitados |
 | `registrar_llegada_mesa` | Marcar la llegada de una mesa |
 | `progreso_mesas_staff` | Progreso del evento para el staff |
+| `info_mesa_token` | Leer una mesa. Pide token de staff **y** de mesa: su primera instrucción es `evento_por_staff(p_staff)` (`sec_04`) |
 
 > El comportamiento de 1b es correcto: sin token válido no devuelven nada útil. Lo que hay que
 > tener presente al auditar es que **el grant no las distingue de 1a**: si `evento_por_staff`
@@ -249,36 +261,35 @@ inexistente, expirado, revocado o bloqueado:
 se puede llamar), `canjear_acceso_iniciar`, `canjear_acceso_confirmar`, `canjear_acceso_liberar`,
 `api_rate_limit`, `api_idem_iniciar`, `api_idem_cerrar`, `api_auditar`.
 
-**Residuales en este nivel, sin llamadores** (ver §D.bis): `info_mesa_publica`,
-`api_idempotencia`, `canjear_acceso_unico`.
+(Las tres residuales que había aquí — `info_mesa_publica`, `api_idempotencia` y
+`canjear_acceso_unico` — se **retiraron** en `sec_23`. Ver §D.bis.)
 
 **Funciones de trigger**, también en este nivel pero no invocables desde la Data API porque
 `anon` y `authenticated` no tienen su `EXECUTE`: `handle_new_user` (en `auth.users`,
 **compartido con Vero**), `solicitud_saneo`, `resena_moderacion`, `auditar_cambio_operativo`.
 
-## D.bis Funciones vivas sin llamadores (deuda)
+## D.bis Retiro de las 3 RPC residuales (`sec_23`, 2026-08-03)
 
-Tres funciones siguen en la base con `EXECUTE` para `service_role` y **cero llamadores**. No son
-alcanzables desde el navegador, así que no son un agujero hoy; el riesgo es que sigan ahí y
-alguien las reactive o las tome por vigentes.
+Tres funciones seguían en la base con `EXECUTE` para `service_role` y **cero llamadores**.
+No eran alcanzables desde el navegador, así que no eran un agujero — el riesgo era que alguien
+las reactivara o las tomara por vigentes. **Ya no existen.**
 
-| Función | Estado | Por qué importa |
+| Retirada | La sustituyó | Por qué importaba |
 |---|---|---|
-| `info_mesa_publica` | Revocada de `PUBLIC`/`anon`/`authenticated` (`sec_06`, `sec_17`) | Su cuerpo **no** tiene rate limit ni error genérico: devuelve mesa, evento, fecha, salón y tipo con solo presentar el token. Devolverle el `EXECUTE` a `anon` reabriría la enumeración que cerró `sec_06`. La vía viva y protegida es `info_mesa_token` |
-| `api_idempotencia` | Sustituida por `api_idem_iniciar`/`api_idem_cerrar` (`sec_19`) | Es la idempotencia **no recuperable**: consume la clave antes de saber si la operación salió bien. Usarla por error reintroduce el fallo que corrigió `sec_19` |
-| `canjear_acceso_unico` | Sustituida por el canje en dos fases (`sec_16` → `sec_19`) | Quema el token en un solo paso: si falla la generación del OTP, el cliente se queda fuera sin poder reintentar |
+| `info_mesa_publica(text)` | `info_mesa_token(text, text)` | Su cuerpo **no** tenía rate limit ni error genérico: devolvía mesa, evento, fecha, salón y tipo con solo presentar el token. Devolverle el `EXECUTE` a `anon` habría reabierto la enumeración que cerró `sec_06` |
+| `api_idempotencia(text, text, integer)` | `api_idem_iniciar` / `api_idem_cerrar` (`sec_19`) | Idempotencia **no recuperable**: consumía la clave antes de saber si la operación había salido bien, así que un fallo transitorio perdía el aviso para siempre |
+| `canjear_acceso_unico(text)` | `canjear_acceso_iniciar` / `_confirmar` / `_liberar` (`sec_19`) | Quemaba el token en un solo paso: si fallaba el OTP, el cliente se quedaba fuera sin poder reintentar |
 
-**Además, `supabase/tests/seguridad.sql` prueba las versiones viejas, no las vigentes.** La
-idempotencia recuperable y el canje en dos fases solo están cubiertos por las comprobaciones
-textuales de `scripts/test-contratos-api.mjs`. Ver `docs/BUGS_PENDING.md` (B6).
+**Verificado antes de aplicar:** 0 llamadores en `src/`, `api/` y `scripts/`; 0 referencias en
+toda la base (funciones, vistas, policies, triggers, defaults y constraints), **incluido el
+schema `public` de Vero**; y `EXECUTE` exactamente `postgres, service_role`. La migración lleva
+esas tres precondiciones dentro y **falla sin tocar nada** si alguna no se cumple. Se ensayó en
+`BEGIN/ROLLBACK` antes de aplicarla de verdad. Sin `cascade`.
 
-> El `DROP` de las tres está pendiente y **no** se ha escrito: la base es producción compartida
-> y hay que verificar contra ella que nadie las llama antes de retirarlas.
-
-> Toda función `SECURITY DEFINER` usa `search_path = ''` y nombres completamente calificados
-> (`sec_17`). Ninguna tiene `EXECUTE` para `PUBLIC` (`sec_11`).
-
----
+**Y `supabase/tests/seguridad.sql` ya prueba las vigentes**, no las retiradas: hasta `sec_23`
+comprobaba `api_idempotencia` y `canjear_acceso_unico`, así que la idempotencia recuperable y el
+canje en dos fases —lo más delicado de `sec_19`— solo estaban cubiertos por comprobaciones
+textuales. Ese hueco quedó cerrado (ver `docs/CHANGELOG.md`, bloque 3).
 
 ## E. Storage
 
@@ -295,7 +306,7 @@ textuales de `scripts/test-contratos-api.mjs`. Ver `docs/BUGS_PENDING.md` (B6).
 ## F. Migraciones
 
 Forward-only, en `supabase/migrations/`, nombradas
-`<timestamp>_jardines_sec_NN_<tema>.sql`. **21 aplicadas en producción** (`sec_01`…`sec_22`;
+`<timestamp>_jardines_sec_NN_<tema>.sql`. **23 aplicadas en producción** (`sec_01`…`sec_24`;
 no existe `sec_10`: se planeó como archivo `.noapply` y su contenido acabó en `sec_20`).
 
 | # | Tema |
@@ -321,6 +332,8 @@ no existe `sec_10`: se planeó como archivo `.noapply` y su contenido acabó en 
 | 20 | **Retiro de `eventos.staff_token` en claro** |
 | 21 | Retiro del INSERT público de compatibilidad |
 | 22 | Limpieza del único perfil cruzado con Vero |
+| 23 | **Retiro de las 3 RPC residuales** superadas por `sec_19` y `sec_06`/`sec_17` |
+| 24 | `salon_planos`: índice único por salón + `imagen_plano_path` |
 
 **Regla de despliegue:** la base es producción compartida. Primero lo **aditivo**, luego se
 despliega el frontend, y **solo entonces** se retira lo viejo. Ver `docs/SEGURIDAD.md` §8.bis.
@@ -348,5 +361,6 @@ revoke insert, update, delete on jardines.nueva from anon;
 
 ## H. Pruebas
 
-`supabase/tests/seguridad.sql` — 63 aserciones dentro de `BEGIN/ROLLBACK` (no deja rastro).
+`supabase/tests/seguridad.sql` — suite dentro de `BEGIN/ROLLBACK` (no deja rastro). Desde
+`sec_23` prueba las RPC **vigentes**, no las retiradas.
 Los datos sintéticos van con prefijo `sint-`.

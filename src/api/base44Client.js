@@ -22,6 +22,7 @@ const TABLES = {
   ServicioExtra: "servicios_extra",
   AlimentoMenu: "alimentos",
   SolicitudEvento: "solicitudes",
+  OperativoPersonal: "operativo_personal",
   ResenasConfig: "resenas_config",
   Resena: "resenas",
   Evento: "eventos",
@@ -85,6 +86,25 @@ function makeEntity(name) {
   return {
     async list(sort) { return runQuery(table, { sort }); },
     async filter(filter, sort) { return runQuery(table, { sort, filter }); },
+    /**
+     * Como `filter`, pero **propaga el error** en vez de devolver `[]`.
+     *
+     * `runQuery` devuelve `[]` tanto cuando no hay filas como cuando la lectura
+     * falla, y ese `[]` ambiguo es el bug J-02. Da igual en una lista que se
+     * pinta; es peligroso cuando la lectura se usa para **decidir**: confirmar
+     * que una escritura cuajó, o contar si alguien se queda sin acceso. Ahí un
+     * fallo de red disfrazado de "no hay nada" lleva a destruir datos.
+     *
+     * No sustituye a `filter`: es aditivo, para las lecturas que deciden.
+     */
+    async filterEstricto(filter, sort) {
+      let q = supabase.from(table).select("*");
+      if (filter) for (const k in filter) q = q.eq(toSnake(k), filter[k]);
+      if (sort) { const { col, ascending } = sortColumn(sort); q = q.order(col, { ascending, nullsFirst: false }); }
+      const { data, error } = await q;
+      if (error) { console.error("[shim] filterEstricto", table, error.message); throw error; }
+      return (data || []).map(rowToObj);
+    },
     async get(id) { const { data } = await supabase.from(table).select("*").eq("id", id).maybeSingle(); return rowToObj(data); },
     async create(data) {
       // Las solicitudes del formulario público ya no se insertan directo: pasan por
@@ -125,7 +145,28 @@ function makeEntity(name) {
   };
 }
 
-const entities = new Proxy({}, {
+/**
+ * Acceso por nombre de entidad. Es un Proxy: cualquier `base44.entities.X` crea
+ * su entidad al vuelo con `makeEntity(X)`.
+ *
+ * El `@type` no cambia nada en runtime — existe para que `npm run typecheck`
+ * entienda el Proxy. Sin él, `tsc` tipa el objeto base como `{}` y marca un
+ * TS2339 ("Property 'Salon' does not exist") por **cada** uso del shim en todo
+ * el proyecto: ese patrón era la mayor parte de la línea base de 155 errores, y
+ * cada componente nuevo que hablara con la base sumaba más.
+ *
+ * Se tipa con `keyof typeof TABLES`, **no** con `Record<string, …>`. Con `string`
+ * cualquier nombre valía, así que un typo — `base44.entities.Salones` — pasaba el
+ * `typecheck` y en runtime tampoco fallaba: `makeEntity` cae a `toSnake(nombre)`,
+ * consulta una tabla inexistente y `runQuery` devuelve `[]` ante el error. Es decir,
+ * un typo de entidad daba **una lista vacía en silencio**. Con `keyof` da TS2339.
+ *
+ * El `{}` inicial no satisface el `Record`, de ahí el cast en el argumento del
+ * Proxy: se relaja el objeto vacío de arranque, no el tipo del resultado.
+ *
+ * @type {Record<keyof typeof TABLES, ReturnType<typeof makeEntity>>}
+ */
+const entities = new Proxy(/** @type {any} */ ({}), {
   get(target, prop) {
     if (typeof prop !== "string") return undefined;
     if (!target[prop]) target[prop] = makeEntity(prop);
@@ -188,6 +229,59 @@ const functions = {
 };
 
 // Storage genérico (para el bucket privado `clientes` de documentos del evento).
+/**
+ * Asignaciones persona ↔ evento del módulo operativo.
+ *
+ * Va aparte de `entities` porque `jardines.operativo_asignacion` tiene **clave
+ * primaria compuesta** `(personal_id, evento_id)` y **no tiene columna `id`**,
+ * mientras que `makeEntity` asume `id` en `create`, `update` y `delete`. Es
+ * aditivo: no cambia ninguna firma existente del shim.
+ *
+ * Revocar es poner `revocada_at`, **nunca** `DELETE`: la tabla conserva historial
+ * y `operativo_eventos_permitidos()` filtra por `revocada_at is null`.
+ */
+const asignaciones = {
+  /** Asignaciones vigentes (o todas, con `incluirRevocadas`). */
+  async listar({ incluirRevocadas = false } = {}) {
+    let q = supabase.from("operativo_asignacion").select("*");
+    if (!incluirRevocadas) q = q.is("revocada_at", null);
+    const { data, error } = await q;
+    if (error) { console.error("[shim] asignaciones.listar", error.message); throw error; }
+    return (data || []).map(rowToObj);
+  },
+
+  /**
+   * Asigna a una persona a un evento. Idempotente: si la fila ya existe —
+   * porque se asignó y luego se revocó— se reactiva poniendo `revocada_at` a
+   * null, en vez de chocar con la PK compuesta.
+   */
+  async asignar(personalId, eventoId) {
+    const { error } = await supabase
+      .from("operativo_asignacion")
+      .insert({ personal_id: personalId, evento_id: eventoId });
+    if (error) {
+      const yaExiste = /duplicate key|operativo_asignacion_pkey|23505/i.test(error.message || "");
+      if (!yaExiste) { console.error("[shim] asignar", error.message); throw error; }
+      const { error: errUpd } = await supabase
+        .from("operativo_asignacion")
+        .update({ revocada_at: null })
+        .eq("personal_id", personalId).eq("evento_id", eventoId);
+      if (errUpd) { console.error("[shim] reactivar asignacion", errUpd.message); throw errUpd; }
+    }
+    return { success: true };
+  },
+
+  /** Revoca (marca `revocada_at`). No borra la fila. */
+  async revocar(personalId, eventoId) {
+    const { error } = await supabase
+      .from("operativo_asignacion")
+      .update({ revocada_at: new Date().toISOString() })
+      .eq("personal_id", personalId).eq("evento_id", eventoId);
+    if (error) { console.error("[shim] revocar asignacion", error.message); throw error; }
+    return { success: true };
+  },
+};
+
 const storage = {
   async upload(bucket, file, folder = "") {
     const ext = (file.name.split(".").pop() || "bin").toLowerCase();
@@ -201,10 +295,32 @@ const storage = {
     if (error) throw error;
     return data.signedUrl;
   },
+  /**
+   * Borra un objeto. Distingue "borró" de "no borró nada".
+   *
+   * La Storage API devuelve **200 con lista vacía y sin `error`** cuando una
+   * policy deniega el borrado, así que mirar solo `error` hacía que un borrado
+   * denegado pasara por éxito y el fallo fuera mudo. Se devuelve `borrado` para
+   * que el llamador pueda decidir.
+   */
   async remove(bucket, path) {
-    const { error } = await supabase.storage.from(bucket).remove([path]);
+    const { data, error } = await supabase.storage.from(bucket).remove([path]);
     if (error) throw error;
-    return { success: true };
+    return { success: true, borrado: Array.isArray(data) && data.length > 0 };
+  },
+  /**
+   * URL pública de un objeto en un bucket PÚBLICO (`planos`, `sitio`).
+   *
+   * Aditivo: no cambia ninguna firma existente del shim. Hacía falta porque
+   * `integrations.Core.UploadFile` está cableado al bucket `sitio` y los planos
+   * van a `planos`, que tiene sus propios límites (10 MB, imágenes sin SVG).
+   *
+   * En un bucket público la descarga por `/object/public/...` no necesita policy
+   * de `SELECT`, así que esto no requiere sesión ni firma.
+   */
+  publicUrl(bucket, path) {
+    const { data } = supabase.storage.from(bucket).getPublicUrl(path);
+    return data.publicUrl;
   },
 };
 
@@ -255,5 +371,5 @@ async function rpc(name, params = {}) {
   return data;
 }
 
-export const base44 = { entities, functions, integrations, storage, auth, rpc };
+export const base44 = { entities, functions, integrations, storage, asignaciones, auth, rpc };
 export default base44;

@@ -256,6 +256,10 @@ export function generico(res, status) {
     413: "Solicitud demasiado grande",
     429: "Demasiadas solicitudes. Intenta más tarde.",
     500: "Error del servidor",
+    // 503 es transitorio: el mensaje tiene que invitar a reintentar. Sin esta
+    // entrada, el cliente que estrena su enlace de primer acceso veía "Error"
+    // a secas y no sabía que volver a intentarlo servía de algo.
+    503: "Servicio no disponible. Intenta de nuevo en un momento.",
   }[status] || "Error";
   res.status(status).json({ error: msg });
 }

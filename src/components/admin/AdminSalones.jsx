@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import { base44 } from "@/api/base44Client";
 import { Plus, Pencil, Trash2, Loader2, Upload, X, Check, ChevronUp, ChevronDown } from "lucide-react";
+import SalonPlanoUpload from "./SalonPlanoUpload";
 
 export default function AdminSalones() {
   const [salones, setSalones] = useState([]);
@@ -196,6 +197,18 @@ export default function AdminSalones() {
                 {form.activo && <Check size={10} className="text-black" />}
               </button>
               <span className="text-white/40 text-sm">Visible en el sitio</span>
+            </div>
+
+            {/* El plano es del SALÓN, no del evento: por eso vive aquí y no en el
+                módulo de eventos. Se guarda solo (no depende de "Guardar"). */}
+            <div className="pt-4 border-t border-white/5">
+              {/* `key` por salón: sin él, al pasar de un salón a otro el
+                  componente no se desmonta y arrastra el plano del anterior. */}
+              <SalonPlanoUpload
+                key={editing !== "new" ? editing?.id : "new"}
+                salonId={editing !== "new" ? editing?.id : null}
+                salonNombre={form.nombre}
+              />
             </div>
           </div>
           <div className="flex gap-3 mt-5">

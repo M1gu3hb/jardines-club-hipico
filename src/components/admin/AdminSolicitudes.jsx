@@ -40,11 +40,11 @@ export default function AdminSolicitudes() {
           </thead>
           <tbody>
             {solicitudes.map((s) => {
-              const fechaRecibida = s.fechaEnvio || (s.created_date
-                ? new Date(s.created_date).toLocaleDateString("es-MX", { day: "2-digit", month: "2-digit", year: "numeric" })
+              const fechaRecibida = s.fechaEnvio || (s.createdAt
+                ? new Date(s.createdAt).toLocaleDateString("es-MX", { day: "2-digit", month: "2-digit", year: "numeric" })
                 : "—");
-              const horaRecibida = s.horaEnvio || (s.created_date
-                ? new Date(s.created_date).toLocaleTimeString("es-MX", { hour: "2-digit", minute: "2-digit", hour12: false })
+              const horaRecibida = s.horaEnvio || (s.createdAt
+                ? new Date(s.createdAt).toLocaleTimeString("es-MX", { hour: "2-digit", minute: "2-digit", hour12: false })
                 : "—");
               return (
               <tr key={s.id} className="border-b border-white/5 hover:bg-white/2 transition-colors">
@@ -99,8 +99,8 @@ export default function AdminSolicitudes() {
             <div className="p-6 space-y-6">
               <Group title="Identificación">
                 <Row label="Folio" value={selected.folio || selected.id?.slice(-6).toUpperCase()} />
-                <Row label="Fecha de envío" value={selected.fechaEnvio || (selected.created_date ? new Date(selected.created_date).toLocaleDateString("es-MX", { day: "2-digit", month: "2-digit", year: "numeric" }) : "—")} />
-                <Row label="Hora de envío" value={selected.horaEnvio || (selected.created_date ? new Date(selected.created_date).toLocaleTimeString("es-MX", { hour: "2-digit", minute: "2-digit", hour12: false }) : "—")} />
+                <Row label="Fecha de envío" value={selected.fechaEnvio || (selected.createdAt ? new Date(selected.createdAt).toLocaleDateString("es-MX", { day: "2-digit", month: "2-digit", year: "numeric" }) : "—")} />
+                <Row label="Hora de envío" value={selected.horaEnvio || (selected.createdAt ? new Date(selected.createdAt).toLocaleTimeString("es-MX", { hour: "2-digit", minute: "2-digit", hour12: false }) : "—")} />
               </Group>
               <Group title="Salón" icon={Building2}>
                 <Row label="Salón" value={selected.salonSeleccionado} />

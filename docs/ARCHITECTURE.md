@@ -129,8 +129,8 @@ prefiere un correo duplicado a un correo perdido. Está documentado en la cabece
   scripts o estilos en línea — su valor real hoy es acotar los *orígenes* (`connect-src`,
   `img-src`, `frame-ancestors`), no bloquear inline. Quitarlo exige eliminar los estilos y
   scripts en línea que quedan; no está hecho.
-- `img-src` autoriza `i.imgur.com` **solo** por la línea del JSON-LD de `index.html`
-  (ver `docs/BUGS_PENDING.md` B7).
+- `img-src` ya **no** autoriza `i.imgur.com`: el JSON-LD apunta a la copia auto-hospedada
+  desde el 2026-08-03. El único origen externo que queda es Google Fonts.
 - `/api/*`: `Cache-Control: no-store`.
 
 Si agregas un origen externo (fuente, CDN, imagen), **hay que declararlo en la CSP** o el
@@ -158,8 +158,8 @@ navegador lo bloqueará en producción sin avisar en local.
 ```bash
 npm run lint            # eslint flat config, con no-undef ACTIVO
 npm run build           # vite build
-npm run test:contratos  # 71 contratos estáticos frontend ↔ api/
-npm run typecheck       # 155 errores = línea base histórica; no debe subir
+npm run test:contratos  # 99 contratos estáticos frontend ↔ api/
+npm run typecheck       # 59 errores = línea base actual; no debe subir
 ```
 
 Dos suites existen por fallos reales:

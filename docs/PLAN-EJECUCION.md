@@ -63,10 +63,12 @@ Firmas que consumen los componentes (NO cambian):
 - `/Admin`: `src/pages/Admin.jsx` con login por `sessionStorage` y credenciales fijas en el
   código → `AdminDashboard` con tabs (`AdminConfig, AdminSalones, AdminServicios,
   AdminServicioItems, AdminAmenidadItems, AdminGaleria, AdminAlimentos, AdminSolicitudes`).
-- Nav de secciones: `src/components/Sidebar.jsx` (`navItems`), scroll a `#id`.
+- Nav de secciones: `src/components/Sidebar.jsx` (`navItems`), scroll a `#id`. *(Ese archivo se
+  borró el 2026-08-03; el menú real es `StaggeredMenu`.)*
 
 **Cómo quedó:** el login fijo se eliminó (hoy es Supabase Auth + rol + ruta secreta), `/Admin`
-devuelve 404, y `Sidebar.jsx` lo sustituyó `StaggeredMenu` — quedó huérfano. Estado real en
+devuelve 404, y a `Sidebar.jsx` lo sustituyó `StaggeredMenu` — quedó huérfano y **se borró**.
+Estado real en
 `docs/MAPA.md` y `docs/FILE_MAP.md`.
 
 ## Riesgos / notas

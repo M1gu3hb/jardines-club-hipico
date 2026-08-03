@@ -29,6 +29,36 @@ const leerCodigo = (p) =>
 const casos = [];
 const check = (nombre, ok, detalle = "") => casos.push({ nombre, ok, detalle });
 
+/**
+ * Recorta el trozo de código que va de `desde` a `hasta` (excluido).
+ *
+ * MÉTODO — leer antes de escribir un contrato nuevo. Buscar un identificador
+ * suelto sobre TODO el archivo no comprueba nada si ese identificador aparece en
+ * más de un sitio: borrar el uso que importa deja vivos los demás y el contrato
+ * pasa igual. Ya ocurrió cuatro veces en esta suite (`idsActivos`, `inertesDe`,
+ * `ocupadaPersona`, `imagenPlanoPath`). Hay que atar la afirmación al uso concreto
+ * —la definición, la escritura, el render, el `disabled`— y validarla reintroduciendo
+ * la regresión real en el archivo real. Ver `docs/PROMPTS.md` §9.
+ */
+const entre = (s, desde, hasta) => {
+  const i = s.indexOf(desde);
+  if (i < 0) return "";
+  const j = s.indexOf(hasta, i + desde.length);
+  return j < 0 ? s.slice(i) : s.slice(i, j);
+};
+
+/**
+ * ¿La rama que abre `cond` corta con un `throw` **antes** de llegar a `limite`?
+ * Se afirma sobre el ORDEN, no sobre la distancia en caracteres: "el texto X está
+ * a menos de 400 caracteres de Y" no dice nada sobre si uno gobierna al otro.
+ */
+const cortaAntesDe = (cuerpo, cond, limite) => {
+  const i = cuerpo.indexOf(cond);
+  if (i < 0) return false;
+  const t = cuerpo.indexOf("throw", i);
+  return t > i && limite > t;
+};
+
 // ---------------------------------------------------------------- notificar
 {
   const front = leer("src/lib/notificar.js");
@@ -129,6 +159,37 @@ for (const ruta of ["api/crear-admin.js", "api/crear-usuario-evento.js"]) {
   check(`${ruta}: usa enlace de un solo uso`, /crear_acceso_unico/.test(s));
 }
 
+// ---------------------------------------------------------------- corte por idempotencia
+// El corte en `duplicado` tiene que devolver la MISMA FORMA que el camino de
+// éxito. Cuando no lo hacía, el panel escribía `usuario: undefined` en el estado
+// del evento y volvía a pedir credenciales para un evento que ya las tenía.
+{
+  const api = leerCodigo("api/crear-usuario-evento.js");
+  const front = leer("src/components/admin/eventos/EventoDatos.jsx");
+  check(
+    "crear-usuario-evento: el corte por duplicado devuelve la identidad",
+    /duplicado: true, userId: ev\.auth_user_id, usuario: ev\.usuario/.test(api),
+  );
+  check(
+    "crear-usuario-evento: la identidad se relee de la fila, no del cuerpo",
+    /from\("eventos"\)[\s\S]{0,120}auth_user_id/.test(api),
+  );
+  check("EventoDatos: distingue duplicado antes de dar por creadas", /r\.duplicado/.test(front));
+}
+{
+  const api = leerCodigo("api/crear-admin.js");
+  const front = leer("src/components/admin/AdminAdministradores.jsx");
+  check("crear-admin: el corte por duplicado no inventa correoEnviado",
+    /duplicado: true, userId/.test(api) && !/duplicado: true, correoEnviado/.test(api));
+  check("AdminAdministradores: distingue duplicado", /r\.duplicado/.test(front));
+}
+// Las dos rutas de ALTA responden 429 en `en_curso` (no 200 como las de correo):
+// un alta en vuelo todavía puede fallar y compensarse.
+for (const ruta of ["api/crear-admin.js", "api/crear-usuario-evento.js"]) {
+  const s = leerCodigo(ruta);
+  check(`${ruta}: en_curso responde 429, no 200`, /idem === "en_curso"\) return generico\(res, 429\)/.test(s));
+}
+
 // ---------------------------------------------------------------- errores de supabase-js
 // supabase-js resuelve con { error } en vez de rechazar: `.catch()` no atrapa nada.
 for (const ruta of [
@@ -168,6 +229,179 @@ for (const ruta of [
   check("cron: no marca resena_recordada sin confirmar", /cierre_incompleto/.test(s));
   const doc = leer("api/cron-recordatorios.js");
   check("cron: documenta semantica at-least-once", /AT-LEAST-ONCE/.test(doc));
+}
+
+// ---------------------------------------------------------------- plano del salón
+// Los fallos que ya ocurrieron: el rollback borraba el archivo de una escritura
+// que sí había cuajado, porque la relectura no distinguía "no hay fila" de "la
+// lectura falló".
+{
+  const s = leerCodigo("src/components/admin/SalonPlanoUpload.jsx");
+  const cConfirmar = entre(s, "const confirmar = async", "const borrarObjeto");
+  const cSubir = entre(s, "const subir = async", "const quitar = async");
+  const cQuitar = entre(s, "const quitar = async", "if (!salonId)");
+
+  // `confirmar()` tiene que devolver los TRES estados. Se comprueba dentro de su
+  // cuerpo, no en todo el archivo: si no, cualquier literal suelto lo daría por
+  // bueno.
+  check(
+    "plano: la confirmación distingue tres estados, no dos",
+    /"si"/.test(cConfirmar) && /"no"/.test(cConfirmar) && /"desconocido"/.test(cConfirmar),
+    cConfirmar ? "" : "no se encontró confirmar()",
+  );
+  check(
+    "plano: la confirmación lee con filterEstricto, no con el filter que devuelve []",
+    /filterEstricto\(/.test(cConfirmar) && !/SalonPlano\.filter\(/.test(s),
+    cConfirmar ? "" : "no se encontró confirmar()",
+  );
+
+  // Orden dentro de `subir`, no distancia: la rama "desconocido" tiene que
+  // desarmar el rollback (`subidoPath = null`) y ENTONCES cortar, antes de que el
+  // `catch` llegue a `borrarObjeto`. Si el `throw` va primero, el archivo de una
+  // escritura que sí cuajó se borra igual.
+  {
+    const iDesc = cSubir.indexOf('post.estado === "desconocido"');
+    const rama = iDesc < 0 ? "" : cSubir.slice(iDesc);
+    const iNull = rama.indexOf("subidoPath = null");
+    const iThrow = rama.indexOf("throw");
+    check(
+      'plano: con "desconocido" NO se hace rollback',
+      iDesc >= 0 && iNull >= 0 && iThrow > iNull,
+      iDesc < 0
+        ? "subir() no distingue el estado desconocido"
+        : "el rollback no se desarma antes de cortar",
+    );
+  }
+
+  // Lo que evita el desastre en `quitar` son las DOS guardas, no que la llamada a
+  // `confirmar()` esté cerca de `borrarObjeto`: dejando la llamada y quitando las
+  // guardas, el archivo se borra pase lo que pase con la fila.
+  {
+    const iBorrar = cQuitar.indexOf("borrarObjeto(");
+    const limite = iBorrar < 0 ? -1 : iBorrar;
+    check(
+      'plano: quitar corta con "desconocido" antes de tocar el bucket',
+      cortaAntesDe(cQuitar, 'post.estado === "desconocido"', limite),
+      cQuitar ? "" : "no se encontró quitar()",
+    );
+    check(
+      "plano: quitar corta si la fila sigue viva",
+      cortaAntesDe(cQuitar, 'post.estado === "si"', limite),
+      cQuitar ? "" : "no se encontró quitar()",
+    );
+  }
+
+  // Atado a la ESCRITURA. El identificador sobrevive en las dos lecturas
+  // (`actual?.imagenPlanoPath`, `plano.imagenPlanoPath`), que son justo las que no
+  // importan: sin el path en `datos` cada reemplazo deja un huérfano público sin asa,
+  // y con `/imagenPlanoPath/` a secas quitarlo de la escritura pasaba 94/94.
+  check(
+    "plano: el path se ESCRIBE en la fila (si no, el huérfano no se puede limpiar)",
+    /const\s+datos\s*=\s*\{[^}]*imagenPlanoPath\s*:/.test(s),
+  );
+  // Tolerante al espaciado: partir el mismo `if` en tres líneas no cambia la lógica.
+  check(
+    "plano: no se escriben medidas nulas sobre unas válidas",
+    /if\s*\(\s*medidas\s*\)\s*\{\s*datos\.ancho\s*=/.test(s),
+  );
+}
+{
+  const s = leerCodigo("src/api/base44Client.js");
+  // Dentro del cuerpo de `filterEstricto`: el `throw` que importa es el suyo. Medido
+  // por distancia, el contrato se sostenía sobre el texto de un `console.error`.
+  const cFiltro = entre(s, "async filterEstricto(", "async get(");
+  check(
+    "shim: filterEstricto propaga el error en vez de devolver []",
+    /throw error/.test(cFiltro),
+    cFiltro ? "" : "no se encontró filterEstricto",
+  );
+  check("shim: storage.remove distingue 'no borró nada'", /borrado: Array\.isArray\(data\)/.test(s));
+}
+
+// ---------------------------------------------------------------- operativo
+{
+  const s = leerCodigo("src/components/admin/AdminOperativo.jsx");
+  const carga = entre(s, "const cargar = useCallback", "useEffect(");
+
+  // LA CADENA DEL GUARDARRAÍL, eslabón por eslabón. Romper cualquiera reintroduce
+  // el fallo de 5B —bypass del bloqueo, "sin acceso" imposible de mostrar, aviso
+  // que no dispara—, así que no basta con comprobar el último.
+  //
+  //   Evento(operativoActivo: true) -> idsActivos -> vigentesDe -> alternarGlobal
+  check(
+    "operativo: la carga trae SOLO los eventos con el operativo activo",
+    /Evento\.filterEstricto\(\s*\{[^}]*operativoActivo:\s*true/.test(carga),
+    carga.trim() || "no se encontró cargar()",
+  );
+  check(
+    "operativo: `idsActivos` sale de esos eventos",
+    /idsActivos\s*=\s*new Set\(\s*eventos\.map\(/.test(s),
+  );
+  // Atado a la definición de `vigentesDe`, no al archivo entero: `inertesDe`
+  // también menciona `idsActivos`, así que buscarlo suelto daba por bueno el
+  // conteo sin cruzar. (Comprobado reintroduciendo el fallo: no lo atrapaba.)
+  {
+    const def = (s.match(/const vigentesDe = [\s\S]*?;\n/) || [""])[0];
+    check(
+      "operativo: `vigentesDe` cruza contra los eventos ACTIVOS",
+      /idsActivos\.has\(a\.eventoId\)/.test(def),
+      def.trim() || "no se encontró vigentesDe",
+    );
+  }
+  check(
+    "operativo: el guardarraíl usa ese conteo cruzado",
+    /vigentes = vigentesDe\(persona\.id\)\.length[\s\S]{0,200}accesoGlobal && vigentes === 0/.test(s),
+  );
+
+  // "Visibles y revocables" es una propiedad de UI, así que se mira la UI. Con
+  // `/inertesDe/` a secas bastaba con que la definición existiera: borrar el bloque
+  // JSX que las pinta las devolvía a ser invisibles e irrevocables y pasaba igual.
+  {
+    const def = (s.match(/const inertesDe = [\s\S]*?;\n/) || [""])[0];
+    check(
+      "operativo: `inertesDe` selecciona lo que NO da acceso",
+      /!idsActivos\.has\(a\.eventoId\)/.test(def),
+      def.trim() || "no se encontró inertesDe",
+    );
+  }
+  check(
+    "operativo: las asignaciones a eventos cerrados se PINTAN y se pueden revocar",
+    // `a.eventoId` en el handler distingue este render del de los chips activos,
+    // que pasa `ev` y quedaría fuera del contrato.
+    /inertesDe\([^)]*\)\.map\(/.test(s) && /alternarAsignacion\(\s*p,\s*\{[^}]*a\.eventoId/.test(s),
+  );
+
+  // Atado a las lecturas de `cargar`. La mitad positiva anterior la satisfacía el
+  // `filterEstricto` de `alternarGlobal`, y la negativa casaba con una sola grafía.
+  check(
+    "operativo: la carga no confunde 'vacío' con 'falló'",
+    /OperativoPersonal\.filterEstricto\(/.test(carga) && /Evento\.filterEstricto\(/.test(carga),
+    carga.trim() || "no se encontró cargar()",
+  );
+
+  // Atado al `disabled` del botón, no a que la función exista: restaurar el
+  // `disabled` viejo reintroducía la carrera literal con `ocupadaPersona` todavía
+  // definida en el archivo, y la suite pasaba entera.
+  check(
+    "operativo: el botón global se bloquea con cualquier operación en vuelo",
+    /disabled=\{\s*ocupadaPersona\(\s*p\.id\s*\)/.test(s),
+  );
+  {
+    const def = (s.match(/const ocupadaPersona = [\s\S]*?;\n/) || [""])[0];
+    check(
+      "operativo: `ocupadaPersona` cubre el botón global Y los chips",
+      /g:\$\{personalId\}/.test(def) && /startsWith\(/.test(def),
+      def.trim() || "no se encontró ocupadaPersona",
+    );
+  }
+}
+{
+  const s = leerCodigo("src/api/base44Client.js");
+  // `operativo_asignacion` conserva historial: revocar es `revocada_at`.
+  const bloque = (s.match(/const asignaciones = \{[\s\S]*?\n\};/) || [""])[0];
+  check("asignaciones: revocar marca revocada_at", /revocada_at: new Date\(\)/.test(bloque));
+  check("asignaciones: NUNCA se borra la fila", !/\.delete\(\)/.test(bloque));
+  check("asignaciones: asignar es idempotente (reactiva la revocada)", /revocada_at: null/.test(bloque));
 }
 
 // ---------------------------------------------------------------- salida

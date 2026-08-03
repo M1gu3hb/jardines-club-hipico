@@ -1,5 +1,268 @@
 # CHANGELOG.md
 
+## 2026-08-03 (g) — Bloque 6: contratos que sí comprueban lo que dicen
+
+### Cambios realizados
+
+Un auditor mutó los 16 contratos que añadió el bloque 5, uno a uno, **reintroduciendo la
+regresión real en el archivo real**. Tres no atrapaban nada, uno era frágil, dos propiedades no
+tenían contrato y uno estaba acoplado al formato. Ninguno era un fallo de producto: **el código
+de 5A y 5B es correcto**. Lo que fallaba era la red que debía sostenerlo.
+
+**El patrón, uno solo:** un `grep` de identificador suelto sobre todo el archivo. Si el
+identificador aparece en dos sitios, borrar el que importa deja vivo el otro y el contrato pasa
+igual. Es exactamente lo que se detectó y corrigió en 5C con `idsActivos` / `inertesDe` — pero
+quedaban tres iguales sin revisar.
+
+**6A — los tres vacuos.** `imagenPlanoPath` sobrevivía en las dos lecturas, así que quitarlo de
+la **escritura** pasaba 94/94 y cada reemplazo volvía a dejar un huérfano público sin asa.
+`inertesDe` afirmaba "visibles y revocables" sin mirar la UI: borrar el bloque JSX que las pinta
+—o solo la definición— pasaba igual. `ocupadaPersona` pasaba con el `disabled` viejo restaurado,
+que es la carrera literal. Ahora se atan a la escritura, al render + handler, y al `disabled`.
+
+**6B — el frágil, los dos agujeros, el formato y los márgenes.** La carga estricta del operativo
+la satisfacía un `filterEstricto` de otra función. Nadie comprobaba el filtro `operativoActivo:
+true` del que sale `idsActivos`, así que quitarlo reintroducía la regresión **completa** de 5B con
+los contratos en verde. `quitar` comprobaba **proximidad** entre `confirmar()` y `borrarObjeto`,
+no gobierno: dejando la llamada y quitando las dos guardas, el archivo se borraba pase lo que
+pase con la fila. El contrato de las medidas fallaba al partir el mismo `if` en tres líneas. Y
+los dos márgenes estrechos (uno medía distancia en caracteres, el otro se sostenía sobre el
+texto de un `console.error`) **se endurecieron en vez de documentarse**: ahora se afirma sobre el
+orden y sobre el cuerpo del método.
+
+**Método, ahora escrito** en `docs/PROMPTS.md` §9 y en `CLAUDE.md`, más la cabecera del helper
+`entre()` de la propia suite. Es el cuarto bloque en que aparece el mismo error; dejarlo en la
+cabeza de una sesión no sirvió.
+
+**15 mutaciones ejecutadas**, cada una aplicada al archivo real, comprobada como aplicada,
+corrida contra la suite y restaurada con `git checkout --`. Trece debían fallar y fallaron; dos
+(partir el `if` en tres líneas, reescribir el texto del `console.error`) debían **pasar** y
+pasaron — la comprobación de que no se cambió fragilidad por falsos positivos.
+
+### Archivos modificados
+`scripts/test-contratos-api.mjs` (único archivo de código).
+Docs: `CLAUDE.md`, `PROJECT_CONTEXT.md`, `README.md`, `docs/PROMPTS.md`, `docs/CHANGELOG.md`,
+`docs/NEXT_STEPS.md`, `docs/FILE_MAP.md`, `docs/ARCHITECTURE.md`, `docs/DEPLOY.md`.
+
+### Entidades/BD afectadas
+**Ninguna. Sin migraciones.** No se tocó `src/` ni `api/`.
+
+### Bugs resueltos
+Ninguno de producto. Se cierra un fallo de la red de pruebas: 7 contratos que no comprobaban lo
+que su nombre afirmaba.
+
+### Bugs nuevos
+Ninguno.
+
+### Decisiones tomadas
+D-COD-15 (ver `docs/DECISIONS.md`).
+
+### Próximo paso
+Validación humana autenticada de los 5 flujos. Sigue siendo lo único que queda.
+
+
+## 2026-08-03 (f) — Bloque 5: el `[]` ambiguo y sus dos consecuencias
+
+### Cambios realizados
+
+Los dos defectos del bloque 4 compartían causa: **`runQuery` devuelve `[]` tanto cuando no hay
+filas como cuando la lectura falla** (J-02, que se dejó abierto a propósito). Ese `[]` ya estaba
+produciendo daño en dos sitios.
+
+**5A — el rollback del plano podía destruir una escritura que sí ocurrió.** Si el `update` cuajaba
+y la relectura fallaba, `guardado` era `null` → `throw` → el `catch` borraba del bucket **el
+archivo que la fila acababa de referenciar**: fila apuntando a un archivo inexistente, plano
+anterior huérfano sin asa, y un mensaje falso ("la base no aceptó el cambio"). El espejo en
+`quitar` era peor: borraba el archivo y limpiaba la UI aunque la fila siguiera viva.
+Ahora `confirmar()` devuelve **tres** estados y el rollback solo actúa con "no". Con
+"desconocido" no se borra nada y se dice la verdad. La lectura de confirmación no pasa por
+`runQuery`: se añade `entities.X.filterEstricto()`, que propaga el error.
+
+**Permiso de borrado en `planos`, comprobado:** el admin **sí puede**. La policy
+`planos admin escribe` es `cmd = ALL` para `authenticated` con `is_admin()`, y `ALL` cubre DELETE.
+Así que la limpieza de huérfanos del bloque 4 sí estaba pasando. Corregido `DECISIONS.md`, que
+atribuía esa policy a `sec_07`: `sec_07` solo fija límites y **dropea** la vieja. La policy vigente
+vive en el dashboard, no en el repo — deuda anotada.
+Y `storage.remove` distingue "borró" de "no borró nada": la Storage API responde 200 con lista
+vacía si una policy lo deniega, así que el fallo era mudo.
+
+**5B — el guardarraíl contaba asignaciones que no dan acceso.** El OR de `sec_14` exige
+`operativo_activo = true` **antes** del OR, así que una asignación a un evento cerrado no da
+acceso a nada. Contarlas rompía las tres cosas para las que existe la pantalla: el bloqueo se
+saltaba (persona con `acceso_global` + 1 asignación inerte → el admin apagaba el acceso y quedaba
+en 0 eventos), el "estado efectivo" nunca podía decir "sin acceso", y el aviso al revocar no
+disparaba. Se cruza contra los eventos activos, y las asignaciones inertes pasan a ser **visibles
+y revocables** — antes eran invisibles e irrevocables, y se acumulaban alimentando el bypass.
+Más: carrera del botón global, carga que confundía "vacío" con "falló", estado que se pisaba
+antes de validar, y un texto que mandaba a un control inexistente.
+
+**5C — cobertura.** Ninguna de las dos pantallas tenía un solo contrato. **+16 (78 → 94)**.
+
+> **Corrección (bloque 6).** Esta entrada decía que cada uno de los 16 se había **verificado
+> reintroduciendo su regresión**. No era exacto, y la diferencia importa porque es justo la
+> afirmación en la que se apoyaba la confianza en la suite.
+>
+> Lo que de verdad pasó: muté **algunos** mientras los escribía, encontré uno vacuo
+> —buscaba `idsActivos` en todo el archivo y `inertesDe` también lo menciona— y lo até a la
+> definición de `vigentesDe`. **No muté los dieciséis uno a uno.**
+>
+> La auditoría posterior sí lo hizo y encontró **3 que no atrapaban nada**
+> (`imagenPlanoPath`, `inertesDe`, `ocupadaPersona`), **1 frágil** (la carga estricta del
+> operativo), **2 agujeros** (nadie comprobaba el filtro `operativoActivo: true` del que sale
+> `idsActivos`, ni que las guardas de `quitar` gobernaran el borrado) y **1 acoplado al
+> formato**. Todos por el mismo motivo que el que sí corregí. Cerrados en el bloque 6, esta
+> vez mutando **cada uno** de los contratos tocados.
+
+### Archivos modificados
+Código: `src/api/base44Client.js` (`filterEstricto`, `storage.remove`),
+`src/components/admin/SalonPlanoUpload.jsx`, `src/components/admin/AdminOperativo.jsx`,
+`scripts/test-contratos-api.mjs`.
+Docs: `docs/BUGS_PENDING.md`, `docs/DECISIONS.md`, `docs/NEXT_STEPS.md`, `docs/CHANGELOG.md`.
+
+### Entidades/BD afectadas
+**Ninguna. Sin migraciones.** Solo consultas de lectura para verificar las policies de Storage.
+
+### Bugs resueltos
+El rollback destructivo del plano y el bypass del guardarraíl del operativo.
+
+### Bugs nuevos
+Ninguno. Documentados dos que ya existían: **J-06** (el guardarraíl es solo de cliente: cualquier
+admin puede apagar `acceso_global` desde Studio) y **J-07** (`operativo_activo` no se maneja desde
+el panel, que es la causa de que existan asignaciones inertes).
+
+### Decisiones tomadas
+D-COD-13, D-COD-14 (ver `docs/DECISIONS.md`).
+
+### Próximo paso
+Validación humana autenticada de los 5 flujos. Es lo único que queda.
+
+
+## 2026-08-03 (e) — Bloque 4: regresión, tipado, plano endurecido y asignación de personal
+
+### Cambios realizados
+
+**4A — la regresión de la unificación de idempotencia (bloqueante).** El corte por `duplicado`
+devolvía `{ok, duplicado}`, otra forma que el camino de éxito. Las tres rutas de correo tienen
+llamadores que solo miran `res.ok`, pero `crear-usuario-evento` y `crear-admin` **leen campos del
+cuerpo**: el panel escribía `usuario: undefined` y volvía a pedir credenciales para un evento que
+ya las tenía — peor que antes del cambio. Arreglado en el **servidor**: el corte relee la fila y
+devuelve la misma forma, así que un llamador futuro que olvide mirar `duplicado` tampoco se rompe.
+`correoEnviado` no se inventa. Y se documenta la asimetría `en_curso → 429` en las rutas de alta
+(D-COD-8). **+7 contratos** (71 → 78).
+
+**4B — tipado estricto del shim.** `Record<string, …>` aceptaba cualquier nombre, así que apagaba
+la detección de typos de entidad — y el shim tampoco protege: un typo consulta una tabla
+inexistente y devuelve `[]`, o sea **lista vacía en silencio**. Ahora `Record<keyof typeof TABLES, …>`,
+con cast en el argumento del Proxy. Línea base **sigue en 59**.
+
+**4C — plano por salón.** El grave era **reasignación cruzada**: sin `key`, al pasar del salón A al
+B se seguía viendo el plano de A con los botones activos, y "Reemplazar" movía la fila de A al
+salón B. Arreglado con `key` + reset de estado + gate por `cargando`. `sec_24` añade el índice
+único por salón y `imagen_plano_path` (sin él, cada reemplazo dejaba un huérfano descargable en un
+bucket público, imposible de localizar). Quitar el plano ahora borra también el archivo. Las
+medidas no se escriben si no se pudieron leer.
+
+**4D — asignación de personal a eventos** (la 3E pendiente). Frontend sobre lo que ya existe.
+`AdminOperativo` muestra el estado efectivo con la misma lógica del **OR** de `sec_14` y
+**bloquea** apagar `acceso_global` a quien tenga 0 asignaciones vigentes: hoy los 3 operativos
+están justo en ese caso, y un toggle ingenuo los dejaría sin acceso en pleno evento. Revocar es
+`revocada_at`, nunca `DELETE`. `operativo_asignacion` tiene PK compuesta sin `id`, así que va por
+un módulo aditivo del shim (`base44.asignaciones`), no por `entities`.
+
+**4E — higiene.** Numeración de bugs unificada en **`J-##`** (había dos esquemas `B*` que
+colisionaban), `Sidebar.jsx` deja de aparecer como existente, y `NEXT_STEPS` queda como estado
+real de cierre.
+
+### Archivos modificados
+Código: `api/crear-usuario-evento.js`, `api/crear-admin.js`, `src/api/base44Client.js`,
+`src/components/admin/eventos/EventoDatos.jsx`, `src/components/admin/AdminAdministradores.jsx`,
+`src/components/admin/SalonPlanoUpload.jsx`, `src/components/admin/AdminSalones.jsx`,
+`src/components/admin/AdminOperativo.jsx` (nuevo), `src/components/admin/AdminDashboard.jsx`,
+`scripts/test-contratos-api.mjs`.
+SQL: `supabase/migrations/…_sec_24_…sql` (nueva).
+Docs: `CLAUDE.md`, `README.md`, `PROJECT_CONTEXT.md` y todo `docs/`.
+
+### Entidades/BD afectadas
+`sec_24`: columna `salon_planos.imagen_plano_path` + índice único `salon_planos_salon_id_uniq`.
+Aditiva. **`public` (Vero) 4 → 4 funciones, sin cambios.** Ninguna policy ni grant modificados.
+**El estado del operativo no cambió:** 3 personas, 3 con `acceso_global`, 0 asignaciones.
+
+### Bugs resueltos
+La regresión de 4A; el tipado laxo de 4B; los 5 riesgos del plano (4C).
+
+### Bugs nuevos
+Ninguno. Renumerados los abiertos: **J-01** … **J-05**.
+
+### Decisiones tomadas
+D-COD-7 … D-COD-12. D-COD-4 y D-COD-6 marcadas como **corregidas** por D-COD-7 y por 4B.
+
+### Próximo paso
+Validación humana autenticada de los 5 flujos. Es lo único que queda.
+
+
+## 2026-08-03 (d) — Bloque 3: código (fases 3A–3D; **3E no hecha**)
+
+### Cambios realizados
+
+**3A — 12 hallazgos de código.**
+- **S1 (P0).** El token de `/invitacion/:token` se generaba con
+  `crypto.randomUUID ? … : "inv-" + Date.now() + Math.random()`. Ese token **es** la credencial y
+  se guarda en claro: en la rama de fallback era adivinable. Se extrae el generador bueno de
+  `EventoMeseros` a `src/lib/tokenSeguro.js` (256 bits de `crypto.getRandomValues`) y lo importan
+  ambos. **Sin fallback:** si no hay WebCrypto lanza con mensaje al usuario.
+- **B1.** `AdminSolicitudes` leía `s.created_date`, que el shim nunca produce (convierte
+  `created_at` → `createdAt`): el fallback era código muerto y toda solicitud sin `fecha_envio`
+  mostraba `—` para siempre. El `list("-created_date")` **no** se tocó: ese sí lo traduce el shim.
+- **B3.** `guard.js` no tenía entrada `503`, así que el 503 de `canjear-acceso` llegaba como
+  "Error" a secas justo cuando el cliente estrena su enlace y el fallo es transitorio.
+- **B4.** `anticipoPagado` era un latch de un solo sentido. Ahora se deriva del monto.
+- **L1/L2/L4/L5.** Borrados 4 huérfanos y `cajaCredenciales()`; el JSON-LD apunta a la copia
+  auto-hospedada e `i.imgur.com` sale de la CSP; las 5 rutas cortan igual en `duplicado`.
+
+**3B — menú.** `#como-funciona` y `#faq` existían en el DOM pero no en `MENU_ITEMS` ni en
+`SECTIONS`: eran secciones de conversión inalcanzables y el indicador de sección activa se
+quedaba pegado. Añadidas en el orden real del `<main>`.
+
+**3C — `sec_23`.** Retiradas `info_mesa_publica`, `api_idempotencia` y `canjear_acceso_unico`.
+Y `seguridad.sql` pasa a probar las **vigentes**: hasta ahora probaba las superadas, así que la
+idempotencia recuperable y el canje en dos fases solo tenían cobertura textual (cierra B6).
+
+**3D — plano por salón.** `SalonPlanoUpload` en `AdminSalones`, al bucket `planos`. Sin
+migración: las policies ya existían. Añadido `storage.publicUrl` al shim (aditivo).
+
+**Efecto lateral de 3D:** la línea base de `typecheck` baja de **155 a 59** al tipar el Proxy
+`entities` (anotación JSDoc, cero runtime). El umbral castigaba escribir código correcto: cada
+componente nuevo que usara el shim sumaba errores.
+
+### Archivos modificados
+Código: `src/lib/tokenSeguro.js` (nuevo), `src/components/admin/SalonPlanoUpload.jsx` (nuevo),
+`src/components/portal/PortalInvitacion.jsx`, `src/components/meseros/EventoMeseros.jsx`,
+`src/components/admin/AdminSolicitudes.jsx`, `src/components/admin/AdminSalones.jsx`,
+`src/components/admin/eventos/EventoDatos.jsx`, `src/pages/Home.jsx`, `src/api/base44Client.js`,
+`api/_lib/guard.js`, `api/_lib/correo.js`, `api/crear-admin.js`, `api/crear-usuario-evento.js`,
+`index.html`, `vercel.json`. Borrados: `Sidebar.jsx`, `HeroTrustBar.jsx`,
+`FormularioSection.jsx`, `ItemImageOverlay.jsx`.
+SQL: `supabase/migrations/…_sec_23_…sql` (nueva), `supabase/tests/seguridad.sql`.
+Docs: `CLAUDE.md`, `README.md`, `PROJECT_CONTEXT.md` y todo `docs/`.
+
+### Entidades/BD afectadas
+`sec_23` retira 3 funciones de `jardines`. Funciones de `jardines` 44 → 41; **`public` (Vero)
+4 → 4, sin cambios**. Ninguna tabla, columna, policy ni grant modificados.
+
+### Bugs resueltos
+S1, B1, B3, B4 (código); B6 (suite probaba las RPC superadas); B7 (imgur en el JSON-LD).
+
+### Bugs nuevos
+Ninguno. B3 (**UI de asignación de personal**) sigue abierto: era la fase 3E, no hecha.
+
+### Decisiones tomadas
+D-COD-1 … D-COD-6 (ver `docs/DECISIONS.md`). **D-COD-2 queda como decisión pendiente:** los
+tokens de invitación y de mesa siguen guardándose en claro.
+
+### Próximo paso
+Validación humana autenticada de los 5 flujos. Después, la fase 3E.
+
+
 ## 2026-08-03 (c) — Inventario de grants por nivel + hallazgos deferidos
 
 ### Cambios realizados

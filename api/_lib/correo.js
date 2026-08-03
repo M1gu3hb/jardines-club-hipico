@@ -69,24 +69,11 @@ export function plantillaOro({ pretitulo, titulo, cuerpoHtml, ctaTexto, ctaUrl, 
 </html>`;
 }
 
-/** Caja dorada con las credenciales del cliente (para el correo de bienvenida). */
-export function cajaCredenciales(usuario, password) {
-  return `
-  <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="margin: 18px 0;">
-    <tr><td bgcolor="#171307" style="border: 1px solid #C9A84C; border-radius: 12px; padding: 20px 24px;">
-      <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="font-family: Arial, Helvetica, sans-serif;">
-        <tr>
-          <td style="font-size: 10px; letter-spacing: 2px; color: #C9A84C; text-transform: uppercase; padding-bottom: 4px;">Usuario</td>
-        </tr>
-        <tr><td style="font-size: 18px; color: #ffffff; padding-bottom: 14px; font-weight: bold;">${esc(usuario)}</td></tr>
-        <tr>
-          <td style="font-size: 10px; letter-spacing: 2px; color: #C9A84C; text-transform: uppercase; padding-bottom: 4px;">Contraseña</td>
-        </tr>
-        <tr><td style="font-size: 18px; color: #ffffff; font-weight: bold;">${esc(password)}</td></tr>
-      </table>
-    </td></tr>
-  </table>`;
-}
+// `cajaCredenciales(usuario, password)` vivía aquí: pintaba usuario y contraseña
+// dentro del correo de bienvenida. Se retiró con el blindaje —las contraseñas ya
+// no viajan por correo, el primer acceso es un enlace de un solo uso— y se borra
+// ahora porque dejarla exportada era dejar lista la pieza para deshacer esa
+// decisión sin querer. Está en el historial si hiciera falta consultarla.
 
 /** Envía un correo (HTML + texto alternativo) con la cuenta Gmail del club. */
 export async function enviarCorreo({ to, subject, html, texto, replyTo }) {

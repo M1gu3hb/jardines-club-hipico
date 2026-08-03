@@ -125,8 +125,8 @@ Reglas clave:
 - Nunca pongas secretos, tokens, service_role, JWT, contraseñas ni datos personales en commits,
   logs, documentación o salida de pruebas.
 
-Antes de subir: `npm run lint` (0), `npm run build` (exit 0), `npm run test:contratos` (71/71)
-y `npm run typecheck` (155 = línea base, no debe subir). Si tocaste SQL, corre además
+Antes de subir: `npm run lint` (0), `npm run build` (exit 0), `npm run test:contratos` (99/99)
+y `npm run typecheck` (59 = línea base, no debe subir). Si tocaste SQL, corre además
 supabase/tests/seguridad.sql.
 
 Al terminar, actualiza la documentación viva y el CHANGELOG, y cierra con el bloque
@@ -172,7 +172,56 @@ Empieza importando api/_lib/guard.js y usa, en este orden:
 Recuerda: supabase-js resuelve con { data, error } en vez de rechazar, así que un `.catch()`
 no atrapa nada. Comprueba `error` a mano o usa `rpcSeguro` / `escrituraOk`.
 
-Después agrega el contrato correspondiente a scripts/test-contratos-api.mjs.
+Después agrega el contrato correspondiente a scripts/test-contratos-api.mjs — leyendo antes la §9.
+```
+
+## 9. Cómo se escribe un contrato en `scripts/test-contratos-api.mjs`
+
+> Esto no es estilo: es el fallo que más veces se ha repetido en este proyecto. Apareció en
+> cuatro bloques seguidos y las cuatro veces con la misma forma.
+
+**El fallo.** Un contrato que busca un **identificador suelto sobre todo el archivo** no comprueba
+nada si ese identificador aparece en más de un sitio. Y casi siempre aparece: la definición, una
+lectura, un render, un `console.error`. Borrar el uso que importa deja vivos los demás, y el
+contrato pasa igual — con su nombre afirmando una propiedad que ya no se cumple.
+
+Los cuatro casos reales, para que se reconozca el patrón:
+
+| Contrato | Decía cubrir | Lo que pasaba |
+|---|---|---|
+| `/idsActivos/` | el conteo cruza contra los eventos activos | `inertesDe` también lo menciona |
+| `/imagenPlanoPath/` | se guarda el path para limpiar el bucket | sobrevivía en las dos **lecturas** |
+| `/inertesDe/` | las inertes son visibles y revocables | no miraba la UI en absoluto |
+| `/ocupadaPersona/` | el botón se bloquea con algo en vuelo | la función seguía definida |
+
+**La regla.**
+
+1. **Ata la afirmación al uso concreto**, no al identificador. Recorta primero el trozo —la
+   definición, el cuerpo de la función, el objeto que se escribe— con el helper `entre()`, y afirma
+   sobre ese trozo. Si el contrato habla de UI, tiene que mirar el render **y** el handler.
+2. **Si lo que importa es el orden, afirma sobre el orden.** `[\s\S]{0,400}` mide distancia en
+   caracteres y la distancia no dice nada sobre si un texto gobierna al otro: el mismo texto a 300
+   caracteres puede estar en otra rama. Para "esta guarda corta antes de aquel borrado" está
+   `cortaAntesDe()`.
+3. **No lo ates al formato.** Usa `\s*` donde pueda haber saltos de línea: partir un `if` en tres
+   líneas no es una regresión y no debe romper nada.
+4. **Valídalo mutando.** Reintroduce **la regresión real en el archivo real**, corre la suite, y
+   compruébalo por ejecución — no leyendo el regex y convenciéndote de que sí. Restaura con
+   `git checkout -- <archivo>`. Al terminar, `git status --porcelain` tiene que salir vacío.
+5. **Muta también algo inocuo** (un reformateo) y comprueba que **pasa**: si no, cambiaste un
+   contrato vacuo por un falso positivo, que es la otra forma de no comprobar nada.
+6. Si una propiedad **no se puede expresar estáticamente** sin quedar frágil, **dilo y no escribas
+   el contrato**. Un contrato que no comprueba nada es peor que no tenerlo: da falsa confianza y
+   nadie vuelve a mirarlo.
+
+Guion para mutar (probado; deja el árbol como estaba):
+
+```bash
+git diff --quiet -- "$F" || { echo "el archivo ya está sucio"; exit 1; }
+perl -0pi -e "$SUBST" "$F"
+git diff --quiet -- "$F" && { echo "la mutación NO se aplicó"; exit 1; }   # que de verdad mutó
+npm run test:contratos --silent | grep '^FALLA'                            # ¿quién la atrapa?
+git checkout -- "$F"
 ```
 
 ## 6. Prompts de Nano Banana (imágenes en el estilo del lugar)

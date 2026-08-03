@@ -133,10 +133,19 @@ begin
   insert into _t values ('B3','acceso unico: en base solo hay hash',
     (select case when count(*) = 0 then 'solo hash' else 'EN CLARO' end
        from jardines_private.acceso_unico where token_hash = tok), true);
-  uid := jardines.canjear_acceso_unico(tok);
-  insert into _t values ('B3','acceso unico: primer canje funciona', coalesce(uid::text,'null'), uid = u_atk);
-  uid := jardines.canjear_acceso_unico(tok);
-  insert into _t values ('B3','acceso unico: segundo canje rechazado', coalesce(uid::text,'null'), uid is null);
+  -- Canje en DOS FASES (sec_19). La versión de un paso quemaba el token antes de
+  -- saber si el OTP se había generado: si fallaba, el cliente se quedaba fuera.
+  select ca.user_id into uid from jardines.canjear_acceso_iniciar(tok) ca;
+  insert into _t values ('B3','acceso unico: iniciar identifica al usuario', coalesce(uid::text,'null'), uid = u_atk);
+  -- Liberar devuelve el lease: un fallo intermedio NO consume el token.
+  perform jardines.canjear_acceso_liberar(tok);
+  select ca.user_id into uid from jardines.canjear_acceso_iniciar(tok) ca;
+  insert into _t values ('B3','acceso unico: liberar NO quema el token', coalesce(uid::text,'null'), uid = u_atk);
+  -- Confirmar sí lo consume, y ya no vuelve a servir.
+  perform jardines.canjear_acceso_confirmar(tok);
+  uid := null;
+  select ca.user_id into uid from jardines.canjear_acceso_iniciar(tok) ca;
+  insert into _t values ('B3','acceso unico: tras confirmar ya no sirve', coalesce(uid::text,'null'), uid is null);
 
   perform jardines.aprovisionar_usuario('sint-rev@jardinesclubhipico.com','admin');
   perform jardines.revocar_aprovisionamiento('sint-rev@jardinesclubhipico.com');
@@ -153,11 +162,22 @@ begin
     (select case when count(*) = 0 then 'solo hash' else 'EN CLARO' end
        from jardines_private.rate_limit where clave_hash like '%k%' and clave_hash = 'k'), true);
 
-  insert into _t values ('B3','idempotencia: primera vez procede',
-    jardines.api_idempotencia('sint','k1',1)::text, jardines.api_idempotencia('sint','k2',1));
-  perform jardines.api_idempotencia('sint','k3',1);
-  insert into _t values ('B3','idempotencia: repeticion bloqueada',
-    jardines.api_idempotencia('sint','k3',1)::text, not jardines.api_idempotencia('sint','k3',1));
+  -- Idempotencia RECUPERABLE (sec_19). Cada llamada se guarda en una variable:
+  -- invocar la función dos veces en la misma expresión cambia el estado entre
+  -- una y otra y da un falso fallo.
+  r := jardines.api_idem_iniciar('sint','k1',60,1);
+  insert into _t values ('B3','idem: primera vez procede', r, r = 'procede');
+  perform jardines.api_idem_iniciar('sint','k3',60,1);
+  r := jardines.api_idem_iniciar('sint','k3',60,1);
+  insert into _t values ('B3','idem: con lease vivo responde en_curso', r, r = 'en_curso');
+  perform jardines.api_idem_cerrar('sint','k3',true);
+  r := jardines.api_idem_iniciar('sint','k3',60,1);
+  insert into _t values ('B3','idem: cerrada con exito da duplicado', r, r = 'duplicado');
+  -- Lo que distingue a sec_19: un fallo NO quema la clave, se puede reintentar.
+  perform jardines.api_idem_iniciar('sint','k4',60,1);
+  perform jardines.api_idem_cerrar('sint','k4',false);
+  r := jardines.api_idem_iniciar('sint','k4',60,1);
+  insert into _t values ('B3','idem: tras fallo se REINTENTA (recuperable)', r, r = 'procede');
 
   ---------------------------------------------------------------- Matriz anon
   perform set_config('role','anon',true);
@@ -174,9 +194,20 @@ begin
   begin perform jardines.is_admin();
     insert into _t values ('B4','anon NO ejecuta helpers internos','PERMITIDO', false);
   exception when others then insert into _t values ('B4','anon NO ejecuta helpers internos','denegado', true); end;
-  begin perform jardines.info_mesa_publica('x');
-    insert into _t values ('B4','info_mesa_publica fuera de la API','PERMITIDO', false);
-  exception when others then insert into _t values ('B4','info_mesa_publica fuera de la API','denegado', true); end;
+  -- sec_23 las retiró. Antes esto solo comprobaba que `anon` no pudiera
+  -- ejecutarlas; ahora se exige que no existan (si no existieran y alguien las
+  -- recreara, el `exception` de antes lo habría tapado).
+  insert into _t values ('B4','RPCs residuales retiradas (sec_23)',
+    coalesce((select string_agg(f, ', ') from (values
+        ('jardines.info_mesa_publica(text)'),
+        ('jardines.api_idempotencia(text, text, integer)'),
+        ('jardines.canjear_acceso_unico(text)')) t(f)
+      where to_regprocedure(f) is not null), '(ninguna)'),
+    not exists (select 1 from (values
+        ('jardines.info_mesa_publica(text)'),
+        ('jardines.api_idempotencia(text, text, integer)'),
+        ('jardines.canjear_acceso_unico(text)')) t(f)
+      where to_regprocedure(f) is not null));
   begin perform jardines.handle_new_user();
     insert into _t values ('B4','triggers no invocables por la API','PERMITIDO', false);
   exception when others then insert into _t values ('B4','triggers no invocables por la API','denegado', true); end;
