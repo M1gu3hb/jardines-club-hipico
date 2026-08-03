@@ -13,7 +13,9 @@ aceptados), pendientes que dependen de otra persona, y dos cosas menores de cont
 
 ### B2 — `og:url` y JSON-LD con dominio placeholder
 - **Impacto:** bajo (SEO / cómo se ve al compartir en redes).
-- **Causa:** el `index.html` se escribió antes de conectar el dominio.
+- **Causa:** el `index.html` se escribió antes de conectar el dominio. Son **tres** valores:
+  `og:url` y el `url` de los **dos** bloques JSON-LD. Y al conectar el dominio hay que tocar
+  además `SITIO_URL` en `api/_lib/correo.js` (B8).
 - **Archivos:** `index.html`.
 - **Prioridad:** baja. **Estado:** abierto.
 
@@ -34,31 +36,6 @@ aceptados), pendientes que dependen de otra persona, y dos cosas menores de cont
 - **Prioridad:** media — sube a alta en cuanto se conecte el dominio, porque entonces los correos
   seguirán apuntando al viejo. **Estado:** abierto. Ligado al pendiente de dominio de
   `docs/NEXT_STEPS.md`.
-
-### B7 — Última dependencia viva de imgur en el JSON-LD
-- **Impacto:** bajo, pero contradice D3 ("independencia total"). Si imgur cae o borra el activo,
-  el `image` del JSON-LD queda roto para buscadores y previews sociales.
-- **Causa:** `index.html:45` sirve `https://i.imgur.com/aMxWuH8.png`. La CSP de `vercel.json`
-  autoriza `i.imgur.com` en `img-src` **únicamente** por esa línea. El mismo activo ya está
-  auto-hospedado: `api/_lib/correo.js` usa `/media/img/aMxWuH8.png`.
-- **Arreglo:** apuntar el JSON-LD a `/media/img/aMxWuH8.png` y **quitar `i.imgur.com` de la
-  CSP**. Son dos ficheros de código, así que va en un bloque aparte.
-- **Archivos:** `index.html`, `vercel.json`.
-- **Prioridad:** baja. **Estado:** abierto.
-
-### B6 — La suite prueba las RPCs superadas, no las vigentes
-- **Impacto:** medio. **La idempotencia recuperable y el canje en dos fases no tienen cobertura
-  en la base**: solo los cubren comprobaciones textuales de `scripts/test-contratos-api.mjs`.
-- **Causa:** `supabase/tests/seguridad.sql` llama a `api_idempotencia` (líneas 157-160) y a
-  `canjear_acceso_unico` (136-138) — las versiones que `sec_19` sustituyó por
-  `api_idem_iniciar`/`api_idem_cerrar` y por `canjear_acceso_iniciar`/`_confirmar`/`_liberar`.
-  Las viejas nunca se dropearon: siguen vivas con `EXECUTE` para `service_role` y **cero
-  llamadores** en `src/`, `api/` y `scripts/`.
-- **Arreglo:** reapuntar las aserciones a las funciones vigentes y **después** dropear las tres
-  residuales (incluida `info_mesa_publica`). El `DROP` exige verificación previa contra
-  producción, así que va en un bloque aparte con su migración.
-- **Archivos:** `supabase/tests/seguridad.sql`; migración pendiente.
-- **Prioridad:** media. **Estado:** abierto. Ver `docs/DATABASE.md` §D.bis.
 
 ### B5 — No hay fallback si Supabase no responde
 - **Impacto:** alto si ocurre. Todas las secciones que leen de la base (espacios, galería,
@@ -143,6 +120,18 @@ Hasta entonces **no se declara CERRADO**.
 - `WITH CHECK (true)` en `solicitudes` (INSERT público sin validación).
 - Token de staff en claro (columna eliminada, `sec_20`) e INSERT de compatibilidad (`sec_21`).
 - 12 índices de FK faltantes; Storage sin límites de tamaño ni MIME y con listado abierto.
+
+**Cerrados el 2026-08-03 (bloque 3):**
+
+- **B6 — la suite probaba las RPC superadas.** `seguridad.sql` llamaba a `api_idempotencia` y
+  `canjear_acceso_unico`, así que la idempotencia recuperable y el canje en dos fases solo
+  tenían cobertura textual. Ahora prueba las vigentes, y las tres residuales se retiraron con
+  `sec_23`. Las aserciones nuevas se verificaron en vivo contra producción.
+- **B7 — última dependencia de imgur.** El JSON-LD apunta a la copia auto-hospedada y se retiró
+  `i.imgur.com` de la CSP. Comprobado antes: 0 URLs de imgur en el contenido de producción.
+- Token de invitación con fallback predecible, "Recibida" en `—` para siempre, 503 sin mensaje,
+  anticipo irreversible, 4 componentes huérfanos y `cajaCredenciales()` muerta (ver
+  `docs/CHANGELOG.md`).
 
 **Bugs previos encontrados de paso:**
 

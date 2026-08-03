@@ -251,36 +251,35 @@ inexistente, expirado, revocado o bloqueado:
 se puede llamar), `canjear_acceso_iniciar`, `canjear_acceso_confirmar`, `canjear_acceso_liberar`,
 `api_rate_limit`, `api_idem_iniciar`, `api_idem_cerrar`, `api_auditar`.
 
-**Residuales en este nivel, sin llamadores** (ver §D.bis): `info_mesa_publica`,
-`api_idempotencia`, `canjear_acceso_unico`.
+(Las tres residuales que había aquí — `info_mesa_publica`, `api_idempotencia` y
+`canjear_acceso_unico` — se **retiraron** en `sec_23`. Ver §D.bis.)
 
 **Funciones de trigger**, también en este nivel pero no invocables desde la Data API porque
 `anon` y `authenticated` no tienen su `EXECUTE`: `handle_new_user` (en `auth.users`,
 **compartido con Vero**), `solicitud_saneo`, `resena_moderacion`, `auditar_cambio_operativo`.
 
-## D.bis Funciones vivas sin llamadores (deuda)
+## D.bis Retiro de las 3 RPC residuales (`sec_23`, 2026-08-03)
 
-Tres funciones siguen en la base con `EXECUTE` para `service_role` y **cero llamadores**. No son
-alcanzables desde el navegador, así que no son un agujero hoy; el riesgo es que sigan ahí y
-alguien las reactive o las tome por vigentes.
+Tres funciones seguían en la base con `EXECUTE` para `service_role` y **cero llamadores**.
+No eran alcanzables desde el navegador, así que no eran un agujero — el riesgo era que alguien
+las reactivara o las tomara por vigentes. **Ya no existen.**
 
-| Función | Estado | Por qué importa |
+| Retirada | La sustituyó | Por qué importaba |
 |---|---|---|
-| `info_mesa_publica` | Revocada de `PUBLIC`/`anon`/`authenticated` (`sec_06`, `sec_17`) | Su cuerpo **no** tiene rate limit ni error genérico: devuelve mesa, evento, fecha, salón y tipo con solo presentar el token. Devolverle el `EXECUTE` a `anon` reabriría la enumeración que cerró `sec_06`. La vía viva y protegida es `info_mesa_token` |
-| `api_idempotencia` | Sustituida por `api_idem_iniciar`/`api_idem_cerrar` (`sec_19`) | Es la idempotencia **no recuperable**: consume la clave antes de saber si la operación salió bien. Usarla por error reintroduce el fallo que corrigió `sec_19` |
-| `canjear_acceso_unico` | Sustituida por el canje en dos fases (`sec_16` → `sec_19`) | Quema el token en un solo paso: si falla la generación del OTP, el cliente se queda fuera sin poder reintentar |
+| `info_mesa_publica(text)` | `info_mesa_token(text, text)` | Su cuerpo **no** tenía rate limit ni error genérico: devolvía mesa, evento, fecha, salón y tipo con solo presentar el token. Devolverle el `EXECUTE` a `anon` habría reabierto la enumeración que cerró `sec_06` |
+| `api_idempotencia(text, text, integer)` | `api_idem_iniciar` / `api_idem_cerrar` (`sec_19`) | Idempotencia **no recuperable**: consumía la clave antes de saber si la operación había salido bien, así que un fallo transitorio perdía el aviso para siempre |
+| `canjear_acceso_unico(text)` | `canjear_acceso_iniciar` / `_confirmar` / `_liberar` (`sec_19`) | Quemaba el token en un solo paso: si fallaba el OTP, el cliente se quedaba fuera sin poder reintentar |
 
-**Además, `supabase/tests/seguridad.sql` prueba las versiones viejas, no las vigentes.** La
-idempotencia recuperable y el canje en dos fases solo están cubiertos por las comprobaciones
-textuales de `scripts/test-contratos-api.mjs`. Ver `docs/BUGS_PENDING.md` (B6).
+**Verificado antes de aplicar:** 0 llamadores en `src/`, `api/` y `scripts/`; 0 referencias en
+toda la base (funciones, vistas, policies, triggers, defaults y constraints), **incluido el
+schema `public` de Vero**; y `EXECUTE` exactamente `postgres, service_role`. La migración lleva
+esas tres precondiciones dentro y **falla sin tocar nada** si alguna no se cumple. Se ensayó en
+`BEGIN/ROLLBACK` antes de aplicarla de verdad. Sin `cascade`.
 
-> El `DROP` de las tres está pendiente y **no** se ha escrito: la base es producción compartida
-> y hay que verificar contra ella que nadie las llama antes de retirarlas.
-
-> Toda función `SECURITY DEFINER` usa `search_path = ''` y nombres completamente calificados
-> (`sec_17`). Ninguna tiene `EXECUTE` para `PUBLIC` (`sec_11`).
-
----
+**Y `supabase/tests/seguridad.sql` ya prueba las vigentes**, no las retiradas: hasta `sec_23`
+comprobaba `api_idempotencia` y `canjear_acceso_unico`, así que la idempotencia recuperable y el
+canje en dos fases —lo más delicado de `sec_19`— solo estaban cubiertos por comprobaciones
+textuales. Eso cierra el bug B6 de `docs/BUGS_PENDING.md`.
 
 ## E. Storage
 
@@ -297,7 +296,7 @@ textuales de `scripts/test-contratos-api.mjs`. Ver `docs/BUGS_PENDING.md` (B6).
 ## F. Migraciones
 
 Forward-only, en `supabase/migrations/`, nombradas
-`<timestamp>_jardines_sec_NN_<tema>.sql`. **21 aplicadas en producción** (`sec_01`…`sec_22`;
+`<timestamp>_jardines_sec_NN_<tema>.sql`. **22 aplicadas en producción** (`sec_01`…`sec_23`;
 no existe `sec_10`: se planeó como archivo `.noapply` y su contenido acabó en `sec_20`).
 
 | # | Tema |
@@ -323,6 +322,7 @@ no existe `sec_10`: se planeó como archivo `.noapply` y su contenido acabó en 
 | 20 | **Retiro de `eventos.staff_token` en claro** |
 | 21 | Retiro del INSERT público de compatibilidad |
 | 22 | Limpieza del único perfil cruzado con Vero |
+| 23 | **Retiro de las 3 RPC residuales** superadas por `sec_19` y `sec_06`/`sec_17` |
 
 **Regla de despliegue:** la base es producción compartida. Primero lo **aditivo**, luego se
 despliega el frontend, y **solo entonces** se retira lo viejo. Ver `docs/SEGURIDAD.md` §8.bis.
