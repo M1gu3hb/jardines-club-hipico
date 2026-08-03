@@ -1,25 +1,107 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { base44 } from "@/api/base44Client";
-import { Eye, X, User, Calendar, Building2 } from "lucide-react";
+import { Eye, X, User, Calendar, Building2, AlertTriangle, Loader2 } from "lucide-react";
+
+/**
+ * ESTATUS — la lista viene de la BASE, no al revés.
+ *
+ * `sec_07` puso un CHECK en `jardines.solicitudes`:
+ *
+ *     estatus is null or estatus in ('Nueva','En proceso','Cotizada','Cerrada','Descartada')
+ *
+ * y este panel seguía ofreciendo "En revisión", "Confirmada" y "Cancelada", que no están.
+ * Como el único valor que coincidía era "Nueva", **cualquier** cambio que hiciera el dueño
+ * violaba el CHECK: Postgres devolvía 23514, el shim lanzaba, y `updateStatus` no capturaba
+ * nada — promesa rechazada sin `catch`, `load()` nunca corría y el desplegable volvía solo a
+ * su sitio. Desde fuera parecía "no me deja", sin ninguna explicación.
+ *
+ * Si alguna vez hay que añadir un estatus, se añade PRIMERO al CHECK (migración) y después
+ * aquí. Al revés vuelve a romperse en silencio.
+ */
+const ESTATUS = ["Nueva", "En proceso", "Cotizada", "Cerrada", "Descartada"];
 
 const STATUS_COLORS = {
   "Nueva": "bg-blue-400/10 text-blue-400/80 border-blue-400/20",
-  "En revisión": "bg-yellow-400/10 text-yellow-400/80 border-yellow-400/20",
-  "Confirmada": "bg-green-400/10 text-green-400/80 border-green-400/20",
-  "Cancelada": "bg-red-400/10 text-red-400/80 border-red-400/20",
+  "En proceso": "bg-yellow-400/10 text-yellow-400/80 border-yellow-400/20",
+  "Cotizada": "bg-[#C9A84C]/10 text-[#C9A84C]/80 border-[#C9A84C]/20",
+  "Cerrada": "bg-green-400/10 text-green-400/80 border-green-400/20",
+  "Descartada": "bg-red-400/10 text-red-400/80 border-red-400/20",
 };
+
+/** Marca un error como ya redactado para una persona, para no traducirlo dos veces. */
+const amigable = (texto) => Object.assign(new Error(texto), { amigable: true });
+
+/**
+ * Traduce el fallo a algo accionable. **Nunca** se enseña un volcado de Postgres: el dueño no
+ * puede hacer nada con "new row for relation ... violates check constraint".
+ */
+function mensajeDeError(e, estatus) {
+  if (e?.amigable) return e.message;
+  const m = String(e?.message || "");
+  if (/estatus_valido|check constraint/i.test(m)) {
+    return `El panel intentó guardar «${estatus}», que la base no admite. Es un fallo del panel, ` +
+      `no tuyo: avisa a soporte y menciona el estatus que elegiste.`;
+  }
+  if (/permission denied|42501/i.test(m)) {
+    return "Tu cuenta no tiene permiso para cambiar el estatus. Comprueba que entraste como administrador.";
+  }
+  if (/jwt|expired|not authenticated/i.test(m)) {
+    return "Tu sesión caducó. Vuelve a entrar al panel y reinténtalo.";
+  }
+  if (/failed to fetch|networkerror|load failed/i.test(m)) {
+    return "No hay conexión con la base. Reinténtalo en un momento; no se guardó nada.";
+  }
+  return "No se pudo guardar el estatus. Reinténtalo, y si sigue fallando avisa a soporte.";
+}
 
 export default function AdminSolicitudes() {
   const [solicitudes, setSolicitudes] = useState([]);
   const [selected, setSelected] = useState(null);
+  const [error, setError] = useState("");
+  const [ok, setOk] = useState("");
+  const [guardando, setGuardando] = useState("");
 
-  const load = () => base44.entities.SolicitudEvento.list("-created_date").then(setSolicitudes);
-  useEffect(() => { load(); }, []);
+  // `filterEstricto`, no `list`: con `list` un fallo de lectura devuelve `[]` y la pantalla
+  // dice "0 solicitudes recibidas" — indistinguible de que no haya ninguna.
+  const load = useCallback(
+    () =>
+      base44.entities.SolicitudEvento.filterEstricto(null, "-created_date")
+        .then((r) => { setSolicitudes(r); return r; })
+        .catch(() => { setError("No se pudieron cargar las solicitudes. Recarga la página."); return null; }),
+    [],
+  );
+  useEffect(() => { load(); }, [load]);
 
   const updateStatus = async (id, estatus) => {
-    await base44.entities.SolicitudEvento.update(id, { estatus });
-    load();
-    if (selected?.id === id) setSelected({ ...selected, estatus });
+    const previo = solicitudes.find((s) => s.id === id)?.estatus || "Nueva";
+    if (guardando || estatus === previo) return;
+    setGuardando(id); setError(""); setOk("");
+    try {
+      await base44.entities.SolicitudEvento.update(id, { estatus });
+
+      // El shim da por buena una escritura que RLS haya dejado en 0 filas (J-02), así que se
+      // confirma releyendo. `filterEstricto` lanza si la lectura falla, en vez de devolver [].
+      const fila = (await base44.entities.SolicitudEvento.filterEstricto({ id }))[0];
+      if (!fila) {
+        throw amigable("No se pudo confirmar el cambio: la solicitud ya no está. Recarga la página.");
+      }
+      if (fila.estatus !== estatus) {
+        throw amigable(
+          `La base no aceptó el cambio. La solicitud sigue en «${fila.estatus || "Nueva"}».`,
+        );
+      }
+      setSolicitudes((prev) => prev.map((s) => (s.id === id ? fila : s)));
+      if (selected?.id === id) setSelected(fila);
+      setOk(`Estatus guardado: «${estatus}».`);
+    } catch (e) {
+      console.error("[AdminSolicitudes] updateStatus", e?.message);
+      setError(mensajeDeError(e, estatus));
+      // El desplegable es controlado, así que se repone al valor REAL de la base: nunca se
+      // queda enseñando un estatus que no está guardado.
+      await load();
+    } finally {
+      setGuardando("");
+    }
   };
 
   return (
@@ -28,6 +110,13 @@ export default function AdminSolicitudes() {
         <h2 className="text-white text-2xl font-thin">Solicitudes</h2>
         <p className="text-white/30 text-sm mt-1">{solicitudes.length} solicitudes recibidas.</p>
       </div>
+
+      {error && (
+        <p className="text-red-400/90 text-xs border border-red-400/20 bg-red-400/5 px-3 py-2 rounded flex items-start gap-2 mb-4">
+          <AlertTriangle size={13} className="mt-0.5 flex-shrink-0" />{error}
+        </p>
+      )}
+      {ok && <p className="text-green-400/80 text-xs mb-4">{ok}</p>}
 
       <div className="overflow-x-auto">
         <table className="w-full text-sm">
@@ -63,15 +152,19 @@ export default function AdminSolicitudes() {
                   <p className="text-white/25 text-xs">{horaRecibida}</p>
                 </td>
                 <td className="py-3.5 px-3">
-                  <select
-                    value={s.estatus || "Nueva"}
-                    onChange={(e) => updateStatus(s.id, e.target.value)}
-                    className={`text-xs border px-2 py-1 bg-transparent outline-none cursor-pointer ${STATUS_COLORS[s.estatus || "Nueva"]}`}
-                  >
-                    {["Nueva", "En revisión", "Confirmada", "Cancelada"].map((opt) => (
-                      <option key={opt} value={opt} className="bg-[#111] text-white">{opt}</option>
-                    ))}
-                  </select>
+                  <div className="flex items-center gap-1.5">
+                    <select
+                      value={s.estatus || "Nueva"}
+                      onChange={(e) => updateStatus(s.id, e.target.value)}
+                      disabled={!!guardando}
+                      className={`text-xs border px-2 py-1 bg-transparent outline-none cursor-pointer disabled:opacity-40 ${STATUS_COLORS[s.estatus || "Nueva"] || STATUS_COLORS.Nueva}`}
+                    >
+                      {ESTATUS.map((opt) => (
+                        <option key={opt} value={opt} className="bg-[#111] text-white">{opt}</option>
+                      ))}
+                    </select>
+                    {guardando === s.id && <Loader2 size={11} className="animate-spin text-white/30" />}
+                  </div>
                 </td>
                 <td className="py-3.5 px-3">
                  <button onClick={() => setSelected(s)} className="text-white/25 hover:text-[#C9A84C] transition-colors">

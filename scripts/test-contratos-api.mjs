@@ -404,6 +404,74 @@ for (const ruta of [
   check("asignaciones: asignar es idempotente (reactiva la revocada)", /revocada_at: null/.test(bloque));
 }
 
+// ---------------------------------------------------------------- solicitudes: estatus
+// El fallo real: `sec_07` puso un CHECK con cinco estatus y el panel seguía ofreciendo otros
+// tres. Solo coincidía "Nueva", así que CUALQUIER cambio violaba el CHECK (23514) — y como
+// `updateStatus` no capturaba nada, el desplegable volvía solo y el dueño no veía por qué.
+{
+  const jsx = leerCodigo("src/components/admin/AdminSolicitudes.jsx");
+  const sql = leer("supabase/migrations/20260801213853_jardines_sec_07_indices_storage_constraints.sql");
+
+  // Se cruzan los DOS archivos: la lista del panel contra el CHECK de la migración. Afirmar
+  // solo sobre el panel dejaría pasar exactamente la divergencia que causó el fallo.
+  {
+    const restriccion = (sql.match(/solicitudes_estatus_valido[\s\S]*?check \(([\s\S]*?)\);/) || ["", ""])[1];
+    const enBase = [...restriccion.matchAll(/'([^']+)'/g)].map((m) => m[1]).sort();
+    const lista = (jsx.match(/const ESTATUS = \[([^\]]*)\]/) || ["", ""])[1];
+    const enPanel = [...lista.matchAll(/"([^"]+)"/g)].map((m) => m[1]).sort();
+    check(
+      "solicitudes: el panel ofrece EXACTAMENTE los estatus que admite el CHECK de sec_07",
+      enBase.length > 0 && enPanel.length > 0 && enBase.join("|") === enPanel.join("|"),
+      `base=[${enBase.join(", ")}]  panel=[${enPanel.join(", ")}]`,
+    );
+  }
+
+  // Cada estatus ofrecido tiene color: si no, `STATUS_COLORS[…]` sale `undefined` y el
+  // `className` del <select> queda sin borde ni fondo.
+  {
+    const lista = (jsx.match(/const ESTATUS = \[([^\]]*)\]/) || ["", ""])[1];
+    const colores = (jsx.match(/const STATUS_COLORS = \{([\s\S]*?)\n\};/) || ["", ""])[1];
+    const sinColor = [...lista.matchAll(/"([^"]+)"/g)].map((m) => m[1]).filter((e) => !colores.includes(`"${e}"`));
+    check("solicitudes: todos los estatus ofrecidos tienen color", sinColor.length === 0, sinColor.join(", "));
+  }
+
+  // Atado al cuerpo de `updateStatus`, no al archivo: el fallo era invisible porque esta
+  // función concreta no capturaba nada.
+  {
+    const cuerpo = entre(jsx, "const updateStatus = async", "return (");
+    check(
+      "solicitudes: updateStatus captura el fallo y lo enseña",
+      /catch \(/.test(cuerpo) && /setError\(/.test(cuerpo),
+      cuerpo ? "" : "no se encontró updateStatus",
+    );
+    check(
+      "solicitudes: al fallar, el desplegable se repone con el valor de la base",
+      cortaAntesDe(cuerpo, "catch (", cuerpo.indexOf("finally")) || /catch \([\s\S]*?await load\(\)/.test(cuerpo),
+      cuerpo ? "" : "no se encontró updateStatus",
+    );
+    // ORDEN: la confirmación tiene que ir ANTES de decir que se guardó. Al revés, el mensaje
+    // de éxito afirma algo que todavía no consta.
+    const iConf = cuerpo.indexOf("filterEstricto");
+    // El `setOk` que importa es el del MENSAJE, no el `setOk("")` que limpia al empezar.
+    // Buscar `setOk(` a secas encontraba el reinicio —que va antes de todo— y el contrato
+    // fallaba sobre código correcto. (Lo atrapó él mismo al escribirlo.)
+    const iOk = cuerpo.search(/setOk\([^")]/);
+    check(
+      "solicitudes: se confirma releyendo ANTES de decir que se guardó",
+      iConf >= 0 && iOk > iConf,
+      iConf < 0 ? "updateStatus no relee con filterEstricto" : "el mensaje de éxito va antes de la confirmación",
+    );
+    check(
+      "solicitudes: no se muestra el error crudo de Postgres",
+      /mensajeDeError\(/.test(cuerpo) && !/setError\(\s*(e|err)[.?]/.test(cuerpo),
+    );
+  }
+  check(
+    "solicitudes: la carga no confunde 'vacío' con 'falló'",
+    /SolicitudEvento\.filterEstricto\(null/.test(jsx) && !/SolicitudEvento\.list\(/.test(jsx),
+  );
+}
+
 // ---------------------------------------------------------------- salida
 let fallan = 0;
 for (const c of casos) {
