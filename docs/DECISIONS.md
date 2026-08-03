@@ -69,10 +69,16 @@ Registro de decisiones técnicas y de producto (formato: decisión · razón · 
   tipaba el Proxy `entities` como `{}` y marcaba un `TS2339` por **cada** uso de
   `base44.entities.X` en todo el proyecto. Cualquier componente nuevo que hablara con la base
   inflaba el número, así que el umbral castigaba escribir código correcto.
-- **Consecuencia:** una anotación `@type {Record<string, ReturnType<typeof makeEntity>>}` sobre el
-  Proxy. **Cero cambio en runtime.** Desaparecen 96 errores de ruido (107 `TS2339` → 7) y los
-  reales dejan de estar enterrados. Nueva línea base: **59**, actualizada en los 7 documentos que
-  la citaban.
+- **Consecuencia:** una anotación `@type` sobre el Proxy. **Cero cambio en runtime.** Desaparecen
+  96 errores de ruido (107 `TS2339` → 7) y los reales dejan de estar enterrados. Nueva línea base:
+  **59**, actualizada en los 7 documentos que la citaban.
+- **CORREGIDA en la fase 4B:** la primera versión usaba `Record<string, …>`, que acepta
+  **cualquier** nombre de propiedad y por tanto apagó la única detección de typos que había. Un
+  `base44.entities.Salones` pasaba el `typecheck`, y en runtime tampoco fallaba: `makeEntity` cae
+  a `toSnake(nombre)`, consulta una tabla inexistente y `runQuery` devuelve `[]` ante el error —
+  o sea, **lista vacía en silencio**, sin error de compilación ni de runtime. Ahora es
+  `Record<keyof typeof TABLES, …>` y ese typo da `TS2339`. El `{}` inicial se resuelve con un cast
+  en el argumento del Proxy, no relajando el tipo del resultado. La línea base **sigue en 59**.
 - **Archivos:** `src/api/base44Client.js`.
 
 ### D-COD-7 — El corte por `duplicado` devuelve la misma forma que el éxito

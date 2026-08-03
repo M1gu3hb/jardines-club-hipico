@@ -135,9 +135,18 @@ function makeEntity(name) {
  * el proyecto: ese patrón era la mayor parte de la línea base de 155 errores, y
  * cada componente nuevo que hablara con la base sumaba más.
  *
- * @type {Record<string, ReturnType<typeof makeEntity>>}
+ * Se tipa con `keyof typeof TABLES`, **no** con `Record<string, …>`. Con `string`
+ * cualquier nombre valía, así que un typo — `base44.entities.Salones` — pasaba el
+ * `typecheck` y en runtime tampoco fallaba: `makeEntity` cae a `toSnake(nombre)`,
+ * consulta una tabla inexistente y `runQuery` devuelve `[]` ante el error. Es decir,
+ * un typo de entidad daba **una lista vacía en silencio**. Con `keyof` da TS2339.
+ *
+ * El `{}` inicial no satisface el `Record`, de ahí el cast en el argumento del
+ * Proxy: se relaja el objeto vacío de arranque, no el tipo del resultado.
+ *
+ * @type {Record<keyof typeof TABLES, ReturnType<typeof makeEntity>>}
  */
-const entities = new Proxy({}, {
+const entities = new Proxy(/** @type {any} */ ({}), {
   get(target, prop) {
     if (typeof prop !== "string") return undefined;
     if (!target[prop]) target[prop] = makeEntity(prop);
