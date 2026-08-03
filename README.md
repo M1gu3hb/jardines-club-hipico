@@ -47,7 +47,7 @@ npm run preview         # sirve dist/ localmente
 │   └── tests/seguridad.sql   # Suite de seguridad (BEGIN/ROLLBACK, sin rastro)
 ├── public/media/             # img/ · frames/ (241) · b44/
 ├── scripts/
-│   ├── test-contratos-api.mjs  # 71 contratos frontend ↔ api/
+│   ├── test-contratos-api.mjs  # 78 contratos frontend ↔ api/
 │   ├── build-media.mjs         # DESCARGA ~570 MB de medios por red + genera site-data.json
 │   └── seed-supabase.mjs       # NO toca la base: genera scripts/seed/*.sql (histórico)
 ├── src/

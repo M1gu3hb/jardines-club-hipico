@@ -129,6 +129,37 @@ for (const ruta of ["api/crear-admin.js", "api/crear-usuario-evento.js"]) {
   check(`${ruta}: usa enlace de un solo uso`, /crear_acceso_unico/.test(s));
 }
 
+// ---------------------------------------------------------------- corte por idempotencia
+// El corte en `duplicado` tiene que devolver la MISMA FORMA que el camino de
+// éxito. Cuando no lo hacía, el panel escribía `usuario: undefined` en el estado
+// del evento y volvía a pedir credenciales para un evento que ya las tenía.
+{
+  const api = leerCodigo("api/crear-usuario-evento.js");
+  const front = leer("src/components/admin/eventos/EventoDatos.jsx");
+  check(
+    "crear-usuario-evento: el corte por duplicado devuelve la identidad",
+    /duplicado: true, userId: ev\.auth_user_id, usuario: ev\.usuario/.test(api),
+  );
+  check(
+    "crear-usuario-evento: la identidad se relee de la fila, no del cuerpo",
+    /from\("eventos"\)[\s\S]{0,120}auth_user_id/.test(api),
+  );
+  check("EventoDatos: distingue duplicado antes de dar por creadas", /r\.duplicado/.test(front));
+}
+{
+  const api = leerCodigo("api/crear-admin.js");
+  const front = leer("src/components/admin/AdminAdministradores.jsx");
+  check("crear-admin: el corte por duplicado no inventa correoEnviado",
+    /duplicado: true, userId/.test(api) && !/duplicado: true, correoEnviado/.test(api));
+  check("AdminAdministradores: distingue duplicado", /r\.duplicado/.test(front));
+}
+// Las dos rutas de ALTA responden 429 en `en_curso` (no 200 como las de correo):
+// un alta en vuelo todavía puede fallar y compensarse.
+for (const ruta of ["api/crear-admin.js", "api/crear-usuario-evento.js"]) {
+  const s = leerCodigo(ruta);
+  check(`${ruta}: en_curso responde 429, no 200`, /idem === "en_curso"\) return generico\(res, 429\)/.test(s));
+}
+
 // ---------------------------------------------------------------- errores de supabase-js
 // supabase-js resuelve con { error } en vez de rechazar: `.catch()` no atrapa nada.
 for (const ruta of [

@@ -37,9 +37,13 @@ export default function AdminAdministradores() {
         telefono: form.telefono.trim() || null,
         password: form.password,
       });
+      // `duplicado` = ya existía (reintento tras un 200 perdido). No se afirma
+      // nada del correo: salió, o no, en la ejecución original.
       setMsg({
         ok: true,
-        texto: `Administrador creado.${r.correoEnviado ? " Le llegó su correo de bienvenida con sus accesos. ✉️" : " (No se pudo enviar el correo; pásale sus accesos tú.)"}`,
+        texto: r.duplicado
+          ? "Ya existía una cuenta con ese correo; sus accesos ya estaban creados."
+          : `Administrador creado.${r.correoEnviado ? " Le llegó su correo de bienvenida con sus accesos. ✉️" : " (No se pudo enviar el correo; pásale sus accesos tú.)"}`,
       });
       setForm(VACIO);
       setCreando(false);

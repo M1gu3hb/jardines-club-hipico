@@ -61,10 +61,29 @@ export default async function handler(req, res) {
 
   const claveIdem = `${eventoId}:${String(usuario).toLowerCase()}`;
   const idem = await idemIniciar(admin, "crear-usuario-evento", claveIdem, 120, 1);
+  // `en_curso` responde 429 (y NO 200 como en las rutas de correo): un alta en
+  // vuelo todavía puede fallar y compensarse, así que el cliente debe reintentar,
+  // no dar por hecho que ya existe. Ver docs/DECISIONS.md D-COD-7.
   if (idem === "en_curso") return generico(res, 429);
-  // Corta en "duplicado", igual que las otras rutas: el alta ya ocurrió y
-  // repetirla solo abre una ventana de aprovisionamiento innecesaria.
-  if (idem === "duplicado") return res.status(200).json({ ok: true, duplicado: true });
+  // Corta en "duplicado": el alta ya ocurrió (`api_idem_iniciar` solo devuelve
+  // `duplicado` con estado='completado'), y repetirla abre una ventana de
+  // aprovisionamiento innecesaria.
+  //
+  // Devuelve la MISMA FORMA que el camino de éxito. Si aquí solo se respondiera
+  // `{ok, duplicado}`, el panel escribiría `usuario: undefined` en el estado del
+  // evento y volvería a mostrar "este evento aún no tiene credenciales" para uno
+  // que sí las tiene. La identidad se relee de la fila, que es la fuente canónica.
+  if (idem === "duplicado") {
+    const { data: ev, error: errEv } = await admin
+      .from("eventos").select("usuario, auth_user_id").eq("id", eventoId).maybeSingle();
+    if (errEv || !ev) {
+      console.error("[crear-usuario-evento] duplicado sin fila legible:", errEv?.message);
+      return generico(res, 500);
+    }
+    return res.status(200).json({
+      ok: true, duplicado: true, userId: ev.auth_user_id, usuario: ev.usuario,
+    });
+  }
   if (idem !== "procede") return generico(res, 500);
 
   let nuevoId = null;

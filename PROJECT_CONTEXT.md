@@ -154,7 +154,7 @@ Resumen (detalle en `docs/FILE_MAP.md`):
   crear-usuario-evento, canjear-acceso, cron-recordatorios.
 - `supabase/migrations/*.sql` — migraciones forward-only.
 - `supabase/tests/seguridad.sql` — 63 aserciones de seguridad.
-- `scripts/test-contratos-api.mjs` — 71 contratos frontend ↔ API.
+- `scripts/test-contratos-api.mjs` — 78 contratos frontend ↔ API.
 - `vercel.json` — rewrites SPA, cabeceras HTTP (CSP, HSTS…) y el cron.
 - `src/data/resenas.json` — **el único JSON vivo**: lo importa `src/components/Confianza.jsx`.
 - `src/data/site-data.json` — **no lo importa nadie** en `src/` ni en `api/`. Es solo la entrada

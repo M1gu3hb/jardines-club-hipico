@@ -62,11 +62,17 @@ export default function EventoDatos({ evento, salones, onActualizado }) {
         usuario: cred.usuario.trim(), password: cred.password,
         eventoId: evento.id, nombre: form.clienteNombre || form.nombreEvento,
       });
+      // `duplicado` = el alta ya había ocurrido (reintento tras un 200 perdido).
+      // El servidor devuelve la identidad releída de la fila, así que el estado
+      // se actualiza igual; lo que cambia es que no se anuncia como recién creada
+      // ni se afirma nada del correo, que salió en la ejecución original.
       setCredMsg(
-        "Credenciales creadas. Usuario: " + r.usuario +
-        (r.correoEnviado
-          ? " · Se envió el correo de bienvenida con sus accesos al cliente. ✉️"
-          : " · No se envió correo (el evento no tiene correo de contacto).")
+        r.duplicado
+          ? `Ese usuario ya existía: las credenciales de "${r.usuario}" ya estaban creadas.`
+          : "Credenciales creadas. Usuario: " + r.usuario +
+            (r.correoEnviado
+              ? " · Se envió el correo de bienvenida con sus accesos al cliente. ✉️"
+              : " · No se envió correo (el evento no tiene correo de contacto).")
       );
       onActualizado?.({ ...evento, usuario: r.usuario, authUserId: r.userId });
     } catch (e) {

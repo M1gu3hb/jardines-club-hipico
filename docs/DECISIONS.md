@@ -41,9 +41,11 @@ Registro de decisiones técnicas y de producto (formato: decisión · razón · 
   segundo intento emitiera **otra invitación de aprovisionamiento de rol admin** antes de chocar
   con el 409 de `createUser`. La compensación la revocaba, pero era una ventana con una invitación
   de admin viva que dependía de que la compensación funcionara.
-- **Consecuencia:** las cinco rutas devuelven `{ok:true, duplicado:true}` en `duplicado`. Una sola
-  semántica de idempotencia en toda la superficie `api/`.
+- **Consecuencia:** las cinco rutas cortan en `duplicado`. Una sola semántica de idempotencia en
+  toda la superficie `api/`.
 - **Archivos:** `api/crear-admin.js`, `api/crear-usuario-evento.js`.
+- **CORREGIDA por D-COD-7:** el corte devolvía `{ok, duplicado}` a secas, y estas dos rutas
+  tienen llamadores que leen campos del cuerpo. Ver abajo.
 
 ### D-COD-5 — El plano del salón se sube desde `AdminSalones`, al bucket `planos`
 - **Razón:** el plano es un atributo del **salón**, no del evento; el editor de mesas
@@ -72,6 +74,33 @@ Registro de decisiones técnicas y de producto (formato: decisión · razón · 
   reales dejan de estar enterrados. Nueva línea base: **59**, actualizada en los 7 documentos que
   la citaban.
 - **Archivos:** `src/api/base44Client.js`.
+
+### D-COD-7 — El corte por `duplicado` devuelve la misma forma que el éxito
+- **Razón:** D-COD-4 unificó el corte en `duplicado`, pero se aplicó al pie de la letra sobre una
+  premisa incompleta: las otras tres rutas tienen llamadores que **solo miran `res.ok`**, mientras
+  que `crear-usuario-evento` y `crear-admin` **leen campos del cuerpo**. Devolver
+  `{ok, duplicado}` a secas hacía que el panel escribiera `usuario: undefined` en el estado del
+  evento y volviera a mostrar "este evento aún no tiene credenciales" para uno que sí las tiene.
+  Era **peor que antes** del cambio: el código viejo llegaba al 409 y decía "Ese usuario ya existe".
+- **Consecuencia:** el corte relee la fila (`eventos` / `perfiles`) y devuelve `usuario` y
+  `userId`, la misma forma que el camino de éxito. Se eligió arreglarlo en el **servidor** y no en
+  los llamadores porque así el fallo desaparece en el origen: un llamador futuro que olvide mirar
+  `duplicado` tampoco se rompe. Los mensajes del panel sí distinguen el caso, para no anunciar como
+  recién creado algo que ya existía. **`correoEnviado` no se inventa** en el corte: salió, o no, en
+  la ejecución original.
+- **Archivos:** `api/crear-usuario-evento.js`, `api/crear-admin.js`,
+  `src/components/admin/eventos/EventoDatos.jsx`, `src/components/admin/AdminAdministradores.jsx`,
+  `scripts/test-contratos-api.mjs`.
+
+### D-COD-8 — Las dos rutas de ALTA responden 429 en `en_curso`; las de correo cortan con 200
+- **Razón:** no es una inconsistencia olvidada, es una diferencia deliberada que hasta ahora no
+  estaba escrita en ningún sitio. En `solicitud`, `notificar` y `correo-cliente`, `en_curso`
+  significa "otro proceso ya está mandando este correo": dar 200 es correcto, el aviso va a salir.
+  En un **alta**, `en_curso` significa que la creación está a medias y **todavía puede fallar y
+  compensarse**; responder 200 le diría al admin que la cuenta existe cuando podría no llegar a
+  existir. Por eso 429: reintenta.
+- **Consecuencia:** `crear-admin` y `crear-usuario-evento` mantienen `en_curso → 429`. Hay un
+  contrato que lo fija.
 
 ## 2026-08-03 — Documentación
 
@@ -128,7 +157,7 @@ Registro de decisiones técnicas y de producto (formato: decisión · razón · 
   exigía `{accion, eventoId, nota}`. Compilaba, pasaba el lint y **todos los correos morían con
   un 400 en silencio**. Ninguna prueba de base de datos podía verlo: el desajuste estaba entre
   dos archivos de JavaScript.
-- **Consecuencia:** `scripts/test-contratos-api.mjs` (71 comprobaciones, sin red ni
+- **Consecuencia:** `scripts/test-contratos-api.mjs` (78 comprobaciones, sin red ni
   credenciales) **puede** correr en CI — hoy no hay: no existe `.github/`, se ejecuta a mano con
   `npm run test:contratos`. Además se activó `no-undef` en ESLint, que estaba anulado porque el
   bloque `rules` sobreescribía `pluginJs.configs.recommended`.
