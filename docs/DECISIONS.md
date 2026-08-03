@@ -216,6 +216,32 @@ Registro de decisiones técnicas y de producto (formato: decisión · razón · 
   una regresión.
 - **Archivos:** `scripts/test-contratos-api.mjs`, `CLAUDE.md`, `docs/PROMPTS.md`.
 
+### D-COD-16 — La lista de estatus la manda la BASE, no el panel
+- **Razón:** el panel ofrecía `En revisión`, `Confirmada` y `Cancelada`; el CHECK de `sec_07`
+  admite `Nueva, En proceso, Cotizada, Cerrada, Descartada`. Solo coincidía `Nueva`, así que
+  cualquier cambio de estatus violaba el constraint. Había dos salidas: ampliar el CHECK por
+  migración para admitir los nombres del panel, o alinear el panel con el CHECK.
+- **Consecuencia:** se alinea el **panel**. Tres motivos: la base es producción compartida y esto
+  no justifica una migración; el vocabulario del CHECK describe mejor un embudo de venta
+  (`En proceso` → `Cotizada` → `Cerrada` / `Descartada`) que `Confirmada` / `Cancelada`, que
+  hablan de un evento y no de una solicitud; y `Descartada` le da al dueño la forma de sacar una
+  solicitud de la lista de "estancadas", que es justo lo que le faltaba.
+- **Regla que queda escrita** (en la cabecera del componente y en un contrato): para añadir un
+  estatus se toca **primero** el CHECK y después el panel. Al revés vuelve a romperse en silencio.
+- **Archivos:** `src/components/admin/AdminSolicitudes.jsx`, `scripts/test-contratos-api.mjs`.
+
+### D-COD-17 — Borrar y "marcar leída" conviven; no son lo mismo
+- **Razón:** con el borrado real de la actividad del portal, cabía retirar `marcarLeidas()` por
+  redundante. No lo es: borrar es **irreversible**, y el dueño mira la actividad de la semana más
+  de una vez. Si la única forma de apagar el contador de "nuevo" fuera borrar, apagarlo costaría
+  el historial de la semana.
+- **Consecuencia:** se conservan las dos, con intenciones separadas y textos que lo dicen — *ya lo
+  vi* (no borra nada) y *ya no lo quiero* (borra, no archiva). Lo que sí se corrigió es que
+  `marcarLeidas` hacía hasta 120 UPDATE en un `Promise.all` sin `catch` y sin confirmar.
+- **Consecuencia aceptada:** hay dos botones donde podría haber uno. Es el precio de que apagar el
+  aviso no destruya información.
+- **Archivos:** `src/components/admin/AdminInicio.jsx`.
+
 ## 2026-08-03 — Documentación
 
 ### D-DOC-1 — Reescribir los cuerpos obsoletos en vez de dejar banners encima

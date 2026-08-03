@@ -158,7 +158,7 @@ navegador lo bloqueará en producción sin avisar en local.
 ```bash
 npm run lint            # eslint flat config, con no-undef ACTIVO
 npm run build           # vite build
-npm run test:contratos  # 99 contratos estáticos frontend ↔ api/
+npm run test:contratos  # 127 contratos estáticos frontend ↔ api/
 npm run typecheck       # 59 errores = línea base actual; no debe subir
 ```
 

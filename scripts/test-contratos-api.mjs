@@ -108,6 +108,44 @@ const cortaAntesDe = (cuerpo, cond, limite) => {
   check("solicitud: el front envía solo `solicitudId`", /solicitudId: creada\.id/.test(front));
   check("solicitud: el front no fabrica folios", !/JCH-\$\{Math\.random/.test(front));
   check("solicitud: la API relee la fila de la base", /from\("solicitudes"\)/.test(api));
+
+  // Era la única ruta con transporter propio y texto plano. Ahora usa la plantilla común.
+  const codigo = leerCodigo("api/solicitud.js");
+  check(
+    "solicitud: usa la plantilla dorada común, no un transporter propio",
+    /plantillaOro\(/.test(codigo) && /enviarCorreo\(/.test(codigo) &&
+      !/nodemailer/.test(codigo) && !/createTransport/.test(codigo),
+  );
+  // El bucle de escapado de arriba solo mira los `cuerpoHtml:` que son plantillas literales,
+  // y aquí el cuerpo lo arma `construirHtml`. Sin esto, añadir la ruta a esa lista daba un
+  // contrato que pasaba sin comprobar una sola interpolación.
+  {
+    // Se corta en `construirTexto`: ese es el cuerpo text/plain y ahí escapar HTML sería un
+    // error, no una protección. El contrato solo debe hablar de los constructores de HTML.
+    const constructores =
+      entre(codigo, "const fila = (etiqueta, valor)", "function construirTexto") || "";
+    const crudas = [...constructores.matchAll(/\$\{([^}]+)\}/g)]
+      .map((m) => m[1].trim())
+      .filter((e) => !/^escHtml\(/.test(e))
+      .filter((e) => !/^(filas)$/.test(e));      // fragmento ya escapado por `fila()`
+    check(
+      "solicitud: todo dato de la fila va escapado en el HTML",
+      constructores.length > 0 && crudas.length === 0,
+      constructores ? crudas.join(" | ") : "no se encontraron los constructores del HTML",
+    );
+  }
+  check(
+    "solicitud: se conserva el texto plano como alternativa",
+    /texto: construirTexto\(s\)/.test(codigo),
+  );
+  check(
+    "solicitud: el replyTo sale de la fila, no del cuerpo de la petición",
+    /replyTo: s\.email/.test(codigo) && !/replyTo:\s*(lectura|req|body)/.test(codigo),
+  );
+  check(
+    "solicitud: el asunto conserva folio y nombre",
+    /subject: `\[JCH\] Nueva solicitud \$\{s\.folio[\s\S]{0,60}s\.nombre_completo/.test(codigo),
+  );
 }
 
 // ---------------------------------------------------------------- escapado de correos
@@ -117,6 +155,7 @@ for (const ruta of [
   "api/crear-admin.js",
   "api/crear-usuario-evento.js",
   "api/cron-recordatorios.js",
+  "api/solicitud.js",
 ]) {
   const s = leer(ruta);
   if (!/plantillaOro/.test(s)) continue;
@@ -402,6 +441,181 @@ for (const ruta of [
   check("asignaciones: revocar marca revocada_at", /revocada_at: new Date\(\)/.test(bloque));
   check("asignaciones: NUNCA se borra la fila", !/\.delete\(\)/.test(bloque));
   check("asignaciones: asignar es idempotente (reactiva la revocada)", /revocada_at: null/.test(bloque));
+}
+
+// ---------------------------------------------------------------- solicitudes: estatus
+// El fallo real: `sec_07` puso un CHECK con cinco estatus y el panel seguía ofreciendo otros
+// tres. Solo coincidía "Nueva", así que CUALQUIER cambio violaba el CHECK (23514) — y como
+// `updateStatus` no capturaba nada, el desplegable volvía solo y el dueño no veía por qué.
+{
+  const jsx = leerCodigo("src/components/admin/AdminSolicitudes.jsx");
+  const sql = leer("supabase/migrations/20260801213853_jardines_sec_07_indices_storage_constraints.sql");
+
+  // Se cruzan los DOS archivos: la lista del panel contra el CHECK de la migración. Afirmar
+  // solo sobre el panel dejaría pasar exactamente la divergencia que causó el fallo.
+  {
+    const restriccion = (sql.match(/solicitudes_estatus_valido[\s\S]*?check \(([\s\S]*?)\);/) || ["", ""])[1];
+    const enBase = [...restriccion.matchAll(/'([^']+)'/g)].map((m) => m[1]).sort();
+    const lista = (jsx.match(/const ESTATUS = \[([^\]]*)\]/) || ["", ""])[1];
+    const enPanel = [...lista.matchAll(/"([^"]+)"/g)].map((m) => m[1]).sort();
+    check(
+      "solicitudes: el panel ofrece EXACTAMENTE los estatus que admite el CHECK de sec_07",
+      enBase.length > 0 && enPanel.length > 0 && enBase.join("|") === enPanel.join("|"),
+      `base=[${enBase.join(", ")}]  panel=[${enPanel.join(", ")}]`,
+    );
+  }
+
+  // Cada estatus ofrecido tiene color: si no, `STATUS_COLORS[…]` sale `undefined` y el
+  // `className` del <select> queda sin borde ni fondo.
+  {
+    const lista = (jsx.match(/const ESTATUS = \[([^\]]*)\]/) || ["", ""])[1];
+    const colores = (jsx.match(/const STATUS_COLORS = \{([\s\S]*?)\n\};/) || ["", ""])[1];
+    const sinColor = [...lista.matchAll(/"([^"]+)"/g)].map((m) => m[1]).filter((e) => !colores.includes(`"${e}"`));
+    check("solicitudes: todos los estatus ofrecidos tienen color", sinColor.length === 0, sinColor.join(", "));
+  }
+
+  // Atado al cuerpo de `updateStatus`, no al archivo: el fallo era invisible porque esta
+  // función concreta no capturaba nada.
+  {
+    const cuerpo = entre(jsx, "const updateStatus = async", "return (");
+    check(
+      "solicitudes: updateStatus captura el fallo y lo enseña",
+      /catch \(/.test(cuerpo) && /setError\(/.test(cuerpo),
+      cuerpo ? "" : "no se encontró updateStatus",
+    );
+    check(
+      "solicitudes: al fallar, el desplegable se repone con el valor de la base",
+      cortaAntesDe(cuerpo, "catch (", cuerpo.indexOf("finally")) || /catch \([\s\S]*?await load\(\)/.test(cuerpo),
+      cuerpo ? "" : "no se encontró updateStatus",
+    );
+    // ORDEN: la confirmación tiene que ir ANTES de decir que se guardó. Al revés, el mensaje
+    // de éxito afirma algo que todavía no consta.
+    const iConf = cuerpo.indexOf("filterEstricto");
+    // El `setOk` que importa es el del MENSAJE, no el `setOk("")` que limpia al empezar.
+    // Buscar `setOk(` a secas encontraba el reinicio —que va antes de todo— y el contrato
+    // fallaba sobre código correcto. (Lo atrapó él mismo al escribirlo.)
+    const iOk = cuerpo.search(/setOk\([^")]/);
+    check(
+      "solicitudes: se confirma releyendo ANTES de decir que se guardó",
+      iConf >= 0 && iOk > iConf,
+      iConf < 0 ? "updateStatus no relee con filterEstricto" : "el mensaje de éxito va antes de la confirmación",
+    );
+    check(
+      "solicitudes: no se muestra el error crudo de Postgres",
+      /mensajeDeError\(/.test(cuerpo) && !/setError\(\s*(e|err)[.?]/.test(cuerpo),
+    );
+  }
+  check(
+    "solicitudes: la carga no confunde 'vacío' con 'falló'",
+    /SolicitudEvento\.filterEstricto\(null/.test(jsx) && !/SolicitudEvento\.list\(/.test(jsx),
+  );
+}
+
+// ---------------------------------------------------------------- notificaciones: se BORRAN
+// Decisión del dueño: la actividad del portal se borra, no se archiva. Ni a mano ni a los
+// 7 días queda nada. Y `delete` del shim devuelve `{success:true}` pase lo que pase (J-02),
+// así que un borrado que RLS rechace en silencio diría "quitadas ✓" sin quitar nada.
+{
+  const jsx = leerCodigo("src/components/admin/AdminInicio.jsx");
+  const cuerpo = entre(jsx, "const quitarNotifs = async", "const noLeidas");
+
+  check(
+    "notificaciones: quitar BORRA la fila, no la marca",
+    /Notificacion\.delete\(/.test(cuerpo) && !/leida:\s*true/.test(cuerpo),
+    cuerpo ? "" : "no se encontró quitarNotifs",
+  );
+  // ORDEN: la guarda tiene que cortar antes de que se pise el estado de la pantalla — y eso
+  // se mide contra el PRIMER `setNotifs(`, sea cual sea su argumento. Anclarlo a
+  // `setNotifs(frescas` dejaba pasar un `setNotifs([])` colado antes de confirmar: la lista
+  // se vaciaba en pantalla aunque la base hubiera rechazado el borrado. (Lo atrapó la
+  // mutación; el contrato anterior no.)
+  {
+    const iConf = cuerpo.indexOf("filterEstricto");
+    const iPinta = cuerpo.search(/setNotifs\(/);
+    check(
+      "notificaciones: el borrado se confirma releyendo antes de pintar",
+      iConf >= 0 && iPinta > iConf && cortaAntesDe(cuerpo, "if (sobreviven)", iPinta),
+      iConf < 0 ? "quitarNotifs no relee" : "la pantalla se pisa antes de confirmar el borrado",
+    );
+  }
+  check(
+    "notificaciones: si el borrado falla, se avisa y se recarga",
+    /catch \(/.test(cuerpo) && /setErrorNotif\(/.test(cuerpo) && /await cargarNotifs\(\)/.test(cuerpo),
+    cuerpo ? "" : "no se encontró quitarNotifs",
+  );
+  // Se borra por notificación Y por grupo: atado a las dos llamadas del render, no a que
+  // la función exista.
+  check(
+    "notificaciones: se puede quitar una sola y el grupo entero",
+    /quitarNotifs\(\[n\.id\]/.test(jsx) && /quitarNotifs\(items\.map\(\(n\) => n\.id\)/.test(jsx),
+  );
+  check(
+    "notificaciones: la carga no confunde 'vacío' con 'falló'",
+    /Notificacion\.filterEstricto\(null/.test(jsx) && !/Notificacion\.list\(/.test(jsx),
+  );
+  // `marcarLeidas` se conserva a propósito (ver su cabecera), pero ya no puede mentir.
+  {
+    const marcar = entre(jsx, "const marcarLeidas = async", "const hoy =");
+    check(
+      "notificaciones: marcar leídas también confirma la escritura",
+      /filterEstricto/.test(marcar) && /siguenSinLeer/.test(marcar) && /catch \(/.test(marcar),
+      marcar ? "" : "no se encontró marcarLeidas",
+    );
+  }
+}
+{
+  const cron = leerCodigo("api/cron-recordatorios.js");
+  const limpieza = entre(cron, "let notifsBorradas = 0;", "// 1)");
+  // Tolerante al espaciado: partir la cadena de supabase-js en varias líneas es reformateo,
+  // no una regresión. (El contrato de una sola línea daba falso positivo.)
+  check(
+    "cron: borra la actividad de más de 7 días (no la archiva)",
+    /from\(\s*"notificaciones"\s*\)\s*\.delete\(\s*\)\s*\.lt\(\s*"created_at"/.test(limpieza),
+    limpieza ? "" : "no se encontró la limpieza",
+  );
+  check(
+    "cron: cuenta lo REALMENTE borrado, no lo que pidió borrar",
+    /\.select\("id"\)/.test(limpieza) && /\(borradas \|\| \[\]\)\.length/.test(limpieza),
+    limpieza ? "" : "no se encontró la limpieza",
+  );
+  // El digest tiene que distinguir "entró hoy" de "se está enfriando": son dos cosas
+  // distintas y antes solo se reportaba la segunda, así que el dueño no veía el trabajo nuevo.
+  {
+    // Anclado a código, no a un comentario: `leerCodigo` los quita, así que `// 1) Digest`
+    // no existe en la cadena que se inspecciona y el recorte salía vacío.
+    const digest = entre(cron, "let digestEnviado = false;", "const claveDigest");
+    check(
+      "cron: el digest separa las solicitudes recientes de las estancadas",
+      /recientes\.map\(/.test(digest) && /estancadas\.map\(/.test(digest),
+      digest ? "" : "no se encontró el digest",
+    );
+    check(
+      "cron: `recientes` son las de las últimas 24 h, no todas",
+      /const recientes = \(solicitudes \|\| \[\]\)\.filter\([\s\S]*?created_at >= hace24h\)/.test(cron) &&
+        /const hace24h = new Date\(hoy\.getTime\(\) - 86400000\)/.test(cron),
+    );
+    check(
+      "cron: el digest se manda también cuando SOLO hay solicitudes recientes",
+      /if \(recientes\.length \|\|/.test(digest),
+      digest ? "" : "no se encontró el digest",
+    );
+    check(
+      "cron: cada bloque dice qué hacer, no solo el número",
+      /const bloque = \(titulo, quehacer, items\)/.test(digest) && /escHtml\(quehacer\)/.test(digest),
+      digest ? "" : "no se encontró el digest",
+    );
+    check(
+      "cron: el digest reporta cuántos avisos borró la limpieza",
+      /pieLimpieza[\s\S]*?\$\{notifsBorradas\}/.test(digest) && /cuerpo \+ pieLimpieza/.test(cron),
+      digest ? "" : "no se encontró el digest",
+    );
+  }
+  check(
+    "cron: la limpieza queda auditada en sus dos caminos",
+    /auditar\(admin, "cron_limpieza_notificaciones", "ok"/.test(limpieza) &&
+      /auditar\(admin, "cron_limpieza_notificaciones", "error"/.test(limpieza),
+    limpieza ? "" : "no se encontró la limpieza",
+  );
 }
 
 // ---------------------------------------------------------------- salida

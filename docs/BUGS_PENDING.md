@@ -17,7 +17,8 @@
 ## Estado general
 
 **No hay bugs críticos abiertos.** Quedan siete pendientes —tres medios, cuatro bajos—, riesgos
-residuales aceptados, y lo que depende de terceros.
+residuales aceptados, y lo que depende de terceros. **J-08 y J-09** (bloque 7) quedan resueltos en
+código y pendientes de que el dueño los vea funcionar en pantalla.
 
 ---
 
@@ -133,6 +134,29 @@ pueden comprobar con credenciales reales frente a la pantalla:
 5. Generar el link de meseros y abrirlo.
 
 Hasta entonces **no se declara CERRADO**.
+
+---
+
+### J-08 — El estatus de la solicitud no se podía cambiar *(resuelto en el bloque 7A)*
+- **Impacto:** era alto. El correo de resumen diario le dice al dueño qué solicitudes están
+  estancadas y no podía marcarlas como atendidas: el contador crecía para siempre y el correo
+  perdía sentido.
+- **Causa — no la que parecía.** `sec_07` puso un CHECK que admite
+  `Nueva, En proceso, Cotizada, Cerrada, Descartada`, y el panel ofrecía `En revisión`,
+  `Confirmada` y `Cancelada`. Solo coincidía `Nueva`, así que **cualquier** cambio violaba el
+  CHECK (23514). **No** era el GRANT (existe) ni el `[]` mudo de J-02 (el `update` del shim sí
+  lanza). Lo que lo hacía invisible era `updateStatus` sin `try/catch`.
+- **Arreglo:** la lista del panel pasa a ser la de la base, y el guardado captura, traduce y
+  confirma releyendo. **Sin migración.** Un contrato cruza ahora los dos archivos —el panel
+  contra el CHECK de la migración— para que no puedan volver a divergir.
+- **Lección:** al añadir un valor a una lista cerrada, se toca **primero** el CHECK.
+
+### J-09 — La actividad del portal no se podía quitar y crecía sin límite *(resuelto en 7B)*
+- **Impacto:** era medio. Se acumulaba y saturaba el inicio del panel.
+- **Arreglo:** se borra —no se archiva— a mano (una o el grupo del evento) y automáticamente a
+  los 7 días desde el cron, que audita cuántas filas se fueron y lo reporta en el resumen diario.
+  **Sin migración:** el GRANT de DELETE y la policy `notificaciones_del` ya existían, comprobado
+  por impersonación antes de escribir el código.
 
 ---
 

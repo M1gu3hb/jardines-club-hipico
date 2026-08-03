@@ -158,7 +158,7 @@ Resumen (detalle en `docs/FILE_MAP.md`):
   crear-usuario-evento, canjear-acceso, cron-recordatorios.
 - `supabase/migrations/*.sql` — migraciones forward-only.
 - `supabase/tests/seguridad.sql` — 63 aserciones de seguridad.
-- `scripts/test-contratos-api.mjs` — 99 contratos frontend ↔ API.
+- `scripts/test-contratos-api.mjs` — 127 contratos frontend ↔ API.
 - `vercel.json` — rewrites SPA, cabeceras HTTP (CSP, HSTS…) y el cron.
 - `src/data/resenas.json` — **el único JSON vivo**: lo importa `src/components/Confianza.jsx`.
 - `src/data/site-data.json` — **no lo importa nadie** en `src/` ni en `api/`. Es solo la entrada
@@ -286,7 +286,17 @@ los 16 se habían verificado mutando.
 punta** (folio del servidor, fila en `solicitudes`, correo enviado, auditoría en `ok`). El guion
 de validación para el dueño está en **`docs/VALIDACION.md`**.
 
-Estado del código: **cerrado y desplegado**. Batería: `lint` 0, `build` exit 0,
-`test:contratos` 99/99, `typecheck` 59. Base en `sec_01..24`, Vero intacto. Estado formal:
-**`ESPERANDO_VALIDACION_HUMANA_AUTENTICADA`** (ver §8.F) — solo faltan los cinco flujos con
-credenciales reales. Historial completo en `docs/CHANGELOG.md`.
+**2026-08-03 (bloque 7)** — Las cuatro cosas que encontró el dueño usando el panel. La más
+importante: **el estatus de una solicitud no se podía cambiar**, y no era ni el GRANT ni el `[]`
+mudo del shim, sino que el CHECK de `sec_07` admite `Nueva, En proceso, Cotizada, Cerrada,
+Descartada` y el panel ofrecía otros tres nombres — solo coincidía `Nueva`, así que cualquier
+cambio violaba el constraint, y `updateStatus` sin `try/catch` lo hacía invisible. Además: la
+actividad del portal se borra (a mano y a los 7 días desde el cron), el resumen diario separa lo
+que entró de lo que se enfría, y el aviso de nueva solicitud pasa a la plantilla dorada.
+Contratos **99 → 127**. **Ninguna migración.** PR #6.
+
+Estado del código: **bloques 3–6 desplegados; bloque 7 mergeado a `main` y esperando deploy.**
+Batería: `lint` 0, `build` exit 0, `test:contratos` **127/127**, `typecheck` 59. Base en
+`sec_01..24`, Vero intacto. Estado formal: **`ESPERANDO_VALIDACION_HUMANA_AUTENTICADA`**
+(ver §8.F) — solo faltan los cinco flujos con credenciales reales, con el guion en
+`docs/VALIDACION.md`. Historial completo en `docs/CHANGELOG.md`.

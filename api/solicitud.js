@@ -14,13 +14,49 @@
 //   con service_role y arma el correo con los datos CANÓNICOS de la base. Si la
 //   fila no existe, el correo no sale. Rate limit por IP e idempotencia por
 //   solicitud, así que un reintento no duplica el aviso.
-import nodemailer from "nodemailer";
+import { plantillaOro, enviarCorreo, SITIO_URL } from "./_lib/correo.js";
 import {
   clienteAdmin, leerBody, rateLimit, idemIniciar, idemCerrar,
-  auditar, generico, ipCliente,
+  auditar, generico, ipCliente, escHtml,
 } from "./_lib/guard.js";
 
 const DEST_DEFAULT = "mighuer427@gmail.com";
+
+/**
+ * Fila de la tabla del correo. Estilos EN LÍNEA porque Gmail borra el `<style>` del `<head>`,
+ * y `<table>` porque es lo único que maqueta igual en Gmail, Outlook y iOS Mail.
+ * En móvil las dos celdas se apilan solas: la etiqueta va en su propia fila estrecha.
+ */
+const fila = (etiqueta, valor) => `
+  <tr>
+    <td style="padding:7px 12px 7px 0;color:#8a8a8a;font-size:12px;white-space:nowrap;vertical-align:top;">${escHtml(etiqueta)}</td>
+    <td style="padding:7px 0;color:#e8e8e8;font-size:13px;vertical-align:top;">${escHtml(valor || "—")}</td>
+  </tr>`;
+
+const seccion = (titulo, filas) => `
+  <p style="margin:20px 0 4px 0;color:#E6C870;font-weight:bold;font-size:12px;letter-spacing:.4px;">${escHtml(titulo)}</p>
+  <table role="presentation" cellpadding="0" cellspacing="0" width="100%" style="border-collapse:collapse;">${filas}</table>`;
+
+/**
+ * Cuerpo HTML del aviso, construido SOLO con la fila de la base — igual que el texto plano.
+ * Todo valor pasa por `escHtml`: el nombre y los comentarios los escribe un desconocido en un
+ * formulario público, así que son la entrada menos confiable de todo el proyecto.
+ */
+function construirHtml(s) {
+  return (
+    seccion("IDENTIFICACIÓN",
+      fila("Folio", s.folio) + fila("Fecha de envío", s.fecha_envio) + fila("Hora", s.hora_envio)) +
+    seccion("CLIENTE",
+      fila("Nombre", s.nombre_completo) + fila("Teléfono", s.telefono) + fila("Correo", s.email)) +
+    seccion("EVENTO",
+      fila("Espacio / Salón", s.salon_seleccionado) + fila("Tipo", s.tipo_evento) +
+      fila("Fecha tentativa", s.fecha_tentativa) +
+      fila("Personas", s.numero_personas == null ? "" : String(s.numero_personas))) +
+    `<p style="margin:20px 0 4px 0;color:#E6C870;font-weight:bold;font-size:12px;letter-spacing:.4px;">COMENTARIOS</p>` +
+    `<p style="margin:0;color:#cfcfcf;font-size:13px;line-height:1.55;">` +
+    `${escHtml(s.comentarios || "Sin comentarios adicionales.")}</p>`
+  );
+}
 
 /** Texto del correo, construido SOLO con la fila de la base. */
 function construirTexto(s) {
@@ -105,14 +141,25 @@ export default async function handler(req, res) {
   if (idem !== "procede") return generico(res, 500);
 
   try {
-    const transporter = nodemailer.createTransport({ service: "gmail", auth: { user, pass } });
-    await transporter.sendMail({
-      from: `"Jardines Club Hípico" <${user}>`,
+    // Era la única ruta con su propio transporter y texto plano. Ahora usa la misma plantilla
+    // dorada que los demás correos del proyecto (`_lib/correo.js`), así que el remitente, el
+    // fondo, el acento y el botón salen de un único sitio. El texto plano se conserva como
+    // alternativa: hay clientes que no pintan HTML, y sin él el correo llegaría vacío ahí.
+    await enviarCorreo({
       to,
-      // replyTo sale de la base, no del cuerpo de la petición.
+      // replyTo sale de la base, no del cuerpo de la petición: así el dueño responde al
+      // cliente de verdad y no a una dirección que puso quien llamó a la ruta.
       replyTo: s.email || undefined,
       subject: `[JCH] Nueva solicitud ${s.folio || ""} - ${s.nombre_completo || ""}`.trim(),
-      text: construirTexto(s),
+      html: plantillaOro({
+        pretitulo: "Formulario del sitio",
+        titulo: "Nueva solicitud de evento",
+        cuerpoHtml: construirHtml(s),
+        ctaTexto: "Ver en mi panel",
+        ctaUrl: `${SITIO_URL}/${process.env.VITE_ADMIN_SLUG || "gestion-jch-9f27ax"}`,
+        notaPie: "Aviso automático del formulario de Jardines Club Hípico.",
+      }),
+      texto: construirTexto(s),
     });
 
     const cerrado = await idemCerrar(admin, "solicitud-correo", s.id, true);
