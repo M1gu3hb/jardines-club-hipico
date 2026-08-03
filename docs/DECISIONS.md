@@ -171,6 +171,29 @@ Registro de decisiones técnicas y de producto (formato: decisión · razón · 
   Verificado contra producción el ciclo asignar → revocar → reasignar.
 - **Archivos:** `src/api/base44Client.js`.
 
+### D-COD-13 — Una lectura que DECIDE no puede devolver `[]` ante un fallo
+- **Razón:** `runQuery` devuelve `[]` tanto si no hay filas como si la lectura falló. Da igual en
+  una lista que se pinta; es **peligroso** cuando la lectura sirve para decidir. Ya causó dos
+  daños distintos: el rollback del plano borraba el archivo de una escritura que sí había cuajado,
+  y el guardarraíl del operativo se saltaba con datos incompletos.
+- **Consecuencia:** `entities.X.filterEstricto()`, aditivo, que **propaga el error**. Se usa donde
+  la lectura decide: confirmar una escritura y contar accesos. `filter` sigue igual para pintar.
+  Y las confirmaciones devuelven **tres** estados —sí / no / no se pudo saber— porque colapsar el
+  tercero en "no" es lo que convierte un fallo de red en una destrucción de datos.
+- **Regla:** ante "no se pudo confirmar", **no deshagas nada** y dilo. Un huérfano en un bucket es
+  mucho más barato que un dato destruido.
+- **Archivos:** `src/api/base44Client.js`, `src/components/admin/SalonPlanoUpload.jsx`,
+  `src/components/admin/AdminOperativo.jsx`.
+
+### D-COD-14 — Las asignaciones inertes se muestran, no se ocultan
+- **Razón:** una asignación vigente a un evento ya cerrado **no da acceso** (el OR de `sec_14`
+  exige el evento activo). Los chips solo se pintaban para eventos activos, así que esas
+  asignaciones eran **invisibles e irrevocables** desde la pantalla: se acumulaban solas y
+  alimentaban el bypass del guardarraíl.
+- **Consecuencia:** se listan aparte, marcadas como "no dan acceso", con su botón de revocar. La
+  alternativa —ocultarlas y ya— dejaba un estado imposible de limpiar desde el panel.
+- **Archivos:** `src/components/admin/AdminOperativo.jsx`.
+
 ## 2026-08-03 — Documentación
 
 ### D-DOC-1 — Reescribir los cuerpos obsoletos en vez de dejar banners encima
@@ -226,7 +249,7 @@ Registro de decisiones técnicas y de producto (formato: decisión · razón · 
   exigía `{accion, eventoId, nota}`. Compilaba, pasaba el lint y **todos los correos morían con
   un 400 en silencio**. Ninguna prueba de base de datos podía verlo: el desajuste estaba entre
   dos archivos de JavaScript.
-- **Consecuencia:** `scripts/test-contratos-api.mjs` (78 comprobaciones, sin red ni
+- **Consecuencia:** `scripts/test-contratos-api.mjs` (94 comprobaciones, sin red ni
   credenciales) **puede** correr en CI — hoy no hay: no existe `.github/`, se ejecuta a mano con
   `npm run test:contratos`. Además se activó `no-undef` en ESLint, que estaba anulado porque el
   bloque `rules` sobreescribía `pluginJs.configs.recommended`.

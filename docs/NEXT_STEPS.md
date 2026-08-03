@@ -28,33 +28,39 @@
    - Redeploy. Ver `docs/DEPLOY.md`.
 
 4. **Extender el patrón de "confirmar releyendo"** (J-02), o arreglar el shim de raíz para que
-   `update`/`delete` distingan "0 filas por RLS" de éxito. `SalonPlanoUpload` y `AdminOperativo`
-   ya lo hacen; el resto del panel todavía confía en el shim.
+   `update`/`delete` distingan "0 filas por RLS" de éxito, y que las lecturas que **deciden** usen
+   `filterEstricto` en vez de `filter`. `SalonPlanoUpload` y `AdminOperativo` ya lo hacen; el resto
+   del panel todavía confía en el `[]` ambiguo.
 
-5. **Acordar con Vero los pendientes compartidos** (`docs/SEGURIDAD.md` §9): protección de
+5. **Decidir si la invariante del operativo se garantiza en la base** (J-06). Hoy el bloqueo de
+   "nadie con 0 eventos efectivos" vive solo en el navegador: por SQL o desde Studio se puede
+   dejar a alguien sin acceso. Un trigger sobre `operativo_personal` lo cerraría, pero es decisión
+   de producto — puede haber bajas legítimas.
+
+6. **Acordar con Vero los pendientes compartidos** (`docs/SEGURIDAD.md` §9): protección de
    contraseñas filtradas desactivada, `public.is_admin()` y `public.rls_auto_enable()`
    ejecutables por `anon`, y `public.content_audit(actor)` sin índice de FK. **Son suyos: no se
    tocan sin su visto bueno.**
 
 ## Después
 
-6. **Decidir sobre los tokens de invitación y mesa en claro** (`docs/DECISIONS.md` D-COD-2).
+7. **Decidir sobre los tokens de invitación y mesa en claro** (`docs/DECISIONS.md` D-COD-2).
    Pasarlos a hash toca RLS y la RPC pública, y los QR ya impresos seguirían siendo portadores,
    así que el beneficio se limita a una fuga de lectura de la tabla. Decidir antes de la próxima
    temporada de eventos.
 
-7. **Canales operativos por evento.** `operativo_canales` es global; dos eventos simultáneos
+8. **Canales operativos por evento.** `operativo_canales` es global; dos eventos simultáneos
    compartirían canal de radio.
 
-8. **Reseñas reales aprobadas** en el panel, para que el carrusel de Confianza tenga contenido.
+9. **Reseñas reales aprobadas** en el panel, para que el carrusel de Confianza tenga contenido.
 
-9. **Remitente del correo.** Si se quiere que salga de una cuenta propia, cambiar `GMAIL_USER` /
+10. **Remitente del correo.** Si se quiere que salga de una cuenta propia, cambiar `GMAIL_USER` /
    `MAIL_TO` en Vercel y generar un App Password de esa cuenta.
 
-10. **Peso de las imágenes.** Algunas migradas de imgur pesan varios MB. **No tocar los videos
+11. **Peso de las imágenes.** Algunas migradas de imgur pesan varios MB. **No tocar los videos
     del hero** (ya comprimidos).
 
-11. **Quitar `'unsafe-inline'` de la CSP.** Exige eliminar los estilos y scripts en línea que
+12. **Quitar `'unsafe-inline'` de la CSP.** Exige eliminar los estilos y scripts en línea que
     quedan; hasta entonces la CSP acota orígenes pero no protege contra XSS inline.
 
 ## Ideas futuras
@@ -75,7 +81,8 @@ Mientras eso no ocurra, el estado es `ESPERANDO_VALIDACION_HUMANA_AUTENTICADA` y
 siendo bloqueante**.
 
 Queda además deuda **no bloqueante**, toda en `docs/BUGS_PENDING.md` con la numeración `J-##`:
-`SITIO_URL` hardcodeada (J-01), el shim que reporta éxito en escrituras de 0 filas (J-02), la
-ausencia de fallback si Supabase cae (J-03), el dominio placeholder (J-04) y el cambio de
-contraseña en el portal (J-05). Más los riesgos residuales aceptados, entre ellos que la CSP
-conserva `'unsafe-inline'`.
+`SITIO_URL` hardcodeada (J-01), el `[]` ambiguo del shim en escrituras y lecturas (J-02), el
+guardarraíl del operativo que solo vive en el cliente (J-06), la ausencia de fallback si Supabase
+cae (J-03), el dominio placeholder (J-04), el cambio de contraseña en el portal (J-05) y
+`operativo_activo` sin control en el panel (J-07). Más los riesgos residuales aceptados, entre
+ellos que la CSP conserva `'unsafe-inline'`.

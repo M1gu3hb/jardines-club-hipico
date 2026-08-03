@@ -23,7 +23,7 @@ import { Loader2, Upload, Trash2, Image as ImageIcon } from "lucide-react";
  *
  * Nota sobre escrituras: el shim reporta éxito aunque RLS deje la operación en 0
  * filas (misma familia que el bug del folio). Aquí no se confía: cada escritura
- * se confirma releyendo. Ver `docs/BUGS_PENDING.md` B9.
+ * se confirma releyendo. Ver `docs/BUGS_PENDING.md` J-02.
  */
 
 const BUCKET = "planos";

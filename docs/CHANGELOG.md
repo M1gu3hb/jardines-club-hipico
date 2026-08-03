@@ -1,5 +1,69 @@
 # CHANGELOG.md
 
+## 2026-08-03 (f) — Bloque 5: el `[]` ambiguo y sus dos consecuencias
+
+### Cambios realizados
+
+Los dos defectos del bloque 4 compartían causa: **`runQuery` devuelve `[]` tanto cuando no hay
+filas como cuando la lectura falla** (J-02, que se dejó abierto a propósito). Ese `[]` ya estaba
+produciendo daño en dos sitios.
+
+**5A — el rollback del plano podía destruir una escritura que sí ocurrió.** Si el `update` cuajaba
+y la relectura fallaba, `guardado` era `null` → `throw` → el `catch` borraba del bucket **el
+archivo que la fila acababa de referenciar**: fila apuntando a un archivo inexistente, plano
+anterior huérfano sin asa, y un mensaje falso ("la base no aceptó el cambio"). El espejo en
+`quitar` era peor: borraba el archivo y limpiaba la UI aunque la fila siguiera viva.
+Ahora `confirmar()` devuelve **tres** estados y el rollback solo actúa con "no". Con
+"desconocido" no se borra nada y se dice la verdad. La lectura de confirmación no pasa por
+`runQuery`: se añade `entities.X.filterEstricto()`, que propaga el error.
+
+**Permiso de borrado en `planos`, comprobado:** el admin **sí puede**. La policy
+`planos admin escribe` es `cmd = ALL` para `authenticated` con `is_admin()`, y `ALL` cubre DELETE.
+Así que la limpieza de huérfanos del bloque 4 sí estaba pasando. Corregido `DECISIONS.md`, que
+atribuía esa policy a `sec_07`: `sec_07` solo fija límites y **dropea** la vieja. La policy vigente
+vive en el dashboard, no en el repo — deuda anotada.
+Y `storage.remove` distingue "borró" de "no borró nada": la Storage API responde 200 con lista
+vacía si una policy lo deniega, así que el fallo era mudo.
+
+**5B — el guardarraíl contaba asignaciones que no dan acceso.** El OR de `sec_14` exige
+`operativo_activo = true` **antes** del OR, así que una asignación a un evento cerrado no da
+acceso a nada. Contarlas rompía las tres cosas para las que existe la pantalla: el bloqueo se
+saltaba (persona con `acceso_global` + 1 asignación inerte → el admin apagaba el acceso y quedaba
+en 0 eventos), el "estado efectivo" nunca podía decir "sin acceso", y el aviso al revocar no
+disparaba. Se cruza contra los eventos activos, y las asignaciones inertes pasan a ser **visibles
+y revocables** — antes eran invisibles e irrevocables, y se acumulaban alimentando el bypass.
+Más: carrera del botón global, carga que confundía "vacío" con "falló", estado que se pisaba
+antes de validar, y un texto que mandaba a un control inexistente.
+
+**5C — cobertura.** Ninguna de las dos pantallas tenía un solo contrato. **+16 (78 → 94)**, y cada
+uno **verificado reintroduciendo su regresión**: los cinco la atrapan. Uno de los primeros que
+escribí no lo hacía —buscaba `idsActivos` en todo el archivo y `inertesDe` también lo menciona—
+así que se ató a la definición de `vigentesDe`.
+
+### Archivos modificados
+Código: `src/api/base44Client.js` (`filterEstricto`, `storage.remove`),
+`src/components/admin/SalonPlanoUpload.jsx`, `src/components/admin/AdminOperativo.jsx`,
+`scripts/test-contratos-api.mjs`.
+Docs: `docs/BUGS_PENDING.md`, `docs/DECISIONS.md`, `docs/NEXT_STEPS.md`, `docs/CHANGELOG.md`.
+
+### Entidades/BD afectadas
+**Ninguna. Sin migraciones.** Solo consultas de lectura para verificar las policies de Storage.
+
+### Bugs resueltos
+El rollback destructivo del plano y el bypass del guardarraíl del operativo.
+
+### Bugs nuevos
+Ninguno. Documentados dos que ya existían: **J-06** (el guardarraíl es solo de cliente: cualquier
+admin puede apagar `acceso_global` desde Studio) y **J-07** (`operativo_activo` no se maneja desde
+el panel, que es la causa de que existan asignaciones inertes).
+
+### Decisiones tomadas
+D-COD-13, D-COD-14 (ver `docs/DECISIONS.md`).
+
+### Próximo paso
+Validación humana autenticada de los 5 flujos. Es lo único que queda.
+
+
 ## 2026-08-03 (e) — Bloque 4: regresión, tipado, plano endurecido y asignación de personal
 
 ### Cambios realizados

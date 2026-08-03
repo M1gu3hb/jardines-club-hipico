@@ -201,6 +201,87 @@ for (const ruta of [
   check("cron: documenta semantica at-least-once", /AT-LEAST-ONCE/.test(doc));
 }
 
+// ---------------------------------------------------------------- plano del salón
+// Los fallos que ya ocurrieron: el rollback borraba el archivo de una escritura
+// que sí había cuajado, porque la relectura no distinguía "no hay fila" de "la
+// lectura falló".
+{
+  const s = leerCodigo("src/components/admin/SalonPlanoUpload.jsx");
+  // `confirmar()` tiene que devolver los TRES estados. Se comprueba dentro de su
+  // cuerpo, no en todo el archivo: si no, cualquier literal suelto lo daría por
+  // bueno.
+  {
+    const cuerpo = (s.match(/const confirmar = async \(\) => \{[\s\S]*?\n  \};/) || [""])[0];
+    check(
+      "plano: la confirmación distingue tres estados, no dos",
+      /"si"/.test(cuerpo) && /"no"/.test(cuerpo) && /"desconocido"/.test(cuerpo),
+      cuerpo ? "" : "no se encontró confirmar()",
+    );
+  }
+  check(
+    'plano: con "desconocido" NO se hace rollback',
+    /desconocido[\s\S]{0,400}subidoPath = null/.test(s),
+  );
+  check(
+    "plano: la lectura de confirmación no pasa por el filter que devuelve []",
+    /filterEstricto/.test(s) && !/SalonPlano\.filter\(/.test(s),
+  );
+  check(
+    "plano: quitar exige confirmación antes de borrar el archivo",
+    /const post = await confirmar\(\)[\s\S]{0,500}borrarObjeto\(path\)/.test(s),
+  );
+  check("plano: se guarda el path para poder limpiar el bucket", /imagenPlanoPath/.test(s));
+  check(
+    "plano: no se escriben medidas nulas sobre unas válidas",
+    /if \(medidas\) \{ datos\.ancho/.test(s),
+  );
+}
+{
+  const s = leerCodigo("src/api/base44Client.js");
+  check("shim: filterEstricto propaga el error en vez de devolver []", /filterEstricto[\s\S]{0,400}throw error/.test(s));
+  check("shim: storage.remove distingue 'no borró nada'", /borrado: Array\.isArray\(data\)/.test(s));
+}
+
+// ---------------------------------------------------------------- operativo
+{
+  const s = leerCodigo("src/components/admin/AdminOperativo.jsx");
+  // Atado a la definición de `vigentesDe`, no al archivo entero: `inertesDe`
+  // también menciona `idsActivos`, así que buscarlo suelto daba por bueno el
+  // conteo sin cruzar. (Comprobado reintroduciendo el fallo: no lo atrapaba.)
+  {
+    const def = (s.match(/const vigentesDe = [\s\S]*?;\n/) || [""])[0];
+    check(
+      "operativo: `vigentesDe` cruza contra los eventos ACTIVOS",
+      /idsActivos\.has\(a\.eventoId\)/.test(def),
+      def.trim() || "no se encontró vigentesDe",
+    );
+  }
+  check(
+    "operativo: el guardarraíl usa ese conteo cruzado",
+    /vigentes = vigentesDe\(persona\.id\)\.length[\s\S]{0,200}accesoGlobal && vigentes === 0/.test(s),
+  );
+  check(
+    "operativo: las asignaciones a eventos cerrados son visibles y revocables",
+    /inertesDe/.test(s),
+  );
+  check(
+    "operativo: la carga no confunde 'vacío' con 'falló'",
+    /filterEstricto/.test(s) && !/OperativoPersonal\.list\(\)/.test(s),
+  );
+  check(
+    "operativo: el botón global se bloquea con cualquier operación en vuelo",
+    /ocupadaPersona/.test(s),
+  );
+}
+{
+  const s = leerCodigo("src/api/base44Client.js");
+  // `operativo_asignacion` conserva historial: revocar es `revocada_at`.
+  const bloque = (s.match(/const asignaciones = \{[\s\S]*?\n\};/) || [""])[0];
+  check("asignaciones: revocar marca revocada_at", /revocada_at: new Date\(\)/.test(bloque));
+  check("asignaciones: NUNCA se borra la fila", !/\.delete\(\)/.test(bloque));
+  check("asignaciones: asignar es idempotente (reactiva la revocada)", /revocada_at: null/.test(bloque));
+}
+
 // ---------------------------------------------------------------- salida
 let fallan = 0;
 for (const c of casos) {
