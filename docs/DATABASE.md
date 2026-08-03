@@ -170,7 +170,9 @@ que se hizo el seed inicial (histórico). **Si Supabase no responde, el sitio se
 > tiene es la generación del enlace de meseros, que va por `rotar_staff_token`.
 
 - `operativo_asignacion`: `personal_id`, `evento_id`, `revocada_at`. **Sin UI**; hoy
-  los 3 operativos tienen `acceso_global = true` porque el salón opera un evento a la vez.
+  (**dato de producción al 2026-08-03, no un invariante**) los 3 operativos existentes tienen
+  `acceso_global = true` porque el salón opera un evento a la vez. `sec_18` opera sobre un
+  conjunto dinámico: si se dan de alta más operativos, este recuento cambia.
 - **Regla:** el evento del operativo **se deriva o se valida**; nunca se confía en el `p_evento`
   que manda el cliente (`operativo_ubicar`). Comportamiento **fail-closed** desde `sec_14`.
 
@@ -204,17 +206,16 @@ migraciones.
 Son todas las que `anon` puede ejecutar. Ninguna función de `jardines` tiene `EXECUTE` para
 `PUBLIC` (`sec_11`).
 
-**1a. Abiertas al público** — no piden nada previo; se protegen con rate limit por IP y error
-genérico:
+**1a. Abiertas al público (3)** — no piden nada previo; se protegen con rate limit por IP y
+error genérico:
 
 | RPC | Para qué |
 |---|---|
 | `solicitud_crear` | Formulario de cotización (`sec_13` le dio el grant) |
 | `rsvp_crear` | RSVP desde la invitación |
 | `info_invitacion_publica` | Leer una invitación por su token |
-| `info_mesa_token` | Leer una mesa presentando token de staff **y** de mesa |
 
-**1b. Exigen además un token de staff válido** — el grant es el mismo (`anon`), porque **el
+**1b. Exigen además un token de staff válido (5)** — el grant es el mismo (`anon`), porque **el
 staff opera sin sesión, con el token en la URL del QR**. Todas resuelven el token por
 `jardines_private.evento_por_staff()`, con rate limit y la **misma** respuesta genérica para
 inexistente, expirado, revocado o bloqueado:
@@ -225,6 +226,7 @@ inexistente, expirado, revocado o bloqueado:
 | `registrar_acceso_staff` | Registrar entrada de invitados |
 | `registrar_llegada_mesa` | Marcar la llegada de una mesa |
 | `progreso_mesas_staff` | Progreso del evento para el staff |
+| `info_mesa_token` | Leer una mesa. Pide token de staff **y** de mesa: su primera instrucción es `evento_por_staff(p_staff)` (`sec_04`) |
 
 > El comportamiento de 1b es correcto: sin token válido no devuelven nada útil. Lo que hay que
 > tener presente al auditar es que **el grant no las distingue de 1a**: si `evento_por_staff`

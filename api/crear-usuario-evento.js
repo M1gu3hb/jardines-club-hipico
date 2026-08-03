@@ -62,7 +62,10 @@ export default async function handler(req, res) {
   const claveIdem = `${eventoId}:${String(usuario).toLowerCase()}`;
   const idem = await idemIniciar(admin, "crear-usuario-evento", claveIdem, 120, 1);
   if (idem === "en_curso") return generico(res, 429);
-  if (idem !== "procede" && idem !== "duplicado") return generico(res, 500);
+  // Corta en "duplicado", igual que las otras rutas: el alta ya ocurrió y
+  // repetirla solo abre una ventana de aprovisionamiento innecesaria.
+  if (idem === "duplicado") return res.status(200).json({ ok: true, duplicado: true });
+  if (idem !== "procede") return generico(res, 500);
 
   let nuevoId = null;
   try {

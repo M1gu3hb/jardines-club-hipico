@@ -66,9 +66,9 @@ sus items vienen de `MENU_ITEMS` en `Home.jsx`), `SoundToggle`, `soundSystem`, `
 
 - **`FormularioModal.jsx`** — riesgo **alto**: es el flujo de conversión. Tiene
   `ERRORES_VALIDACION` + `mensajeDeError()`, y **nunca muestra éxito sin folio del servidor**.
-- **Huérfanos (0 imports), no montados — son 4:** `Sidebar.jsx`, `HeroTrustBar.jsx`,
-  `FormularioSection.jsx`, `ItemImageOverlay.jsx`. `Sidebar` fue el menú lateral hasta que lo
-  sustituyó `StaggeredMenu`. Editar cualquiera de los cuatro no cambia nada en el sitio.
+- **Los 4 huérfanos se borraron** el 2026-08-03 (`Sidebar.jsx`, `HeroTrustBar.jsx`,
+  `FormularioSection.jsx`, `ItemImageOverlay.jsx`): 0 imports, y `Sidebar` inducía a error porque
+  parecía el menú. Están en el historial de git. El menú real es `StaggeredMenu`.
 - `components/ui/*` — primitivas shadcn/ui. No tocar salvo rediseño.
 
 ## `src/components/admin/` — panel

@@ -10,7 +10,6 @@ Los props se muestran tal como los pasa [`Home.jsx`](../src/pages/Home.jsx).
 | `Layout.jsx` (`src/`) | Contenedor de las páginas públicas: **solo** el fondo `#0a0a0a` (10 líneas) | `children`. Los estilos globales (Inter, tokens `.skeu-*`, scrollbar) están en `src/styles/theme.css`, importado en `main.jsx` |
 | `StaggeredMenu.jsx` | **Menú real de secciones** (overlay fijo, dep. `gsap`) + `StaggeredMenu.css` | Recibe `items`; **los items viven en `MENU_ITEMS` de `src/pages/Home.jsx`** |
 | `SoundToggle.jsx` | Control de sonido del sitio (antes vivía en el Sidebar) | — |
-| `Sidebar.jsx` | **Huérfano: 0 imports.** Lo sustituyó `StaggeredMenu`; editarlo no cambia nada | — |
 | `SplashScreen.jsx` | Pantalla de carga con logo (una sola vez, al entrar) | `logoUrl`, `onFinish` |
 
 ## Secciones de la Home
@@ -46,11 +45,11 @@ Los props se muestran tal como los pasa [`Home.jsx`](../src/pages/Home.jsx).
 | `FormularioModal.jsx` | Formulario de cotización, **2 pasos** (0 = elegir espacio, 1 = datos) → RPC `solicitud_crear` + correo | `open`, `onClose`, `preselectedSalon`, `whatsappNumero`. **Solo consume `Salon`**; no usa `serviciosExtra`, `amenidades` ni `alimentos` |
 | `ProximamenteModal.jsx` | Modal del anuncio "Próximamente" | `open`, `onClose`, `imagenUrl`, `titulo`, `descripcion` |
 
-## Huérfanos (0 imports, no montados)
+## Componentes retirados (2026-08-03)
 
-`Sidebar.jsx` (lo sustituyó `StaggeredMenu`), `HeroTrustBar.jsx` (ya no lo importa el hero),
-`FormularioSection.jsx` (variante embebida del formulario) e `ItemImageOverlay.jsx` (lo sustituyó
-`MediaCarrusel`). Editar cualquiera de los cuatro no cambia nada en el sitio.
+`Sidebar.jsx`, `HeroTrustBar.jsx`, `FormularioSection.jsx` e `ItemImageOverlay.jsx` se **borraron**:
+llevaban 0 imports. `Sidebar` era el más peligroso —parecía el menú del sitio y no lo era— y
+`ItemImageOverlay` lo había sustituido `MediaCarrusel`. Están en el historial de git.
 
 ## Utilitarios
 

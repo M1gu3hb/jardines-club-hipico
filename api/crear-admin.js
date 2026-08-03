@@ -47,7 +47,14 @@ export default async function handler(req, res) {
   const claveIdem = String(correo).trim().toLowerCase();
   const idem = await idemIniciar(admin, "crear-admin", claveIdem, 120, 1);
   if (idem === "en_curso") return generico(res, 429);
-  if (idem !== "procede" && idem !== "duplicado") return generico(res, 500);
+  // Corta en "duplicado", igual que solicitud / notificar / correo-cliente.
+  // Antes seguía adelante: el segundo intento emitía OTRA invitación de
+  // aprovisionamiento de rol admin antes de chocar con el 409 de `createUser`.
+  // La compensación la revocaba, pero era una ventana con una invitación de admin
+  // viva que dependía de que la compensación funcionara. El alta ya ocurrió;
+  // repetirla no aporta nada.
+  if (idem === "duplicado") return res.status(200).json({ ok: true, duplicado: true });
+  if (idem !== "procede") return generico(res, 500);
 
   let nuevoId = null;
   try {

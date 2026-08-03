@@ -2,6 +2,49 @@
 
 Registro de decisiones técnicas y de producto (formato: decisión · razón · consecuencia · archivos).
 
+## 2026-08-03 — Código (bloque 3)
+
+### D-COD-1 — Un solo generador de tokens portadores, sin fallback
+- **Razón:** `PortalInvitacion` generaba el token de `/invitacion/:token` con
+  `crypto.randomUUID ? … : "inv-" + Date.now() + Math.random()`. Ese token **es** la credencial y
+  se guarda en claro en `eventos.invitacion_token`: en la rama de fallback era adivinable
+  (`Date.now()` es acotable y `Math.random()` no es criptográfico). `EventoMeseros` ya lo hacía
+  bien; había dos criterios distintos para el mismo tipo de secreto.
+- **Consecuencia:** `src/lib/tokenSeguro.js` — 256 bits de `crypto.getRandomValues` en base64url,
+  importado por ambos. **Si no hay WebCrypto lanza** con un mensaje para el usuario, en vez de
+  emitir un token débil que nadie detectaría hasta que lo adivinen.
+- **Archivos:** `src/lib/tokenSeguro.js`, `src/components/portal/PortalInvitacion.jsx`,
+  `src/components/meseros/EventoMeseros.jsx`.
+
+### D-COD-2 — PENDIENTE: los tokens de invitación siguen en claro en la base
+- **Estado: decisión no tomada.** D-COD-1 arregla la *generación*, no el *almacenamiento*.
+  `eventos.invitacion_token` y `mesas.token` siguen guardándose en claro, como estaba
+  `staff_token` antes de `sec_20`.
+- **Por qué no se hizo ahora:** pasar a hash toca la RLS y la RPC pública `info_invitacion_publica`,
+  y **los QR ya impresos seguirían siendo credenciales portadoras** de todos modos, así que el
+  beneficio real se limita a una fuga de lectura de la tabla.
+- **Qué haría falta:** columna `_hash` + validación por HMAC (como `sec_04`/`sec_20`), ventana de
+  compatibilidad y reemisión de los QR vigentes. Decidir antes de la próxima temporada de eventos.
+
+### D-COD-3 — `anticipo_pagado` se deriva del monto
+- **Razón:** era `Number(monto) > 0 ? true : !!form.anticipoPagado`, un latch de un solo sentido:
+  subía a `true` al capturar un monto y **nada volvía a bajarlo**, porque el `else` reponía el
+  valor que venía de la base y **no existe ningún control en la UI** para ese campo. Un anticipo
+  capturado por error quedaba marcado para siempre.
+- **Consecuencia:** `anticipoPagado: Number(form.anticipoMonto) > 0`. Borrar el monto lo revierte.
+  El panel captura un solo dato de anticipo (el monto) y el flag lo sigue.
+- **Archivos:** `src/components/admin/eventos/EventoDatos.jsx`.
+
+### D-COD-4 — Todas las rutas cortan igual en `duplicado`
+- **Razón:** `crear-admin` y `crear-usuario-evento` continuaban con `idem === "duplicado"`
+  mientras `solicitud`, `notificar` y `correo-cliente` cortaban. En `crear-admin` eso hacía que el
+  segundo intento emitiera **otra invitación de aprovisionamiento de rol admin** antes de chocar
+  con el 409 de `createUser`. La compensación la revocaba, pero era una ventana con una invitación
+  de admin viva que dependía de que la compensación funcionara.
+- **Consecuencia:** las cinco rutas devuelven `{ok:true, duplicado:true}` en `duplicado`. Una sola
+  semántica de idempotencia en toda la superficie `api/`.
+- **Archivos:** `api/crear-admin.js`, `api/crear-usuario-evento.js`.
+
 ## 2026-08-03 — Documentación
 
 ### D-DOC-1 — Reescribir los cuerpos obsoletos en vez de dejar banners encima

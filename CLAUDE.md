@@ -84,7 +84,8 @@ desde `api/`.
 - **Migraciones forward-only** en `supabase/migrations/`, nombradas
   `<timestamp>_jardines_sec_NN_<tema>.sql`. No reescribir migraciones aplicadas.
 - **Para cambiar contenido del sitio se usa el panel Admin (persiste en Supabase)**, no editar
-  JSON. El seed inicial se generó con `scripts/seed-supabase.mjs` (ver `docs/DATABASE.md`).
+  JSON. El SQL del seed inicial lo generó `scripts/seed-supabase.mjs` — ese script **no toca la
+  base**, solo escribe `scripts/seed/*.sql`, que se aplicaron aparte (ver `docs/DATABASE.md`).
 - **Los medios se auto-hospedan** en `public/media/`. Si agregas una imagen, ponla ahí y usa la
   ruta `/media/img/...`. Los videos se detectan por extensión (`.mp4|webm|mov|ogg|m4v`).
 - **Formulario → correo:** `src/components/FormularioModal.jsx` → RPC `solicitud_crear` (shim)

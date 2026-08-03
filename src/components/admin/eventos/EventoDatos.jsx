@@ -37,7 +37,12 @@ export default function EventoDatos({ evento, salones, onActualizado }) {
       portalActivo: !!form.portalActivo,
       montoTotal: form.montoTotal !== "" && form.montoTotal != null ? Number(form.montoTotal) : null,
       anticipoMonto: form.anticipoMonto !== "" && form.anticipoMonto != null ? Number(form.anticipoMonto) : null,
-      anticipoPagado: Number(form.anticipoMonto) > 0 ? true : !!form.anticipoPagado,
+      // Se deriva del monto, que es el único dato de anticipo que el panel captura.
+      // Antes era `... ? true : !!form.anticipoPagado`, un latch de un solo sentido:
+      // subía a true al guardar un monto y nada volvía a bajarlo, porque el `else`
+      // reponía el valor que ya venía de la base. Un anticipo capturado por error
+      // quedaba marcado para siempre. Ahora borrar el monto lo revierte.
+      anticipoPagado: Number(form.anticipoMonto) > 0,
     };
     const actualizado = await base44.entities.Evento.update(evento.id, patch);
     setGuardando(false);

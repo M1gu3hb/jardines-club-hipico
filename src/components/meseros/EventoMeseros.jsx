@@ -3,26 +3,13 @@ import QRCode from "qrcode";
 import { base44 } from "@/api/base44Client";
 import { Plus, Loader2, Trash2, Printer, QrCode, ExternalLink, Users, Link2, Copy, RefreshCw, Share2 } from "lucide-react";
 import QrImg from "./QrImg";
+import { tokenSeguro } from "@/lib/tokenSeguro";
 
 const accesoUrl = (token) => `${window.location.origin}/acceso/${token}`;
 const staffUrl = (token) => `${window.location.origin}/staff/${token}`;
 
-/**
- * Token de invitación: 256 bits de `crypto.getRandomValues`, en base64url.
- *
- * Sin fallback a `Math.random()`: es predecible y aquí el token ES la credencial
- * que abre la invitación. Si el navegador no trae WebCrypto, preferimos fallar
- * antes que emitir un QR adivinable. `crypto.getRandomValues` existe en todo
- * navegador con soporte real desde hace años, y el sitio ya se sirve por HTTPS.
- */
-const nuevoTokenInvitacion = () => {
-  const b = new Uint8Array(32);
-  crypto.getRandomValues(b);
-  return btoa(String.fromCharCode(...b))
-    .replace(/\+/g, "-")
-    .replace(/\//g, "_")
-    .replace(/=+$/, "");
-};
+// Token de invitación: 256 bits de WebCrypto, sin fallback. Ver src/lib/tokenSeguro.js.
+const nuevoTokenInvitacion = tokenSeguro;
 
 export default function EventoMeseros({ eventoId }) {
   const [mesas, setMesas] = useState([]);
