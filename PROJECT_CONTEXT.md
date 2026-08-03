@@ -37,18 +37,22 @@ plataforma. Base44 **ya no existe ni se usa**; solo sobrevive el nombre de un ar
 - Correos transaccionales por Gmail (Nodemailer) y un cron diario de recordatorios.
 - Deploy automático: push a `main` → Vercel.
 
-**Blindaje de seguridad (2026-08-01 → 2026-08-02):** 21 migraciones `jardines_sec_01..22`
+**Blindaje de seguridad (2026-08-01 → 2026-08-03):** 23 migraciones `jardines_sec_01..24`
 aplicadas en producción. Detalle completo en `docs/SEGURIDAD.md` y `docs/CHANGELOG.md`.
 
 **Estado formal: `ESPERANDO_VALIDACION_HUMANA_AUTENTICADA`.** El código está desplegado y
 verificado por pruebas automáticas, pero **no se declara CERRADO** hasta que Miguel confirme
 visualmente, con credenciales reales, los cinco flujos de §8.F. Es lo único que falta.
 
+- Panel → **Personal del evento**: asigna operativos a eventos, con el guardarraíl que impide
+  dejar a alguien sin acceso.
+- Panel → **Salones**: sube el plano real de cada salón, que es el lienzo del editor de mesas.
+
 **Incompleto / opcional:**
 
 - Carrusel de reseñas: depende de que existan reseñas aprobadas en `jardines.resenas`.
-- No hay pantalla para asignar personal a eventos (`operativo_asignacion` existe, sin UI).
-- No hay pantalla de "cambiar mi contraseña" dentro del portal.
+- No hay pantalla de "cambiar mi contraseña" dentro del portal (J-05).
+- `operativo_activo` no se maneja desde el panel: se enciende y apaga en la base (J-07).
 
 **Roto:** nada conocido.
 
