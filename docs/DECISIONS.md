@@ -137,7 +137,7 @@ Registro de decisiones técnicas y de producto (formato: decisión · razón · 
   humana de los 5 flujos es inminente: convertir en excepción algo que hoy pasa en silencio puede
   hacer visible un fallo en un flujo que no puedo probar de punta a punta.
 - **Consecuencia:** `SalonPlanoUpload` **confirma cada escritura releyendo la fila** y falla con
-  un mensaje explícito si la base no la aceptó. Queda abierto como **B9** para extender el patrón
+  un mensaje explícito si la base no la aceptó. Queda abierto como **J-02** para extender el patrón
   —o arreglar el shim— después de la validación.
 
 ### D-COD-11 — La pantalla de asignación bloquea apagar `acceso_global` sin asignaciones

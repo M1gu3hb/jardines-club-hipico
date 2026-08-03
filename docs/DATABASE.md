@@ -289,7 +289,7 @@ esas tres precondiciones dentro y **falla sin tocar nada** si alguna no se cumpl
 **Y `supabase/tests/seguridad.sql` ya prueba las vigentes**, no las retiradas: hasta `sec_23`
 comprobaba `api_idempotencia` y `canjear_acceso_unico`, así que la idempotencia recuperable y el
 canje en dos fases —lo más delicado de `sec_19`— solo estaban cubiertos por comprobaciones
-textuales. Eso cierra el bug B6 de `docs/BUGS_PENDING.md`.
+textuales. Ese hueco quedó cerrado (ver `docs/CHANGELOG.md`, bloque 3).
 
 ## E. Storage
 

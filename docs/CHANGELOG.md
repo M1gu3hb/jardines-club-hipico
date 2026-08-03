@@ -1,5 +1,68 @@
 # CHANGELOG.md
 
+## 2026-08-03 (e) — Bloque 4: regresión, tipado, plano endurecido y asignación de personal
+
+### Cambios realizados
+
+**4A — la regresión de la unificación de idempotencia (bloqueante).** El corte por `duplicado`
+devolvía `{ok, duplicado}`, otra forma que el camino de éxito. Las tres rutas de correo tienen
+llamadores que solo miran `res.ok`, pero `crear-usuario-evento` y `crear-admin` **leen campos del
+cuerpo**: el panel escribía `usuario: undefined` y volvía a pedir credenciales para un evento que
+ya las tenía — peor que antes del cambio. Arreglado en el **servidor**: el corte relee la fila y
+devuelve la misma forma, así que un llamador futuro que olvide mirar `duplicado` tampoco se rompe.
+`correoEnviado` no se inventa. Y se documenta la asimetría `en_curso → 429` en las rutas de alta
+(D-COD-8). **+7 contratos** (71 → 78).
+
+**4B — tipado estricto del shim.** `Record<string, …>` aceptaba cualquier nombre, así que apagaba
+la detección de typos de entidad — y el shim tampoco protege: un typo consulta una tabla
+inexistente y devuelve `[]`, o sea **lista vacía en silencio**. Ahora `Record<keyof typeof TABLES, …>`,
+con cast en el argumento del Proxy. Línea base **sigue en 59**.
+
+**4C — plano por salón.** El grave era **reasignación cruzada**: sin `key`, al pasar del salón A al
+B se seguía viendo el plano de A con los botones activos, y "Reemplazar" movía la fila de A al
+salón B. Arreglado con `key` + reset de estado + gate por `cargando`. `sec_24` añade el índice
+único por salón y `imagen_plano_path` (sin él, cada reemplazo dejaba un huérfano descargable en un
+bucket público, imposible de localizar). Quitar el plano ahora borra también el archivo. Las
+medidas no se escriben si no se pudieron leer.
+
+**4D — asignación de personal a eventos** (la 3E pendiente). Frontend sobre lo que ya existe.
+`AdminOperativo` muestra el estado efectivo con la misma lógica del **OR** de `sec_14` y
+**bloquea** apagar `acceso_global` a quien tenga 0 asignaciones vigentes: hoy los 3 operativos
+están justo en ese caso, y un toggle ingenuo los dejaría sin acceso en pleno evento. Revocar es
+`revocada_at`, nunca `DELETE`. `operativo_asignacion` tiene PK compuesta sin `id`, así que va por
+un módulo aditivo del shim (`base44.asignaciones`), no por `entities`.
+
+**4E — higiene.** Numeración de bugs unificada en **`J-##`** (había dos esquemas `B*` que
+colisionaban), `Sidebar.jsx` deja de aparecer como existente, y `NEXT_STEPS` queda como estado
+real de cierre.
+
+### Archivos modificados
+Código: `api/crear-usuario-evento.js`, `api/crear-admin.js`, `src/api/base44Client.js`,
+`src/components/admin/eventos/EventoDatos.jsx`, `src/components/admin/AdminAdministradores.jsx`,
+`src/components/admin/SalonPlanoUpload.jsx`, `src/components/admin/AdminSalones.jsx`,
+`src/components/admin/AdminOperativo.jsx` (nuevo), `src/components/admin/AdminDashboard.jsx`,
+`scripts/test-contratos-api.mjs`.
+SQL: `supabase/migrations/…_sec_24_…sql` (nueva).
+Docs: `CLAUDE.md`, `README.md`, `PROJECT_CONTEXT.md` y todo `docs/`.
+
+### Entidades/BD afectadas
+`sec_24`: columna `salon_planos.imagen_plano_path` + índice único `salon_planos_salon_id_uniq`.
+Aditiva. **`public` (Vero) 4 → 4 funciones, sin cambios.** Ninguna policy ni grant modificados.
+**El estado del operativo no cambió:** 3 personas, 3 con `acceso_global`, 0 asignaciones.
+
+### Bugs resueltos
+La regresión de 4A; el tipado laxo de 4B; los 5 riesgos del plano (4C).
+
+### Bugs nuevos
+Ninguno. Renumerados los abiertos: **J-01** … **J-05**.
+
+### Decisiones tomadas
+D-COD-7 … D-COD-12. D-COD-4 y D-COD-6 marcadas como **corregidas** por D-COD-7 y por 4B.
+
+### Próximo paso
+Validación humana autenticada de los 5 flujos. Es lo único que queda.
+
+
 ## 2026-08-03 (d) — Bloque 3: código (fases 3A–3D; **3E no hecha**)
 
 ### Cambios realizados

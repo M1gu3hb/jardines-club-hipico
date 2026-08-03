@@ -76,7 +76,11 @@ sus items vienen de `MENU_ITEMS` en `Home.jsx`), `SoundToggle`, `soundSystem`, `
 CMS: `AdminConfig`, `AdminSalones`, `AdminGaleria`, `AdminServicioItems`,
 `AdminAmenidadItems`, `AdminServicios`, `AdminAlimentos`, `AdminResenas`.
 Operación: `AdminInicio`, `AdminDashboard`, `AdminLogin`, `AdminSolicitudes`,
-`AdminAdministradores`.
+`AdminAdministradores`, y **`AdminOperativo.jsx`** — riesgo alto: asigna personal a eventos y
+**bloquea** apagar `acceso_global` a quien tenga 0 asignaciones, porque `operativo_eventos_permitidos`
+resuelve con un OR y dejarlo sin ninguna de las dos vías lo deja en 0 eventos.
+`SalonPlanoUpload.jsx` — sube el plano del salón al bucket `planos`; confirma cada escritura
+releyendo y borra el objeto anterior al reemplazar.
 
 `admin/eventos/`: `AdminEventos`, `EventoDatos`, `EventoFicha`, `EventoItems`, `EventoRsvps`,
 `_ui.jsx` (primitivas compartidas del módulo de eventos) y

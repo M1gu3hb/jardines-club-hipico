@@ -91,8 +91,8 @@ entidad → tabla:
 | `AmenidadItem` | `amenidades` | `ServiciosAmenidades` (bloque "Amenidades") |
 | `ServicioExtra` | `servicios_extra` | **Solo el panel** (`AdminServicios`) y `lib/catalogo.js` |
 | `AlimentoMenu` | `alimentos` | **Solo el panel** (`AdminAlimentos`) y `lib/catalogo.js` |
-
 | `Resena` / `ResenasConfig` | `resenas` / `resenas_config` | `Confianza` (solo las `aprobada = true`) |
+| `OperativoPersonal` | `operativo_personal` | `AdminOperativo` (asignación de personal a eventos) |
 
 > `FormularioModal` **solo consume `Salon`** (la lista de espacios). El formulario corto de 2
 > pasos no pide servicios extra, amenidades ni menús — eso era el formulario largo de 6 pasos,
@@ -126,7 +126,7 @@ Para **editar contenido**, se usa el panel admin — ver [`DATOS.md`](DATOS.md).
 | Textos de sección (eyebrows, títulos "Servicios", "Amenidades", "Galería") | El componente de esa sección (ver tabla §2) |
 | Colores / estilos globales | **`src/styles/theme.css`** (tokens `.skeu-*`, Inter, scrollbar) y `tailwind.config.js`. El dorado de marca es `#C9A84C`. **No** `Layout.jsx` |
 | Orden de las secciones | `src/pages/Home.jsx` (`<main>`) y la constante `MENU_ITEMS` del mismo archivo |
-| Items del menú | Constante `MENU_ITEMS` en `src/pages/Home.jsx` (**no** `Sidebar.jsx`, que está huérfano) |
+| Items del menú | Constante `MENU_ITEMS` en `src/pages/Home.jsx` |
 | Apariencia/animación del menú | `src/components/StaggeredMenu.jsx` + `StaggeredMenu.css` |
 | A qué correo llega el formulario | Variable `MAIL_TO` en Vercel |
 | Quién es admin | Alta desde el panel (`/api/crear-admin`). El rol vive en `jardines.perfiles`; **no** hay contraseña en el código |

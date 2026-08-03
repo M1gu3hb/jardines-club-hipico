@@ -195,7 +195,7 @@ recargar, el panel ofrece "Generar nuevo enlace". Todas las validaciones pasan p
 > ⚠️ **Todos los correos enlazan al dominio de Vercel, no al propio.** `api/_lib/correo.js:5`
 > fija `SITIO_URL = "https://jardines-club-hipico.vercel.app"` como constante, sin leer ninguna
 > variable de entorno — igual que el logo embebido. Al conectar el dominio propio hay que
-> cambiarlo ahí también, o los correos seguirán apuntando al viejo. Ver `docs/BUGS_PENDING.md` (B8).
+> cambiarlo ahí también, o los correos seguirán apuntando al viejo. Ver `docs/BUGS_PENDING.md` (J-01).
 
 **F) Validación humana pendiente.** Miguel debe confirmar en pantalla, con credenciales reales:
 (1) alta de cliente, (2) enlace de primer acceso, (3) subir y abrir documentos, (4) aviso de

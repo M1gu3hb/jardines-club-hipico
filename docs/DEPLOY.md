@@ -115,7 +115,7 @@ npm run typecheck       # 59 = línea base actual; no debe SUBIR
      (líneas 34 y 46 — WebSite y EventVenue).
    - [`api/_lib/correo.js`](../api/_lib/correo.js): la constante `SITIO_URL` está
      **hardcodeada** al dominio de Vercel. Si no se cambia, **todos** los correos transaccionales
-     y el logo que embeben seguirán apuntando ahí (`docs/BUGS_PENDING.md` B8).
+     y el logo que embeben seguirán apuntando ahí (`docs/BUGS_PENDING.md` J-01).
 5. Redeploy.
 
 ## Notas
