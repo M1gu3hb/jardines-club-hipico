@@ -75,6 +75,8 @@ Empieza por [`PROJECT_CONTEXT.md`](PROJECT_CONTEXT.md) y [`CLAUDE.md`](CLAUDE.md
 - [`docs/COMPONENTES.md`](docs/COMPONENTES.md) — referencia componente por componente.
 - [`docs/DATOS.md`](docs/DATOS.md) — cómo se edita el contenido.
 - [`docs/DEPLOY.md`](docs/DEPLOY.md) — deploy, variables de entorno, cron y dominio.
+- [`docs/VALIDACION.md`](docs/VALIDACION.md) — guion de validación para el dueño (sin jerga):
+  los cinco flujos, qué debe pasar y dónde mirar si falla.
 - [`docs/DECISIONS.md`](docs/DECISIONS.md), [`docs/BUGS_PENDING.md`](docs/BUGS_PENDING.md),
   [`docs/NEXT_STEPS.md`](docs/NEXT_STEPS.md), [`docs/CHANGELOG.md`](docs/CHANGELOG.md),
   [`docs/PROMPTS.md`](docs/PROMPTS.md).
