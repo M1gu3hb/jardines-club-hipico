@@ -69,8 +69,8 @@
 
 ## Deuda de seguridad
 
-**Resuelta en código y migraciones; pendiente de validación humana.** Las 22 migraciones
-`sec_01..23` se aplicaron y los hallazgos de la auditoría están cerrados **en el repo**. Lo que
+**Resuelta en código y migraciones; pendiente de validación humana.** Las 23 migraciones
+`sec_01..24` se aplicaron y los hallazgos de la auditoría están cerrados **en el repo**. Lo que
 falta no es código: son los 5 flujos del §1, que solo se comprueban con credenciales reales.
 Mientras eso no ocurra, el estado es `ESPERANDO_VALIDACION_HUMANA_AUTENTICADA` y **§1 sigue
 siendo bloqueante**.

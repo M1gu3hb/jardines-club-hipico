@@ -142,7 +142,17 @@ que se hizo el seed inicial (histórico). **Si Supabase no responde, el sitio se
   señal server-side de que el usuario es de Jardines (para no crear perfiles a usuarios de Vero).
 
 ### SalonPlano → `salon_planos`
-- `salon_id` (CASCADE), `imagen_plano_url`, `ancho`, `alto`, `notas`. Lienzo del editor de mesas.
+- `salon_id` (CASCADE), `imagen_plano_url`, **`imagen_plano_path`**, `ancho`, `alto`, `notas`.
+  Lienzo del editor de mesas.
+- **Una fila por salón**, garantizado por `salon_planos_salon_id_uniq` (`sec_24`). Antes la regla
+  vivía solo en el estado de React, y como el shim devuelve `[]` cuando la lectura falla, un fallo
+  transitorio podía crear una segunda fila: con duplicados, `r[0]` es arbitrario y el panel podía
+  enseñar un plano mientras `MesaEditor` pintaba otro.
+- **`imagen_plano_path`** guarda la ruta del objeto en el bucket. Sin ella no se puede borrar el
+  archivo al reemplazar o quitar el plano — y el bucket es público con el listado cerrado, así que
+  el huérfano seguía descargable y sin forma de localizarlo.
+- `ancho`/`alto` son las medidas **reales** de la imagen: el editor los usa como `aspectRatio` y
+  las mesas se posicionan en `%` sobre ese lienzo. No escribir `null` encima de unas válidas.
 
 ### SolicitudEvento → `solicitudes`
 - **Propósito:** leads del formulario público. **Sí se guardan** (antes solo se mandaban por correo).
@@ -296,7 +306,7 @@ textuales. Eso cierra el bug B6 de `docs/BUGS_PENDING.md`.
 ## F. Migraciones
 
 Forward-only, en `supabase/migrations/`, nombradas
-`<timestamp>_jardines_sec_NN_<tema>.sql`. **22 aplicadas en producción** (`sec_01`…`sec_23`;
+`<timestamp>_jardines_sec_NN_<tema>.sql`. **23 aplicadas en producción** (`sec_01`…`sec_24`;
 no existe `sec_10`: se planeó como archivo `.noapply` y su contenido acabó en `sec_20`).
 
 | # | Tema |
@@ -323,6 +333,7 @@ no existe `sec_10`: se planeó como archivo `.noapply` y su contenido acabó en 
 | 21 | Retiro del INSERT público de compatibilidad |
 | 22 | Limpieza del único perfil cruzado con Vero |
 | 23 | **Retiro de las 3 RPC residuales** superadas por `sec_19` y `sec_06`/`sec_17` |
+| 24 | `salon_planos`: índice único por salón + `imagen_plano_path` |
 
 **Regla de despliegue:** la base es producción compartida. Primero lo **aditivo**, luego se
 despliega el frontend, y **solo entonces** se retira lo viejo. Ver `docs/SEGURIDAD.md` §8.bis.

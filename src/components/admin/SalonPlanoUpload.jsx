@@ -12,17 +12,29 @@ import { Loader2, Upload, Trash2, Image as ImageIcon } from "lucide-react";
  *  - `planos` es público, 10 MB, solo imágenes y SIN SVG (un SVG puede llevar
  *    script). Se valida en el cliente para que el rechazo del bucket no llegue
  *    como un error genérico sin explicación.
- *  - Una fila por salón: si ya existe se hace `update`, nunca un segundo insert.
- *  - Se guardan `ancho`/`alto` reales de la imagen: el editor los usa como
- *    `aspectRatio`, y las mesas se posicionan en % sobre ese lienzo. Si la
- *    proporción no coincide con la del plano, las mesas se desplazan.
+ *  - Una fila por salón, **garantizado por la base** desde `sec_24`
+ *    (`salon_planos_salon_id_uniq`). Antes la regla vivía solo en este estado.
+ *  - Se guarda también `imagenPlanoPath`: sin él no había forma de borrar el
+ *    objeto anterior, y el bucket es público — cada reemplazo dejaba un huérfano
+ *    descargable para siempre.
+ *  - Se guardan `ancho`/`alto` reales: el editor los usa como `aspectRatio` y las
+ *    mesas se posicionan en % sobre ese lienzo. Si la proporción no coincide, las
+ *    mesas se desplazan.
+ *
+ * Nota sobre escrituras: el shim reporta éxito aunque RLS deje la operación en 0
+ * filas (misma familia que el bug del folio). Aquí no se confía: cada escritura
+ * se confirma releyendo. Ver `docs/BUGS_PENDING.md` B9.
  */
 
 const BUCKET = "planos";
 const MAX_BYTES = 10 * 1024 * 1024;
 const MIME_OK = ["image/jpeg", "image/png", "image/webp", "image/avif"];
 
-/** Lee ancho/alto reales del archivo antes de subirlo. */
+/**
+ * Lee ancho/alto reales del archivo. Devuelve `null` si no se pudieron medir,
+ * para que el llamador **no pise** unas medidas buenas con nulos: eso haría que
+ * `MesaEditor` cayera a 1000×700 y desplazaría todas las mesas.
+ */
 function medirImagen(file) {
   return new Promise((resolve) => {
     const url = URL.createObjectURL(file);
@@ -33,7 +45,7 @@ function medirImagen(file) {
     };
     img.onerror = () => {
       URL.revokeObjectURL(url);
-      resolve({ ancho: null, alto: null });
+      resolve(null);
     };
     img.src = url;
   });
@@ -47,6 +59,12 @@ export default function SalonPlanoUpload({ salonId, salonNombre }) {
   const [ok, setOk] = useState("");
 
   const cargar = useCallback(() => {
+    // Reset ANTES de leer. Sin esto, al pasar de un salón a otro se seguía
+    // mostrando el plano del anterior durante el fetch — con los botones
+    // activos — y "Reemplazar" reasignaba la fila del salón A al salón B.
+    setPlano(null);
+    setError("");
+    setOk("");
     if (!salonId) { setCargando(false); return; }
     setCargando(true);
     base44.entities.SalonPlano.filter({ salonId })
@@ -55,6 +73,23 @@ export default function SalonPlanoUpload({ salonId, salonNombre }) {
       .finally(() => setCargando(false));
   }, [salonId]);
   useEffect(() => { cargar(); }, [cargar]);
+
+  /** Relee la fila del salón. Única fuente de verdad tras escribir. */
+  const releer = async () => {
+    const r = await base44.entities.SalonPlano.filter({ salonId });
+    return r[0] || null;
+  };
+
+  /** Borra un objeto del bucket sin tumbar el flujo si falla. */
+  const borrarObjeto = async (path) => {
+    if (!path) return;
+    try {
+      await base44.storage.remove(BUCKET, path);
+    } catch (e) {
+      // No es fatal: la fila ya apunta al archivo nuevo. Queda constancia.
+      console.error("[plano] no se pudo borrar el objeto anterior:", path, e?.message);
+    }
+  };
 
   const subir = async (e) => {
     const file = e.target.files?.[0];
@@ -72,19 +107,52 @@ export default function SalonPlanoUpload({ salonId, salonNombre }) {
     }
 
     setSubiendo(true);
+    let subidoPath = null;
     try {
-      const { ancho, alto } = await medirImagen(file);
+      const medidas = await medirImagen(file);
       const { path } = await base44.storage.upload(BUCKET, file, salonId);
+      subidoPath = path;
       const url = base44.storage.publicUrl(BUCKET, path);
 
-      const datos = { salonId, imagenPlanoUrl: url, ancho, alto };
-      // Una fila por salón: si ya hay, se actualiza.
-      const guardado = plano
-        ? await base44.entities.SalonPlano.update(plano.id, datos)
-        : await base44.entities.SalonPlano.create(datos);
-      setPlano(guardado || { ...datos, id: plano?.id });
-      setOk(plano ? "Plano reemplazado ✓" : "Plano subido ✓");
+      // Solo se escriben medidas si se pudieron leer: nunca `null` sobre buenas.
+      const datos = { salonId, imagenPlanoUrl: url, imagenPlanoPath: path };
+      if (medidas) { datos.ancho = medidas.ancho; datos.alto = medidas.alto; }
+
+      // Estado real, no el que tuviéramos en memoria: entre la carga y este
+      // clic la fila pudo aparecer o desaparecer.
+      const actual = await releer();
+      const pathAnterior = actual?.imagenPlanoPath || null;
+
+      if (actual) {
+        await base44.entities.SalonPlano.update(actual.id, datos);
+      } else {
+        try {
+          await base44.entities.SalonPlano.create(datos);
+        } catch (errCreate) {
+          // `salon_planos_salon_id_uniq` (sec_24): si otra pestaña la creó entre
+          // la relectura y el insert, esto es un upsert, no un fallo.
+          const yaExiste = /duplicate key|salon_planos_salon_id_uniq|23505/i.test(errCreate?.message || "");
+          if (!yaExiste) throw errCreate;
+          const fila = await releer();
+          if (!fila) throw errCreate;
+          await base44.entities.SalonPlano.update(fila.id, datos);
+        }
+      }
+
+      // El shim devuelve éxito aunque RLS haya afectado 0 filas: se confirma.
+      const guardado = await releer();
+      if (!guardado || guardado.imagenPlanoUrl !== url) {
+        throw new Error("La base no aceptó el cambio (¿permisos?). El plano no se guardó.");
+      }
+
+      if (pathAnterior && pathAnterior !== path) await borrarObjeto(pathAnterior);
+      setPlano(guardado);
+      setOk(actual ? "Plano reemplazado ✓" : "Plano subido ✓");
+      subidoPath = null;              // ya está referenciado por la fila
     } catch (err) {
+      // Si el archivo llegó a subirse pero la fila no quedó, se limpia: si no,
+      // queda un huérfano público que nadie puede localizar.
+      await borrarObjeto(subidoPath);
       setError(err?.message || "No se pudo subir el plano.");
     } finally {
       setSubiendo(false);
@@ -96,10 +164,19 @@ export default function SalonPlanoUpload({ salonId, salonNombre }) {
     setError(""); setOk("");
     setSubiendo(true);
     try {
-      // Se borra la fila, no el objeto del bucket: el editor cae solo a la
-      // rejilla placeholder. Dejar el archivo permite recuperarlo si fue un
-      // error, y `planos` tiene el listado cerrado.
+      const path = plano.imagenPlanoPath || null;
       await base44.entities.SalonPlano.delete(plano.id);
+
+      // Confirmar: `delete` del shim devuelve `{success:true}` pase lo que pase.
+      const sigue = await releer();
+      if (sigue) {
+        throw new Error("La base no aceptó el borrado (¿permisos?). El plano sigue puesto.");
+      }
+
+      // También el archivo. Conservarlo no servía de nada: la fila era el único
+      // sitio donde vivía su URL y el listado del bucket está cerrado, así que
+      // no había manera de recuperarlo — pero SÍ seguía siendo descargable.
+      await borrarObjeto(path);
       setPlano(null);
       setOk("Plano quitado ✓");
     } catch (err) {
@@ -117,6 +194,8 @@ export default function SalonPlanoUpload({ salonId, salonNombre }) {
     );
   }
 
+  const tienePlano = !cargando && plano?.imagenPlanoUrl;
+
   return (
     <div className="space-y-3">
       <div className="flex items-center justify-between">
@@ -126,7 +205,9 @@ export default function SalonPlanoUpload({ salonId, salonNombre }) {
         {cargando && <Loader2 size={12} className="animate-spin text-white/30" />}
       </div>
 
-      {plano?.imagenPlanoUrl ? (
+      {cargando ? (
+        <p className="text-white/25 text-xs">Cargando el plano…</p>
+      ) : tienePlano ? (
         <div className="flex items-start gap-4">
           <img
             src={plano.imagenPlanoUrl}
@@ -157,13 +238,11 @@ export default function SalonPlanoUpload({ salonId, salonNombre }) {
           </div>
         </div>
       ) : (
-        !cargando && (
-          <label className="flex items-center gap-2 px-4 py-3 border border-dashed border-white/10 text-white/40 hover:text-white/60 hover:border-white/20 text-xs cursor-pointer transition-colors">
-            {subiendo ? <Loader2 size={13} className="animate-spin" /> : <ImageIcon size={13} />}
-            {subiendo ? "Subiendo…" : "Subir plano (JPG, PNG, WebP o AVIF · máx. 10 MB)"}
-            <input type="file" accept={MIME_OK.join(",")} onChange={subir} disabled={subiendo} className="hidden" />
-          </label>
-        )
+        <label className="flex items-center gap-2 px-4 py-3 border border-dashed border-white/10 text-white/40 hover:text-white/60 hover:border-white/20 text-xs cursor-pointer transition-colors">
+          {subiendo ? <Loader2 size={13} className="animate-spin" /> : <ImageIcon size={13} />}
+          {subiendo ? "Subiendo…" : "Subir plano (JPG, PNG, WebP o AVIF · máx. 10 MB)"}
+          <input type="file" accept={MIME_OK.join(",")} onChange={subir} disabled={subiendo} className="hidden" />
+        </label>
       )}
 
       {error && <p className="text-red-400/90 text-xs">{error}</p>}

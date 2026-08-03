@@ -1,6 +1,6 @@
 # SEGURIDAD.md — Modelo de seguridad de Jardines Club Hípico
 
-> Última revisión: **2026-08-03**. 22 migraciones (`jardines_sec_01..23`, sin `sec_10`) aplicadas
+> Última revisión: **2026-08-03**. 23 migraciones (`jardines_sec_01..24`, sin `sec_10`) aplicadas
 > en producción. Proyecto Supabase `vuzyhbiwnnngeohysxcw` (PostgreSQL 17, `us-east-1`),
 > **compartido con Vero Seguros**.
 >

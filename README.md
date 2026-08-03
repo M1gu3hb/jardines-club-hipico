@@ -43,7 +43,7 @@ npm run preview         # sirve dist/ localmente
 │   ├── canjear-acceso.js     # Canje del enlace de un solo uso (dos fases)
 │   └── cron-recordatorios.js # Digest diario (cron de Vercel)
 ├── supabase/
-│   ├── migrations/           # Migraciones forward-only (jardines_sec_01..23)
+│   ├── migrations/           # Migraciones forward-only (jardines_sec_01..24)
 │   └── tests/seguridad.sql   # Suite de seguridad (BEGIN/ROLLBACK, sin rastro)
 ├── public/media/             # img/ · frames/ (241) · b44/
 ├── scripts/

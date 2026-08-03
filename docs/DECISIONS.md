@@ -108,6 +108,38 @@ Registro de decisiones técnicas y de producto (formato: decisión · razón · 
 - **Consecuencia:** `crear-admin` y `crear-usuario-evento` mantienen `en_curso → 429`. Hay un
   contrato que lo fija.
 
+### D-COD-9 — El plano se endurece en la base y en la pantalla, no en el shim
+- **Razón:** cinco riesgos en la pantalla de planos. El grave era de **reasignación cruzada**: sin
+  `key`, al pasar del salón A al B el componente no se desmontaba y seguía mostrando el plano de A
+  con el nombre de B y los botones activos; un clic en "Reemplazar" movía la fila de A al salón B.
+- **Consecuencia:**
+  - `key={editing?.id}` **y** reset de estado al inicio de `cargar()`. Los dos: el `key` cubre el
+    cambio de salón, el reset cubre las recargas. Y la rama de "plano existente" ya está gateada
+    por `cargando`.
+  - `sec_24` añade `salon_planos_salon_id_uniq`: la regla "una fila por salón" pasa de vivir en el
+    estado de React a vivir en la base. La pantalla hace upsert y trata el choque `23505` como lo
+    que es —otra pestaña se adelantó—, no como un fallo.
+  - `sec_24` añade `imagen_plano_path`. Sin él no había forma de borrar el objeto anterior: el
+    bucket es público y con el listado cerrado, así que cada reemplazo dejaba un huérfano
+    descargable para siempre y sin asa. Ahora se borra al reemplazar, al quitar, y también si la
+    subida cuaja pero la fila no.
+  - **Quitar el plano borra también el archivo.** La razón que se había escrito ("permite
+    recuperarlo") no se sostenía: la fila era el único sitio donde vivía la URL, así que no había
+    nada que recuperar — pero el plano seguía descargable.
+  - Las medidas solo se escriben si se pudieron leer: `null` sobre unas buenas haría que
+    `MesaEditor` cayera a 1000×700 y desplazara todas las mesas, justo lo que se quería evitar.
+- **Archivos:** `sec_24`, `src/components/admin/SalonPlanoUpload.jsx`,
+  `src/components/admin/AdminSalones.jsx`.
+
+### D-COD-10 — El shim no se toca ahora; se confirma releyendo
+- **Razón:** `update`/`delete` del shim reportan éxito aunque RLS deje la operación en 0 filas.
+  Arreglarlo de raíz es lo correcto, pero es la API que usa **todo** el proyecto y la validación
+  humana de los 5 flujos es inminente: convertir en excepción algo que hoy pasa en silencio puede
+  hacer visible un fallo en un flujo que no puedo probar de punta a punta.
+- **Consecuencia:** `SalonPlanoUpload` **confirma cada escritura releyendo la fila** y falla con
+  un mensaje explícito si la base no la aceptó. Queda abierto como **B9** para extender el patrón
+  —o arreglar el shim— después de la validación.
+
 ## 2026-08-03 — Documentación
 
 ### D-DOC-1 — Reescribir los cuerpos obsoletos en vez de dejar banners encima

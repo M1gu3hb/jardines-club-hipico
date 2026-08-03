@@ -114,7 +114,7 @@ scroll, D8). `hooks/useBackButtonClose.js`, `hooks/use-mobile.jsx`.
 
 ## `supabase/`
 
-- `migrations/*.sql` — 22 migraciones forward-only `jardines_sec_01..23`. **No reescribir las
+- `migrations/*.sql` — 23 migraciones forward-only `jardines_sec_01..24`. **No reescribir las
   aplicadas.**
 - `tests/seguridad.sql` — suite en `BEGIN/ROLLBACK`, datos sintéticos con prefijo `sint-`.
   Desde `sec_23` prueba las RPC **vigentes** (`api_idem_*`, `canjear_acceso_*`), no las retiradas.

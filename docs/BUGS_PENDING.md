@@ -37,6 +37,20 @@ aceptados), pendientes que dependen de otra persona, y dos cosas menores de cont
   seguirán apuntando al viejo. **Estado:** abierto. Ligado al pendiente de dominio de
   `docs/NEXT_STEPS.md`.
 
+### B9 — El shim reporta éxito en escrituras que RLS dejó en 0 filas
+- **Impacto:** medio, latente. Hoy no muerde porque las policies existen, pero es la **misma
+  familia** que el bug del folio que cerró el blindaje: un `update` o `delete` bloqueado por RLS
+  no devuelve error, devuelve **0 filas**.
+- **Causa:** `base44Client.js` — `update` hace `rowToObj(data) || { id, ...patch }`, así que
+  fabrica un objeto que parece guardado; `delete` devuelve `{success:true}` incondicionalmente.
+- **Por qué no se arregló en el bloque 4:** es la API que usa **todo** el proyecto. Hacer que
+  lancen convertiría en error visible cualquier escritura que hoy falla en silencio — que es lo
+  correcto, pero sin poder probar los flujos de punta a punta y con la validación humana encima,
+  el riesgo de romper algo en vivo supera al beneficio. `SalonPlanoUpload` ya no confía en el
+  shim: **confirma releyendo**. Ese es el patrón a extender.
+- **Archivos:** `src/api/base44Client.js` (y todos los llamadores).
+- **Prioridad:** media. **Estado:** abierto.
+
 ### B5 — No hay fallback si Supabase no responde
 - **Impacto:** alto si ocurre. Todas las secciones que leen de la base (espacios, galería,
   servicios, amenidades, alimentos, config del sitio) se renderizan **vacías**. Sobreviven solo

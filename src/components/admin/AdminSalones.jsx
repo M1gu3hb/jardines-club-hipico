@@ -202,7 +202,10 @@ export default function AdminSalones() {
             {/* El plano es del SALÓN, no del evento: por eso vive aquí y no en el
                 módulo de eventos. Se guarda solo (no depende de "Guardar"). */}
             <div className="pt-4 border-t border-white/5">
+              {/* `key` por salón: sin él, al pasar de un salón a otro el
+                  componente no se desmonta y arrastra el plano del anterior. */}
               <SalonPlanoUpload
+                key={editing !== "new" ? editing?.id : "new"}
                 salonId={editing !== "new" ? editing?.id : null}
                 salonNombre={form.nombre}
               />
