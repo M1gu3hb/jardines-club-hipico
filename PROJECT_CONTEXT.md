@@ -192,6 +192,11 @@ que el documento pertenece a ese evento y avisa al cliente.
 recargar, el panel ofrece "Generar nuevo enlace". Todas las validaciones pasan por
 `jardines_private.evento_por_staff()`, que responde siempre el mismo error genérico.
 
+> ⚠️ **Todos los correos enlazan al dominio de Vercel, no al propio.** `api/_lib/correo.js:5`
+> fija `SITIO_URL = "https://jardines-club-hipico.vercel.app"` como constante, sin leer ninguna
+> variable de entorno — igual que el logo embebido. Al conectar el dominio propio hay que
+> cambiarlo ahí también, o los correos seguirán apuntando al viejo. Ver `docs/BUGS_PENDING.md` (B8).
+
 **F) Validación humana pendiente.** Miguel debe confirmar en pantalla, con credenciales reales:
 (1) alta de cliente, (2) enlace de primer acceso, (3) subir y abrir documentos, (4) aviso de
 cotización, (5) generar y abrir el link de meseros.
@@ -224,7 +229,7 @@ compartidos con Vero) y dos cosas menores de contenido/SEO.
   Es el diseño del producto; se mitiga con 256 bits, expiración, revocación y rate limit.
 - **`operativo_canales` es global, no por evento.** Con dos eventos simultáneos el personal
   compartiría canal de radio. Hoy el salón opera un evento a la vez.
-- **Repo pesado (~560 MB)** por los medios auto-hospedados: clonar y desplegar es lento.
+- **Repo pesado (586 MB)** por los medios auto-hospedados: clonar y desplegar es lento.
 - **`GMAIL_APP_PASSWORD`, `SUPABASE_SERVICE_ROLE` y `CRON_SECRET`** son secretos de Vercel. Si
   el correo o el cron dejan de funcionar, revisa esas variables antes que el código.
 

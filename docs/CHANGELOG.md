@@ -1,5 +1,88 @@
 # CHANGELOG.md
 
+## 2026-08-03 (c) — Inventario de grants por nivel + hallazgos deferidos
+
+### Cambios realizados
+
+**Bloqueante — regresión introducida por el bloque (b).** Al corregir el hallazgo 4, `DATABASE.md`
+pasó a afirmar que las RPCs ejecutables por `anon` eran **las únicas 4**. Son **8**: el bloque D.5
+de `sec_06` concede `execute … to anon, authenticated` sobre siete funciones y `sec_13` añade
+`solicitud_crear`. Las cuatro omitidas (`info_invitacion_staff`, `registrar_acceso_staff`,
+`progreso_mesas_staff`, `registrar_llegada_mesa`) estaban agrupadas bajo una etiqueta que sugería
+sesión, mezcladas con otras que sí la exigen.
+
+**§D reestructurado por `EXECUTE` real**, en tres niveles, verificado contra
+`pg_proc`/`aclexplode` en producción:
+
+- **Nivel 1 — `anon` + `authenticated` (8):** subdividido en "abiertas al público" (4) y "exigen
+  además token de staff válido" (4). Estas últimas se comportan bien —resuelven por
+  `evento_por_staff`, con rate limit y respuesta genérica— pero **el grant no las distingue** de
+  las abiertas: el staff opera sin sesión, con el token en la URL del QR. Se anota explícitamente.
+- **Nivel 2 — solo `authenticated`:** helpers de RLS, `info_invitacion`, `operativo_*`,
+  `registrar_acceso` y las de admin cuyo rol comprueba el cuerpo, no el `EXECUTE`.
+- **Nivel 3 — solo `service_role`**, más las residuales y las funciones de trigger.
+
+El criterio es el inventario por grant porque la pregunta de toda revisión de seguridad es
+*"¿qué alcanza alguien sin sesión?"*, y agrupar por sensación de acceso la responde mal.
+
+**Hallazgos deferidos del primer informe:**
+
+- **Nuevo §D.bis en `DATABASE.md`:** `api_idempotencia`, `canjear_acceso_unico` e
+  `info_mesa_publica` siguen vivas sin llamadores, y **`seguridad.sql` prueba las dos primeras en
+  vez de las vigentes** — la idempotencia recuperable y el canje en dos fases solo tienen
+  cobertura textual. Abierto como B6; el `DROP` va en un bloque aparte con verificación previa.
+- **Cuarto huérfano:** `ItemImageOverlay.jsx` (0 imports). Son 4, no 3.
+- **`seed-supabase.mjs` no toca la base:** sin `supabase-js`, sin env, sin red — genera
+  `scripts/seed/*.sql`. Corregido en `CLAUDE.md`, `ARCHITECTURE.md`, `DATOS.md`, `FILE_MAP.md`.
+- **`build-media.mjs` descarga 571 MB por red** desde `i.imgur.com` y `media.base44.com`, un CDN
+  que puede desaparecer. Advertido donde se documentaba solo como generador de JSON.
+- **Última dependencia de imgur:** `index.html` sirve el logo del JSON-LD desde `i.imgur.com` y la
+  CSP lo autoriza solo por eso, pese a que el activo ya está auto-hospedado. Documentado en D3 y
+  abierto como B7 (el arreglo es código: bloque aparte).
+- **`SITIO_URL` hardcodeada** al dominio de Vercel: todos los correos enlazan ahí. B8, ligado al
+  pendiente de dominio.
+- **La CSP conserva `'unsafe-inline'`** en `script-src` y `style-src`: no protege contra XSS
+  inline, solo acota orígenes. Anotado como deuda en `ARCHITECTURE.md`.
+- **`functions.invoke()` falla en silencio:** solo reconoce dos nombres y devuelve `{}` con
+  cualquier otro. Las demás rutas usan métodos propios.
+- **Estado unificado:** "resuelto en código y migraciones, pendiente de validación humana", y se
+  separa lo que el repo prueba de lo que solo afirma sobre producción. **No hay CI: no existe
+  `.github/`.**
+- **Datos personales retirados** (`PROMPTS.md` §regla de secretos): correo en `DECISIONS.md` —que
+  además estaba mal, era `MAIL_TO`, no el remitente— y la org en `PLAN-EJECUCION.md`.
+- **Higiene:** `SEGURIDAD.md` y los 4 docs de UI añadidos a la lista obligatoria de `PROMPTS.md`;
+  8 componentes montados que faltaban en `COMPONENTES.md` y `_ui.jsx` en `FILE_MAP.md`;
+  `FormularioModal` son 2 pasos y solo consume `Salon`; `informacionServicios` **sí** tiene
+  contenido (465 caracteres, 3 párrafos en producción); orden real del `<main>` en `MAPA.md`;
+  `search_path` en **7** funciones, no 10; repo **586 MB** e `img/` **230** archivos;
+  `GEMINI_API_KEY` documentada; `proximamente_fecha` marcada huérfana; el módulo operativo
+  **entero** sin frontend; batería de `DEPLOY.md` con `seguridad.sql`; los **dos** bloques JSON-LD.
+
+### Archivos modificados
+`CLAUDE.md`, `PROJECT_CONTEXT.md`, `README.md`, `docs/ARCHITECTURE.md`, `docs/DATABASE.md`,
+`docs/FILE_MAP.md`, `docs/DATOS.md`, `docs/MAPA.md`, `docs/COMPONENTES.md`, `docs/DEPLOY.md`,
+`docs/DECISIONS.md`, `docs/PROMPTS.md`, `docs/NEXT_STEPS.md`, `docs/BUGS_PENDING.md`,
+`docs/PLAN-EJECUCION.md`, `docs/CHANGELOG.md`.
+
+### Entidades/BD afectadas
+Ninguna. **Sin migraciones.** Solo consultas de lectura para verificar grants,
+`informacion_servicios` y `proximamente_fecha`.
+
+### Bugs resueltos
+La regresión del inventario de RPCs. Documentación que describía al revés dos scripts
+(`seed-supabase`, `build-media`), que daba por genérico un `invoke()` que falla en silencio, y
+que se contradecía sobre el estado del proyecto.
+
+### Bugs nuevos
+Ninguno introducido. **Detectados y documentados:** B6 (la suite prueba las RPCs superadas),
+B7 (dependencia de imgur), B8 (`SITIO_URL` hardcodeada).
+
+### Decisiones tomadas
+D3 ampliada con la excepción de imgur y con que `build-media` no es offline.
+
+### Próximo paso
+Validación humana autenticada de los 5 flujos (`docs/NEXT_STEPS.md` §1).
+
 ## 2026-08-03 (b) — Correcciones de la auditoría de documentación sobre `370ee5c`
 
 ### Cambios realizados
@@ -126,7 +209,7 @@ Validación humana autenticada de los 5 flujos (ver `docs/NEXT_STEPS.md` §1).
   comparación en tiempo constante, idempotencia por mensaje y semántica **at-least-once** documentada.
 - **Enlace de primer acceso de un solo uso** (`sec_16`) con **canje en dos fases** (`sec_19`):
   ya no viajan contraseñas en los correos ni credenciales en base64 en la URL.
-- **`search_path = ''`** en las 10 funciones `SECURITY DEFINER` que faltaban (`sec_17`) y retiro
+- **`search_path = ''`** en las 7 funciones `SECURITY DEFINER` que faltaban (`sec_17`) y retiro
   de la confianza por dominio de correo en `handle_new_user` (`sec_18`).
 - **Operativo fail-closed** (`sec_14`) con `acceso_global` explícito para los 3 operativos
   existentes (`sec_18`).

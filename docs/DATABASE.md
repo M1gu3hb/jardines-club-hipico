@@ -35,7 +35,9 @@ que se hizo el seed inicial (histórico). **Si Supabase no responde, el sitio se
 - **Campos:** `logo_url`, `telefono_contacto`, `whatsapp_numero`, `correo_admin`,
   `ubicacion_texto`, `ubicacion_link_mapa`, `informacion_servicios`, `texto_no_incluye`,
   `proximamente_activo`, `proximamente_imagen_url`, `proximamente_titulo`,
-  `proximamente_descripcion`, `proximamente_texto_boton`, `proximamente_fecha`,
+  `proximamente_descripcion`, `proximamente_texto_boton`,
+  `proximamente_fecha` (**columna huérfana**: nada la lee ni la escribe — ni el seed, ni
+  `AdminConfig`, ni ninguna migración; en producción está a `NULL`),
   `color_primario`, `color_secundario`.
 - **Se usa en:** `Home.jsx` (props a Hero, Contacto, NoIncluye, WhatsApp), `AdminConfig`.
 - **Reglas:** `whatsapp_numero` solo dígitos, sin `+` ni espacios (ej. `525548663656`).
@@ -161,7 +163,13 @@ que se hizo el seed inicial (histórico). **Si Supabase no responde, el sitio se
 - `operativo_personal_canal`: `personal_id`, `canal_id`, `puede_hablar`, `puede_escuchar`.
 - `operativo_transmisiones`: `canal_id`, `personal_id`, `audio_path`, `duracion_ms`.
 - `operativo_ubicaciones`: `personal_id`, `evento_id`, `lat`, `lng`, `precision_m`.
-- `operativo_asignacion`: `personal_id`, `evento_id`, `revocada_at`. **Sin UI todavía**; hoy
+> ⚠️ **El módulo operativo entero no tiene frontend.** No es solo `operativo_asignacion`:
+> **ningún componente de `src/` toca ninguna tabla ni RPC `operativo_*`** (la única aparición de
+> la palabra en `src/` es un comentario en `EventoMeseros.jsx`). Las tablas, funciones, políticas
+> y canales existen y están protegidos, pero hoy se operan solo desde la base. Lo que el panel sí
+> tiene es la generación del enlace de meseros, que va por `rotar_staff_token`.
+
+- `operativo_asignacion`: `personal_id`, `evento_id`, `revocada_at`. **Sin UI**; hoy
   los 3 operativos tienen `acceso_global = true` porque el salón opera un evento a la vez.
 - **Regla:** el evento del operativo **se deriva o se valida**; nunca se confía en el `p_evento`
   que manda el cliente (`operativo_ubicar`). Comportamiento **fail-closed** desde `sec_14`.
@@ -183,40 +191,89 @@ que se hizo el seed inicial (histórico). **Si Supabase no responde, el sitio se
 
 ## D. Funciones y RPCs
 
-**Helpers de RLS** (`EXECUTE` solo para `authenticated`, porque las policies se evalúan con los
-privilegios de quien consulta): `is_admin`, `es_admin`, `is_my_event`, `client_can_edit`,
-`mi_personal_id`, `mis_canales`, `mis_canales_hablar`, `mis_canales_escuchar`,
-`eventos_operativos_permitidos`.
+**Agrupadas por el `EXECUTE` real, no por la sensación de acceso.** La pregunta que se hace toda
+revisión de seguridad es *"¿qué alcanza alguien sin sesión?"*, y la respuesta es el nivel 1
+entero — las 8, no solo las 4 abiertas. Que las otras 4 exijan además un token de staff es una
+comprobación **del cuerpo de la función**, no del grant.
 
-**RPCs públicas** — las **únicas** ejecutables por `anon`, todas con rate limit y error genérico:
-`solicitud_crear`, `rsvp_crear`, `info_invitacion_publica`, `info_mesa_token`.
+Verificado contra `pg_proc`/`aclexplode` en producción (2026-08-03), no solo contra las
+migraciones.
 
-**RPCs de `authenticated`** (hay sesión, pero no hace falta ser admin): `info_invitacion`.
-**No es pública** — `sec_06` le dio `EXECUTE` solo a `authenticated`.
+### Nivel 1 — `anon` + `authenticated`: alcanzables **sin sesión** (8)
 
-**RPCs de staff / operativo** (exigen token válido o sesión): `info_invitacion_staff`,
-`registrar_acceso`, `registrar_acceso_staff`, `registrar_llegada_mesa`,
-`progreso_mesas_staff`, `operativo_evento_activo`, `operativo_ubicar`.
+Son todas las que `anon` puede ejecutar. Ninguna función de `jardines` tiene `EXECUTE` para
+`PUBLIC` (`sec_11`).
 
-**RPCs de admin** (`EXECUTE` para `authenticated`; el rol lo comprueba el cuerpo o RLS):
-`rotar_staff_token`, `revocar_staff_token`, `confirmar_evento`, `auditoria_reciente`.
+**1a. Abiertas al público** — no piden nada previo; se protegen con rate limit por IP y error
+genérico:
 
-> **`info_mesa_publica` está fuera de servicio, no es pública.** `sec_06` y `sec_17` le
-> revocaron el `EXECUTE` a `PUBLIC`, `anon` y `authenticated`: hoy solo la pueden ejecutar
-> `postgres` y `service_role`, así que **no es alcanzable por la Data API**. Importa saberlo
-> porque su cuerpo **no** tiene rate limit ni error genérico — devuelve mesa, evento, fecha,
-> salón y tipo con solo presentar el token. Si alguien le devolviera el `EXECUTE` a `anon`,
-> reabriría la enumeración que `sec_06` cerró. La vía viva y protegida es `info_mesa_token`.
+| RPC | Para qué |
+|---|---|
+| `solicitud_crear` | Formulario de cotización (`sec_13` le dio el grant) |
+| `rsvp_crear` | RSVP desde la invitación |
+| `info_invitacion_publica` | Leer una invitación por su token |
+| `info_mesa_token` | Leer una mesa presentando token de staff **y** de mesa |
 
-**Solo `service_role`** (invocadas desde `api/`, nunca desde el navegador): `asignar_rol`,
-`aprovisionar_usuario`, `revocar_aprovisionamiento`, `crear_acceso_unico`,
+**1b. Exigen además un token de staff válido** — el grant es el mismo (`anon`), porque **el
+staff opera sin sesión, con el token en la URL del QR**. Todas resuelven el token por
+`jardines_private.evento_por_staff()`, con rate limit y la **misma** respuesta genérica para
+inexistente, expirado, revocado o bloqueado:
+
+| RPC | Para qué |
+|---|---|
+| `info_invitacion_staff` | Ver una invitación desde la vista de meseros |
+| `registrar_acceso_staff` | Registrar entrada de invitados |
+| `registrar_llegada_mesa` | Marcar la llegada de una mesa |
+| `progreso_mesas_staff` | Progreso del evento para el staff |
+
+> El comportamiento de 1b es correcto: sin token válido no devuelven nada útil. Lo que hay que
+> tener presente al auditar es que **el grant no las distingue de 1a**: si `evento_por_staff`
+> se relajara, quedarían abiertas a `anon` sin que ningún grant cambiara.
+
+### Nivel 2 — solo `authenticated`: exigen sesión
+
+- **Helpers de RLS** (las policies se evalúan con los privilegios de quien consulta):
+  `is_admin`, `es_admin`, `is_my_event`, `client_can_edit`, `mi_personal_id`, `mis_canales`,
+  `mis_canales_hablar`, `mis_canales_escuchar`, `eventos_operativos_permitidos`.
+- **Cliente / invitación:** `info_invitacion` — **no es pública**, `sec_06` le dio `EXECUTE`
+  solo a `authenticated`.
+- **Operativo:** `operativo_evento_activo`, `operativo_ubicar`, `registrar_acceso`.
+- **Admin** (el grant es `authenticated`; **el rol lo comprueba el cuerpo o RLS**, no el
+  `EXECUTE`): `rotar_staff_token`, `revocar_staff_token`, `confirmar_evento`,
+  `auditoria_reciente`.
+
+### Nivel 3 — solo `service_role`: nunca desde el navegador
+
+`asignar_rol`, `aprovisionar_usuario`, `revocar_aprovisionamiento`, `crear_acceso_unico`,
 **`revocar_acceso_unico`** (`sec_16`: es de `service_role`, **no** de admin — desde el panel no
-se puede llamar), `canjear_acceso_iniciar`, `canjear_acceso_confirmar`,
-`canjear_acceso_liberar`, `api_rate_limit`, `api_idem_iniciar`, `api_idem_cerrar`,
-`api_auditar`, `info_mesa_publica` (residual, ver arriba).
+se puede llamar), `canjear_acceso_iniciar`, `canjear_acceso_confirmar`, `canjear_acceso_liberar`,
+`api_rate_limit`, `api_idem_iniciar`, `api_idem_cerrar`, `api_auditar`.
 
-**Triggers:** `handle_new_user` (en `auth.users`, **compartido con Vero**),
-`solicitud_saneo`, `resena_moderacion`, `auditar_cambio_operativo`.
+**Residuales en este nivel, sin llamadores** (ver §D.bis): `info_mesa_publica`,
+`api_idempotencia`, `canjear_acceso_unico`.
+
+**Funciones de trigger**, también en este nivel pero no invocables desde la Data API porque
+`anon` y `authenticated` no tienen su `EXECUTE`: `handle_new_user` (en `auth.users`,
+**compartido con Vero**), `solicitud_saneo`, `resena_moderacion`, `auditar_cambio_operativo`.
+
+## D.bis Funciones vivas sin llamadores (deuda)
+
+Tres funciones siguen en la base con `EXECUTE` para `service_role` y **cero llamadores**. No son
+alcanzables desde el navegador, así que no son un agujero hoy; el riesgo es que sigan ahí y
+alguien las reactive o las tome por vigentes.
+
+| Función | Estado | Por qué importa |
+|---|---|---|
+| `info_mesa_publica` | Revocada de `PUBLIC`/`anon`/`authenticated` (`sec_06`, `sec_17`) | Su cuerpo **no** tiene rate limit ni error genérico: devuelve mesa, evento, fecha, salón y tipo con solo presentar el token. Devolverle el `EXECUTE` a `anon` reabriría la enumeración que cerró `sec_06`. La vía viva y protegida es `info_mesa_token` |
+| `api_idempotencia` | Sustituida por `api_idem_iniciar`/`api_idem_cerrar` (`sec_19`) | Es la idempotencia **no recuperable**: consume la clave antes de saber si la operación salió bien. Usarla por error reintroduce el fallo que corrigió `sec_19` |
+| `canjear_acceso_unico` | Sustituida por el canje en dos fases (`sec_16` → `sec_19`) | Quema el token en un solo paso: si falla la generación del OTP, el cliente se queda fuera sin poder reintentar |
+
+**Además, `supabase/tests/seguridad.sql` prueba las versiones viejas, no las vigentes.** La
+idempotencia recuperable y el canje en dos fases solo están cubiertos por las comprobaciones
+textuales de `scripts/test-contratos-api.mjs`. Ver `docs/BUGS_PENDING.md` (B6).
+
+> El `DROP` de las tres está pendiente y **no** se ha escrito: la base es producción compartida
+> y hay que verificar contra ella que nadie las llama antes de retirarlas.
 
 > Toda función `SECURITY DEFINER` usa `search_path = ''` y nombres completamente calificados
 > (`sec_17`). Ninguna tiene `EXECUTE` para `PUBLIC` (`sec_11`).

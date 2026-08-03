@@ -146,6 +146,7 @@ npm run dev                    # http://localhost:5173
 npm run build                  # genera dist/
 npm run lint                   # eslint (no-undef activo: atrapa símbolos borrados)
 npm run test:contratos         # contratos frontend ↔ api/ (estático, sin red)
-node scripts/build-media.mjs   # regenera src/data/site-data.json (entrada del seed) desde scripts/raw/*.json
-node scripts/seed-supabase.mjs # seed inicial de Supabase (histórico, no re-ejecutar a ciegas)
+# OJO: build-media DESCARGA ~570 MB de medios por red (i.imgur.com y media.base44.com)
+node scripts/build-media.mjs   # descarga medios a public/media/ + genera src/data/site-data.json
+node scripts/seed-supabase.mjs # NO toca la base: solo genera scripts/seed/*.sql (se aplican aparte)
 ```

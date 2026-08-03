@@ -69,7 +69,7 @@ Detalles de campos que suelen confundir:
 
 | Carpeta | Contenido | Origen |
 |---|---|---|
-| `img/` | ~224 imágenes y videos | migrados de imgur |
+| `img/` | 230 imágenes y videos | migrados de imgur |
 | `frames/` | `frame-001.jpg` … `frame-241.jpg` | animación de scroll |
 | `b44/` | anuncio "Próximamente" | migrado en FASE-01 |
 
@@ -78,13 +78,18 @@ Los videos del hero **ya están comprimidos**: no comprimirlos más.
 ## Regenerar `site-data.json` (avanzado, rara vez)
 
 ```bash
-node scripts/build-media.mjs   # scripts/raw/*.json → src/data/site-data.json + descarga medios
+node scripts/build-media.mjs   # DESCARGA ~570 MB de medios por red + genera site-data.json
 npm run build
 ```
 
+⚠️ `build-media.mjs` **no es un generador offline**: descarga los medios desde `i.imgur.com` y
+`media.base44.com`. Ese segundo origen es un CDN de Base44 que puede desaparecer sin aviso; si
+eso ocurre, `public/media/` versionado en git es la única copia.
+
 Esto **no cambia nada de lo que ve el visitante**: ese JSON no se importa en runtime. Solo sirve
-para volver a sembrar la base con `scripts/seed-supabase.mjs` (histórico; no re-ejecutar a ciegas
-sobre datos vivos).
+como entrada de `scripts/seed-supabase.mjs`, que tampoco toca la base — **genera
+`scripts/seed/*.sql`**, y esos `.sql` son los que se aplican aparte (histórico; no re-ejecutar a
+ciegas sobre datos vivos).
 
 ## El shim de datos
 

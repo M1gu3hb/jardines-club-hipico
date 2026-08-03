@@ -25,6 +25,41 @@ aceptados), pendientes que dependen de otra persona, y dos cosas menores de cont
 - **Archivos:** faltaría un componente en `src/components/admin/`; base ya lista (`sec_14`, `sec_18`).
 - **Prioridad:** media. **Estado:** abierto (es funcionalidad faltante, no un defecto).
 
+### B8 — `SITIO_URL` está hardcodeada al dominio de Vercel
+- **Impacto:** medio. **Todos** los correos transaccionales (alta de cliente, primer acceso,
+  aviso de cotización, notificaciones al admin, recordatorios del cron) enlazan a
+  `https://jardines-club-hipico.vercel.app`, no al dominio propio. También el logo embebido.
+- **Causa:** `api/_lib/correo.js:5` la fija como constante, sin leer ninguna variable de entorno.
+- **Archivos:** `api/_lib/correo.js`.
+- **Prioridad:** media — sube a alta en cuanto se conecte el dominio, porque entonces los correos
+  seguirán apuntando al viejo. **Estado:** abierto. Ligado al pendiente de dominio de
+  `docs/NEXT_STEPS.md`.
+
+### B7 — Última dependencia viva de imgur en el JSON-LD
+- **Impacto:** bajo, pero contradice D3 ("independencia total"). Si imgur cae o borra el activo,
+  el `image` del JSON-LD queda roto para buscadores y previews sociales.
+- **Causa:** `index.html:45` sirve `https://i.imgur.com/aMxWuH8.png`. La CSP de `vercel.json`
+  autoriza `i.imgur.com` en `img-src` **únicamente** por esa línea. El mismo activo ya está
+  auto-hospedado: `api/_lib/correo.js` usa `/media/img/aMxWuH8.png`.
+- **Arreglo:** apuntar el JSON-LD a `/media/img/aMxWuH8.png` y **quitar `i.imgur.com` de la
+  CSP**. Son dos ficheros de código, así que va en un bloque aparte.
+- **Archivos:** `index.html`, `vercel.json`.
+- **Prioridad:** baja. **Estado:** abierto.
+
+### B6 — La suite prueba las RPCs superadas, no las vigentes
+- **Impacto:** medio. **La idempotencia recuperable y el canje en dos fases no tienen cobertura
+  en la base**: solo los cubren comprobaciones textuales de `scripts/test-contratos-api.mjs`.
+- **Causa:** `supabase/tests/seguridad.sql` llama a `api_idempotencia` (líneas 157-160) y a
+  `canjear_acceso_unico` (136-138) — las versiones que `sec_19` sustituyó por
+  `api_idem_iniciar`/`api_idem_cerrar` y por `canjear_acceso_iniciar`/`_confirmar`/`_liberar`.
+  Las viejas nunca se dropearon: siguen vivas con `EXECUTE` para `service_role` y **cero
+  llamadores** en `src/`, `api/` y `scripts/`.
+- **Arreglo:** reapuntar las aserciones a las funciones vigentes y **después** dropear las tres
+  residuales (incluida `info_mesa_publica`). El `DROP` exige verificación previa contra
+  producción, así que va en un bloque aparte con su migración.
+- **Archivos:** `supabase/tests/seguridad.sql`; migración pendiente.
+- **Prioridad:** media. **Estado:** abierto. Ver `docs/DATABASE.md` §D.bis.
+
 ### B5 — No hay fallback si Supabase no responde
 - **Impacto:** alto si ocurre. Todas las secciones que leen de la base (espacios, galería,
   servicios, amenidades, alimentos, config del sitio) se renderizan **vacías**. Sobreviven solo
@@ -80,7 +115,17 @@ Hasta entonces **no se declara CERRADO**.
 
 ---
 
-## Resueltos y verificados en producción
+## Resueltos en código y migraciones — pendientes de validación humana
+
+> **Qué significa "resuelto" aquí.** El código está escrito, las migraciones aplicadas y las
+> comprobaciones automáticas del repo pasan. Lo que **no** puede afirmar este documento es el
+> comportamiento observado en producción con credenciales reales: eso es exactamente lo que
+> falta (§ "Pendiente de validación humana"). Las afirmaciones sobre el estado de la base
+> (grants, RLS, checksums) se comprobaron por consulta directa; las que describen el resultado
+> de un flujo de usuario **no**.
+>
+> Tampoco hay CI: **no existe `.github/`**. Cuando estos documentos dicen que una suite "corre
+> en CI", léase "está lista para correr en CI"; hoy se ejecuta a mano.
 
 **Seguridad (2026-08-01 / 02), migraciones `sec_01..22`:**
 

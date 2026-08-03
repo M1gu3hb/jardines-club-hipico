@@ -62,13 +62,13 @@
 `isVideo`), `FaqSection`, `ContactoSection`, `NoIncluyeSection`, `ProximamenteModal` /
 `ProximamenteCartel`, `SplashScreen`, `StaggeredMenu` (+ `StaggeredMenu.css` — **el menú real**;
 sus items vienen de `MENU_ITEMS` en `Home.jsx`), `SoundToggle`, `soundSystem`, `AnimatedItem`,
-`MediaCarrusel`, `ItemImageOverlay`.
+`MediaCarrusel`.
 
 - **`FormularioModal.jsx`** — riesgo **alto**: es el flujo de conversión. Tiene
   `ERRORES_VALIDACION` + `mensajeDeError()`, y **nunca muestra éxito sin folio del servidor**.
-- `Sidebar.jsx`, `HeroTrustBar.jsx`, `FormularioSection.jsx` — **huérfanos (0 imports)**, no
-  montados. `Sidebar` fue el menú lateral hasta que lo sustituyó `StaggeredMenu`; editarlo hoy
-  no cambia nada.
+- **Huérfanos (0 imports), no montados — son 4:** `Sidebar.jsx`, `HeroTrustBar.jsx`,
+  `FormularioSection.jsx`, `ItemImageOverlay.jsx`. `Sidebar` fue el menú lateral hasta que lo
+  sustituyó `StaggeredMenu`. Editar cualquiera de los cuatro no cambia nada en el sitio.
 - `components/ui/*` — primitivas shadcn/ui. No tocar salvo rediseño.
 
 ## `src/components/admin/` — panel
@@ -78,7 +78,8 @@ CMS: `AdminConfig`, `AdminSalones`, `AdminGaleria`, `AdminServicioItems`,
 Operación: `AdminInicio`, `AdminDashboard`, `AdminLogin`, `AdminSolicitudes`,
 `AdminAdministradores`.
 
-`admin/eventos/`: `AdminEventos`, `EventoDatos`, `EventoFicha`, `EventoItems`, `EventoRsvps` y
+`admin/eventos/`: `AdminEventos`, `EventoDatos`, `EventoFicha`, `EventoItems`, `EventoRsvps`,
+`_ui.jsx` (primitivas compartidas del módulo de eventos) y
 **`EventoDocumentos.jsx`** — riesgo alto: la carpeta de Storage debe ser **`<eventoId>/`** sin
 prefijo `evento-`, y manda `documentoId` (no el nombre del documento) a `/api/correo-cliente`.
 
@@ -121,9 +122,9 @@ scroll, D8). `hooks/useBackButtonClose.js`, `hooks/use-mobile.jsx`.
 
 | Archivo | Qué hace |
 |---|---|
-| `test-contratos-api.mjs` | **71 contratos estáticos** frontend ↔ `api/`. Sin red ni credenciales; corre en CI |
-| `build-media.mjs` | Genera `src/data/site-data.json` (entrada del seed) desde `raw/*.json` y descarga medios |
-| `seed-supabase.mjs` | Seed inicial de la base (histórico, no re-ejecutar a ciegas) |
+| `test-contratos-api.mjs` | **71 contratos estáticos** frontend ↔ `api/`. Sin red ni credenciales, así que **podría** correr en CI — pero no hay `.github/`: hoy se ejecuta a mano |
+| `build-media.mjs` | **Descarga ~570 MB de medios por red** (`i.imgur.com`, `media.base44.com`) a `public/media/` y genera `src/data/site-data.json`. Idempotente, pero **no offline**: depende de un CDN de Base44 que puede desaparecer |
+| `seed-supabase.mjs` | **No toca la base.** Sin `supabase-js`, sin env, sin red: solo genera `scripts/seed/*.sql` (uno por tabla), que se aplican aparte. Histórico |
 | `raw/*.json` | Fuente de `site-data.json`. **Ya no es la fuente de verdad del sitio** |
 | `seed/` | Datos del seed |
 | `reorder-galeria.mjs`, `gen-images.mjs`, `montage.mjs` | Utilitarios históricos |
@@ -139,7 +140,7 @@ Para cambiar contenido se usa el panel admin, no estos archivos.
 
 ## `public/media/`
 
-`img/` (imágenes y videos, incluidas las 5 generadas con Nano Banana y `dulce-corazon.png`),
+`img/` (**230** imágenes y videos, incluidas las 5 generadas con Nano Banana y `dulce-corazon.png`),
 `frames/` (241 frames de la animación), `b44/`. Rutas siempre `/media/...`.
 
 ## `docs/`

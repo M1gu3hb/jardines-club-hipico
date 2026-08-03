@@ -46,6 +46,12 @@ leen en el runtime de las funciones:**
 | `MAIL_TO` | A dónde llegan las solicitudes |
 | `CRON_SECRET` | Autoriza `/api/cron-recordatorios`. **Sin ella el cron no corre** (fail-closed) |
 
+**Solo local, nunca en Vercel:**
+
+| Variable | Para qué |
+|---|---|
+| `GEMINI_API_KEY` | La lee `scripts/gen-images.mjs` para generar imágenes con Nano Banana. Utilitario manual: no la necesita ni el build ni el runtime |
+
 No hay `.env` en el repo (está en `.gitignore`). Tras cambiar una variable hay que redeploy.
 
 ## Cabeceras HTTP
@@ -93,6 +99,10 @@ npm run test:contratos  # 71/71
 npm run typecheck       # 155 = línea base histórica; no debe SUBIR
 ```
 
+**Y si tocaste SQL, además:** `supabase/tests/seguridad.sql` (63 aserciones; va en
+`BEGIN/ROLLBACK`, no deja rastro). Lo exige `CLAUDE.md`. No hay CI que lo dispare —
+**no existe `.github/`**: los cinco se corren a mano.
+
 ## Conectar un dominio propio
 
 1. Vercel → **Project → Settings → Domains → Add**.
@@ -100,10 +110,16 @@ npm run typecheck       # 155 = línea base histórica; no debe SUBIR
    dominio raíz y un **CNAME** `cname.vercel-dns.com` para `www`). Usa los valores exactos que
    te dé el panel.
 3. Espera la verificación (minutos a horas).
-4. Actualiza `og:url` y el `url` del bloque JSON-LD en [`index.html`](../index.html) y redeploy.
+4. Actualiza **cuatro** sitios, no uno:
+   - [`index.html`](../index.html): `og:url` (línea 17) y el `url` de **los dos** bloques JSON-LD
+     (líneas 34 y 46 — WebSite y EventVenue).
+   - [`api/_lib/correo.js`](../api/_lib/correo.js): la constante `SITIO_URL` está
+     **hardcodeada** al dominio de Vercel. Si no se cambia, **todos** los correos transaccionales
+     y el logo que embeben seguirán apuntando ahí (`docs/BUGS_PENDING.md` B8).
+5. Redeploy.
 
 ## Notas
 
-- El repo pesa ~560 MB por los medios auto-hospedados: el primer clone y el primer deploy tardan.
+- El repo pesa **586 MB** por los medios auto-hospedados: el primer clone y el primer deploy tardan.
 - El panel admin **no** está en `/Admin` (esa ruta es 404): vive en `ADMIN_SLUG`
   (`src/config/portal.js`).

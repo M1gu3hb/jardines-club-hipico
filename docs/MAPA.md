@@ -47,17 +47,21 @@ Cada sección es un componente en [`src/components/`](../src/components):
 | — | (splash) | `SplashScreen.jsx` | Pantalla de carga con el logo (aparece una vez) |
 | — | (menú) | `StaggeredMenu.jsx` | Menú de secciones (overlay fijo, dep. `gsap`). Los items vienen de `MENU_ITEMS` en `Home.jsx` |
 | — | (sonido) | `SoundToggle.jsx` | Control de sonido (antes vivía dentro del Sidebar) |
-| 1 | `#inicio` | `HeroSection.jsx` | Video de fondo, título de venta (todo en un lugar), botón "Cotiza tu Evento", cartel "Próximamente" |
-| 1b | — | `Confianza.jsx` | Números (+30 años, +500 eventos, 8 espacios) + rating de Google + carrusel de reseñas (datos en `src/data/resenas.json`) |
-| 2 | `#salones` | `SalonesSection.jsx` | Tarjetas de los 8 espacios → abre `SalonOverlay` |
-| 3 | — | `ScrollAnimationSection.jsx` | Animación de 241 frames dirigida por scroll |
-| 4 | `#servicios` + `#amenidades` | `ServiciosAmenidades.jsx` | 2 listas con "ver más" (usa `ServiceAmenityCard`) |
-| 5 | — | `CtaCotizacion.jsx` | Franja CTA con imagen de fondo |
-| 6 | `#galeria` | `GaleriaSection.jsx` | Grid masonry de fotos/videos → `MediaViewer` |
-| 4b | `#como-funciona` | `ComoFunciona.jsx` | 3 pasos (elige → cotiza → WhatsApp). Va entre Amenidades y el CTA "Listo para cotizar" |
-| 6c | `#faq` | `FaqSection.jsx` | Acordeón de preguntas frecuentes (después de Galería). Contenido en el array `FAQS` del propio archivo |
-| 7 | `#contacto` | `ContactoSection.jsx` | Teléfono, correo, ubicación, WhatsApp, Facebook |
-| 8 | `#no-incluye` | `NoIncluyeSection.jsx` | Texto "Información de servicios" |
+Orden real del `<main>` de `Home.jsx` (líneas 123-142):
+
+| # | Sección (id) | Componente | Qué muestra |
+|---|---|---|---|
+| 1 | `#inicio` | `HeroSection.jsx` | Video de fondo, título de venta, botón "Cotiza tu Evento", cartel "Próximamente" |
+| 2 | — | `Confianza.jsx` | Números + rating de Google + carrusel de reseñas (lee `src/data/resenas.json`) |
+| 3 | `#salones` | `SalonesSection.jsx` | Tarjetas de los 8 espacios → abre `SalonOverlay` |
+| 4 | — | `ScrollAnimationSection.jsx` | Animación de 241 frames dirigida por scroll |
+| 5 | `#servicios` + `#amenidades` | `ServiciosAmenidades.jsx` | 2 listas con "ver más" (usa `ServiceAmenityCard`). **Monta `BarraDulces` entre ambas** |
+| 6 | `#como-funciona` | `ComoFunciona.jsx` | 3 pasos (elige → cotiza → WhatsApp) |
+| 7 | — | `CtaCotizacion.jsx` | Franja CTA con imagen de fondo |
+| 8 | `#galeria` | `GaleriaSection.jsx` | Grid masonry de fotos/videos → `MediaViewer` |
+| 9 | `#faq` | `FaqSection.jsx` | Acordeón de preguntas (array `FAQS` en el propio archivo) |
+| 10 | `#contacto` | `ContactoSection.jsx` | Teléfono, correo, ubicación, WhatsApp, Facebook |
+| 11 | `#no-incluye` | `NoIncluyeSection.jsx` | Texto "Información de servicios" (`config.informacionServicios`) |
 | — | (footer) | inline en `Home.jsx` | Copyright |
 | — | (modales) | `FormularioModal.jsx`, `ProximamenteModal.jsx` | Formulario de cotización y anuncio |
 
@@ -81,9 +85,13 @@ entidad → tabla:
 | `Salon` | `salones` | `SalonesSection`, `FormularioModal` (lista de espacios) |
 | `Galeria` | `galeria` | `GaleriaSection` |
 | `ServicioItem` | `servicios` | `ServiciosAmenidades` (bloque "Servicios") |
-| `AmenidadItem` | `amenidades` | `ServiciosAmenidades` (bloque "Amenidades") + `FormularioModal` |
-| `ServicioExtra` | `servicios_extra` | `FormularioModal` (histórico del formulario largo) |
-| `AlimentoMenu` | `alimentos` | `FormularioModal` (menús + PDF) |
+| `AmenidadItem` | `amenidades` | `ServiciosAmenidades` (bloque "Amenidades") |
+| `ServicioExtra` | `servicios_extra` | **Solo el panel** (`AdminServicios`) y `lib/catalogo.js` |
+| `AlimentoMenu` | `alimentos` | **Solo el panel** (`AdminAlimentos`) y `lib/catalogo.js` |
+
+> `FormularioModal` **solo consume `Salon`** (la lista de espacios). El formulario corto de 2
+> pasos no pide servicios extra, amenidades ni menús — eso era el formulario largo de 6 pasos,
+> retirado en D5.
 | `Resena` / `ResenasConfig` | `resenas` / `resenas_config` | `Confianza` (solo las `aprobada = true`) |
 
 El shim [`base44Client.js`](../src/api/base44Client.js) responde a `.list()`, `.filter()`,

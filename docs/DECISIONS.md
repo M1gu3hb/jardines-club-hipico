@@ -58,7 +58,8 @@ Registro de decisiones técnicas y de producto (formato: decisión · razón · 
   un 400 en silencio**. Ninguna prueba de base de datos podía verlo: el desajuste estaba entre
   dos archivos de JavaScript.
 - **Consecuencia:** `scripts/test-contratos-api.mjs` (71 comprobaciones, sin red ni
-  credenciales) corre en CI. Además se activó `no-undef` en ESLint, que estaba anulado porque el
+  credenciales) **puede** correr en CI — hoy no hay: no existe `.github/`, se ejecuta a mano con
+  `npm run test:contratos`. Además se activó `no-undef` en ESLint, que estaba anulado porque el
   bloque `rules` sobreescribía `pluginJs.configs.recommended`.
 - **Archivos:** `scripts/test-contratos-api.mjs`, `eslint.config.js`, `package.json`.
 
@@ -129,19 +130,28 @@ Registro de decisiones técnicas y de producto (formato: decisión · razón · 
 - **Archivos:** `src/api/base44Client.js`.
 
 ### D3 — Auto-hospedar TODOS los medios
-- **VIGENTE, ampliada en FASE-02.** Los medios del sitio siguen sirviéndose desde
-  `public/media/` (videos del hero, los 241 frames, flyers). Lo que se añadió es que **los
-  medios que se suben desde el panel van a Storage de Supabase** (buckets `sitio`, `clientes`,
-  `planos`, `operativo`), no al repo. Ver `docs/DATABASE.md` §E.
+- **VIGENTE, ampliada en FASE-02, con una excepción sin cerrar.** Los medios del sitio siguen
+  sirviéndose desde `public/media/` (videos del hero, los 241 frames, flyers). Lo que se añadió
+  es que **los medios que se suben desde el panel van a Storage de Supabase** (buckets `sitio`,
+  `clientes`, `planos`, `operativo`), no al repo. Ver `docs/DATABASE.md` §E.
+- **La "independencia total" tiene una excepción real:** `index.html:45` todavía sirve
+  `https://i.imgur.com/aMxWuH8.png` como `image` del JSON-LD, y la CSP de `vercel.json` autoriza
+  `i.imgur.com` en `img-src` **solo por esa línea**. El mismo activo ya está auto-hospedado y en
+  uso: `api/_lib/correo.js` lo sirve desde `/media/img/aMxWuH8.png`. Es la última dependencia
+  viva de imgur. Ver `docs/BUGS_PENDING.md` (B7).
+- **Y `build-media.mjs` no es offline:** reconstruir los medios exige red contra `i.imgur.com` y
+  `media.base44.com`. La independencia es del *runtime*, no del *build*.
 - **Razón:** independencia total de Base44/imgur; que nada se rompa si esos servicios fallan.
-- **Consecuencia:** repo pesado (~560 MB); descarga por `build-media.mjs`; se limpió un artefacto `" ×"`
+- **Consecuencia:** repo pesado (**586 MB**); descarga por `build-media.mjs`; se limpió un artefacto `" ×"`
   que traían algunas URLs.
 - **Archivos:** `public/media/*`, `scripts/build-media.mjs`.
 
 ### D4 — Correo del formulario con Gmail App Password (Nodemailer), no OAuth
 - **Razón:** replicar el envío por Gmail que hacía Base44 sin montar un flujo OAuth complejo.
 - **Consecuencia:** función serverless simple; requiere `GMAIL_USER`/`GMAIL_APP_PASSWORD` en Vercel;
-  la cuenta necesita verificación en 2 pasos + App Password. Remitente actual: `mighuer427@gmail.com`.
+  la cuenta necesita verificación en 2 pasos + App Password. **El remitente es `GMAIL_USER`**
+  (`api/_lib/correo.js`); el destino de las solicitudes es `MAIL_TO`. Ambos valores viven solo en
+  las variables de entorno de Vercel — no se documentan aquí.
 - **Archivos:** `api/solicitud.js`.
 
 ### D5 — Formulario corto (2 pasos) en vez de 6

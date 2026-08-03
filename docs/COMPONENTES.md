@@ -17,8 +17,8 @@ Los props se muestran tal como los pasa [`Home.jsx`](../src/pages/Home.jsx).
 
 | Componente | Sección | Props clave | Datos que usa |
 |---|---|---|---|
-| `HeroSection.jsx` | `#inicio` | `onFormClick`, `logoUrl`, `proximamente*`, `onProximamenteClick` | `config` + **videos de fondo** en la constante `VIDEOS` (rutas locales). Sub-componentes: `HeroVideoBg`, `HeroTrustBar`, `ProximamenteCartel` |
-| `HeroTrustBar.jsx` | dentro del hero | `variant` (`default`/`compact`) | Sellos de confianza (texto en el JSX) |
+| `HeroSection.jsx` | `#inicio` | `onFormClick`, `logoUrl`, `proximamente*`, `onProximamenteClick` | `config` + **videos de fondo** en la constante `VIDEOS` (rutas locales). Único sub-componente importado: `ProximamenteCartel` |
+| `Confianza.jsx` | tras el hero | — | Números, rating de Google y carrusel. **El único componente que lee un JSON local** (`src/data/resenas.json`) |
 | `ProximamenteCartel.jsx` | dentro del hero | `imagenUrl`, `titulo`, `descripcion`, `textoEtiqueta`, `onClick` | `config.proximamente*` |
 | `SalonesSection.jsx` | `#salones` | `salones`, `onSelectSalon` | `salones[]`. Tarjeta por espacio → abre `SalonOverlay`. Tiene `defaultSalones` de respaldo (fotos Unsplash, no se usan porque siempre hay datos) |
 | `SalonOverlay.jsx` | overlay | `salon`, `onClose`, `onCotizar` | Detalle del salón: descripción larga, características, galería (`SalonGallery`) |
@@ -26,22 +26,31 @@ Los props se muestran tal como los pasa [`Home.jsx`](../src/pages/Home.jsx).
 | `ScrollAnimationSection.jsx` | (sin id) | — | 241 frames en `<canvas>` (`public/media/frames/`). Ver [MAPA §7](MAPA.md#7-la-animación-de-scroll) |
 | `ScrollAnimationCaptions.jsx` | sobre la animación | `sectionRef` | Textos flotantes que aparecen según el scroll (editables en el JSX) |
 | `ScrollHint.jsx` | sobre la animación | `visible` | Indicador "desliza" |
-| `ServiciosAmenidades.jsx` | `#servicios`, `#amenidades` | — | Dos bloques `ItemsSection` con "ver más". Usa `servicios[]` y `amenidades[]`. Tiene `defaultServicios`/`defaultAmenidades` de respaldo |
-| `ServiceAmenityCard.jsx` | tarjeta | `item`, `delay` | Tarjeta con imagen/video (`ItemImageOverlay`) |
-| `ItemImageOverlay.jsx` | overlay | media de un ítem | Visor de imágenes/videos de un servicio o amenidad |
+| `ServiciosAmenidades.jsx` | `#servicios`, `#amenidades` | — | Dos bloques `ItemsSection` con "ver más". Usa `servicios[]` y `amenidades[]`. **Monta `BarraDulces` entre ambos** |
+| `ServiceAmenityCard.jsx` | tarjeta | `item`, `delay` | Tarjeta con imagen/video. La descripción se ve **al expandir**, no en la miniatura (D9) |
+| `MediaCarrusel.jsx` | dentro de la tarjeta | media de un ítem | Carrusel de imágenes/videos del servicio o amenidad |
+| `BarraDulces.jsx` | entre servicios y amenidades | — | Destacado de la colaboración con Dulce Corazón (acento rosa, flyer local) |
+| `ComoFunciona.jsx` | (sin id) | — | Los 3 pasos del proceso (array `PASOS` en el JSX) |
 | `CtaCotizacion.jsx` | (sin id) | `onOpenForm` | Franja CTA con imagen de fondo (Unsplash — decorativa) |
+| `FaqSection.jsx` | tras la galería | — | Acordeón de preguntas (array `FAQS` en el JSX) |
+| `AnimatedItem.jsx` | envoltura | `children` | Animación de entrada reutilizable |
 | `GaleriaSection.jsx` | `#galeria` | `galeria` | Grid masonry responsivo → `MediaViewer`. Respaldo `placeholders` (Unsplash) |
 | `MediaViewer.jsx` | lightbox | `items`, `startIdx`, `onClose`, `autoPlayVideos` | Visor full-screen de imágenes/videos. Exporta `isVideo(url)` |
 | `ContactoSection.jsx` | `#contacto` | `telefono`, `correo`, `ubicacionTexto`, `ubicacionLinkMapa`, `whatsappNumero` | `config`. Tarjetas de teléfono/correo/ubicación + botón WhatsApp |
-| `NoIncluyeSection.jsx` | `#no-incluye` | `texto` | Recibe `config.informacionServicios`. **Nota:** ese campo está vacío en los datos, así que la sección sale sin texto (igual que en Base44). El texto de "no incluye" está en `config.textoNoIncluye` pero el componente no lo usa — ver [DATOS.md](DATOS.md) si se quiere mostrar |
+| `NoIncluyeSection.jsx` | `#no-incluye` | `texto` | Recibe `config.informacionServicios`, que **sí tiene contenido** (3 párrafos en producción) y se pinta: el componente parte el texto por saltos de línea. `config.textoNoIncluye` es un campo histórico que no se usa |
 
 ## Modales
 
 | Componente | Rol | Props |
 |---|---|---|
-| `FormularioModal.jsx` | Formulario de cotización (6 pasos) → correo por Gmail | `open`, `onClose`, `preselectedSalon`, `correoAdmin`, `whatsappNumero`. Usa `salones`, `serviciosExtra`, `amenidades`, `alimentos` |
+| `FormularioModal.jsx` | Formulario de cotización, **2 pasos** (0 = elegir espacio, 1 = datos) → RPC `solicitud_crear` + correo | `open`, `onClose`, `preselectedSalon`, `whatsappNumero`. **Solo consume `Salon`**; no usa `serviciosExtra`, `amenidades` ni `alimentos` |
 | `ProximamenteModal.jsx` | Modal del anuncio "Próximamente" | `open`, `onClose`, `imagenUrl`, `titulo`, `descripcion` |
-| `FormularioSection.jsx` | Variante de formulario embebido (no montado en la Home actual) | — |
+
+## Huérfanos (0 imports, no montados)
+
+`Sidebar.jsx` (lo sustituyó `StaggeredMenu`), `HeroTrustBar.jsx` (ya no lo importa el hero),
+`FormularioSection.jsx` (variante embebida del formulario) e `ItemImageOverlay.jsx` (lo sustituyó
+`MediaCarrusel`). Editar cualquiera de los cuatro no cambia nada en el sitio.
 
 ## Utilitarios
 

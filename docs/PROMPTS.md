@@ -33,6 +33,14 @@ Carpeta /docs:
   CHANGELOG.md      — historial de cambios por fecha
   PROMPTS.md        — prompts útiles y de transferencia
 
+En ESTE proyecto, además (y SEGURIDAD.md es de lectura OBLIGATORIA antes de tocar
+SQL, RLS, funciones, Storage, api/ o auth):
+  SEGURIDAD.md      — modelo de seguridad vigente
+  DEPLOY.md         — deploy, variables de entorno, cron y dominio
+  MAPA.md           — dónde tocar para cada cambio del sitio público
+  COMPONENTES.md    — referencia componente por componente
+  DATOS.md          — cómo se edita el contenido
+
 ESTRUCTURA DE PROJECT_CONTEXT.md (15 secciones numeradas)
   1. Objetivo del proyecto
   2. Estado actual (funciona / incompleto / roto)

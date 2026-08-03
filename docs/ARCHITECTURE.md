@@ -56,9 +56,18 @@ capa extra que pidió el dueño; la seguridad real es `RequireAdmin` + RLS.
 dentro habla con Supabase. Por eso ningún componente cambió al migrar.
 
 - `base44.entities.<Entidad>.list(sort) / filter(query, sort) / get(id) / create(data) / update(id, patch) / delete(id)`
-- `base44.functions.invoke(nombre, payload)` → `POST /api/<ruta>`
-- `base44.integrations.Core.UploadFile({file})` → Storage
+- `base44.functions.invoke(nombre, payload)` — **no es genérico**: solo reconoce
+  `"gmailSolicitud"` y `"notificarNuevaSolicitud"`, y ambos van al mismo sitio,
+  `POST /api/solicitud`.
+- `base44.functions.crearAdmin / crearUsuarioEvento / correoCliente` — **métodos propios**, uno
+  por ruta. Las demás funciones serverless se llaman así, no por `invoke`.
+- `base44.integrations.Core.UploadFile({file})` → Storage (bucket `sitio`)
 - `base44.auth.*`, `base44.storage`, `base44.rpc`
+
+> ⚠️ **`invoke()` falla en silencio.** Con cualquier nombre que no sea uno de esos dos devuelve
+> `{}` — sin lanzar, sin avisar, sin log. Un typo en el nombre no da error: da un objeto vacío
+> que el llamador interpreta como éxito. Es deuda conocida (`base44Client.js:138-147`). Si
+> añades una ruta nueva, dale su propio método como `crearAdmin`, no la cuelgues de `invoke`.
 
 Detalles que importan:
 
@@ -112,9 +121,16 @@ prefiere un correo duplicado a un correo perdido. Está documentado en la cabece
 
 - `rewrites`: todo salvo `/api/*` va a `/index.html` (fallback SPA).
 - `crons`: `/api/cron-recordatorios` diario a las 15:00 UTC.
-- Cabeceras globales: **CSP en modo enforcing** (`default-src 'self'`, sin `frame-src`,
+- Cabeceras globales: **CSP en modo enforcing** (`default-src 'self'`, `frame-src 'none'`,
   `object-src 'none'`, `frame-ancestors 'none'`), HSTS un año, `X-Content-Type-Options`,
   `Referrer-Policy`, `Permissions-Policy`, `X-Frame-Options: DENY`.
+- **Deuda de la CSP, no está tan cerrada como suena:** `script-src` y `style-src` siguen
+  admitiendo **`'unsafe-inline'`**, así que la CSP **no** protege contra XSS por inyección de
+  scripts o estilos en línea — su valor real hoy es acotar los *orígenes* (`connect-src`,
+  `img-src`, `frame-ancestors`), no bloquear inline. Quitarlo exige eliminar los estilos y
+  scripts en línea que quedan; no está hecho.
+- `img-src` autoriza `i.imgur.com` **solo** por la línea del JSON-LD de `index.html`
+  (ver `docs/BUGS_PENDING.md` B7).
 - `/api/*`: `Cache-Control: no-store`.
 
 Si agregas un origen externo (fuente, CDN, imagen), **hay que declararlo en la CSP** o el
@@ -122,12 +138,18 @@ navegador lo bloqueará en producción sin avisar en local.
 
 ### 5. Build y medios
 
-- `scripts/build-media.mjs` genera `src/data/site-data.json` desde `scripts/raw/*.json` y descarga
-  los medios a `public/media/`. Idempotente. **Ese JSON no es un fallback de runtime:** no lo
-  importa ningún archivo de `src/` ni de `api/`; solo lo leen `scripts/seed-supabase.mjs` y
-  `scripts/montage.mjs`. **Si Supabase no responde, el sitio se renderiza vacío** — no hay red de
-  seguridad. El único JSON que sí se importa en runtime es `src/data/resenas.json`
-  (`src/components/Confianza.jsx`).
+- `scripts/build-media.mjs` hace dos cosas: **descarga por red ~570 MB de medios** a
+  `public/media/` (desde `i.imgur.com` y `media.base44.com`) y genera `src/data/site-data.json`
+  con las rutas ya reescritas a local. Es idempotente (salta lo ya descargado), pero **no es
+  offline**: depende de un CDN de Base44 que puede desaparecer sin aviso — si eso pasa, el
+  script deja de poder reconstruir los medios y `public/media/` en git es la única copia.
+- `scripts/seed-supabase.mjs` **no toca la base**: no importa `supabase-js`, no lee variables de
+  entorno y no hace red. Solo lee los JSON de `src/data/` y **escribe `scripts/seed/*.sql`**, un
+  archivo por tabla. Esos `.sql` son el seed real y se aplican aparte.
+- `src/data/site-data.json` **no es un fallback de runtime:** no lo importa ningún archivo de
+  `src/` ni de `api/`; solo lo leen `seed-supabase.mjs` y `montage.mjs`. **Si Supabase no
+  responde, el sitio se renderiza vacío** — no hay red de seguridad. El único JSON que sí se
+  importa en runtime es `src/data/resenas.json` (`src/components/Confianza.jsx`).
 - `scripts/seed-supabase.mjs` fue el seed inicial de la base (histórico; no re-ejecutar a ciegas).
 - Vite copia `public/` a `dist/`. Alias `@` → `src` en `vite.config.js`.
 

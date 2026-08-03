@@ -48,8 +48,8 @@ npm run preview         # sirve dist/ localmente
 ├── public/media/             # img/ · frames/ (241) · b44/
 ├── scripts/
 │   ├── test-contratos-api.mjs  # 71 contratos frontend ↔ api/
-│   ├── build-media.mjs         # Regenera site-data.json (entrada del seed) + descarga medios
-│   └── seed-supabase.mjs       # Seed inicial (histórico)
+│   ├── build-media.mjs         # DESCARGA ~570 MB de medios por red + genera site-data.json
+│   └── seed-supabase.mjs       # NO toca la base: genera scripts/seed/*.sql (histórico)
 ├── src/
 │   ├── api/                  # supabaseClient.js · base44Client.js (SHIM) · authContext.jsx
 │   ├── components/           # público · admin/ · portal/ · mesas/ · meseros/ · invitacion/
