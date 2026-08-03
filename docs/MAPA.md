@@ -39,15 +39,18 @@ FormularioModal ──RPC solicitud_crear──► base ──► POST /api/soli
 
 ## 2. La página principal (`Home.jsx`) — orden de secciones
 
-[`src/pages/Home.jsx`](../src/pages/Home.jsx) monta el sidebar + las secciones en este orden.
-Cada sección es un componente en [`src/components/`](../src/components):
+[`src/pages/Home.jsx`](../src/pages/Home.jsx) monta estos componentes, todos en
+[`src/components/`](../src/components).
 
-| # | Sección (id) | Componente | Qué muestra |
-|---|---|---|---|
-| — | (splash) | `SplashScreen.jsx` | Pantalla de carga con el logo (aparece una vez) |
-| — | (menú) | `StaggeredMenu.jsx` | Menú de secciones (overlay fijo, dep. `gsap`). Los items vienen de `MENU_ITEMS` en `Home.jsx` |
-| — | (sonido) | `SoundToggle.jsx` | Control de sonido (antes vivía dentro del Sidebar) |
-Orden real del `<main>` de `Home.jsx` (líneas 123-142):
+**Fuera del `<main>`** (chrome de la página):
+
+| Componente | Qué muestra |
+|---|---|
+| `SplashScreen.jsx` | Pantalla de carga con el logo (una sola vez) |
+| `StaggeredMenu.jsx` | Menú de secciones (overlay fijo, dep. `gsap`). Los items vienen de `MENU_ITEMS` en `Home.jsx`: **9 secciones + "Portal de clientes"** |
+| `SoundToggle.jsx` | Control de sonido del sitio |
+
+**Orden real del `<main>`:**
 
 | # | Sección (id) | Componente | Qué muestra |
 |---|---|---|---|
@@ -69,8 +72,8 @@ Orden real del `<main>` de `Home.jsx` (líneas 123-142):
 > de [`src/pages/Home.jsx`](../src/pages/Home.jsx). Los items del menú se definen en la
 > constante `MENU_ITEMS` del mismo archivo, y los pinta `StaggeredMenu`.
 >
-> `src/components/Sidebar.jsx` **ya no se usa** (0 imports): quedó huérfano al sustituirlo por
-> `StaggeredMenu`. Editarlo no cambia nada.
+> `src/components/Sidebar.jsx` **se borró** el 2026-08-03: llevaba 0 imports desde que lo
+> sustituyó `StaggeredMenu`. Está en el historial de git.
 
 ---
 
@@ -89,10 +92,11 @@ entidad → tabla:
 | `ServicioExtra` | `servicios_extra` | **Solo el panel** (`AdminServicios`) y `lib/catalogo.js` |
 | `AlimentoMenu` | `alimentos` | **Solo el panel** (`AdminAlimentos`) y `lib/catalogo.js` |
 
+| `Resena` / `ResenasConfig` | `resenas` / `resenas_config` | `Confianza` (solo las `aprobada = true`) |
+
 > `FormularioModal` **solo consume `Salon`** (la lista de espacios). El formulario corto de 2
 > pasos no pide servicios extra, amenidades ni menús — eso era el formulario largo de 6 pasos,
 > retirado en D5.
-| `Resena` / `ResenasConfig` | `resenas` / `resenas_config` | `Confianza` (solo las `aprobada = true`) |
 
 El shim [`base44Client.js`](../src/api/base44Client.js) responde a `.list()`, `.filter()`,
 `.get()`, `.create()`, `.update()`, `.delete()` contra la base, traduciendo camelCase ↔

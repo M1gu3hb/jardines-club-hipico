@@ -20,14 +20,23 @@ import Confianza from "../components/Confianza";
 import ComoFunciona from "../components/ComoFunciona";
 import FaqSection from "../components/FaqSection";
 
-const SECTIONS = ["inicio", "salones", "servicios", "amenidades", "galeria", "contacto", "no-incluye"];
+// Orden = orden real del <main> de abajo. `como-funciona` y `faq` existen en el
+// DOM desde hace tiempo pero faltaban aquí: eran dos secciones de conversión
+// inalcanzables desde el menú, y el indicador de sección activa se quedaba
+// pegado al pasar por ellas porque el observer no las miraba.
+const SECTIONS = [
+  "inicio", "salones", "servicios", "amenidades", "como-funciona",
+  "galeria", "faq", "contacto", "no-incluye",
+];
 
 const MENU_ITEMS = [
   { id: "inicio", label: "Inicio" },
   { id: "salones", label: "Salones" },
   { id: "servicios", label: "Servicios" },
   { id: "amenidades", label: "Amenidades" },
+  { id: "como-funciona", label: "Cómo funciona" },
   { id: "galeria", label: "Galería" },
+  { id: "faq", label: "Preguntas" },
   { id: "contacto", label: "Contacto" },
   { id: "no-incluye", label: "Avisos" },
 ]
