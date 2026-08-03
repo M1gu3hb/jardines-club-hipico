@@ -45,6 +45,34 @@ Registro de decisiones técnicas y de producto (formato: decisión · razón · 
   semántica de idempotencia en toda la superficie `api/`.
 - **Archivos:** `api/crear-admin.js`, `api/crear-usuario-evento.js`.
 
+### D-COD-5 — El plano del salón se sube desde `AdminSalones`, al bucket `planos`
+- **Razón:** el plano es un atributo del **salón**, no del evento; el editor de mesas
+  (`MesaEditor`) ya lo leía y lo pintaba de fondo, y solo faltaba la pantalla para subirlo.
+  Ponerlo en el módulo de eventos habría obligado a repetirlo por evento.
+- **Consecuencia:** `SalonPlanoUpload` dentro del formulario de edición del salón. Sube al bucket
+  `planos` (10 MB, imágenes sin SVG), **no** a `sitio` — `integrations.Core.UploadFile` está
+  cableado a `sitio`, así que aquí se usa `base44.storage` directo. Una fila por salón: si ya
+  existe se hace `update`. Se guardan `ancho`/`alto` reales de la imagen porque el editor los usa
+  como `aspectRatio` y las mesas se posicionan en **%** sobre ese lienzo: si la proporción no
+  coincide, las mesas se desplazan. Validación de MIME y tamaño en el cliente, para que el
+  rechazo del bucket no llegue como error genérico.
+- **No hizo falta migración:** `salon_planos` ya tenía policies de admin (`sec_06`) y el bucket
+  `planos` ya tenía la suya (`sec_07`). Comprobado contra producción antes de escribir la UI.
+- **Archivos:** `src/components/admin/SalonPlanoUpload.jsx`, `src/components/admin/AdminSalones.jsx`,
+  `src/api/base44Client.js` (`storage.publicUrl`, aditivo).
+
+### D-COD-6 — Tipar el Proxy `entities` del shim: la línea base de `typecheck` baja de 155 a 59
+- **Razón:** al añadir `SalonPlanoUpload` el `typecheck` subió a 159, y la regla es que no suba.
+  Los 4 errores nuevos eran del mismo patrón que formaba **la mayoría** de la línea base: `tsc`
+  tipaba el Proxy `entities` como `{}` y marcaba un `TS2339` por **cada** uso de
+  `base44.entities.X` en todo el proyecto. Cualquier componente nuevo que hablara con la base
+  inflaba el número, así que el umbral castigaba escribir código correcto.
+- **Consecuencia:** una anotación `@type {Record<string, ReturnType<typeof makeEntity>>}` sobre el
+  Proxy. **Cero cambio en runtime.** Desaparecen 96 errores de ruido (107 `TS2339` → 7) y los
+  reales dejan de estar enterrados. Nueva línea base: **59**, actualizada en los 7 documentos que
+  la citaban.
+- **Archivos:** `src/api/base44Client.js`.
+
 ## 2026-08-03 — Documentación
 
 ### D-DOC-1 — Reescribir los cuerpos obsoletos en vez de dejar banners encima
@@ -177,11 +205,10 @@ Registro de decisiones técnicas y de producto (formato: decisión · razón · 
   sirviéndose desde `public/media/` (videos del hero, los 241 frames, flyers). Lo que se añadió
   es que **los medios que se suben desde el panel van a Storage de Supabase** (buckets `sitio`,
   `clientes`, `planos`, `operativo`), no al repo. Ver `docs/DATABASE.md` §E.
-- **La "independencia total" tiene una excepción real:** `index.html:45` todavía sirve
-  `https://i.imgur.com/aMxWuH8.png` como `image` del JSON-LD, y la CSP de `vercel.json` autoriza
-  `i.imgur.com` en `img-src` **solo por esa línea**. El mismo activo ya está auto-hospedado y en
-  uso: `api/_lib/correo.js` lo sirve desde `/media/img/aMxWuH8.png`. Es la última dependencia
-  viva de imgur. Ver `docs/BUGS_PENDING.md` (B7).
+- **La excepción de imgur se cerró el 2026-08-03.** `index.html` servía el `image` del JSON-LD
+  desde `i.imgur.com` y la CSP autorizaba ese origen solo por esa línea. Ahora apunta a la copia
+  auto-hospedada y `i.imgur.com` **salió de la CSP**. Se comprobó antes que no quedaba ninguna
+  URL de imgur en el contenido de producción.
 - **Y `build-media.mjs` no es offline:** reconstruir los medios exige red contra `i.imgur.com` y
   `media.base44.com`. La independencia es del *runtime*, no del *build*.
 - **Razón:** independencia total de Base44/imgur; que nada se rompa si esos servicios fallan.

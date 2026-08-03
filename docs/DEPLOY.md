@@ -96,10 +96,10 @@ lo viejo. Ver `docs/SEGURIDAD.md` §8.bis (esa regla nació de romper el formula
 npm run lint            # 0 problemas
 npm run build           # exit 0
 npm run test:contratos  # 71/71
-npm run typecheck       # 155 = línea base histórica; no debe SUBIR
+npm run typecheck       # 59 = línea base actual; no debe SUBIR
 ```
 
-**Y si tocaste SQL, además:** `supabase/tests/seguridad.sql` (63 aserciones; va en
+**Y si tocaste SQL, además:** `supabase/tests/seguridad.sql` (va en
 `BEGIN/ROLLBACK`, no deja rastro). Lo exige `CLAUDE.md`. No hay CI que lo dispare —
 **no existe `.github/`**: los cinco se corren a mano.
 

@@ -125,6 +125,18 @@ function makeEntity(name) {
   };
 }
 
+/**
+ * Acceso por nombre de entidad. Es un Proxy: cualquier `base44.entities.X` crea
+ * su entidad al vuelo con `makeEntity(X)`.
+ *
+ * El `@type` no cambia nada en runtime — existe para que `npm run typecheck`
+ * entienda el Proxy. Sin él, `tsc` tipa el objeto base como `{}` y marca un
+ * TS2339 ("Property 'Salon' does not exist") por **cada** uso del shim en todo
+ * el proyecto: ese patrón era la mayor parte de la línea base de 155 errores, y
+ * cada componente nuevo que hablara con la base sumaba más.
+ *
+ * @type {Record<string, ReturnType<typeof makeEntity>>}
+ */
 const entities = new Proxy({}, {
   get(target, prop) {
     if (typeof prop !== "string") return undefined;
@@ -205,6 +217,20 @@ const storage = {
     const { error } = await supabase.storage.from(bucket).remove([path]);
     if (error) throw error;
     return { success: true };
+  },
+  /**
+   * URL pública de un objeto en un bucket PÚBLICO (`planos`, `sitio`).
+   *
+   * Aditivo: no cambia ninguna firma existente del shim. Hacía falta porque
+   * `integrations.Core.UploadFile` está cableado al bucket `sitio` y los planos
+   * van a `planos`, que tiene sus propios límites (10 MB, imágenes sin SVG).
+   *
+   * En un bucket público la descarga por `/object/public/...` no necesita policy
+   * de `SELECT`, así que esto no requiere sesión ni firma.
+   */
+  publicUrl(bucket, path) {
+    const { data } = supabase.storage.from(bucket).getPublicUrl(path);
+    return data.publicUrl;
   },
 };
 

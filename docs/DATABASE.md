@@ -350,5 +350,6 @@ revoke insert, update, delete on jardines.nueva from anon;
 
 ## H. Pruebas
 
-`supabase/tests/seguridad.sql` — 63 aserciones dentro de `BEGIN/ROLLBACK` (no deja rastro).
+`supabase/tests/seguridad.sql` — suite dentro de `BEGIN/ROLLBACK` (no deja rastro). Desde
+`sec_23` prueba las RPC **vigentes**, no las retiradas.
 Los datos sintéticos van con prefijo `sint-`.

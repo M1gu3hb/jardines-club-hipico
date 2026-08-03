@@ -126,7 +126,7 @@ Reglas clave:
   logs, documentación o salida de pruebas.
 
 Antes de subir: `npm run lint` (0), `npm run build` (exit 0), `npm run test:contratos` (71/71)
-y `npm run typecheck` (155 = línea base, no debe subir). Si tocaste SQL, corre además
+y `npm run typecheck` (59 = línea base, no debe subir). Si tocaste SQL, corre además
 supabase/tests/seguridad.sql.
 
 Al terminar, actualiza la documentación viva y el CHANGELOG, y cierra con el bloque

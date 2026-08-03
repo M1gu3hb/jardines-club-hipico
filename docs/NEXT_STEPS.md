@@ -54,13 +54,14 @@
 - Más testimonios / sección de eventos realizados con métricas.
 - Analítica (GA4 o Vercel Analytics) para medir la conversión del formulario.
 - Versiones o secciones por tipo de evento (bodas, XV, corporativos).
-- Bajar la deuda de `typecheck`: hoy son 155 errores de línea base. La regla mínima es que no
-  suba; reducirla sería mejora real.
+- Bajar la deuda de `typecheck`: hoy son **59** errores de línea base (eran 155 hasta que se
+  tipó el Proxy del shim). Los 40 que quedan son casi todos `TS2741` de props opcionales sin
+  declarar en los helpers de UI. La regla mínima es que no suba.
 
 ## Deuda de seguridad
 
-**Resuelta en código y migraciones; pendiente de validación humana.** Las 21 migraciones
-`sec_01..22` se aplicaron y los hallazgos de la auditoría están cerrados **en el repo**. Lo que
+**Resuelta en código y migraciones; pendiente de validación humana.** Las 22 migraciones
+`sec_01..23` se aplicaron y los hallazgos de la auditoría están cerrados **en el repo**. Lo que
 falta no es código: son los 5 flujos del §1, que solo se comprueban con credenciales reales.
 Mientras eso no ocurra, el estado es `ESPERANDO_VALIDACION_HUMANA_AUTENTICADA` y **§1 sigue
 siendo bloqueante**.

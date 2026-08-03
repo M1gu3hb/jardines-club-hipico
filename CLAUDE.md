@@ -104,10 +104,10 @@ Los cuatro tienen que pasar:
 npm run lint            # 0 problemas
 npm run build           # exit 0
 npm run test:contratos  # 71/71
-npm run typecheck       # 155 errores = línea base histórica, no debe SUBIR
+npm run typecheck       # 59 errores = línea base actual, no debe SUBIR
 ```
 
-Si tocaste SQL, además corre `supabase/tests/seguridad.sql` (63 aserciones, va en
+Si tocaste SQL, además corre `supabase/tests/seguridad.sql` (va en
 `BEGIN/ROLLBACK`, no deja rastro).
 
 ## Regla de transferencia

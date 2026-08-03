@@ -66,8 +66,10 @@ aceptados), pendientes que dependen de otra persona, y dos cosas menores de cont
   de ambos compartiría canal de radio. Hoy no ocurre.
 - **2 vulnerabilidades `high` de React Router por "RSC Mode CSRF"**: no aplican. Esta app es una
   SPA con `BrowserRouter` y no usa RSC. Verificado por búsqueda en `src/`.
-- **`npm run typecheck` reporta 155 errores.** Es la **línea base histórica** del proyecto
-  (JSX sin tipos), no una regresión. La regla es que ese número **no suba**.
+- **`npm run typecheck` reporta 59 errores.** Es la **línea base actual** (JSX sin tipos), no
+  una regresión. La regla es que ese número **no suba**. Bajó desde 155 el 2026-08-03 al tipar
+  el Proxy `entities` del shim: `tsc` lo veía como `{}` y marcaba un TS2339 por **cada** uso de
+  `base44.entities.X` en todo el proyecto — 96 errores de puro ruido que tapaban los reales.
 - **Pendientes compartidos con Vero Seguros**, excluidos a propósito por el candado: protección
   de contraseñas filtradas desactivada (config global de Auth), `public.is_admin()` y
   `public.rls_auto_enable()` ejecutables por `anon`, y `public.content_audit(actor)` sin índice
