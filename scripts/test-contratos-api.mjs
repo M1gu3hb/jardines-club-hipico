@@ -472,6 +472,81 @@ for (const ruta of [
   );
 }
 
+// ---------------------------------------------------------------- notificaciones: se BORRAN
+// Decisión del dueño: la actividad del portal se borra, no se archiva. Ni a mano ni a los
+// 7 días queda nada. Y `delete` del shim devuelve `{success:true}` pase lo que pase (J-02),
+// así que un borrado que RLS rechace en silencio diría "quitadas ✓" sin quitar nada.
+{
+  const jsx = leerCodigo("src/components/admin/AdminInicio.jsx");
+  const cuerpo = entre(jsx, "const quitarNotifs = async", "const noLeidas");
+
+  check(
+    "notificaciones: quitar BORRA la fila, no la marca",
+    /Notificacion\.delete\(/.test(cuerpo) && !/leida:\s*true/.test(cuerpo),
+    cuerpo ? "" : "no se encontró quitarNotifs",
+  );
+  // ORDEN: la guarda tiene que cortar antes de que se pise el estado de la pantalla — y eso
+  // se mide contra el PRIMER `setNotifs(`, sea cual sea su argumento. Anclarlo a
+  // `setNotifs(frescas` dejaba pasar un `setNotifs([])` colado antes de confirmar: la lista
+  // se vaciaba en pantalla aunque la base hubiera rechazado el borrado. (Lo atrapó la
+  // mutación; el contrato anterior no.)
+  {
+    const iConf = cuerpo.indexOf("filterEstricto");
+    const iPinta = cuerpo.search(/setNotifs\(/);
+    check(
+      "notificaciones: el borrado se confirma releyendo antes de pintar",
+      iConf >= 0 && iPinta > iConf && cortaAntesDe(cuerpo, "if (sobreviven)", iPinta),
+      iConf < 0 ? "quitarNotifs no relee" : "la pantalla se pisa antes de confirmar el borrado",
+    );
+  }
+  check(
+    "notificaciones: si el borrado falla, se avisa y se recarga",
+    /catch \(/.test(cuerpo) && /setErrorNotif\(/.test(cuerpo) && /await cargarNotifs\(\)/.test(cuerpo),
+    cuerpo ? "" : "no se encontró quitarNotifs",
+  );
+  // Se borra por notificación Y por grupo: atado a las dos llamadas del render, no a que
+  // la función exista.
+  check(
+    "notificaciones: se puede quitar una sola y el grupo entero",
+    /quitarNotifs\(\[n\.id\]/.test(jsx) && /quitarNotifs\(items\.map\(\(n\) => n\.id\)/.test(jsx),
+  );
+  check(
+    "notificaciones: la carga no confunde 'vacío' con 'falló'",
+    /Notificacion\.filterEstricto\(null/.test(jsx) && !/Notificacion\.list\(/.test(jsx),
+  );
+  // `marcarLeidas` se conserva a propósito (ver su cabecera), pero ya no puede mentir.
+  {
+    const marcar = entre(jsx, "const marcarLeidas = async", "const hoy =");
+    check(
+      "notificaciones: marcar leídas también confirma la escritura",
+      /filterEstricto/.test(marcar) && /siguenSinLeer/.test(marcar) && /catch \(/.test(marcar),
+      marcar ? "" : "no se encontró marcarLeidas",
+    );
+  }
+}
+{
+  const cron = leerCodigo("api/cron-recordatorios.js");
+  const limpieza = entre(cron, "let notifsBorradas = 0;", "// 1)");
+  // Tolerante al espaciado: partir la cadena de supabase-js en varias líneas es reformateo,
+  // no una regresión. (El contrato de una sola línea daba falso positivo.)
+  check(
+    "cron: borra la actividad de más de 7 días (no la archiva)",
+    /from\(\s*"notificaciones"\s*\)\s*\.delete\(\s*\)\s*\.lt\(\s*"created_at"/.test(limpieza),
+    limpieza ? "" : "no se encontró la limpieza",
+  );
+  check(
+    "cron: cuenta lo REALMENTE borrado, no lo que pidió borrar",
+    /\.select\("id"\)/.test(limpieza) && /\(borradas \|\| \[\]\)\.length/.test(limpieza),
+    limpieza ? "" : "no se encontró la limpieza",
+  );
+  check(
+    "cron: la limpieza queda auditada en sus dos caminos",
+    /auditar\(admin, "cron_limpieza_notificaciones", "ok"/.test(limpieza) &&
+      /auditar\(admin, "cron_limpieza_notificaciones", "error"/.test(limpieza),
+    limpieza ? "" : "no se encontró la limpieza",
+  );
+}
+
 // ---------------------------------------------------------------- salida
 let fallan = 0;
 for (const c of casos) {

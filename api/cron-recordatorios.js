@@ -97,10 +97,37 @@ export default async function handler(req, res) {
     const paraResena = evs.filter((e) => e.fecha_evento && e.fecha_evento >= hace10 && e.fecha_evento <= hace2
       && !conResena.has(e.id) && !e.resena_recordada);
 
+    const incidentes = [];
+
+    // 0) LIMPIEZA: la actividad del portal se BORRA a los 7 días, no se archiva (decisión
+    //    del dueño). Va antes del digest para poder reportar cuántas se fueron: si la
+    //    limpieza deja de correr, el dueño lo ve en su correo en vez de enterarse cuando la
+    //    tabla ya está saturada.
+    //
+    //    `service_role` salta RLS, así que aquí no hay riesgo de un borrado mudo por policy;
+    //    aun así se cuenta lo realmente borrado con `select("id")`, no se supone.
+    let notifsBorradas = 0;
+    {
+      const corte = new Date(hoy.getTime() - 7 * 86400000).toISOString();
+      const { data: borradas, error: errLimpieza } = await admin
+        .from("notificaciones").delete().lt("created_at", corte).select("id");
+      if (errLimpieza) {
+        console.error("[cron] limpieza notificaciones:", errLimpieza.message);
+        incidentes.push("limpieza_notificaciones_fallo");
+        await auditar(admin, "cron_limpieza_notificaciones", "error", {
+          entidad: "notificaciones", detalle: { motivo: errLimpieza.message },
+        });
+      } else {
+        notifsBorradas = (borradas || []).length;
+        await auditar(admin, "cron_limpieza_notificaciones", "ok", {
+          entidad: "notificaciones", detalle: { borradas: notifsBorradas, anterioresA: corte },
+        });
+      }
+    }
+
     // 1) Digest al dueño (solo si hay algo que reportar)
     let digestEnviado = false;
     let digestOmitido = null;
-    const incidentes = [];
     if (proximos.length || saldos.length || estancadas.length || paraResena.length) {
       const bloque = (titulo, items) => items.length
         ? `<p style="margin:16px 0 6px 0;color:#E6C870;font-weight:bold;font-size:13px;">${titulo}</p>` +
@@ -199,7 +226,7 @@ export default async function handler(req, res) {
     }
 
     res.status(200).json({
-      ok: true, digestEnviado, digestOmitido, resenasInvitadas,
+      ok: true, digestEnviado, digestOmitido, resenasInvitadas, notifsBorradas,
       proximos: proximos.length, saldos: saldos.length, estancadas: estancadas.length,
       incidentes,
     });

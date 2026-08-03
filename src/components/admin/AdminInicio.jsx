@@ -3,6 +3,7 @@ import { base44 } from "@/api/base44Client";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   CalendarDays, Inbox, Star, DoorOpen, ChevronRight, Clock, PartyPopper, Bell, Check, ChevronDown,
+  Trash2, AlertTriangle, Loader2,
 } from "lucide-react";
 import { estatusColor } from "@/components/admin/eventos/_ui";
 import { fechaLarga, diasFaltantes, tiempoRelativo } from "@/lib/fechas";
@@ -58,9 +59,53 @@ export default function AdminInicio({ onIr }) {
 
   const [eventosMapa, setEventosMapa] = useState({});
   const [grupoAbierto, setGrupoAbierto] = useState(null);
+  const [errorNotif, setErrorNotif] = useState("");
+  const [quitando, setQuitando] = useState("");
 
+  // `filterEstricto`: con `list`, un fallo de lectura devolvía `[]` y la pantalla decía
+  // "Sin actividad del portal todavía" — indistinguible de que de verdad no haya nada.
   const cargarNotifs = () =>
-    base44.entities.Notificacion.list("-created_date").then((n) => setNotifs(n.slice(0, 120)));
+    base44.entities.Notificacion.filterEstricto(null, "-created_date")
+      .then((n) => { setNotifs(n.slice(0, 120)); return n; })
+      .catch(() => { setErrorNotif("No se pudo cargar la actividad del portal. Recarga la página."); return null; });
+
+  /**
+   * Quita notificaciones. **Se borran de verdad**, no se archivan (decisión del dueño: es
+   * información que se satura y que después no le sirve). La policy `notificaciones_del`
+   * permite el DELETE a un admin, y `authenticated` tiene el GRANT — comprobado contra
+   * producción por impersonación antes de escribir esto.
+   *
+   * `delete` del shim devuelve `{success:true}` pase lo que pase (J-02), así que un borrado
+   * que RLS rechazara en silencio diría "quitadas ✓" sin quitar nada. Se confirma releyendo.
+   */
+  const quitarNotifs = async (ids, clave) => {
+    if (!ids.length || quitando) return;
+    setQuitando(clave); setErrorNotif("");
+    try {
+      await Promise.all(ids.map((id) => base44.entities.Notificacion.delete(id)));
+      const frescas = await base44.entities.Notificacion.filterEstricto(null, "-created_date");
+      const sobreviven = frescas.filter((n) => ids.includes(n.id)).length;
+      if (sobreviven) {
+        throw new Error(
+          `La base no aceptó el borrado (¿permisos?). ${sobreviven} de ${ids.length} siguen ahí.`,
+        );
+      }
+      setNotifs(frescas.slice(0, 120));
+      if (clave !== "general" && !frescas.some((n) => (n.eventoId || "general") === clave)) {
+        setGrupoAbierto(null);        // el grupo ya no existe: no dejarlo "abierto"
+      }
+    } catch (e) {
+      console.error("[AdminInicio] quitarNotifs", e?.message);
+      setErrorNotif(
+        /permission denied|42501/i.test(String(e?.message))
+          ? "Tu cuenta no tiene permiso para quitar la actividad. Comprueba que entraste como administrador."
+          : e?.message || "No se pudo quitar la actividad. Reinténtalo.",
+      );
+      await cargarNotifs();           // la lista vuelve al estado REAL de la base
+    } finally {
+      setQuitando("");
+    }
+  };
 
   useEffect(() => {
     let activo = true;
@@ -95,12 +140,38 @@ export default function AdminInicio({ onIr }) {
   }, []);
 
   const noLeidas = notifs.filter((n) => !n.leida);
+
+  /**
+   * "Marcar leídas" SE QUEDA junto al borrado, y no es lo mismo.
+   *
+   * Borrar es irreversible y el dueño va a mirar la actividad de la semana más de una vez;
+   * si la única forma de apagar el contador fuera borrar, apagarlo costaría perder el
+   * historial. "Leída" solo apaga el indicador de "esto es nuevo", que es lo único que
+   * distingue lo que ha entrado desde la última vez. Son dos intenciones distintas:
+   * *ya lo vi* y *ya no lo quiero*.
+   *
+   * Lo que sí se arregla es que antes no comprobaba nada: hasta 120 UPDATE en un
+   * `Promise.all` sin `catch` y sin confirmar. Ahora se confirma releyendo.
+   */
   const marcarLeidas = async () => {
-    if (!noLeidas.length) return;
-    setMarcando(true);
-    await Promise.all(noLeidas.map((n) => base44.entities.Notificacion.update(n.id, { leida: true })));
-    setMarcando(false);
-    cargarNotifs();
+    if (!noLeidas.length || marcando) return;
+    setMarcando(true); setErrorNotif("");
+    try {
+      await Promise.all(noLeidas.map((n) => base44.entities.Notificacion.update(n.id, { leida: true })));
+      const frescas = await base44.entities.Notificacion.filterEstricto(null, "-created_date");
+      const ids = new Set(noLeidas.map((n) => n.id));
+      const siguenSinLeer = frescas.filter((n) => ids.has(n.id) && !n.leida).length;
+      if (siguenSinLeer) {
+        throw new Error(`La base no aceptó el cambio: ${siguenSinLeer} siguen sin marcar.`);
+      }
+      setNotifs(frescas.slice(0, 120));
+    } catch (e) {
+      console.error("[AdminInicio] marcarLeidas", e?.message);
+      setErrorNotif(e?.message || "No se pudieron marcar como leídas. Reinténtalo.");
+      await cargarNotifs();
+    } finally {
+      setMarcando(false);
+    }
   };
 
   const hoy = fechaLarga(new Date().toISOString().slice(0, 10));
@@ -134,12 +205,22 @@ export default function AdminInicio({ onIr }) {
             )}
           </p>
           {noLeidas.length > 0 && (
-            <button onClick={marcarLeidas} disabled={marcando}
+            <button onClick={marcarLeidas} disabled={marcando || !!quitando}
+              title="Solo apaga el aviso de «nuevo». No borra nada."
               className="flex items-center gap-1 text-[#C9A84C]/60 hover:text-[#C9A84C] text-xs transition-colors disabled:opacity-50">
-              <Check size={12} /> Marcar leídas
+              {marcando ? <Loader2 size={12} className="animate-spin" /> : <Check size={12} />} Marcar leídas
             </button>
           )}
         </div>
+
+        {errorNotif && (
+          <p className="text-red-400/90 text-xs border border-red-400/20 bg-red-400/5 px-3 py-2 rounded flex items-start gap-2 mb-3">
+            <AlertTriangle size={13} className="mt-0.5 flex-shrink-0" />{errorNotif}
+          </p>
+        )}
+        <p className="text-white/20 text-[11px] mb-3">
+          La actividad se <strong>borra</strong> —no se archiva— y se limpia sola a los 7 días.
+        </p>
         {/* Agrupadas por evento: máximo 5 grupos, expandibles con el historial completo */}
         <div className="space-y-2">
           {(() => {
@@ -173,6 +254,19 @@ export default function AdminInicio({ onIr }) {
                     <span className="text-white/30 text-xs flex-shrink-0">{items.length} {items.length === 1 ? "actividad" : "actividades"}</span>
                     <ChevronDown size={14} className={`text-[#C9A84C]/60 flex-shrink-0 transition-transform ${abierto ? "rotate-180" : ""}`} />
                   </button>
+                  {/* Quitar el grupo entero. Va FUERA del <button> de arriba: un botón dentro
+                      de otro es HTML inválido y el clic se lo comería el de expandir. */}
+                  <div className="flex justify-end px-4 pb-2 -mt-1.5">
+                    <button
+                      onClick={() => quitarNotifs(items.map((n) => n.id), k)}
+                      disabled={!!quitando || marcando}
+                      title={`Borrar las ${items.length} de ${nombre}. No se archivan: se borran.`}
+                      className="flex items-center gap-1 text-white/25 hover:text-red-400/80 text-[11px] transition-colors disabled:opacity-40"
+                    >
+                      {quitando === k ? <Loader2 size={10} className="animate-spin" /> : <Trash2 size={10} />}
+                      Borrar {items.length === 1 ? "la actividad" : `las ${items.length}`}
+                    </button>
+                  </div>
                   <AnimatePresence initial={false}>
                     {abierto && (
                       <motion.div
@@ -184,13 +278,23 @@ export default function AdminInicio({ onIr }) {
                       >
                         <div className="border-t border-white/5 divide-y divide-white/5">
                           {items.slice(0, 15).map((n) => (
-                            <div key={n.id} className="flex items-start gap-2.5 px-4 py-2.5">
+                            <div key={n.id} className="flex items-start gap-2.5 px-4 py-2.5 group">
                               {!n.leida && <span className="w-1.5 h-1.5 rounded-full bg-[#C9A84C] mt-1.5 flex-shrink-0" />}
                               <div className="flex-1 min-w-0">
                                 <p className={`text-xs ${n.leida ? "text-white/45" : "text-white/75"}`}>{n.titulo}</p>
                                 {n.detalle && <p className="text-white/25 text-[11px] mt-0.5 line-clamp-2">{n.detalle}</p>}
                               </div>
                               <span className="text-white/20 text-[10px] flex-shrink-0 mt-0.5">{tiempoRelativo(n.createdAt)}</span>
+                              <button
+                                onClick={() => quitarNotifs([n.id], n.id)}
+                                disabled={!!quitando || marcando}
+                                title="Borrar esta actividad. No se archiva: se borra."
+                                className="text-white/15 hover:text-red-400/80 transition-colors flex-shrink-0 mt-0.5 disabled:opacity-40"
+                              >
+                                {quitando === n.id
+                                  ? <Loader2 size={11} className="animate-spin" />
+                                  : <Trash2 size={11} />}
+                              </button>
                             </div>
                           ))}
                         </div>
