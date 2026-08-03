@@ -108,6 +108,44 @@ const cortaAntesDe = (cuerpo, cond, limite) => {
   check("solicitud: el front envía solo `solicitudId`", /solicitudId: creada\.id/.test(front));
   check("solicitud: el front no fabrica folios", !/JCH-\$\{Math\.random/.test(front));
   check("solicitud: la API relee la fila de la base", /from\("solicitudes"\)/.test(api));
+
+  // Era la única ruta con transporter propio y texto plano. Ahora usa la plantilla común.
+  const codigo = leerCodigo("api/solicitud.js");
+  check(
+    "solicitud: usa la plantilla dorada común, no un transporter propio",
+    /plantillaOro\(/.test(codigo) && /enviarCorreo\(/.test(codigo) &&
+      !/nodemailer/.test(codigo) && !/createTransport/.test(codigo),
+  );
+  // El bucle de escapado de arriba solo mira los `cuerpoHtml:` que son plantillas literales,
+  // y aquí el cuerpo lo arma `construirHtml`. Sin esto, añadir la ruta a esa lista daba un
+  // contrato que pasaba sin comprobar una sola interpolación.
+  {
+    // Se corta en `construirTexto`: ese es el cuerpo text/plain y ahí escapar HTML sería un
+    // error, no una protección. El contrato solo debe hablar de los constructores de HTML.
+    const constructores =
+      entre(codigo, "const fila = (etiqueta, valor)", "function construirTexto") || "";
+    const crudas = [...constructores.matchAll(/\$\{([^}]+)\}/g)]
+      .map((m) => m[1].trim())
+      .filter((e) => !/^escHtml\(/.test(e))
+      .filter((e) => !/^(filas)$/.test(e));      // fragmento ya escapado por `fila()`
+    check(
+      "solicitud: todo dato de la fila va escapado en el HTML",
+      constructores.length > 0 && crudas.length === 0,
+      constructores ? crudas.join(" | ") : "no se encontraron los constructores del HTML",
+    );
+  }
+  check(
+    "solicitud: se conserva el texto plano como alternativa",
+    /texto: construirTexto\(s\)/.test(codigo),
+  );
+  check(
+    "solicitud: el replyTo sale de la fila, no del cuerpo de la petición",
+    /replyTo: s\.email/.test(codigo) && !/replyTo:\s*(lectura|req|body)/.test(codigo),
+  );
+  check(
+    "solicitud: el asunto conserva folio y nombre",
+    /subject: `\[JCH\] Nueva solicitud \$\{s\.folio[\s\S]{0,60}s\.nombre_completo/.test(codigo),
+  );
 }
 
 // ---------------------------------------------------------------- escapado de correos
@@ -117,6 +155,7 @@ for (const ruta of [
   "api/crear-admin.js",
   "api/crear-usuario-evento.js",
   "api/cron-recordatorios.js",
+  "api/solicitud.js",
 ]) {
   const s = leer(ruta);
   if (!/plantillaOro/.test(s)) continue;
