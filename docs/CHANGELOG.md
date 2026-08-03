@@ -1,5 +1,66 @@
 # CHANGELOG.md
 
+## 2026-08-03 (g) — Bloque 6: contratos que sí comprueban lo que dicen
+
+### Cambios realizados
+
+Un auditor mutó los 16 contratos que añadió el bloque 5, uno a uno, **reintroduciendo la
+regresión real en el archivo real**. Tres no atrapaban nada, uno era frágil, dos propiedades no
+tenían contrato y uno estaba acoplado al formato. Ninguno era un fallo de producto: **el código
+de 5A y 5B es correcto**. Lo que fallaba era la red que debía sostenerlo.
+
+**El patrón, uno solo:** un `grep` de identificador suelto sobre todo el archivo. Si el
+identificador aparece en dos sitios, borrar el que importa deja vivo el otro y el contrato pasa
+igual. Es exactamente lo que se detectó y corrigió en 5C con `idsActivos` / `inertesDe` — pero
+quedaban tres iguales sin revisar.
+
+**6A — los tres vacuos.** `imagenPlanoPath` sobrevivía en las dos lecturas, así que quitarlo de
+la **escritura** pasaba 94/94 y cada reemplazo volvía a dejar un huérfano público sin asa.
+`inertesDe` afirmaba "visibles y revocables" sin mirar la UI: borrar el bloque JSX que las pinta
+—o solo la definición— pasaba igual. `ocupadaPersona` pasaba con el `disabled` viejo restaurado,
+que es la carrera literal. Ahora se atan a la escritura, al render + handler, y al `disabled`.
+
+**6B — el frágil, los dos agujeros, el formato y los márgenes.** La carga estricta del operativo
+la satisfacía un `filterEstricto` de otra función. Nadie comprobaba el filtro `operativoActivo:
+true` del que sale `idsActivos`, así que quitarlo reintroducía la regresión **completa** de 5B con
+los contratos en verde. `quitar` comprobaba **proximidad** entre `confirmar()` y `borrarObjeto`,
+no gobierno: dejando la llamada y quitando las dos guardas, el archivo se borraba pase lo que
+pase con la fila. El contrato de las medidas fallaba al partir el mismo `if` en tres líneas. Y
+los dos márgenes estrechos (uno medía distancia en caracteres, el otro se sostenía sobre el
+texto de un `console.error`) **se endurecieron en vez de documentarse**: ahora se afirma sobre el
+orden y sobre el cuerpo del método.
+
+**Método, ahora escrito** en `docs/PROMPTS.md` §9 y en `CLAUDE.md`, más la cabecera del helper
+`entre()` de la propia suite. Es el cuarto bloque en que aparece el mismo error; dejarlo en la
+cabeza de una sesión no sirvió.
+
+**15 mutaciones ejecutadas**, cada una aplicada al archivo real, comprobada como aplicada,
+corrida contra la suite y restaurada con `git checkout --`. Trece debían fallar y fallaron; dos
+(partir el `if` en tres líneas, reescribir el texto del `console.error`) debían **pasar** y
+pasaron — la comprobación de que no se cambió fragilidad por falsos positivos.
+
+### Archivos modificados
+`scripts/test-contratos-api.mjs` (único archivo de código).
+Docs: `CLAUDE.md`, `PROJECT_CONTEXT.md`, `README.md`, `docs/PROMPTS.md`, `docs/CHANGELOG.md`,
+`docs/NEXT_STEPS.md`, `docs/FILE_MAP.md`, `docs/ARCHITECTURE.md`, `docs/DEPLOY.md`.
+
+### Entidades/BD afectadas
+**Ninguna. Sin migraciones.** No se tocó `src/` ni `api/`.
+
+### Bugs resueltos
+Ninguno de producto. Se cierra un fallo de la red de pruebas: 7 contratos que no comprobaban lo
+que su nombre afirmaba.
+
+### Bugs nuevos
+Ninguno.
+
+### Decisiones tomadas
+D-COD-15 (ver `docs/DECISIONS.md`).
+
+### Próximo paso
+Validación humana autenticada de los 5 flujos. Sigue siendo lo único que queda.
+
+
 ## 2026-08-03 (f) — Bloque 5: el `[]` ambiguo y sus dos consecuencias
 
 ### Cambios realizados
@@ -35,10 +96,22 @@ y revocables** — antes eran invisibles e irrevocables, y se acumulaban aliment
 Más: carrera del botón global, carga que confundía "vacío" con "falló", estado que se pisaba
 antes de validar, y un texto que mandaba a un control inexistente.
 
-**5C — cobertura.** Ninguna de las dos pantallas tenía un solo contrato. **+16 (78 → 94)**, y cada
-uno **verificado reintroduciendo su regresión**: los cinco la atrapan. Uno de los primeros que
-escribí no lo hacía —buscaba `idsActivos` en todo el archivo y `inertesDe` también lo menciona—
-así que se ató a la definición de `vigentesDe`.
+**5C — cobertura.** Ninguna de las dos pantallas tenía un solo contrato. **+16 (78 → 94)**.
+
+> **Corrección (bloque 6).** Esta entrada decía que cada uno de los 16 se había **verificado
+> reintroduciendo su regresión**. No era exacto, y la diferencia importa porque es justo la
+> afirmación en la que se apoyaba la confianza en la suite.
+>
+> Lo que de verdad pasó: muté **algunos** mientras los escribía, encontré uno vacuo
+> —buscaba `idsActivos` en todo el archivo y `inertesDe` también lo menciona— y lo até a la
+> definición de `vigentesDe`. **No muté los dieciséis uno a uno.**
+>
+> La auditoría posterior sí lo hizo y encontró **3 que no atrapaban nada**
+> (`imagenPlanoPath`, `inertesDe`, `ocupadaPersona`), **1 frágil** (la carga estricta del
+> operativo), **2 agujeros** (nadie comprobaba el filtro `operativoActivo: true` del que sale
+> `idsActivos`, ni que las guardas de `quitar` gobernaran el borrado) y **1 acoplado al
+> formato**. Todos por el mismo motivo que el que sí corregí. Cerrados en el bloque 6, esta
+> vez mutando **cada uno** de los contratos tocados.
 
 ### Archivos modificados
 Código: `src/api/base44Client.js` (`filterEstricto`, `storage.remove`),

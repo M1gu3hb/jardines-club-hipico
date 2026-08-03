@@ -103,12 +103,36 @@ Los cuatro tienen que pasar:
 ```bash
 npm run lint            # 0 problemas
 npm run build           # exit 0
-npm run test:contratos  # 94/94
+npm run test:contratos  # 99/99
 npm run typecheck       # 59 errores = línea base actual, no debe SUBIR
 ```
 
 Si tocaste SQL, además corre `supabase/tests/seguridad.sql` (va en
 `BEGIN/ROLLBACK`, no deja rastro).
+
+## Regla de los contratos — un contrato se ata al uso, no al identificador
+
+El fallo que más se ha repetido en este proyecto (cuatro bloques seguidos): un contrato de
+`scripts/test-contratos-api.mjs` que busca **un identificador suelto sobre todo el archivo**. Si
+ese identificador aparece en más de un sitio —definición, lectura, render, comentario—, borrar el
+que importa deja vivos los demás y el contrato pasa igual, afirmando en su nombre una propiedad
+que ya no se cumple. Eso es **peor que no tener el contrato**: da falsa confianza.
+
+Al escribir o tocar un contrato:
+
+1. **Recorta el trozo que importa** con el helper `entre()` —la definición, el cuerpo de la
+   función, el objeto que se escribe, el `disabled` del botón— y afirma sobre él. Si el contrato
+   habla de UI, tiene que mirar el render **y** el handler.
+2. **Si lo que importa es el orden, afirma sobre el orden** (`cortaAntesDe()`), nunca sobre la
+   distancia en caracteres: un `[\s\S]{0,400}` no dice nada sobre si un texto gobierna al otro.
+3. **Tolera el espaciado** (`\s*`): partir un `if` en tres líneas no es una regresión.
+4. **Valídalo mutando**: reintroduce la regresión real en el archivo real, ejecuta la suite y
+   míralo fallar; restaura con `git checkout -- <archivo>` y comprueba que
+   `git status --porcelain` sale vacío. Muta también algo **inocuo** y comprueba que pasa.
+5. Si una propiedad **no se puede expresar estáticamente** sin quedar frágil, **dilo y no escribas
+   el contrato**.
+
+Detalle, casos reales y guion para mutar: `docs/PROMPTS.md` §9 y `docs/DECISIONS.md` D-COD-15.
 
 ## Regla de transferencia
 

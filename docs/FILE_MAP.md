@@ -127,7 +127,7 @@ scroll, D8). `hooks/useBackButtonClose.js`, `hooks/use-mobile.jsx`.
 
 | Archivo | Qué hace |
 |---|---|
-| `test-contratos-api.mjs` | **94 contratos estáticos** frontend ↔ `api/`. Sin red ni credenciales, así que **podría** correr en CI — pero no hay `.github/`: hoy se ejecuta a mano |
+| `test-contratos-api.mjs` | **99 contratos estáticos** frontend ↔ `api/`. Sin red ni credenciales, así que **podría** correr en CI — pero no hay `.github/`: hoy se ejecuta a mano |
 | `build-media.mjs` | **Descarga ~570 MB de medios por red** (`i.imgur.com`, `media.base44.com`) a `public/media/` y genera `src/data/site-data.json`. Idempotente, pero **no offline**: depende de un CDN de Base44 que puede desaparecer |
 | `seed-supabase.mjs` | **No toca la base.** Sin `supabase-js`, sin env, sin red: solo genera `scripts/seed/*.sql` (uno por tabla), que se aplican aparte. Histórico |
 | `raw/*.json` | Fuente de `site-data.json`. **Ya no es la fuente de verdad del sitio** |

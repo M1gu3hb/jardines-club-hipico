@@ -1,6 +1,11 @@
 # NEXT_STEPS.md
 
-> Estado a **2026-08-03**. Ordenado por prioridad real.
+> Estado a **2026-08-03**, tras el bloque 6. Ordenado por prioridad real.
+> **Solo aparece lo que falta.** Lo ya hecho está en `docs/CHANGELOG.md`.
+>
+> **El código está cerrado.** Bloques 3–6 entregados y verificados: `lint` 0, `build` exit 0,
+> `test:contratos` 99/99, `typecheck` 59 (línea base). Migraciones `sec_01..24` aplicadas, Vero
+> intacto. Lo único que impide declarar el proyecto cerrado es el §1.
 
 ## Urgente — bloquea el cierre del proyecto
 
@@ -71,6 +76,17 @@
 - Bajar la deuda de `typecheck`: hoy son **59** errores de línea base (eran 155 hasta que se
   tipó el Proxy del shim). Los 40 que quedan son casi todos `TS2741` de props opcionales sin
   declarar en los helpers de UI. La regla mínima es que no suba.
+
+## Sobre la red de pruebas
+
+Los **99 contratos** de `scripts/test-contratos-api.mjs` corren a mano (no hay `.github/`, así que
+no hay CI: ver `docs/FILE_MAP.md`). Los del bloque 6 están validados **mutando la regresión real**,
+uno a uno. La regla para escribir los siguientes está en `CLAUDE.md`, `docs/PROMPTS.md` §9 y
+`docs/DECISIONS.md` D-COD-15 — no es opcional: el mismo fallo apareció en cuatro bloques seguidos.
+
+Lo que la suite **no** puede comprobar, por ser estática: que el rollback del plano no se ejecute
+en el camino "desconocido" (propiedad de ejecución; el contrato solo puede exigir que el corte esté
+antes del borrado) y cualquier cosa que dependa de una sesión autenticada. Eso lo cierra el §1.
 
 ## Deuda de seguridad
 

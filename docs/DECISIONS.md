@@ -194,6 +194,28 @@ Registro de decisiones técnicas y de producto (formato: decisión · razón · 
   alternativa —ocultarlas y ya— dejaba un estado imposible de limpiar desde el panel.
 - **Archivos:** `src/components/admin/AdminOperativo.jsx`.
 
+### D-COD-15 — Un contrato se ata al uso, no al identificador, y se valida mutando
+- **Razón:** cuatro veces en cuatro bloques ha aparecido el mismo fallo: un contrato que busca un
+  identificador suelto sobre **todo** el archivo. Si ese identificador aparece en más de un sitio
+  —y casi siempre aparece: definición, lectura, render, comentario— borrar el uso que importa deja
+  vivos los demás y el contrato pasa. Un contrato así **da falsa confianza**: es peor que no
+  tenerlo, porque su nombre afirma una propiedad que nadie comprueba. En el bloque 5 se corrigió
+  uno (`idsActivos`) y quedaron tres iguales sin revisar; la auditoría los encontró.
+- **Consecuencia:** la regla queda escrita en `CLAUDE.md`, en `docs/PROMPTS.md` §9 y en la cabecera
+  del helper `entre()` de la propia suite, que es donde la va a leer quien escriba el siguiente.
+  Dos consecuencias prácticas: **(a)** la afirmación se recorta al uso concreto —la definición, la
+  escritura, el render, el `disabled`, el cuerpo de la función—, y **(b)** cuando lo que importa es
+  el orden (una guarda que corta antes de un borrado), se afirma sobre el **orden**, nunca sobre la
+  distancia en caracteres. Un `[\s\S]{0,400}` no dice nada sobre si un texto gobierna al otro.
+  La validación es obligatoria y es empírica: reintroducir la regresión real en el archivo real,
+  ver fallar el contrato, restaurar con `git checkout --`. Y al menos una mutación **inocua** —un
+  reformateo— para no cambiar fragilidad por falsos positivos.
+- **Consecuencia aceptada:** los contratos quedan acoplados a la forma concreta del código actual.
+  Refactorizar `SalonPlanoUpload` o `AdminOperativo` obligará a reescribirlos. Es el precio de que
+  comprueben algo: un contrato tolerante a cualquier reescritura no distingue una reescritura de
+  una regresión.
+- **Archivos:** `scripts/test-contratos-api.mjs`, `CLAUDE.md`, `docs/PROMPTS.md`.
+
 ## 2026-08-03 — Documentación
 
 ### D-DOC-1 — Reescribir los cuerpos obsoletos en vez de dejar banners encima

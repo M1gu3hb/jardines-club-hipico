@@ -158,7 +158,7 @@ Resumen (detalle en `docs/FILE_MAP.md`):
   crear-usuario-evento, canjear-acceso, cron-recordatorios.
 - `supabase/migrations/*.sql` — migraciones forward-only.
 - `supabase/tests/seguridad.sql` — 63 aserciones de seguridad.
-- `scripts/test-contratos-api.mjs` — 94 contratos frontend ↔ API.
+- `scripts/test-contratos-api.mjs` — 99 contratos frontend ↔ API.
 - `vercel.json` — rewrites SPA, cabeceras HTTP (CSP, HSTS…) y el cron.
 - `src/data/resenas.json` — **el único JSON vivo**: lo importa `src/components/Confianza.jsx`.
 - `src/data/site-data.json` — **no lo importa nadie** en `src/` ni en `api/`. Es solo la entrada
@@ -269,7 +269,17 @@ cuenta o IA. Se eliminaron los cuerpos obsoletos que aún describían la etapa e
 `docs/DATABASE.md` y `docs/PROMPTS.md`, y se reescribió `docs/FILE_MAP.md`, que llevaba
 sin actualizarse desde FASE-01.
 
-Estado del código: rama `claude/jardines-security-hardening-rkse8k`; `main` desplegado en
-producción con el blindaje `sec_01..22`. Estado formal:
-**`ESPERANDO_VALIDACION_HUMANA_AUTENTICADA`** (ver §8.F). Historial completo en
-`docs/CHANGELOG.md`.
+**2026-08-03 (bloque 6)** — Se cierra la red de pruebas. Una auditoría mutó los 16 contratos que
+añadió el bloque 5 y encontró **7 que no comprobaban lo que su nombre afirmaba** (3 vacuos, 1
+frágil, 2 propiedades sin contrato, 1 acoplado al formato), todos por el mismo patrón: un `grep`
+de identificador suelto sobre todo el archivo. Corregidos y validados **mutando la regresión real
+en el archivo real**; contratos **94 → 99**. La regla queda escrita en `CLAUDE.md`,
+`docs/PROMPTS.md` §9 y `docs/DECISIONS.md` D-COD-15. **Ningún cambio de producto, ninguna
+migración.** Se corrigió además la afirmación del bloque 5C en `docs/CHANGELOG.md`, que decía que
+los 16 se habían verificado mutando.
+
+Estado del código: rama `claude/jardines-security-hardening-rkse8k` (PR #5, **sin mergear** —
+`main` sigue desplegado sin los bloques 3–6). La base sí tiene ya `sec_01..24` aplicadas, porque
+es producción compartida. Batería: `lint` 0, `build` exit 0, `test:contratos` 99/99, `typecheck`
+59. Estado formal: **`ESPERANDO_VALIDACION_HUMANA_AUTENTICADA`** (ver §8.F). Historial completo
+en `docs/CHANGELOG.md`.
