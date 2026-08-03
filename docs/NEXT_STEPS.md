@@ -3,11 +3,17 @@
 > Estado a **2026-08-03**, tras el bloque 6. Ordenado por prioridad real.
 > **Solo aparece lo que falta.** Lo ya hecho está en `docs/CHANGELOG.md`.
 >
-> **El código está cerrado.** Bloques 3–6 entregados y verificados: `lint` 0, `build` exit 0,
-> `test:contratos` 99/99, `typecheck` 59 (línea base). Migraciones `sec_01..24` aplicadas, Vero
-> intacto. Lo único que impide declarar el proyecto cerrado es el §1.
+> **Bloques 3–6 desplegados** (`7596324`). **Bloque 7 pendiente de desplegar**: arregla las cuatro
+> cosas que encontró el dueño usando el panel (estatus de solicitudes, borrado de actividad,
+> resumen diario, correo de nueva solicitud). Batería: `lint` 0, `build` exit 0,
+> `test:contratos` **127/127**, `typecheck` 59 (línea base). Migraciones `sec_01..24`, Vero intacto.
 
 ## Urgente — bloquea el cierre del proyecto
+
+0. **Mergear y desplegar el bloque 7.** Hasta que se despliegue, el dueño **sigue sin poder cambiar
+   el estatus de una solicitud** en producción: es un arreglo de frontend y de `api/`, así que
+   necesita redespliegue. Ojo: hay **dos ramas** con trabajo sin mergear —la del bloque 7 y la del
+   despliegue anterior, que lleva `docs/VALIDACION.md`—. Van las dos.
 
 1. **Validación humana autenticada.** Es lo único que impide declarar CERRADO el blindaje de
    seguridad. Miguel debe confirmar **visualmente, con credenciales reales**:
@@ -79,7 +85,7 @@
 
 ## Sobre la red de pruebas
 
-Los **99 contratos** de `scripts/test-contratos-api.mjs` corren a mano (no hay `.github/`, así que
+Los **127 contratos** de `scripts/test-contratos-api.mjs` corren a mano (no hay `.github/`, así que
 no hay CI: ver `docs/FILE_MAP.md`). Los del bloque 6 están validados **mutando la regresión real**,
 uno a uno. La regla para escribir los siguientes está en `CLAUDE.md`, `docs/PROMPTS.md` §9 y
 `docs/DECISIONS.md` D-COD-15 — no es opcional: el mismo fallo apareció en cuatro bloques seguidos.

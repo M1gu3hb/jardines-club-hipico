@@ -1,5 +1,84 @@
 # CHANGELOG.md
 
+## 2026-08-03 (i) — Bloque 7: las cuatro cosas que encontró el dueño usando el panel
+
+> Esta rama sale de `main` (`7596324`). El commit `7768de2` del despliegue —que añade
+> `docs/VALIDACION.md` y la entrada (h)— vive en `claude/jardines-security-hardening-rkse8k` y
+> **todavía no está en `main`**, así que aquí no aparece. Hay que mergear los dos.
+
+### Cambios realizados
+
+**7A — el estatus de la solicitud no se podía cambiar. No era ninguna de las dos hipótesis.**
+Se descartaron por medición contra producción: `authenticated` **sí** tiene el GRANT de UPDATE
+sobre `jardines.solicitudes` (hipótesis A), y el `update` del shim **sí** comprueba `error` y lanza
+(hipótesis B, el `[]` de J-02).
+
+La causa real es un **desajuste de vocabulario**. `sec_07:124-126` puso un CHECK que admite
+`Nueva, En proceso, Cotizada, Cerrada, Descartada`, y el panel seguía ofreciendo `En revisión`,
+`Confirmada` y `Cancelada`. El único valor que coincidía era `Nueva`, así que **cualquier** cambio
+violaba el CHECK con un 23514. Verificado por impersonación de admin en `BEGIN/ROLLBACK`: con
+`Contactada` salta el constraint, con `En proceso` el UPDATE devuelve la fila.
+
+Lo que lo hacía **invisible** sí era `updateStatus` sin `try/catch`: el shim lanzaba, la promesa
+quedaba rechazada sin capturar, `load()` nunca corría y el desplegable volvía solo. **Sin
+migración.** La lista del panel pasa a ser la de la base, `STATUS_COLORS` cubre los cinco —con los
+nombres viejos el `<select>` se quedaba sin borde—, y el guardado captura, traduce el error a algo
+accionable y confirma releyendo antes de decir que guardó.
+
+**7B — la actividad del portal se borra, no se archiva.** Decisión del dueño. **Sin migración**, y
+verificado antes de darlo por hecho: `authenticated` tiene DELETE y la policy `notificaciones_del`
+lo permite a un admin. Ensayado por impersonación: como admin borra 3 de 21; como autenticado **no
+admin** borra 0. A mano se puede quitar una o el grupo entero de un evento; a los 7 días lo hace el
+cron, que cuenta lo **realmente** borrado con `.select("id")` y lo audita.
+
+**`marcarLeidas` se queda**, y la razón está escrita en su cabecera: borrar es irreversible y el
+dueño mira la actividad de la semana más de una vez; si la única forma de apagar el contador fuera
+borrar, apagarlo costaría el historial. Son dos intenciones distintas — *ya lo vi* y *ya no lo
+quiero*. Lo que sí se arregla es que hacía hasta 120 UPDATE sin `catch` y sin confirmar.
+
+**7C — el resumen diario.** Solo reportaba las estancadas, así que el dueño no veía el trabajo que
+entraba. Se añade el bloque de las últimas 24 h, **separado** del de estancadas: una pide respuesta
+hoy, la otra se está enfriando. El digest ahora también sale cuando *solo* hay recientes. Cada
+bloque lleva una línea de **qué hacer**, y un pie de mantenimiento con los avisos que borró la
+limpieza de 7B — si deja de correr, se ve en el correo.
+
+**7D — el aviso de nueva solicitud usa la plantilla dorada.** Era la única de las 7 rutas con
+transporter propio y texto plano, señalado en la primera auditoría del proyecto. Ahora usa
+`enviarCorreo()` + `plantillaOro()`; el cuerpo va en tablas con estilos en línea (Gmail borra el
+`<style>` del `<head>`) y **todo** dato de la fila pasa por `escHtml`. Se conservan `replyTo` desde
+la fila, el asunto con folio y nombre, y el texto plano como alternativa.
+
+**Contratos 99 → 127**, los 28 validados mutando la regresión real. Tres fallaron su propia
+mutación mientras los escribía y hubo que corregirlos: uno medía el `setOk("")` del reinicio en vez
+del mensaje de éxito; otro dejaba colar un `setNotifs([])` antes de confirmar el borrado; el
+tercero daba falso positivo al partir una cadena de supabase-js en varias líneas.
+
+### Archivos modificados
+Código: `src/components/admin/AdminSolicitudes.jsx`, `src/components/admin/AdminInicio.jsx`,
+`api/cron-recordatorios.js`, `api/solicitud.js`, `scripts/test-contratos-api.mjs`.
+Muestras: `docs/muestras/correo-resumen-diario.html`, `docs/muestras/correo-nueva-solicitud.html`.
+Docs: `docs/CHANGELOG.md`, `docs/NEXT_STEPS.md`, `docs/DECISIONS.md`, `docs/BUGS_PENDING.md`.
+
+### Entidades/BD afectadas
+**Ninguna migración.** El diagnóstico de 7A descartó la necesidad de `sec_25`. Solo consultas de
+lectura y ensayos en `BEGIN/ROLLBACK`; producción quedó en las mismas 21 notificaciones.
+
+### Bugs resueltos
+El estatus de la solicitud (**J-08**), la actividad del portal que no se podía quitar y crecía sin
+límite (**J-09**), el resumen diario que solo reportaba lo estancado, y el correo de solicitud
+fuera del sistema de plantillas.
+
+### Bugs nuevos
+Ninguno.
+
+### Decisiones tomadas
+D-COD-16 (la lista de estatus la manda la base), D-COD-17 (borrar y "marcar leída" conviven, y por
+qué). Ver `docs/DECISIONS.md`.
+
+### Próximo paso
+Desplegar y que el dueño confirme en pantalla el cambio de estatus y el borrado de actividad.
+
+
 ## 2026-08-03 (g) — Bloque 6: contratos que sí comprueban lo que dicen
 
 ### Cambios realizados
