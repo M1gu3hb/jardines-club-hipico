@@ -1,24 +1,28 @@
 # NEXT_STEPS.md
 
-> Estado a **2026-08-03**, tras el bloque 6. Ordenado por prioridad real.
+> Estado a **2026-08-03**, tras el despliegue de los bloques 3–6. Ordenado por prioridad real.
 > **Solo aparece lo que falta.** Lo ya hecho está en `docs/CHANGELOG.md`.
 >
-> **Bloques 3–6 desplegados** (`7596324`). **Bloque 7 pendiente de desplegar**: arregla las cuatro
-> cosas que encontró el dueño usando el panel (estatus de solicitudes, borrado de actividad,
-> resumen diario, correo de nueva solicitud). Batería: `lint` 0, `build` exit 0,
-> `test:contratos` **127/127**, `typecheck` 59 (línea base). Migraciones `sec_01..24`, Vero intacto.
+> **Bloques 3–6 desplegados y verificados** (PR #5, `7596324`): cabeceras, las 7 funciones, las
+> rutas, los 228 medios y el formulario público de punta a punta, todo comprobado sin sesión
+> contra <https://jardines-club-hipico.vercel.app>.
+>
+> **Bloque 7 mergeado** (PR #6) — arregla las cuatro cosas que encontró el dueño usando el panel:
+> estatus de solicitudes, borrado de actividad, resumen diario y correo de nueva solicitud.
+> Batería: `lint` 0, `build` exit 0, `test:contratos` **127/127**, `typecheck` 59 (línea base).
+> Migraciones `sec_01..24`, Vero intacto. Lo único que impide declarar el proyecto cerrado es el §1.
 
 ## Urgente — bloquea el cierre del proyecto
 
-0. **Mergear y desplegar el bloque 7.** Hasta que se despliegue, el dueño **sigue sin poder cambiar
-   el estatus de una solicitud** en producción: es un arreglo de frontend y de `api/`, así que
-   necesita redespliegue. Ojo: hay **dos ramas** con trabajo sin mergear —la del bloque 7 y la del
-   despliegue anterior, que lleva `docs/VALIDACION.md`—. Van las dos.
+0. **Esperar el deploy del bloque 7.** Ya está en `main`; hasta que Vercel termine, el dueño
+   **sigue sin poder cambiar el estatus de una solicitud** en producción — es un arreglo de
+   frontend y de `api/`, así que necesita redespliegue.
 
 1. **Validación humana autenticada.** Es lo único que impide declarar CERRADO el blindaje de
-   seguridad. Miguel debe confirmar **visualmente, con credenciales reales**:
+   seguridad. El guion está escrito y es autónomo: **`docs/VALIDACION.md`**. Miguel debe confirmar
+   **visualmente, con credenciales reales**:
    1. Alta de cliente desde el panel.
-   2. Enlace de primer acceso (que el cliente entre con él).
+   2. Enlace de primer acceso (que el cliente entre con él, y que el segundo intento falle).
    3. Subir un documento y que el cliente lo abra desde su portal.
    4. Aviso de cotización (que llegue el correo).
    5. Generar el link de meseros y abrirlo.
@@ -26,6 +30,12 @@
    Hasta entonces el estado formal es **`ESPERANDO_VALIDACION_HUMANA_AUTENTICADA`**.
 
 ## Importante — después de la validación
+
+1. bis. **Encender `operativo_activo` en un evento para poder probar la asignación de personal.**
+   Hoy hay **0 eventos** con ese interruptor, así que la pantalla de "Personal del evento" solo
+   permite comprobar el guardarraíl (que sí funciona con los datos actuales) y no la asignación ni
+   la revocación. No se encendió en el despliegue porque cambia quién ve qué en producción — es
+   una decisión del dueño. Está en el anexo de `docs/VALIDACION.md`. Relacionado con J-07.
 
 2. **Cambio de contraseña dentro del portal** (J-05). El primer acceso es por enlace de un solo
    uso y la contraseña se comparte por separado; una vista de "cambiar mi contraseña" cierra el

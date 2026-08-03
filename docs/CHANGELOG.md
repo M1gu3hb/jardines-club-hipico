@@ -2,9 +2,9 @@
 
 ## 2026-08-03 (i) — Bloque 7: las cuatro cosas que encontró el dueño usando el panel
 
-> Esta rama sale de `main` (`7596324`). El commit `7768de2` del despliegue —que añade
-> `docs/VALIDACION.md` y la entrada (h)— vive en `claude/jardines-security-hardening-rkse8k` y
-> **todavía no está en `main`**, así que aquí no aparece. Hay que mergear los dos.
+> Esta rama salió de `main` en `7596324`, antes de que se mergeara el commit `7768de2` del
+> despliegue (entrada **(h)**, abajo). Los dos están ya en `main`: primero (h) — PR #7 — y
+> encima este bloque — PR #6.
 
 ### Cambios realizados
 
@@ -77,6 +77,66 @@ qué). Ver `docs/DECISIONS.md`.
 
 ### Próximo paso
 Desplegar y que el dueño confirme en pantalla el cambio de estatus y el borrado de actividad.
+## 2026-08-03 (h) — Despliegue de los bloques 3–6 a producción
+
+### Cambios realizados
+
+**Sin cambios de código.** El único archivo nuevo es `docs/VALIDACION.md`.
+
+**Merge y deploy.** PR #5 mergeado a `main` (`7596324`). Vercel desplegó
+`dpl_B2tz9uFpuG33uepb7tAhCHH8DbMQ` en estado **READY**, 7 funciones serverless, alias
+`jardines-club-hipico.vercel.app`. Bundle nuevo `index-B3L6RvCm.js`.
+
+**Verificado antes de mergear.** Las 23 migraciones `sec_01..24` presentes (sin `sec_10`, que
+nunca existió: su trabajo lo hizo `sec_20`); `sec_23` con 0 RPCs residuales vivas y `sec_24` con
+su columna y su índice. **Vero intacto:** `public` con 4 funciones, `admin_users` con su fila,
+bucket `site-media` con sus 2 objetos. RLS activo en las 32 tablas de `jardines`. `dist/` sin
+ningún secreto ni JWT.
+
+**Verificado después.** Las 6 cabeceras de `vercel.json` aplicándose y `Cache-Control: no-store`
+en `/api/*`. Las 7 funciones responden con su guard (405 al método, 401/400 al cuerpo). Las 7
+rutas de la SPA sirven. **El formulario público funciona de punta a punta**: RPC → folio del
+servidor `JCH-828EF1` → fila en `solicitudes` → correo enviado, con `solicitud_crear` **ok** y
+`solicitud_correo` **ok** en la auditoría.
+
+**La CSP nueva, comprobada de forma exhaustiva.** El bloque 3 quitó `https://i.imgur.com` del
+`img-src`. Se cruzaron **las 279 URLs de medios que la base sirve de verdad** (11 columnas de 8
+tablas) contra la CSP desplegada: **0 de imgur, 0 de base44**, 272 relativas al mismo origen y 1
+de `drive.google.com` que es un `<a href target="_blank">` de admin, no un subrecurso — CSP no
+aplica a una navegación. Las **228 rutas distintas** de `/media/` se comprobaron una a una contra
+producción: **228 sirven 200, 0 rotas**. Y el bundle desplegado no contiene ninguna referencia a
+imgur.
+
+> Se intentó la comprobación en navegador (consola, violaciones de CSP) pero **Chromium no
+> atraviesa el proxy de la sesión** — falla contra cualquier host, incluido `example.com`. Se
+> sustituyó por el cruce de arriba, que cubre más: incluye contenido que un render puntual de la
+> home ni siquiera monta.
+
+**Menú.** Los 9 identificadores (`inicio, salones, servicios, amenidades, como-funciona, galeria,
+faq, contacto, no-incluye`) más `Portal de clientes` están en el bundle desplegado.
+`como-funciona` y `faq` — las dos que el bloque 3 añadió — presentes.
+
+**`docs/VALIDACION.md`**: guion para el dueño, sin jerga, con las cinco pruebas (qué hacer, qué
+debe pasar, cómo saber que falló y dónde mirar), más un anexo con las dos pantallas nuevas.
+
+### Archivos modificados
+`docs/VALIDACION.md` (nuevo), `docs/CHANGELOG.md`, `docs/NEXT_STEPS.md`, `PROJECT_CONTEXT.md`.
+
+### Entidades/BD afectadas
+**Ninguna migración.** Una fila de prueba en `jardines.solicitudes` (folio `JCH-828EF1`, nombre
+`PRUEBA DEPLOY`), marcada como tal y borrable.
+
+### Bugs resueltos
+Ninguno. Ninguno nuevo tampoco.
+
+### Bugs nuevos
+Ninguno. Sí queda anotado un **impedimento de datos**, no de código: **no hay ningún evento con
+`operativo_activo`**, así que la pantalla de asignación no se puede ejercitar más allá del
+guardarraíl hasta que se encienda ese interruptor — que no se maneja desde el panel (**J-07**).
+No se encendió: cambia quién ve qué en producción.
+
+### Próximo paso
+Que Miguel siga `docs/VALIDACION.md`.
 
 
 ## 2026-08-03 (g) — Bloque 6: contratos que sí comprueban lo que dicen

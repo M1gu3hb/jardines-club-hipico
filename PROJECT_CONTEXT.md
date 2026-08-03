@@ -278,8 +278,25 @@ en el archivo real**; contratos **94 → 99**. La regla queda escrita en `CLAUDE
 migración.** Se corrigió además la afirmación del bloque 5C en `docs/CHANGELOG.md`, que decía que
 los 16 se habían verificado mutando.
 
-Estado del código: rama `claude/jardines-security-hardening-rkse8k` (PR #5, **sin mergear** —
-`main` sigue desplegado sin los bloques 3–6). La base sí tiene ya `sec_01..24` aplicadas, porque
-es producción compartida. Batería: `lint` 0, `build` exit 0, `test:contratos` 99/99, `typecheck`
-59. Estado formal: **`ESPERANDO_VALIDACION_HUMANA_AUTENTICADA`** (ver §8.F). Historial completo
-en `docs/CHANGELOG.md`.
+**2026-08-03 (despliegue)** — PR #5 **mergeado** a `main` (`7596324`) y desplegado en Vercel
+(`dpl_B2tz9uFpuG33uepb7tAhCHH8DbMQ`, READY, 7 funciones). Producción sirve ya los bloques 3–6:
+<https://jardines-club-hipico.vercel.app>. Verificado post-deploy sin sesión: las 6 cabeceras de
+`vercel.json`, `no-store` en `/api/*`, las 7 funciones con su guard, las 7 rutas de la SPA, los
+**228 medios** que la base referencia (0 rotos, 0 de imgur) y el **formulario público de punta a
+punta** (folio del servidor, fila en `solicitudes`, correo enviado, auditoría en `ok`). El guion
+de validación para el dueño está en **`docs/VALIDACION.md`**.
+
+**2026-08-03 (bloque 7)** — Las cuatro cosas que encontró el dueño usando el panel. La más
+importante: **el estatus de una solicitud no se podía cambiar**, y no era ni el GRANT ni el `[]`
+mudo del shim, sino que el CHECK de `sec_07` admite `Nueva, En proceso, Cotizada, Cerrada,
+Descartada` y el panel ofrecía otros tres nombres — solo coincidía `Nueva`, así que cualquier
+cambio violaba el constraint, y `updateStatus` sin `try/catch` lo hacía invisible. Además: la
+actividad del portal se borra (a mano y a los 7 días desde el cron), el resumen diario separa lo
+que entró de lo que se enfría, y el aviso de nueva solicitud pasa a la plantilla dorada.
+Contratos **99 → 127**. **Ninguna migración.** PR #6.
+
+Estado del código: **bloques 3–6 desplegados; bloque 7 mergeado a `main` y esperando deploy.**
+Batería: `lint` 0, `build` exit 0, `test:contratos` **127/127**, `typecheck` 59. Base en
+`sec_01..24`, Vero intacto. Estado formal: **`ESPERANDO_VALIDACION_HUMANA_AUTENTICADA`**
+(ver §8.F) — solo faltan los cinco flujos con credenciales reales, con el guion en
+`docs/VALIDACION.md`. Historial completo en `docs/CHANGELOG.md`.
