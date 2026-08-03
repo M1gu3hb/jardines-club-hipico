@@ -67,27 +67,51 @@ export default function SalonPlanoUpload({ salonId, salonNombre }) {
     setOk("");
     if (!salonId) { setCargando(false); return; }
     setCargando(true);
-    base44.entities.SalonPlano.filter({ salonId })
+    // `filterEstricto`: con `filter`, un fallo de lectura devolvía `[]` y la
+    // pantalla pintaba "Subir plano" aunque la fila existiera — que es
+    // justamente lo que llevaba a crear una segunda.
+    base44.entities.SalonPlano.filterEstricto({ salonId })
       .then((r) => setPlano(r[0] || null))
-      .catch(() => setError("No se pudo leer el plano actual."))
+      .catch(() => setError("No se pudo leer el plano actual. Recarga antes de subir nada."))
       .finally(() => setCargando(false));
   }, [salonId]);
   useEffect(() => { cargar(); }, [cargar]);
 
-  /** Relee la fila del salón. Única fuente de verdad tras escribir. */
-  const releer = async () => {
-    const r = await base44.entities.SalonPlano.filter({ salonId });
-    return r[0] || null;
+  /**
+   * Relee la fila del salón para **decidir**, así que usa `filterEstricto`: si la
+   * lectura falla, lanza en vez de devolver `[]`.
+   *
+   * Devuelve tres estados, no dos. Con `filter` normal, "no hay fila" y "la
+   * lectura falló" eran el mismo `[]`, y eso hacía que un fallo transitorio de
+   * red **después de un guardado correcto** disparara el rollback y borrase del
+   * bucket el archivo que la fila acababa de referenciar.
+   *
+   * @returns {Promise<{estado:"si"|"no"|"desconocido", fila:any}>}
+   */
+  const confirmar = async () => {
+    try {
+      const r = await base44.entities.SalonPlano.filterEstricto({ salonId });
+      return { estado: r[0] ? "si" : "no", fila: r[0] || null };
+    } catch {
+      return { estado: "desconocido", fila: null };
+    }
   };
 
-  /** Borra un objeto del bucket sin tumbar el flujo si falla. */
+  /**
+   * Borra un objeto del bucket. **Solo se llama cuando se sabe qué pasó con la
+   * fila**: borrar sin confirmación puede destruir el archivo de una escritura
+   * que sí ocurrió. Un huérfano es mucho más barato que un plano roto.
+   */
   const borrarObjeto = async (path) => {
     if (!path) return;
     try {
-      await base44.storage.remove(BUCKET, path);
+      const { borrado } = await base44.storage.remove(BUCKET, path);
+      if (!borrado) {
+        // La Storage API responde 200 con lista vacía si una policy lo deniega.
+        console.error("[plano] el borrado no afectó a ningún objeto (¿permisos?):", path);
+      }
     } catch (e) {
-      // No es fatal: la fila ya apunta al archivo nuevo. Queda constancia.
-      console.error("[plano] no se pudo borrar el objeto anterior:", path, e?.message);
+      console.error("[plano] no se pudo borrar el objeto:", path, e?.message);
     }
   };
 
@@ -120,7 +144,13 @@ export default function SalonPlanoUpload({ salonId, salonNombre }) {
 
       // Estado real, no el que tuviéramos en memoria: entre la carga y este
       // clic la fila pudo aparecer o desaparecer.
-      const actual = await releer();
+      const previo = await confirmar();
+      if (previo.estado === "desconocido") {
+        // Aún no se ha escrito nada, así que el objeto recién subido sí se puede
+        // limpiar sin riesgo: no hay ninguna fila que lo referencie.
+        throw new Error("No se pudo leer el plano actual. No se cambió nada; vuelve a intentarlo.");
+      }
+      const actual = previo.fila;
       const pathAnterior = actual?.imagenPlanoPath || null;
 
       if (actual) {
@@ -133,25 +163,36 @@ export default function SalonPlanoUpload({ salonId, salonNombre }) {
           // la relectura y el insert, esto es un upsert, no un fallo.
           const yaExiste = /duplicate key|salon_planos_salon_id_uniq|23505/i.test(errCreate?.message || "");
           if (!yaExiste) throw errCreate;
-          const fila = await releer();
-          if (!fila) throw errCreate;
-          await base44.entities.SalonPlano.update(fila.id, datos);
+          const reintento = await confirmar();
+          if (reintento.estado !== "si") throw errCreate;
+          await base44.entities.SalonPlano.update(reintento.fila.id, datos);
         }
       }
 
       // El shim devuelve éxito aunque RLS haya afectado 0 filas: se confirma.
-      const guardado = await releer();
-      if (!guardado || guardado.imagenPlanoUrl !== url) {
+      const post = await confirmar();
+
+      if (post.estado === "desconocido") {
+        // NO se borra nada. La escritura pudo cuajar perfectamente: si aquí se
+        // hiciera rollback, se borraría del bucket el archivo que la fila acaba
+        // de referenciar y el plano quedaría roto. Se avisa con honestidad.
+        subidoPath = null;
+        throw new Error(
+          "No se pudo confirmar el guardado. Puede que sí se haya guardado: recarga y revisa el plano antes de reintentar.",
+        );
+      }
+      if (post.estado === "no" || post.fila.imagenPlanoUrl !== url) {
+        // Confirmado que NO quedó: aquí el rollback sí es correcto.
         throw new Error("La base no aceptó el cambio (¿permisos?). El plano no se guardó.");
       }
 
       if (pathAnterior && pathAnterior !== path) await borrarObjeto(pathAnterior);
-      setPlano(guardado);
+      setPlano(post.fila);
       setOk(actual ? "Plano reemplazado ✓" : "Plano subido ✓");
       subidoPath = null;              // ya está referenciado por la fila
     } catch (err) {
-      // Si el archivo llegó a subirse pero la fila no quedó, se limpia: si no,
-      // queda un huérfano público que nadie puede localizar.
+      // Solo se limpia cuando se SABE que la fila no quedó (`subidoPath` sigue
+      // puesto). Si no se pudo confirmar, se deja el huérfano a propósito.
       await borrarObjeto(subidoPath);
       setError(err?.message || "No se pudo subir el plano.");
     } finally {
@@ -168,14 +209,23 @@ export default function SalonPlanoUpload({ salonId, salonNombre }) {
       await base44.entities.SalonPlano.delete(plano.id);
 
       // Confirmar: `delete` del shim devuelve `{success:true}` pase lo que pase.
-      const sigue = await releer();
-      if (sigue) {
+      const post = await confirmar();
+
+      if (post.estado === "desconocido") {
+        // Mismo criterio que al subir: sin confirmación NO se borra el archivo.
+        // Si la fila sigue viva y aquí se borrara el objeto, el plano quedaría
+        // roto. Y no se limpia la UI, para no afirmar un borrado que no consta.
+        throw new Error(
+          "No se pudo confirmar el borrado. Recarga y revisa el plano antes de reintentar.",
+        );
+      }
+      if (post.estado === "si") {
         throw new Error("La base no aceptó el borrado (¿permisos?). El plano sigue puesto.");
       }
 
-      // También el archivo. Conservarlo no servía de nada: la fila era el único
-      // sitio donde vivía su URL y el listado del bucket está cerrado, así que
-      // no había manera de recuperarlo — pero SÍ seguía siendo descargable.
+      // Confirmado que la fila ya no está: ahora sí se borra el archivo.
+      // Conservarlo no servía de nada —la fila era el único sitio donde vivía su
+      // URL y el listado del bucket está cerrado— pero SÍ seguía descargable.
       await borrarObjeto(path);
       setPlano(null);
       setOk("Plano quitado ✓");

@@ -59,7 +59,13 @@ Registro de decisiones técnicas y de producto (formato: decisión · razón · 
   coincide, las mesas se desplazan. Validación de MIME y tamaño en el cliente, para que el
   rechazo del bucket no llegue como error genérico.
 - **No hizo falta migración:** `salon_planos` ya tenía policies de admin (`sec_06`) y el bucket
-  `planos` ya tenía la suya (`sec_07`). Comprobado contra producción antes de escribir la UI.
+  `planos` ya tenía la suya. Comprobado contra producción antes de escribir la UI.
+- **Corrección (2026-08-03):** esa policy **no la crea `sec_07`** — `sec_07` solo fija límites y
+  MIME del bucket y **dropea** la vieja `"planos lectura publica"`. La policy vigente,
+  `planos admin escribe`, vive **en el dashboard**, no en el repo. Verificado en producción: es
+  `cmd = ALL` para `authenticated` con `jardines.is_admin()`, así que **cubre también DELETE** —
+  la limpieza de huérfanos del bloque 4 sí funciona. Que no esté versionada es deuda conocida:
+  una migración que la recree no se puede escribir sin tocar Storage de un proyecto compartido.
 - **Archivos:** `src/components/admin/SalonPlanoUpload.jsx`, `src/components/admin/AdminSalones.jsx`,
   `src/api/base44Client.js` (`storage.publicUrl`, aditivo).
 

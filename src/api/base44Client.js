@@ -86,6 +86,25 @@ function makeEntity(name) {
   return {
     async list(sort) { return runQuery(table, { sort }); },
     async filter(filter, sort) { return runQuery(table, { sort, filter }); },
+    /**
+     * Como `filter`, pero **propaga el error** en vez de devolver `[]`.
+     *
+     * `runQuery` devuelve `[]` tanto cuando no hay filas como cuando la lectura
+     * falla, y ese `[]` ambiguo es el bug J-02. Da igual en una lista que se
+     * pinta; es peligroso cuando la lectura se usa para **decidir**: confirmar
+     * que una escritura cuajó, o contar si alguien se queda sin acceso. Ahí un
+     * fallo de red disfrazado de "no hay nada" lleva a destruir datos.
+     *
+     * No sustituye a `filter`: es aditivo, para las lecturas que deciden.
+     */
+    async filterEstricto(filter, sort) {
+      let q = supabase.from(table).select("*");
+      if (filter) for (const k in filter) q = q.eq(toSnake(k), filter[k]);
+      if (sort) { const { col, ascending } = sortColumn(sort); q = q.order(col, { ascending, nullsFirst: false }); }
+      const { data, error } = await q;
+      if (error) { console.error("[shim] filterEstricto", table, error.message); throw error; }
+      return (data || []).map(rowToObj);
+    },
     async get(id) { const { data } = await supabase.from(table).select("*").eq("id", id).maybeSingle(); return rowToObj(data); },
     async create(data) {
       // Las solicitudes del formulario público ya no se insertan directo: pasan por
@@ -276,10 +295,18 @@ const storage = {
     if (error) throw error;
     return data.signedUrl;
   },
+  /**
+   * Borra un objeto. Distingue "borró" de "no borró nada".
+   *
+   * La Storage API devuelve **200 con lista vacía y sin `error`** cuando una
+   * policy deniega el borrado, así que mirar solo `error` hacía que un borrado
+   * denegado pasara por éxito y el fallo fuera mudo. Se devuelve `borrado` para
+   * que el llamador pueda decidir.
+   */
   async remove(bucket, path) {
-    const { error } = await supabase.storage.from(bucket).remove([path]);
+    const { data, error } = await supabase.storage.from(bucket).remove([path]);
     if (error) throw error;
-    return { success: true };
+    return { success: true, borrado: Array.isArray(data) && data.length > 0 };
   },
   /**
    * URL pública de un objeto en un bucket PÚBLICO (`planos`, `sitio`).
