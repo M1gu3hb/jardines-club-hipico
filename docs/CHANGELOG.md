@@ -1,5 +1,71 @@
 # CHANGELOG.md
 
+## 2026-08-03 (b) — Correcciones de la auditoría de documentación sobre `370ee5c`
+
+### Cambios realizados
+Seis afirmaciones de la reescritura anterior mandaban a alguien al archivo equivocado o a
+confiar en una protección inexistente. Todas verificadas contra el código y la base antes de
+corregirlas:
+
+1. **El "fallback estático" no existe.** `site-data.json` no lo importa nadie en `src/` ni en
+   `api/` (0 resultados): solo alimenta `scripts/seed-supabase.mjs` y `scripts/montage.mjs`. El
+   único JSON vivo es `resenas.json` (`Confianza.jsx`). **Si Supabase cae, el sitio se renderiza
+   vacío** — riesgo real que la doc anterior ocultaba. Corregido en los 10 sitios donde aparecía.
+2. **El menú lateral ya no es `Sidebar.jsx`** (huérfano, 0 imports). El real es `StaggeredMenu`,
+   con los items en `MENU_ITEMS` de `Home.jsx`.
+3. **Los estilos globales no viven en `Layout.jsx`** (son 10 líneas, solo el fondo). Están en
+   `src/styles/theme.css`, importado en `main.jsx` — por eso aplican también al portal, al admin
+   y a `/acceso`. Ese archivo **no aparecía en ningún documento**; ahora está en `FILE_MAP.md`.
+4. **Tres RPCs mal clasificadas:** `info_invitacion` es de `authenticated`, no pública;
+   `info_mesa_publica` está revocada para `anon`/`authenticated` y su cuerpo **no** tiene rate
+   limit ni error genérico (al revés de lo que decía la doc); `revocar_acceso_unico` es de
+   `service_role`, no de admin.
+5. **`VITE_ADMIN_SLUG` y `VITE_SUPABASE_URL` no son solo del build:** cuatro rutas de `api/` las
+   leen en runtime. Documentado, con el aviso de que cambiar el slug sin exponerlo al runtime de
+   las funciones deja todos los enlaces al panel de todos los correos apuntando al valor viejo.
+6. **`DECISIONS.md` D1/D2/D3** quedaron sin sello. D1 marcada SUPERADA; D2 y D3 marcadas con su
+   estado real (ver "Discrepancias" abajo).
+
+**Y el agujero en la suite:** la aserción B6 de `supabase/tests/seguridad.sql` excluía
+`solicitudes` del invariante "`anon` sin INSERT/UPDATE/DELETE" con
+`count(*) filter (where table_name <> 'solicitudes') = 0`. Era un resto de la ventana de
+compatibilidad que `sec_21` cerró: la suite habría pasado igual si alguien reintrodujera
+escritura pública sobre esa tabla, y `CLAUDE.md` presenta esa prueba como la garantía del
+invariante. Ahora es `count(*) = 0` sin filtro.
+
+### Discrepancias con la auditoría (no aplicadas, a propósito)
+- **D2 y D3 no son "SUPERADA".** D2: la decisión de conservar la API del shim sigue vigente; lo
+  superado es el "100% local". D3: los medios **siguen** auto-hospedados en `public/media/`
+  (videos del hero, 241 frames, flyer), solo que ahora los uploads del CMS van a Storage. Se
+  sellaron con su estado real en vez de marcarlas obsoletas.
+- El informe `docs/auditoria/AUDITORIA-DOCS-370ee5c.md` **no está en el repo**, así que cada
+  hallazgo se verificó de forma independiente contra el código y la base.
+
+### Archivos modificados
+`CLAUDE.md`, `PROJECT_CONTEXT.md`, `README.md`, `docs/ARCHITECTURE.md`, `docs/DATABASE.md`,
+`docs/FILE_MAP.md`, `docs/DATOS.md`, `docs/MAPA.md`, `docs/COMPONENTES.md`, `docs/DEPLOY.md`,
+`docs/DECISIONS.md`, `docs/PROMPTS.md`, `docs/CHANGELOG.md`, `docs/BUGS_PENDING.md`,
+`supabase/tests/seguridad.sql`.
+
+### Entidades/BD afectadas
+Ninguna. **No se aplicó ninguna migración.** Solo consultas de lectura para verificar grants y
+la aserción B6.
+
+### Bugs resueltos
+Documentación que mandaba al archivo equivocado (`Sidebar.jsx`, `Layout.jsx`) y que prometía dos
+protecciones inexistentes (fallback ante caída de Supabase; rate limit en `info_mesa_publica`).
+Más el agujero de la suite B6.
+
+### Bugs nuevos
+Ninguno introducido. **Detectado y documentado:** no hay fallback si Supabase no responde
+(ver `docs/BUGS_PENDING.md`).
+
+### Decisiones tomadas
+Sello de estado en D1 (SUPERADA), D2 y D3 (vigentes, con matiz).
+
+### Próximo paso
+Validación humana autenticada de los 5 flujos (`docs/NEXT_STEPS.md` §1).
+
 ## 2026-08-03 — Documentación viva reescrita para transferencia
 
 ### Cambios realizados
@@ -134,7 +200,9 @@ Validación humana autenticada de los 5 flujos: el estado formal es
 
 ### Archivos modificados
 - Nuevos: `supabase/migrations/2026080121*_jardines_sec_0{1..9}_*.sql`, `docs/SEGURIDAD.md`,
-  `supabase/migrations/PENDIENTE_jardines_sec_10_retiro_compat_staff_token.sql.noapply`.
+  `supabase/migrations/PENDIENTE_jardines_sec_10_retiro_compat_staff_token.sql.noapply`
+  (**hecho por `sec_20` el 2026-08-02**; el archivo `.noapply` ya no existe, y por eso no hay
+  migración `sec_10`).
 - Modificados: `api/crear-admin.js`, `api/crear-usuario-evento.js`, `src/api/base44Client.js`,
   `src/components/FormularioModal.jsx`, `src/components/meseros/EventoMeseros.jsx`,
   `src/components/admin/eventos/EventoDocumentos.jsx`.
@@ -158,6 +226,7 @@ cambios**: recuentos y checksums idénticos antes/después.
 ### Próximo paso
 Probar en la interfaz el botón "generar link de meseros" y, una vez validado, aplicar
 `PENDIENTE_jardines_sec_10_retiro_compat_staff_token.sql.noapply` para retirar el token en claro.
+*(**hecho por `sec_20` el 2026-08-02.** Registro histórico: no queda nada pendiente aquí.)*
 
 ## 2026-07-03 — Documentación viva del proyecto
 

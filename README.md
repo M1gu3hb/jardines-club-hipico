@@ -6,8 +6,10 @@ independiente con base de datos propia en **Supabase**.
 
 - **Stack:** React 18, Vite 6, Tailwind CSS 3, Framer Motion, shadcn/ui (Radix), Lucide,
   react-router-dom 7.
-- **Datos:** PostgreSQL en **Supabase** (schema `jardines`), con RLS en todas las tablas. Los
-  JSON de `src/data/` quedan solo como **fallback estático**.
+- **Datos:** PostgreSQL en **Supabase** (schema `jardines`), con RLS en todas las tablas.
+  **No hay fallback estático:** si Supabase no responde, el sitio se renderiza vacío.
+  `src/data/site-data.json` ya no lo importa nadie (solo alimenta `scripts/seed-supabase.mjs`);
+  el único JSON vivo es `src/data/resenas.json`, que usa `Confianza.jsx`.
 - **Backend:** 7 funciones serverless en [`api/`](api) (Vercel) + Nodemailer.
 - **Medios:** auto-hospedados en [`public/media/`](public/media) y en Storage de Supabase.
 
@@ -46,14 +48,15 @@ npm run preview         # sirve dist/ localmente
 ├── public/media/             # img/ · frames/ (241) · b44/
 ├── scripts/
 │   ├── test-contratos-api.mjs  # 71 contratos frontend ↔ api/
-│   ├── build-media.mjs         # Regenera el fallback estático
+│   ├── build-media.mjs         # Regenera site-data.json (entrada del seed) + descarga medios
 │   └── seed-supabase.mjs       # Seed inicial (histórico)
 ├── src/
 │   ├── api/                  # supabaseClient.js · base44Client.js (SHIM) · authContext.jsx
 │   ├── components/           # público · admin/ · portal/ · mesas/ · meseros/ · invitacion/
 │   ├── config/portal.js      # ADMIN_SLUG y correo sintético de clientes
 │   ├── pages/                # Home.jsx y Admin.jsx
-│   ├── Layout.jsx            # Estilos globales + tokens skeuomorphism
+│   ├── styles/theme.css      # Estilos globales reales (Inter, tokens skeu) — vía main.jsx
+│   ├── Layout.jsx            # Contenedor de páginas públicas (solo el fondo, 10 líneas)
 │   └── App.jsx               # Router + AuthProvider
 ├── vercel.json               # Fallback SPA, cabeceras HTTP (CSP, HSTS…) y cron
 └── docs/                     # Documentación viva
@@ -83,9 +86,9 @@ Se configuran en Vercel (Project → Settings → Environment Variables). Detall
 
 | Variable | Ámbito | Descripción |
 |---|---|---|
-| `VITE_SUPABASE_URL` | front | URL del proyecto Supabase |
+| `VITE_SUPABASE_URL` | front **y runtime de `api/`** | URL del proyecto. `_lib/guard.js` y `cron-recordatorios.js` la usan como respaldo de `SUPABASE_URL` |
 | `VITE_SUPABASE_ANON_KEY` | front | Clave anónima (**nunca** la de servicio) |
-| `VITE_ADMIN_SLUG` | front | (opcional) ruta del panel |
+| `VITE_ADMIN_SLUG` | front **y runtime de `api/`** | (opcional) ruta del panel. Ver el aviso de abajo |
 | `SUPABASE_URL` | servidor | URL del proyecto |
 | `SUPABASE_SERVICE_ROLE` | servidor | Clave de servicio. **Secreta** |
 | `GMAIL_USER` / `GMAIL_APP_PASSWORD` | servidor | Cuenta y App Password del envío |
@@ -93,6 +96,12 @@ Se configuran en Vercel (Project → Settings → Environment Variables). Detall
 | `CRON_SECRET` | servidor | Autoriza el cron. Sin ella, no corre |
 
 No hay `.env` en el repo. Los secretos viven solo en Vercel.
+
+> ⚠️ **El prefijo `VITE_` no significa "solo build".** Cuatro funciones de `api/`
+> (`notificar.js`, `canjear-acceso.js`, `cron-recordatorios.js`, `crear-admin.js`) leen
+> `process.env.VITE_ADMIN_SLUG` **en runtime** para armar el enlace al panel en los correos. Si
+> cambias el slug y solo lo expones al build, los correos seguirán enlazando al slug por defecto
+> de `src/config/portal.js`. Exponla también al runtime de las funciones.
 
 ## Panel de administración
 

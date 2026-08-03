@@ -21,8 +21,10 @@ ocurre exclusivamente por RPC (`solicitud_crear`, `rsvp_crear`).
 Los componentes no nombran tablas: usan el mapa `TABLES` de `src/api/base44Client.js`, que
 traduce nombre de entidad → tabla y camelCase ↔ snake_case.
 
-`src/data/site-data.json` y `src/data/resenas.json` **ya no son la fuente de verdad**: son
-fallback estático. El seed inicial se hizo con `scripts/seed-supabase.mjs` (histórico).
+`src/data/site-data.json` **ya no es la fuente de verdad y tampoco es un fallback**: ningún
+archivo de `src/` ni de `api/` lo importa. Es la entrada de `scripts/seed-supabase.mjs`, con el
+que se hizo el seed inicial (histórico). **Si Supabase no responde, el sitio se renderiza vacío.**
+`src/data/resenas.json` sí se importa en runtime, desde `src/components/Confianza.jsx`.
 
 ---
 
@@ -105,7 +107,9 @@ fallback estático. El seed inicial se hizo con `scripts/seed-supabase.mjs` (his
   `ocupadas`, `orden`, `token`.
 - `invitados`: `mesa_id`, `nombre`, `notas`.
 - **Reglas:** el `token` de mesa es una **credencial portadora** (quien tiene el QR entra).
-  Se consulta con `info_mesa_token`/`info_mesa_publica`, siempre con rate limit y error genérico.
+  Se consulta con `info_mesa_token`, que sí lleva rate limit y error genérico. **No** con
+  `info_mesa_publica`: esa quedó sin `EXECUTE` para `anon`/`authenticated` y su cuerpo no
+  protege nada (ver §D).
 
 ### EventoReglasMesas → `evento_reglas_mesas`
 - `evento_id`, `formas_permitidas`, `opciones_personas`, `capacidad_libre`,
@@ -184,20 +188,32 @@ privilegios de quien consulta): `is_admin`, `es_admin`, `is_my_event`, `client_c
 `mi_personal_id`, `mis_canales`, `mis_canales_hablar`, `mis_canales_escuchar`,
 `eventos_operativos_permitidos`.
 
-**RPCs públicas** (`anon`, todas con rate limit y error genérico): `solicitud_crear`,
-`rsvp_crear`, `info_invitacion_publica`, `info_mesa_publica`, `info_invitacion`.
+**RPCs públicas** — las **únicas** ejecutables por `anon`, todas con rate limit y error genérico:
+`solicitud_crear`, `rsvp_crear`, `info_invitacion_publica`, `info_mesa_token`.
+
+**RPCs de `authenticated`** (hay sesión, pero no hace falta ser admin): `info_invitacion`.
+**No es pública** — `sec_06` le dio `EXECUTE` solo a `authenticated`.
 
 **RPCs de staff / operativo** (exigen token válido o sesión): `info_invitacion_staff`,
-`info_mesa_token`, `registrar_acceso`, `registrar_acceso_staff`, `registrar_llegada_mesa`,
+`registrar_acceso`, `registrar_acceso_staff`, `registrar_llegada_mesa`,
 `progreso_mesas_staff`, `operativo_evento_activo`, `operativo_ubicar`.
 
-**RPCs de admin:** `rotar_staff_token`, `revocar_staff_token`, `confirmar_evento`,
-`auditoria_reciente`, `revocar_acceso_unico`.
+**RPCs de admin** (`EXECUTE` para `authenticated`; el rol lo comprueba el cuerpo o RLS):
+`rotar_staff_token`, `revocar_staff_token`, `confirmar_evento`, `auditoria_reciente`.
+
+> **`info_mesa_publica` está fuera de servicio, no es pública.** `sec_06` y `sec_17` le
+> revocaron el `EXECUTE` a `PUBLIC`, `anon` y `authenticated`: hoy solo la pueden ejecutar
+> `postgres` y `service_role`, así que **no es alcanzable por la Data API**. Importa saberlo
+> porque su cuerpo **no** tiene rate limit ni error genérico — devuelve mesa, evento, fecha,
+> salón y tipo con solo presentar el token. Si alguien le devolviera el `EXECUTE` a `anon`,
+> reabriría la enumeración que `sec_06` cerró. La vía viva y protegida es `info_mesa_token`.
 
 **Solo `service_role`** (invocadas desde `api/`, nunca desde el navegador): `asignar_rol`,
 `aprovisionar_usuario`, `revocar_aprovisionamiento`, `crear_acceso_unico`,
-`canjear_acceso_iniciar`, `canjear_acceso_confirmar`, `canjear_acceso_liberar`,
-`api_rate_limit`, `api_idem_iniciar`, `api_idem_cerrar`, `api_auditar`.
+**`revocar_acceso_unico`** (`sec_16`: es de `service_role`, **no** de admin — desde el panel no
+se puede llamar), `canjear_acceso_iniciar`, `canjear_acceso_confirmar`,
+`canjear_acceso_liberar`, `api_rate_limit`, `api_idem_iniciar`, `api_idem_cerrar`,
+`api_auditar`, `info_mesa_publica` (residual, ver arriba).
 
 **Triggers:** `handle_new_user` (en `auth.users`, **compartido con Vero**),
 `solicitud_saneo`, `resena_moderacion`, `auditar_cambio_operativo`.

@@ -109,20 +109,30 @@ Registro de decisiones técnicas y de producto (formato: decisión · razón · 
 ## 2026-07-03
 
 ### D1 — Migración estática (sin backend) en vez de recrear la base de datos
-- **Razón:** el cliente quería salir de Base44 rápido, con el sitio idéntico, simple y barato. No
-  necesitaba edición en vivo constante.
-- **Consecuencia:** contenido congelado en JSON; el panel admin no persiste; cambios de contenido se
-  hacen en código (`scripts/raw/*.json`).
+- **SUPERADA en FASE-02 (2026-07-05).** La sustituyó la migración a Supabase: hay base de datos
+  viva, el panel admin **sí** persiste y el contenido ya no se edita en código. Lo único que
+  sobrevive de esta decisión es `scripts/raw/*` → `site-data.json` como entrada del seed.
+- **Razón (histórica):** el cliente quería salir de Base44 rápido, con el sitio idéntico, simple y
+  barato. No necesitaba edición en vivo constante.
+- **Consecuencia (histórica):** contenido congelado en JSON; el panel admin no persistía; cambios
+  de contenido se hacían en código (`scripts/raw/*.json`).
 - **Archivos:** `src/data/site-data.json`, `scripts/build-media.mjs`, `scripts/raw/*`.
 
 ### D2 — SHIM que imita el SDK de Base44
+- **VIGENTE en la decisión, SUPERADA en la implementación (FASE-02).** Mantener la API pública
+  del shim sigue siendo la regla y es lo que evitó reescribir los componentes dos veces. Lo que
+  ya no es cierto es el "100% local": desde FASE-02 `base44Client.js` importa `supabaseClient` y
+  habla con Postgres. Ver `docs/ARCHITECTURE.md` §2.
 - **Razón:** evitar reescribir todos los componentes (Home, formulario, admin) que llamaban
   `base44.entities.*`.
-- **Consecuencia:** los componentes quedaron intactos; el archivo se llama `base44Client.js` pero es
-  100% local. Cirugía mínima.
+- **Consecuencia:** los componentes quedaron intactos en las dos migraciones. Cirugía mínima.
 - **Archivos:** `src/api/base44Client.js`.
 
 ### D3 — Auto-hospedar TODOS los medios
+- **VIGENTE, ampliada en FASE-02.** Los medios del sitio siguen sirviéndose desde
+  `public/media/` (videos del hero, los 241 frames, flyers). Lo que se añadió es que **los
+  medios que se suben desde el panel van a Storage de Supabase** (buckets `sitio`, `clientes`,
+  `planos`, `operativo`), no al repo. Ver `docs/DATABASE.md` §E.
 - **Razón:** independencia total de Base44/imgur; que nada se rompa si esos servicios fallan.
 - **Consecuencia:** repo pesado (~560 MB); descarga por `build-media.mjs`; se limpió un artefacto `" ×"`
   que traían algunas URLs.

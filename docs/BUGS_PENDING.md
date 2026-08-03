@@ -25,6 +25,18 @@ aceptados), pendientes que dependen de otra persona, y dos cosas menores de cont
 - **Archivos:** faltaría un componente en `src/components/admin/`; base ya lista (`sec_14`, `sec_18`).
 - **Prioridad:** media. **Estado:** abierto (es funcionalidad faltante, no un defecto).
 
+### B5 — No hay fallback si Supabase no responde
+- **Impacto:** alto si ocurre. Todas las secciones que leen de la base (espacios, galería,
+  servicios, amenidades, alimentos, config del sitio) se renderizan **vacías**. Sobreviven solo
+  el hero, los frames y el bloque de Confianza, que salen de archivos locales.
+- **Causa:** `src/data/site-data.json` se documentó durante meses como "fallback estático", pero
+  **nunca se conectó**: ningún archivo de `src/` ni de `api/` lo importa. Es solo la entrada de
+  `scripts/seed-supabase.mjs`.
+- **Archivos:** `src/api/base44Client.js` (no tiene rama de degradación), `src/data/site-data.json`.
+- **Prioridad:** media. **Estado:** abierto — detectado el 2026-08-03 por la auditoría de
+  documentación. No es una regresión: nunca existió. Lo que se corrigió fue la doc que afirmaba
+  lo contrario.
+
 ### B4 — El cliente no puede cambiar su contraseña desde el portal
 - **Impacto:** bajo. El primer acceso es por enlace de un solo uso y la contraseña se comparte
   por separado, pero no hay forma de rotarla sin intervención del admin.

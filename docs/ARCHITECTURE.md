@@ -41,8 +41,11 @@ capa extra que pidió el dueño; la seguridad real es `RequireAdmin` + RLS.
 - `src/App.jsx`: `QueryClientProvider` + `AuthProvider` + `BrowserRouter` + `Routes`.
   Las páginas auto-registradas en `src/pages.config.js` se montan salvo `Admin`, que se filtra
   a propósito: `/Admin` es 404 y el panel solo existe en `/${ADMIN_SLUG}` tras `RequireAdmin`.
-- `src/Layout.jsx`: estilos globales (CSS-in-JS), fuente Inter, tokens skeuomorphism
-  (`.skeu-card`, `.skeu-gold-btn`), fondo `#0a0a0a`, dorado `#C9A84C`.
+- `src/styles/theme.css`: **los estilos globales** — fuente Inter, tokens skeuomorphism
+  (`.skeu-card`, `.skeu-gold-btn`), scrollbar dorada, dorado `#C9A84C`. Lo importa
+  `src/main.jsx`, **no** `Layout.jsx`, precisamente para que apliquen también al portal, al
+  admin secreto y a `/acceso`, que no pasan por el Layout.
+- `src/Layout.jsx`: 10 líneas. Solo envuelve las páginas públicas en el fondo `#0a0a0a`.
 - `src/api/authContext.jsx`: sesión de Supabase + rol leído de `jardines.perfiles`.
 - `src/config/portal.js`: `ADMIN_SLUG` (env `VITE_ADMIN_SLUG`), dominio del correo sintético de
   clientes y `usuarioAEmail()`.
@@ -119,8 +122,12 @@ navegador lo bloqueará en producción sin avisar en local.
 
 ### 5. Build y medios
 
-- `scripts/build-media.mjs` genera el **fallback** `src/data/site-data.json` desde
-  `scripts/raw/*.json` y descarga los medios a `public/media/`. Idempotente.
+- `scripts/build-media.mjs` genera `src/data/site-data.json` desde `scripts/raw/*.json` y descarga
+  los medios a `public/media/`. Idempotente. **Ese JSON no es un fallback de runtime:** no lo
+  importa ningún archivo de `src/` ni de `api/`; solo lo leen `scripts/seed-supabase.mjs` y
+  `scripts/montage.mjs`. **Si Supabase no responde, el sitio se renderiza vacío** — no hay red de
+  seguridad. El único JSON que sí se importa en runtime es `src/data/resenas.json`
+  (`src/components/Confianza.jsx`).
 - `scripts/seed-supabase.mjs` fue el seed inicial de la base (histórico; no re-ejecutar a ciegas).
 - Vite copia `public/` a `dist/`. Alias `@` → `src` en `vite.config.js`.
 

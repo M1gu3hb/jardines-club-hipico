@@ -62,8 +62,11 @@ desde `api/`.
 ## Reglas específicas de ESTE proyecto (no romper)
 
 - **El sitio es DINÁMICO desde FASE-02 (2026-07-05).** El contenido vive en **Supabase**
-  (Postgres 17, schema `jardines`, proyecto `vuzyhbiwnnngeohysxcw`). `src/data/site-data.json` y
-  `src/data/resenas.json` quedan solo como **fallback estático** (por si Supabase no responde).
+  (Postgres 17, schema `jardines`, proyecto `vuzyhbiwnnngeohysxcw`).
+- **No hay fallback estático del contenido.** `src/data/site-data.json` **no lo importa nadie**
+  en `src/` ni en `api/`: solo es la entrada de `scripts/seed-supabase.mjs` (y de `montage.mjs`).
+  **Si Supabase no responde, el sitio se renderiza vacío.** El único JSON que sí se usa en
+  runtime es `src/data/resenas.json`, importado por `src/components/Confianza.jsx`.
 - **El acceso a datos es SOLO el shim `src/api/base44Client.js`.** Por dentro habla con Supabase
   (`src/api/supabaseClient.js`) pero conserva la MISMA API pública que el SDK de Base44
   (`base44.entities.X.list/filter/get/create/update/delete`, `functions.invoke`,
@@ -143,6 +146,6 @@ npm run dev                    # http://localhost:5173
 npm run build                  # genera dist/
 npm run lint                   # eslint (no-undef activo: atrapa símbolos borrados)
 npm run test:contratos         # contratos frontend ↔ api/ (estático, sin red)
-node scripts/build-media.mjs   # regenera src/data/site-data.json (fallback) desde scripts/raw/*.json
+node scripts/build-media.mjs   # regenera src/data/site-data.json (entrada del seed) desde scripts/raw/*.json
 node scripts/seed-supabase.mjs # seed inicial de Supabase (histórico, no re-ejecutar a ciegas)
 ```

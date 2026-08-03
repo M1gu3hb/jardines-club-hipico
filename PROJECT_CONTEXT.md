@@ -70,6 +70,14 @@ visualmente, con credenciales reales, los cinco flujos de §8.F. Es lo único qu
 `SUPABASE_URL`, `SUPABASE_SERVICE_ROLE`, `GMAIL_USER`, `GMAIL_APP_PASSWORD`, `MAIL_TO`,
 `CRON_SECRET`.
 
+> ⚠️ **`VITE_ADMIN_SLUG` y `VITE_SUPABASE_URL` no son solo del build.** Las funciones de `api/`
+> las leen **en runtime**: `VITE_ADMIN_SLUG` en `notificar.js`, `canjear-acceso.js`,
+> `cron-recordatorios.js` y `crear-admin.js` (para armar el enlace al panel en los correos), y
+> `VITE_SUPABASE_URL` como respaldo de `SUPABASE_URL` en `_lib/guard.js` y
+> `cron-recordatorios.js`. Si cambias el slug y **no** expones la variable también al runtime de
+> las funciones, todos los enlaces al panel de todos los correos seguirán apuntando al slug por
+> defecto de `src/config/portal.js` — que ya no existirá.
+
 > ⚠️ El proyecto de Supabase **está compartido con otra aplicación, Vero Seguros**, que vive en
 > el schema `public`. Ver el CANDADO ABSOLUTO en `CLAUDE.md` y `docs/SEGURIDAD.md` §1.
 
@@ -148,7 +156,12 @@ Resumen (detalle en `docs/FILE_MAP.md`):
 - `supabase/tests/seguridad.sql` — 63 aserciones de seguridad.
 - `scripts/test-contratos-api.mjs` — 71 contratos frontend ↔ API.
 - `vercel.json` — rewrites SPA, cabeceras HTTP (CSP, HSTS…) y el cron.
-- `src/data/site-data.json`, `src/data/resenas.json` — **fallback estático**, ya no la verdad.
+- `src/data/resenas.json` — **el único JSON vivo**: lo importa `src/components/Confianza.jsx`.
+- `src/data/site-data.json` — **no lo importa nadie** en `src/` ni en `api/`. Es solo la entrada
+  de `scripts/seed-supabase.mjs` (y de `scripts/montage.mjs`). No es un fallback: si Supabase no
+  responde, el sitio se renderiza vacío.
+- `src/styles/theme.css` — **estilos globales reales** (Inter, tokens `.skeu-*`, scrollbar),
+  importado en `src/main.jsx`. `Layout.jsx` son 10 líneas y solo pone el fondo.
 
 ## 8. Flujos críticos
 

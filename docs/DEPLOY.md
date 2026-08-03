@@ -18,13 +18,22 @@ vercel deploy --prod --scope mh-astral-systems
 
 ## Variables de entorno
 
-**Front (`VITE_*`) — se compilan dentro del bundle, son públicas por diseño:**
+**`VITE_*` — se compilan dentro del bundle, son públicas por diseño. Dos de ellas, además, se
+leen en el runtime de las funciones:**
 
-| Variable | Para qué |
-|---|---|
-| `VITE_SUPABASE_URL` | URL del proyecto Supabase |
-| `VITE_SUPABASE_ANON_KEY` | Clave anónima. **Nunca la `service_role`** |
-| `VITE_ADMIN_SLUG` | (opcional) sobreescribe la ruta secreta del panel sin tocar código |
+| Variable | Para qué | ¿Dónde se lee? |
+|---|---|---|
+| `VITE_SUPABASE_URL` | URL del proyecto Supabase | Front **y `api/`**: `_lib/guard.js` y `cron-recordatorios.js` la usan como respaldo si falta `SUPABASE_URL` |
+| `VITE_SUPABASE_ANON_KEY` | Clave anónima. **Nunca la `service_role`** | Front |
+| `VITE_ADMIN_SLUG` | (opcional) sobreescribe la ruta secreta del panel sin tocar código | Front **y `api/`**: `notificar.js`, `canjear-acceso.js`, `cron-recordatorios.js`, `crear-admin.js` |
+
+> ⚠️ **Si cambias `VITE_ADMIN_SLUG`, expón la variable también al runtime de las funciones**, no
+> solo al build. Esas cuatro rutas hacen
+> `process.env.VITE_ADMIN_SLUG || "<slug por defecto>"` para armar el enlace al panel de cada
+> correo. Si el runtime no la ve, cae al valor por defecto de `src/config/portal.js` y **todos
+> los correos enlazarán a una ruta que ya no existe** — sin fallar en el build ni en el front.
+> En Vercel esto significa tenerla marcada para los tres entornos y para las Functions, no solo
+> en Build.
 
 **Servidor — secretas, solo en Vercel, solo se leen desde `api/`:**
 

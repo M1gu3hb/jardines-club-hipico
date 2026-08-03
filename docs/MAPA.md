@@ -10,13 +10,15 @@ página**, **cómo fluyen los datos** y **dónde tocar** para cada tipo de cambi
 - **SPA React** servida por Vite. Punto de entrada: [`src/main.jsx`](../src/main.jsx) → [`src/App.jsx`](../src/App.jsx).
 - **Router** (`react-router-dom`): `/` (Home), la ruta secreta del panel, `/portal`,
   `/acceso/:token`, `/staff/:token` y `/invitacion/:token`. **`/Admin` es 404 a propósito.**
-- **Layout global** ([`src/Layout.jsx`](../src/Layout.jsx)) envuelve las páginas públicas: fija
-  fuentes, fondo `#0a0a0a`, scrollbar dorada y los **tokens skeuomorphism** (`.skeu-card`,
-  `.skeu-gold-btn`, etc.).
+- **Estilos globales** en [`src/styles/theme.css`](../src/styles/theme.css), importado desde
+  `src/main.jsx`: fuente Inter, scrollbar dorada y los **tokens skeuomorphism** (`.skeu-card`,
+  `.skeu-gold-btn`, etc.). Está ahí, y no en el Layout, para que apliquen también al portal, al
+  admin y a `/acceso`, que no pasan por el Layout.
+- **`Layout.jsx`** son 10 líneas: solo envuelve las páginas públicas en el fondo `#0a0a0a`.
 - **Datos en Supabase**: el contenido vive en el schema `jardines`. Los componentes lo consumen
   por el **shim** [`src/api/base44Client.js`](../src/api/base44Client.js), que conserva la API del
   viejo SDK de Base44 (`base44.entities.X.list()/filter()`, etc.) pero habla con Supabase.
-  Los JSON de `src/data/` son solo **fallback**.
+  **No hay fallback:** si Supabase no responde, el sitio se renderiza vacío.
 - **Backend:** 7 funciones serverless en [`api/`](../api) (Vercel).
 
 ```
@@ -43,7 +45,8 @@ Cada sección es un componente en [`src/components/`](../src/components):
 | # | Sección (id) | Componente | Qué muestra |
 |---|---|---|---|
 | — | (splash) | `SplashScreen.jsx` | Pantalla de carga con el logo (aparece una vez) |
-| — | (lateral) | `Sidebar.jsx` | Menú lateral + logo + toggle de sonido |
+| — | (menú) | `StaggeredMenu.jsx` | Menú de secciones (overlay fijo, dep. `gsap`). Los items vienen de `MENU_ITEMS` en `Home.jsx` |
+| — | (sonido) | `SoundToggle.jsx` | Control de sonido (antes vivía dentro del Sidebar) |
 | 1 | `#inicio` | `HeroSection.jsx` | Video de fondo, título de venta (todo en un lugar), botón "Cotiza tu Evento", cartel "Próximamente" |
 | 1b | — | `Confianza.jsx` | Números (+30 años, +500 eventos, 8 espacios) + rating de Google + carrusel de reseñas (datos en `src/data/resenas.json`) |
 | 2 | `#salones` | `SalonesSection.jsx` | Tarjetas de los 8 espacios → abre `SalonOverlay` |
@@ -59,8 +62,11 @@ Cada sección es un componente en [`src/components/`](../src/components):
 | — | (modales) | `FormularioModal.jsx`, `ProximamenteModal.jsx` | Formulario de cotización y anuncio |
 
 > El **orden** de las secciones se cambia reordenando los componentes dentro del `<main>`
-> de [`src/pages/Home.jsx`](../src/pages/Home.jsx). El menú lateral se define en
-> `Sidebar.jsx` (constante de secciones).
+> de [`src/pages/Home.jsx`](../src/pages/Home.jsx). Los items del menú se definen en la
+> constante `MENU_ITEMS` del mismo archivo, y los pinta `StaggeredMenu`.
+>
+> `src/components/Sidebar.jsx` **ya no se usa** (0 imports): quedó huérfano al sustituirlo por
+> `StaggeredMenu`. Editarlo no cambia nada.
 
 ---
 
@@ -106,9 +112,10 @@ Para **editar contenido**, se usa el panel admin — ver [`DATOS.md`](DATOS.md).
 | Pasos de "Cómo funciona" | `src/components/ComoFunciona.jsx` (array `PASOS`) |
 | Videos de fondo del hero | Reemplazar `public/media/img/NBa3E9g.mp4` y `uykWsK9.mp4`, o editar el array `VIDEOS` en `HeroSection.jsx` |
 | Textos de sección (eyebrows, títulos "Servicios", "Amenidades", "Galería") | El componente de esa sección (ver tabla §2) |
-| Colores / estilos globales | `src/Layout.jsx` (tokens `.skeu-*`) y `src/index.css` / `tailwind.config.js`. El dorado de marca es `#C9A84C` |
-| Orden de las secciones | `src/pages/Home.jsx` (`<main>`) y `src/components/Sidebar.jsx` (menú) |
-| Menú lateral (items) | `src/components/Sidebar.jsx` |
+| Colores / estilos globales | **`src/styles/theme.css`** (tokens `.skeu-*`, Inter, scrollbar) y `tailwind.config.js`. El dorado de marca es `#C9A84C`. **No** `Layout.jsx` |
+| Orden de las secciones | `src/pages/Home.jsx` (`<main>`) y la constante `MENU_ITEMS` del mismo archivo |
+| Items del menú | Constante `MENU_ITEMS` en `src/pages/Home.jsx` (**no** `Sidebar.jsx`, que está huérfano) |
+| Apariencia/animación del menú | `src/components/StaggeredMenu.jsx` + `StaggeredMenu.css` |
 | A qué correo llega el formulario | Variable `MAIL_TO` en Vercel |
 | Quién es admin | Alta desde el panel (`/api/crear-admin`). El rol vive en `jardines.perfiles`; **no** hay contraseña en el código |
 | La ruta del panel | `ADMIN_SLUG` en `src/config/portal.js`, o la env `VITE_ADMIN_SLUG` |
@@ -119,7 +126,7 @@ Para **editar contenido**, se usa el panel admin — ver [`DATOS.md`](DATOS.md).
 
 ## 5. Sistema de diseño (tokens)
 
-Definidos como CSS global en [`src/Layout.jsx`](../src/Layout.jsx):
+Definidos en [`src/styles/theme.css`](../src/styles/theme.css), que importa `src/main.jsx`:
 
 - **Color de marca (dorado):** `#C9A84C` (y variantes `#E2C266`, `#E6C870`). Aparece hardcodeado
   en muchos componentes como `#C9A84C`.
@@ -127,7 +134,10 @@ Definidos como CSS global en [`src/Layout.jsx`](../src/Layout.jsx):
 - **Clases skeuomorphism:** `.skeu-card`, `.skeu-card-hover`, `.skeu-gold-btn`, `.skeu-dark-btn`,
   `.skeu-inset` — dan el relieve dorado premium.
 - **Animaciones CTA:** `.ver-detalles-cta`, `.ver-detalles-sheen` (brillo pulsante de los botones "Ver detalles").
-- **Fuente:** Inter (Google Fonts, importada en `Layout.jsx`).
+- **Fuente:** Inter (importada en `theme.css`).
+
+> Como `theme.css` entra por `main.jsx` y no por el Layout, estos tokens aplican a **todo** el
+> producto: sitio público, portal del cliente, admin secreto y las vistas por QR.
 
 ---
 

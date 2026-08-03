@@ -7,8 +7,10 @@ Los props se muestran tal como los pasa [`Home.jsx`](../src/pages/Home.jsx).
 
 | Componente | Rol | Props / notas |
 |---|---|---|
-| `Layout.jsx` (`src/`) | Envoltura global: fuentes, fondo, scrollbar dorada y tokens `.skeu-*` (CSS `<style>`) | `children`, `currentPageName` |
-| `Sidebar.jsx` | Menú lateral (desktop) + header/drawer (móvil) + toggle de sonido | `logoUrl`, `activeSection`. **Los items del menú** están en la constante `navItems` (7 secciones) |
+| `Layout.jsx` (`src/`) | Contenedor de las páginas públicas: **solo** el fondo `#0a0a0a` (10 líneas) | `children`. Los estilos globales (Inter, tokens `.skeu-*`, scrollbar) están en `src/styles/theme.css`, importado en `main.jsx` |
+| `StaggeredMenu.jsx` | **Menú real de secciones** (overlay fijo, dep. `gsap`) + `StaggeredMenu.css` | Recibe `items`; **los items viven en `MENU_ITEMS` de `src/pages/Home.jsx`** |
+| `SoundToggle.jsx` | Control de sonido del sitio (antes vivía en el Sidebar) | — |
+| `Sidebar.jsx` | **Huérfano: 0 imports.** Lo sustituyó `StaggeredMenu`; editarlo no cambia nada | — |
 | `SplashScreen.jsx` | Pantalla de carga con logo (una sola vez, al entrar) | `logoUrl`, `onFinish` |
 
 ## Secciones de la Home

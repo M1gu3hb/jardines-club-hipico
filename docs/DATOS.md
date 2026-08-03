@@ -1,7 +1,8 @@
 # Datos y contenido
 
 > Reescrito el **2026-08-03**. La versión anterior describía la etapa estática (FASE-01).
-> Hoy el contenido vive en **Supabase**; los JSON de `src/data/` son solo fallback.
+> Hoy el contenido vive en **Supabase**. **No hay copia de respaldo en runtime**: si la base no
+> responde, el sitio se renderiza vacío.
 
 ## Dónde vive el contenido
 
@@ -11,9 +12,13 @@ está en `docs/DATABASE.md`. Este documento explica cómo se **edita** ese conte
 | Capa | Qué es | ¿Se edita? |
 |---|---|---|
 | `jardines.*` en Supabase | Contenido real del sitio y de los eventos | **Sí, desde el panel admin** |
-| `src/data/site-data.json` | Snapshot de FASE-01, usado como fallback si Supabase no responde | Solo regenerándolo |
-| `src/data/resenas.json` | Fallback del bloque de Confianza | Solo regenerándolo |
-| `scripts/raw/*.json` | Fuente del snapshot de fallback | Solo si se regenera el fallback |
+| `src/data/site-data.json` | Snapshot de FASE-01. **Nadie lo importa** en `src/` ni en `api/`: solo alimenta `scripts/seed-supabase.mjs` y `scripts/montage.mjs` | Solo regenerándolo |
+| `src/data/resenas.json` | **Sí se usa en runtime:** lo importa `src/components/Confianza.jsx` | Solo editándolo |
+| `scripts/raw/*.json` | Fuente de `site-data.json` | Solo si se regenera el seed |
+
+> ⚠️ **No existe fallback estático del contenido.** La documentación anterior afirmaba que
+> `site-data.json` cubría una caída de Supabase; no es cierto y nunca se implementó. Si la base
+> no responde, las secciones que leen de ella salen vacías. Es un riesgo real y sin mitigar.
 
 ## Cómo editar contenido (lo normal)
 
@@ -22,7 +27,8 @@ está en `docs/DATABASE.md`. Este documento explica cómo se **edita** ese conte
    Alimentos o Reseñas.
 3. Guarda. Persiste en Supabase y el sitio lo refleja sin redeploy.
 
-**No** edites `src/data/site-data.json` para cambiar el sitio: solo cambiarías el fallback.
+**No** edites `src/data/site-data.json` para cambiar el sitio: no lo lee nadie en runtime, así que
+no cambiaría nada de lo que ve el visitante.
 
 ## Imágenes y videos
 
@@ -69,16 +75,16 @@ Detalles de campos que suelen confundir:
 
 Los videos del hero **ya están comprimidos**: no comprimirlos más.
 
-## Regenerar el fallback estático (avanzado, rara vez)
+## Regenerar `site-data.json` (avanzado, rara vez)
 
 ```bash
 node scripts/build-media.mjs   # scripts/raw/*.json → src/data/site-data.json + descarga medios
 npm run build
 ```
 
-Esto **no** cambia lo que ve el visitante mientras Supabase responda: solo actualiza la copia de
-respaldo. El seed original de la base se hizo con `scripts/seed-supabase.mjs` (histórico; no
-re-ejecutar a ciegas sobre datos vivos).
+Esto **no cambia nada de lo que ve el visitante**: ese JSON no se importa en runtime. Solo sirve
+para volver a sembrar la base con `scripts/seed-supabase.mjs` (histórico; no re-ejecutar a ciegas
+sobre datos vivos).
 
 ## El shim de datos
 

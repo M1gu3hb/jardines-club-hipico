@@ -104,8 +104,9 @@ GLOBAL de Supabase Auth. Lo único compartido de verdad es `auth.users` y el tri
 `on_auth_user_created`; antes de tocarlo hay que demostrar que Vero no cambia.
 
 Reglas clave:
-- El sitio es DINÁMICO. Los datos viven en el schema `jardines`. Los JSON de src/data/ son
-  solo fallback estático.
+- El sitio es DINÁMICO. Los datos viven en el schema `jardines`. NO hay fallback estático: si
+  Supabase no responde, el sitio se renderiza vacío. src/data/site-data.json no lo importa
+  nadie (solo alimenta el seed); el único JSON vivo es src/data/resenas.json.
 - El acceso a datos es SOLO el shim src/api/base44Client.js. No reintroducir Base44.
 - RLS activo en todas las tablas. `anon` no tiene INSERT/UPDATE/DELETE en ninguna: la
   escritura pública va por RPC. Al crear una tabla nueva hay que activar RLS a mano.
@@ -130,9 +131,9 @@ Al terminar, actualiza la documentación viva y el CHANGELOG, y cierra con el bl
 
 ```
 El contenido del sitio se edita DESDE EL PANEL ADMIN (persiste en Supabase, schema `jardines`).
-No edites src/data/*.json: son fallback estático.
+No edites src/data/site-data.json: no lo lee nadie en runtime, así que no cambiaría nada.
 
-Solo si necesitas regenerar el fallback: edita scripts/raw/<archivo>.json, corre
+Solo si necesitas regenerar la entrada del seed: edita scripts/raw/<archivo>.json, corre
 `node scripts/build-media.mjs` y luego `npm run build`. Si agregas una imagen propia, ponla en
 public/media/img/ y usa la ruta /media/img/<archivo>.
 ```

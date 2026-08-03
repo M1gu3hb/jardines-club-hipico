@@ -44,8 +44,10 @@
 | Archivo | Qué hace | Riesgo |
 |---|---|---|
 | `App.jsx` | Router. Filtra `Admin` de las páginas públicas: **`/Admin` es 404**; el panel vive en `/${ADMIN_SLUG}` tras `RequireAdmin`. | **Alto** |
-| `Layout.jsx` | Estilos globales, tokens `.skeu-*`, dorado `#C9A84C`, fondo `#0a0a0a`. | Medio |
-| `main.jsx`, `pages.config.js` | Montaje y registro de páginas (auto-generado). | Bajo |
+| `styles/theme.css` | **Los estilos globales reales**: fuente Inter, tokens `.skeu-*`, scrollbar dorada, dorado `#C9A84C`. Importado en `main.jsx`, así que aplica **también** al portal, al admin y a `/acceso`, que no pasan por `Layout`. | **Alto** — tocar aquí cambia el aspecto de todo el producto |
+| `Layout.jsx` | **Solo 10 líneas:** contenedor de las páginas públicas con el fondo `#0a0a0a`. No contiene estilos globales. | Bajo |
+| `main.jsx` | Monta `<App/>` e **importa `@/styles/theme.css`**. | Medio |
+| `pages.config.js` | Registro de páginas (auto-generado). | Bajo |
 | `config/portal.js` | `ADMIN_SLUG`, `CLIENTE_EMAIL_DOMINIO`, `usuarioAEmail()`, link de reseña. | Alto |
 | `components/auth/RequireAdmin.jsx` | Guard del panel. | **Alto** |
 | `pages/Home.jsx` | Orquesta las secciones públicas, modales y scroll-spy. | Alto |
@@ -58,12 +60,15 @@
 `ScrollAnimationCaptions` + `ScrollHint`, `ServiciosAmenidades` + `ServiceAmenityCard` +
 `BarraDulces`, `ComoFunciona`, `CtaCotizacion`, `GaleriaSection` + `MediaViewer` (exporta
 `isVideo`), `FaqSection`, `ContactoSection`, `NoIncluyeSection`, `ProximamenteModal` /
-`ProximamenteCartel`, `SplashScreen`, `StaggeredMenu`, `Sidebar`, `SoundToggle`,
-`soundSystem`, `AnimatedItem`, `MediaCarrusel`, `ItemImageOverlay`.
+`ProximamenteCartel`, `SplashScreen`, `StaggeredMenu` (+ `StaggeredMenu.css` — **el menú real**;
+sus items vienen de `MENU_ITEMS` en `Home.jsx`), `SoundToggle`, `soundSystem`, `AnimatedItem`,
+`MediaCarrusel`, `ItemImageOverlay`.
 
 - **`FormularioModal.jsx`** — riesgo **alto**: es el flujo de conversión. Tiene
   `ERRORES_VALIDACION` + `mensajeDeError()`, y **nunca muestra éxito sin folio del servidor**.
-- `HeroTrustBar.jsx`, `FormularioSection.jsx` — huérfanos, no montados.
+- `Sidebar.jsx`, `HeroTrustBar.jsx`, `FormularioSection.jsx` — **huérfanos (0 imports)**, no
+  montados. `Sidebar` fue el menú lateral hasta que lo sustituyó `StaggeredMenu`; editarlo hoy
+  no cambia nada.
 - `components/ui/*` — primitivas shadcn/ui. No tocar salvo rediseño.
 
 ## `src/components/admin/` — panel
@@ -117,16 +122,20 @@ scroll, D8). `hooks/useBackButtonClose.js`, `hooks/use-mobile.jsx`.
 | Archivo | Qué hace |
 |---|---|
 | `test-contratos-api.mjs` | **71 contratos estáticos** frontend ↔ `api/`. Sin red ni credenciales; corre en CI |
-| `build-media.mjs` | Genera el **fallback** `src/data/site-data.json` desde `raw/*.json` y descarga medios |
+| `build-media.mjs` | Genera `src/data/site-data.json` (entrada del seed) desde `raw/*.json` y descarga medios |
 | `seed-supabase.mjs` | Seed inicial de la base (histórico, no re-ejecutar a ciegas) |
-| `raw/*.json` | Fuente del fallback estático. **Ya no es la fuente de verdad del sitio** |
+| `raw/*.json` | Fuente de `site-data.json`. **Ya no es la fuente de verdad del sitio** |
 | `seed/` | Datos del seed |
 | `reorder-galeria.mjs`, `gen-images.mjs`, `montage.mjs` | Utilitarios históricos |
 
-## `src/data/` — fallback estático
+## `src/data/`
 
-`site-data.json` y `resenas.json`. **Ya no son la verdad**: existen por si Supabase no responde.
-Para cambiar contenido se usa el panel admin.
+| Archivo | Qué hace | Riesgo |
+|---|---|---|
+| `resenas.json` | **El único JSON vivo:** lo importa `src/components/Confianza.jsx`. | Bajo |
+| `site-data.json` | **No lo importa nadie** en `src/` ni en `api/`. Solo es entrada de `scripts/seed-supabase.mjs` y `scripts/montage.mjs`. | Bajo — pero **no es un fallback**: si Supabase cae, el sitio se renderiza vacío |
+
+Para cambiar contenido se usa el panel admin, no estos archivos.
 
 ## `public/media/`
 
