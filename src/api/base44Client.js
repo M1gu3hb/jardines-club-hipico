@@ -22,6 +22,7 @@ const TABLES = {
   ServicioExtra: "servicios_extra",
   AlimentoMenu: "alimentos",
   SolicitudEvento: "solicitudes",
+  OperativoPersonal: "operativo_personal",
   ResenasConfig: "resenas_config",
   Resena: "resenas",
   Evento: "eventos",
@@ -209,6 +210,59 @@ const functions = {
 };
 
 // Storage genérico (para el bucket privado `clientes` de documentos del evento).
+/**
+ * Asignaciones persona ↔ evento del módulo operativo.
+ *
+ * Va aparte de `entities` porque `jardines.operativo_asignacion` tiene **clave
+ * primaria compuesta** `(personal_id, evento_id)` y **no tiene columna `id`**,
+ * mientras que `makeEntity` asume `id` en `create`, `update` y `delete`. Es
+ * aditivo: no cambia ninguna firma existente del shim.
+ *
+ * Revocar es poner `revocada_at`, **nunca** `DELETE`: la tabla conserva historial
+ * y `operativo_eventos_permitidos()` filtra por `revocada_at is null`.
+ */
+const asignaciones = {
+  /** Asignaciones vigentes (o todas, con `incluirRevocadas`). */
+  async listar({ incluirRevocadas = false } = {}) {
+    let q = supabase.from("operativo_asignacion").select("*");
+    if (!incluirRevocadas) q = q.is("revocada_at", null);
+    const { data, error } = await q;
+    if (error) { console.error("[shim] asignaciones.listar", error.message); throw error; }
+    return (data || []).map(rowToObj);
+  },
+
+  /**
+   * Asigna a una persona a un evento. Idempotente: si la fila ya existe —
+   * porque se asignó y luego se revocó— se reactiva poniendo `revocada_at` a
+   * null, en vez de chocar con la PK compuesta.
+   */
+  async asignar(personalId, eventoId) {
+    const { error } = await supabase
+      .from("operativo_asignacion")
+      .insert({ personal_id: personalId, evento_id: eventoId });
+    if (error) {
+      const yaExiste = /duplicate key|operativo_asignacion_pkey|23505/i.test(error.message || "");
+      if (!yaExiste) { console.error("[shim] asignar", error.message); throw error; }
+      const { error: errUpd } = await supabase
+        .from("operativo_asignacion")
+        .update({ revocada_at: null })
+        .eq("personal_id", personalId).eq("evento_id", eventoId);
+      if (errUpd) { console.error("[shim] reactivar asignacion", errUpd.message); throw errUpd; }
+    }
+    return { success: true };
+  },
+
+  /** Revoca (marca `revocada_at`). No borra la fila. */
+  async revocar(personalId, eventoId) {
+    const { error } = await supabase
+      .from("operativo_asignacion")
+      .update({ revocada_at: new Date().toISOString() })
+      .eq("personal_id", personalId).eq("evento_id", eventoId);
+    if (error) { console.error("[shim] revocar asignacion", error.message); throw error; }
+    return { success: true };
+  },
+};
+
 const storage = {
   async upload(bucket, file, folder = "") {
     const ext = (file.name.split(".").pop() || "bin").toLowerCase();
@@ -290,5 +344,5 @@ async function rpc(name, params = {}) {
   return data;
 }
 
-export const base44 = { entities, functions, integrations, storage, auth, rpc };
+export const base44 = { entities, functions, integrations, storage, asignaciones, auth, rpc };
 export default base44;

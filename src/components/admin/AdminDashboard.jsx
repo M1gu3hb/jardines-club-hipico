@@ -1,7 +1,8 @@
 import { useState } from "react";
-import { Settings, Image, Building2, LayoutGrid, Inbox, LogOut, Menu, X, Sparkles, ListChecks, Star, UtensilsCrossed, CalendarDays, Gauge, ShieldCheck } from "lucide-react";
+import { Settings, Image, Building2, LayoutGrid, Inbox, LogOut, Menu, X, Sparkles, ListChecks, Star, UtensilsCrossed, CalendarDays, Gauge, ShieldCheck, Users } from "lucide-react";
 import AdminInicio from "@/components/admin/AdminInicio";
 import AdminAdministradores from "@/components/admin/AdminAdministradores";
+import AdminOperativo from "@/components/admin/AdminOperativo";
 import AdminEventos from "@/components/admin/eventos/AdminEventos";
 import AdminConfig from "@/components/admin/AdminConfig";
 import AdminSalones from "@/components/admin/AdminSalones";
@@ -21,6 +22,7 @@ const GRUPOS = [
       { id: "eventos", label: "Eventos", icon: CalendarDays },
       { id: "solicitudes", label: "Solicitudes", icon: Inbox },
       { id: "resenas", label: "Reseñas", icon: Star },
+      { id: "operativo", label: "Personal del evento", icon: Users },
       { id: "administradores", label: "Administradores", icon: ShieldCheck },
     ],
   },
@@ -98,6 +100,7 @@ export default function AdminDashboard({ onLogout }) {
         <div className="p-6 md:p-8 max-w-4xl mx-auto">
           {active === "resumen" && <AdminInicio onIr={setActive} />}
           {active === "eventos" && <AdminEventos />}
+          {active === "operativo" && <AdminOperativo />}
           {active === "administradores" && <AdminAdministradores />}
           {active === "config" && <AdminConfig />}
           {active === "salones" && <AdminSalones />}

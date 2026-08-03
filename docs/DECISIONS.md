@@ -140,6 +140,31 @@ Registro de decisiones técnicas y de producto (formato: decisión · razón · 
   un mensaje explícito si la base no la aceptó. Queda abierto como **B9** para extender el patrón
   —o arreglar el shim— después de la validación.
 
+### D-COD-11 — La pantalla de asignación bloquea apagar `acceso_global` sin asignaciones
+- **Razón:** `operativo_eventos_permitidos()` resuelve con un **OR** (asignación vigente **o**
+  `acceso_global`), así que asignar es aditivo y seguro, pero **apagar `acceso_global` a alguien
+  con 0 asignaciones lo deja en 0 eventos al instante** — fail-closed desde `sec_14`. Hoy los 3
+  operativos tienen `acceso_global = true` y **0 asignaciones**: un toggle ingenuo dejaría al
+  personal sin acceso en pleno evento.
+- **Consecuencia:** `AdminOperativo` muestra el **estado efectivo** de cada persona con la misma
+  lógica del OR, y **bloquea** apagar el acceso global mientras no haya al menos una asignación
+  vigente, explicando por qué. Revocar una asignación sí se permite —es deliberado sobre esa
+  persona— pero **avisa** si la deja en 0. Revocar es `revocada_at`, nunca `DELETE`.
+- **Abrir la pantalla no cambia el estado de nadie:** solo lee.
+- **Archivos:** `src/components/admin/AdminOperativo.jsx`, `src/components/admin/AdminDashboard.jsx`.
+
+### D-COD-12 — Las asignaciones van por un módulo aparte del shim, no por `entities`
+- **Razón:** `jardines.operativo_asignacion` tiene **PK compuesta `(personal_id, evento_id)` y no
+  tiene columna `id`**, mientras que `makeEntity` asume `id` en `create`, `update` y `delete`.
+  Pasarla por `entities` habría fallado en runtime.
+- **Alternativa descartada:** añadirle un `id` por migración. No hace falta —el problema es del
+  shim, no del modelo— y habría tocado una tabla del módulo operativo sin necesidad.
+- **Consecuencia:** `base44.asignaciones.listar/asignar/revocar`, aditivo, sin cambiar ninguna
+  firma existente. `asignar` es **idempotente**: si la fila existe porque se revocó antes, el
+  INSERT choca con la PK y se reactiva poniendo `revocada_at = null`, en vez de fallar.
+  Verificado contra producción el ciclo asignar → revocar → reasignar.
+- **Archivos:** `src/api/base44Client.js`.
+
 ## 2026-08-03 — Documentación
 
 ### D-DOC-1 — Reescribir los cuerpos obsoletos en vez de dejar banners encima
