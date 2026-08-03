@@ -59,9 +59,12 @@ export default function AdminOperativo() {
   const cargar = useCallback(async () => {
     setCargando(true); setError("");
     try {
+      // `filterEstricto`, no `filter`: con `filter` un fallo de RLS o de red se
+      // presentaba como "No hay personal operativo dado de alta" — vacío
+      // indistinguible de fallo, en la pantalla que decide quién puede trabajar.
       const [p, e, a] = await Promise.all([
-        base44.entities.OperativoPersonal.list(),
-        base44.entities.Evento.filter({ operativoActivo: true }),
+        base44.entities.OperativoPersonal.filterEstricto(null),
+        base44.entities.Evento.filterEstricto({ operativoActivo: true }),
         base44.asignaciones.listar(),
       ]);
       setPersonal(p); setEventos(e); setAsigs(a);
@@ -73,7 +76,19 @@ export default function AdminOperativo() {
   }, []);
   useEffect(() => { cargar(); }, [cargar]);
 
-  const vigentesDe = (personalId) => asigs.filter((a) => a.personalId === personalId);
+  // El OR de `sec_14` exige `e.operativo_activo = true` ANTES del OR, así que una
+  // asignación vigente a un evento inactivo **no da acceso a nada**. Contarlas
+  // rompía las tres cosas que esta pantalla existe para hacer: el bloqueo se
+  // saltaba, el "estado efectivo" nunca podía decir "sin acceso", y el aviso al
+  // revocar no disparaba. Nada en `src/` ni en `api/` escribe `operativo_activo`
+  // (se apaga a mano al terminar el evento) y las asignaciones no se revocan
+  // solas, así que el caso se produce solo en cuanto se cierra el primer evento.
+  const idsActivos = new Set(eventos.map((e) => e.id));
+  const vigentesDe = (personalId) =>
+    asigs.filter((a) => a.personalId === personalId && idsActivos.has(a.eventoId));
+  /** Vigentes pero a eventos ya inactivos: no dan acceso, y son invisibles si no se listan. */
+  const inertesDe = (personalId) =>
+    asigs.filter((a) => a.personalId === personalId && !idsActivos.has(a.eventoId));
   const tieneAsignado = (personalId, eventoId) =>
     asigs.some((a) => a.personalId === personalId && a.eventoId === eventoId);
 
@@ -94,17 +109,22 @@ export default function AdminOperativo() {
       }
       // Releer: el shim no distingue "0 filas por RLS" de éxito.
       const frescas = await base44.asignaciones.listar();
-      setAsigs(frescas);
       const ahora = frescas.some((a) => a.personalId === persona.id && a.eventoId === evento.id);
       if (ahora === asignado) {
         setError("La base no aceptó el cambio (¿permisos?). Nada se modificó.");
+        return;                       // no se pisa el estado con algo no confirmado
       }
+      setAsigs(frescas);
     } catch (err) {
       setError(err?.message || "No se pudo cambiar la asignación.");
     } finally {
       setOcupado("");
     }
   };
+
+  /** ¿Hay alguna operación en vuelo para esta persona? (chip o botón global) */
+  const ocupadaPersona = (personalId) =>
+    ocupado === `g:${personalId}` || ocupado.startsWith(`${personalId}:`);
 
   const alternarGlobal = async (persona) => {
     const vigentes = vigentesDe(persona.id).length;
@@ -120,12 +140,16 @@ export default function AdminOperativo() {
     try {
       const nuevo = !persona.accesoGlobal;
       await base44.entities.OperativoPersonal.update(persona.id, { accesoGlobal: nuevo });
-      const frescas = await base44.entities.OperativoPersonal.list();
-      setPersonal(frescas);
+      // Estricto y ANTES de tocar el estado: si la relectura fallara con `list`,
+      // `frescas` sería `[]` y la lista entera desaparecería de la pantalla.
+      const frescas = await base44.entities.OperativoPersonal.filterEstricto(null);
       const guardada = frescas.find((x) => x.id === persona.id);
       if (!guardada || guardada.accesoGlobal !== nuevo) {
         setError("La base no aceptó el cambio (¿permisos?). Nada se modificó.");
-      } else if (!nuevo) {
+        return;
+      }
+      setPersonal(frescas);
+      if (!nuevo) {
         setAviso(`${persona.nombre} pasa a ver solo sus ${vigentes} evento${vigentes === 1 ? "" : "s"} asignado${vigentes === 1 ? "" : "s"}.`);
       }
     } catch (err) {
@@ -158,7 +182,12 @@ export default function AdminOperativo() {
 
       {eventos.length === 0 && (
         <p className="text-white/30 text-xs">
-          No hay eventos con el operativo activo. Actívalo en la ficha del evento para poder asignar personal.
+          No hay eventos con el operativo activo, así que no hay nada que asignar.
+          <br />
+          <span className="text-white/20">
+            El interruptor <code>operativo_activo</code> todavía no se maneja desde el panel: hoy se
+            enciende y se apaga directamente en la base (Supabase Studio o SQL).
+          </span>
         </p>
       )}
 
@@ -182,7 +211,10 @@ export default function AdminOperativo() {
               </div>
               <button
                 onClick={() => alternarGlobal(p)}
-                disabled={ocupado === `g:${p.id}` || !p.activo}
+                // Bloqueado también mientras hay una revocación de chip en vuelo:
+                // si no, revocar la última asignación y pulsar "Acceso a todos"
+                // antes de que termine saltaba el guard con datos viejos.
+                disabled={ocupadaPersona(p.id) || !p.activo}
                 title={bloqueado
                   ? "Asígnale al menos un evento antes de quitarle el acceso a todos"
                   : "Acceso a todos los eventos activos"}
@@ -201,6 +233,35 @@ export default function AdminOperativo() {
               <p className="text-white/25 text-[11px]">
                 Para pasarlo a "solo asignados", primero asígnale al menos un evento: si no, se quedaría sin acceso.
               </p>
+            )}
+
+            {/* Asignaciones a eventos ya inactivos. NO dan acceso (el OR de la
+                base exige el evento activo), y si no se listaran serían
+                invisibles e irrevocables desde aquí, porque los chips de arriba
+                solo se pintan para eventos activos. */}
+            {inertesDe(p.id).length > 0 && (
+              <div className="pt-1 space-y-1.5">
+                <p className="text-white/25 text-[11px]">
+                  Asignaciones a eventos ya cerrados — <strong>no dan acceso</strong>:
+                </p>
+                <div className="flex flex-wrap gap-2">
+                  {inertesDe(p.id).map((a) => {
+                    const busy = ocupado === `${p.id}:${a.eventoId}`;
+                    return (
+                      <button
+                        key={a.eventoId}
+                        onClick={() => alternarAsignacion(p, { id: a.eventoId, nombreEvento: "evento cerrado" })}
+                        disabled={busy}
+                        title="Revocar esta asignación"
+                        className="text-[11px] px-2.5 py-1 rounded-full border border-white/10 text-white/25 hover:text-red-400/80 hover:border-red-400/30 transition-all flex items-center gap-1.5 disabled:opacity-40"
+                      >
+                        {busy ? <Loader2 size={9} className="animate-spin" /> : null}
+                        evento cerrado · revocar
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
             )}
 
             {eventos.length > 0 && (

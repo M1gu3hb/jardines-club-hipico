@@ -6,8 +6,9 @@
 > las órdenes de trabajo de código— y colisionaban: un mismo reporte decía "cerrado B3" y
 > "abierto B3" refiriéndose a cosas distintas. Desde aquí:
 >
-> - **`J-##`** = bug abierto de este archivo. Numeración correlativa, sin huecos, ordenada por
->   prioridad. **No se reutiliza un número liberado.**
+> - **`J-##`** = bug abierto de este archivo. El número se asigna **en orden de detección** y
+>   **no se reutiliza** aunque el bug se cierre; la **lista va ordenada por prioridad**, así que
+>   los números no salen correlativos y eso es correcto, no un hueco.
 > - Los identificadores de las órdenes de trabajo (`S1`, `B1`, `L5`…) son de esos documentos y
 >   **no** se usan aquí: cuando algo de ahí queda abierto, entra con su `J-##`.
 >
@@ -15,7 +16,7 @@
 
 ## Estado general
 
-**No hay bugs críticos abiertos.** Quedan cinco pendientes —dos medios, tres bajos—, riesgos
+**No hay bugs críticos abiertos.** Quedan siete pendientes —tres medios, cuatro bajos—, riesgos
 residuales aceptados, y lo que depende de terceros.
 
 ---
@@ -44,6 +45,31 @@ residuales aceptados, y lo que depende de terceros.
   confiar en el shim. Ese es el patrón a extender al resto.
 - **Archivos:** `src/api/base44Client.js` (y todos los llamadores).
 - **Prioridad:** media. **Estado:** abierto.
+
+### J-06 — El guardarraíl del operativo es solo de cliente
+- **Impacto:** medio. `AdminOperativo` **bloquea** apagar `acceso_global` a quien tenga 0
+  asignaciones vigentes a eventos activos, pero eso vive **en el navegador**. Cualquier admin
+  puede poner `acceso_global = false` desde Supabase Studio o por SQL y dejar a esa persona en
+  0 eventos, sin aviso ninguno.
+- **Causa:** la invariante "nadie con 0 eventos efectivos" **no está garantizada en la base**.
+  `sec_14` es fail-closed a propósito —que es lo correcto— pero no hay constraint ni trigger que
+  impida el estado sin salida.
+- **Por qué está así:** es coherente con el alcance que se fijó (la fase era frontend sobre lo
+  que existe, sin tocar `operativo_eventos_permitidos` ni policies). Garantizarlo en la base
+  exigiría un trigger sobre `operativo_personal`, y eso es una decisión de producto: quizá haya
+  casos legítimos de dejar a alguien sin acceso a propósito (una baja, por ejemplo).
+- **Archivos:** `src/components/admin/AdminOperativo.jsx`; la garantía faltaría en `jardines`.
+- **Prioridad:** media. **Estado:** abierto, documentado a propósito.
+
+### J-07 — `operativo_activo` no se maneja desde el panel
+- **Impacto:** bajo, pero es la causa de que existan asignaciones inertes. Nada en `src/` ni en
+  `api/` **escribe** `operativo_activo`: la única aparición es el filtro de lectura de
+  `AdminOperativo`. Se enciende y se apaga a mano en la base.
+- **Consecuencia:** al cerrar un evento, sus asignaciones quedan vigentes pero **dejan de dar
+  acceso** (el OR de `sec_14` exige el evento activo). La pantalla ya las cuenta aparte y permite
+  revocarlas, pero el ciclo completo sigue siendo manual.
+- **Archivos:** faltaría un control en `src/components/admin/eventos/`.
+- **Prioridad:** baja. **Estado:** abierto.
 
 ### J-03 — No hay fallback si Supabase no responde
 - **Impacto:** alto si ocurre. Todas las secciones que leen de la base (espacios, galería,
