@@ -1,5 +1,68 @@
 # CHANGELOG.md
 
+## 2026-08-03 (d) — Bloque 3: código (fases 3A–3D; **3E no hecha**)
+
+### Cambios realizados
+
+**3A — 12 hallazgos de código.**
+- **S1 (P0).** El token de `/invitacion/:token` se generaba con
+  `crypto.randomUUID ? … : "inv-" + Date.now() + Math.random()`. Ese token **es** la credencial y
+  se guarda en claro: en la rama de fallback era adivinable. Se extrae el generador bueno de
+  `EventoMeseros` a `src/lib/tokenSeguro.js` (256 bits de `crypto.getRandomValues`) y lo importan
+  ambos. **Sin fallback:** si no hay WebCrypto lanza con mensaje al usuario.
+- **B1.** `AdminSolicitudes` leía `s.created_date`, que el shim nunca produce (convierte
+  `created_at` → `createdAt`): el fallback era código muerto y toda solicitud sin `fecha_envio`
+  mostraba `—` para siempre. El `list("-created_date")` **no** se tocó: ese sí lo traduce el shim.
+- **B3.** `guard.js` no tenía entrada `503`, así que el 503 de `canjear-acceso` llegaba como
+  "Error" a secas justo cuando el cliente estrena su enlace y el fallo es transitorio.
+- **B4.** `anticipoPagado` era un latch de un solo sentido. Ahora se deriva del monto.
+- **L1/L2/L4/L5.** Borrados 4 huérfanos y `cajaCredenciales()`; el JSON-LD apunta a la copia
+  auto-hospedada e `i.imgur.com` sale de la CSP; las 5 rutas cortan igual en `duplicado`.
+
+**3B — menú.** `#como-funciona` y `#faq` existían en el DOM pero no en `MENU_ITEMS` ni en
+`SECTIONS`: eran secciones de conversión inalcanzables y el indicador de sección activa se
+quedaba pegado. Añadidas en el orden real del `<main>`.
+
+**3C — `sec_23`.** Retiradas `info_mesa_publica`, `api_idempotencia` y `canjear_acceso_unico`.
+Y `seguridad.sql` pasa a probar las **vigentes**: hasta ahora probaba las superadas, así que la
+idempotencia recuperable y el canje en dos fases solo tenían cobertura textual (cierra B6).
+
+**3D — plano por salón.** `SalonPlanoUpload` en `AdminSalones`, al bucket `planos`. Sin
+migración: las policies ya existían. Añadido `storage.publicUrl` al shim (aditivo).
+
+**Efecto lateral de 3D:** la línea base de `typecheck` baja de **155 a 59** al tipar el Proxy
+`entities` (anotación JSDoc, cero runtime). El umbral castigaba escribir código correcto: cada
+componente nuevo que usara el shim sumaba errores.
+
+### Archivos modificados
+Código: `src/lib/tokenSeguro.js` (nuevo), `src/components/admin/SalonPlanoUpload.jsx` (nuevo),
+`src/components/portal/PortalInvitacion.jsx`, `src/components/meseros/EventoMeseros.jsx`,
+`src/components/admin/AdminSolicitudes.jsx`, `src/components/admin/AdminSalones.jsx`,
+`src/components/admin/eventos/EventoDatos.jsx`, `src/pages/Home.jsx`, `src/api/base44Client.js`,
+`api/_lib/guard.js`, `api/_lib/correo.js`, `api/crear-admin.js`, `api/crear-usuario-evento.js`,
+`index.html`, `vercel.json`. Borrados: `Sidebar.jsx`, `HeroTrustBar.jsx`,
+`FormularioSection.jsx`, `ItemImageOverlay.jsx`.
+SQL: `supabase/migrations/…_sec_23_…sql` (nueva), `supabase/tests/seguridad.sql`.
+Docs: `CLAUDE.md`, `README.md`, `PROJECT_CONTEXT.md` y todo `docs/`.
+
+### Entidades/BD afectadas
+`sec_23` retira 3 funciones de `jardines`. Funciones de `jardines` 44 → 41; **`public` (Vero)
+4 → 4, sin cambios**. Ninguna tabla, columna, policy ni grant modificados.
+
+### Bugs resueltos
+S1, B1, B3, B4 (código); B6 (suite probaba las RPC superadas); B7 (imgur en el JSON-LD).
+
+### Bugs nuevos
+Ninguno. B3 (**UI de asignación de personal**) sigue abierto: era la fase 3E, no hecha.
+
+### Decisiones tomadas
+D-COD-1 … D-COD-6 (ver `docs/DECISIONS.md`). **D-COD-2 queda como decisión pendiente:** los
+tokens de invitación y de mesa siguen guardándose en claro.
+
+### Próximo paso
+Validación humana autenticada de los 5 flujos. Después, la fase 3E.
+
+
 ## 2026-08-03 (c) — Inventario de grants por nivel + hallazgos deferidos
 
 ### Cambios realizados

@@ -16,7 +16,16 @@
 
 ## Importante
 
-2. **Interfaz para asignar personal a eventos.** Hoy los 3 operativos tienen
+2. **Interfaz para asignar personal a eventos** (fase 3E, **no hecha** — se paró por margen
+   antes de la validación de los 5 flujos). Antes de construirla, leer esto:
+   `jardines_private.operativo_eventos_permitidos()` resuelve con un **OR**: asignación vigente
+   **o** `acceso_global`. Por eso **crear** asignaciones es aditivo y seguro — no restringe a
+   nadie. El peligro es el inverso: **apagar `acceso_global` a alguien sin asignaciones lo deja
+   en 0 eventos**, porque el sistema es fail-closed desde `sec_14`. La pantalla debe mostrar el
+   estado efectivo de cada persona y bloquear o advertir ese caso. Revocar es `revocada_at`, no
+   `DELETE`.
+
+   Contexto original: Hoy los 3 operativos tienen
    `acceso_global = true` porque la plantilla es fija y el salón opera un evento a la vez. Si
    algún día hay dos eventos simultáneos con equipos distintos, hace falta una pantalla para
    `jardines.operativo_asignacion` — la tabla y las políticas ya existen (`sec_14`, `sec_18`).
