@@ -1443,15 +1443,30 @@ for (const ruta of [
       // hacía fallar el contrato por un simple renombrado —una mutación inocua que la primera
       // versión de este contrato no superó—, y un contrato que castiga cambios inocuos acaba
       // borrado por ruidoso.
-      const def = entre(bloque, "const debil =", ";");
-      const nombreLista = (def.match(/(\w+)\.some\(/) || [])[1];
-      const lista = nombreLista ? entre(bloque, `const ${nombreLista} = [`, "];") : "";
-      const literales = [...`${lista}\n${def}`.matchAll(/\/((?:[^/\\\n]|\\.)+)\/[a-z]*/g)].map((m) => m[1]);
-      const sueltos = literales.filter((r) => !/\s|\.\*/.test(r));
+      //
+      // Se aplica a LAS DOS clasificaciones del bloque, no solo a la de la contraseña: en 0.b se
+      // encontró que `duplicado` seguía adivinando desde una subcadena justo encima de lo que
+      // G4 había arreglado. Una regla que solo cubre el caso que la motivó vuelve a fallar en el
+      // de al lado.
+      const sueltos = [];
+      let conCodigo = 0;
+      for (const señal of ["debil", "duplicado"]) {
+        const def = entre(bloque, `const ${señal} =`, ";");
+        const nombreLista = (def.match(/(\w+)\.some\(/) || [])[1];
+        const lista = nombreLista ? entre(bloque, `const ${nombreLista} = [`, "];") : "";
+        const literales = [...`${lista}\n${def}`.matchAll(/\/((?:[^/\\\n]|\\.)+)\/[a-z]*/g)].map((m) => m[1]);
+        // Que CONSULTE el código, no cómo lo compare: `codigo === "x"`, un `includes` sobre una
+        // lista o un `Set` son la misma propiedad. Exigir la forma es el defecto de N1 otra vez
+        // —lo cazó una mutación inocua con `["email_exists", …].includes(codigo)`—.
+        if (/\bcodigo\b/.test(def)) conCodigo++;
+        sueltos.push(...literales.filter((r) => !/\s|\.\*/.test(r)).map((r) => `${señal}: /${r}/`));
+      }
       check(
-        "credenciales: el rechazo de Auth se clasifica por código o por frase, nunca por una palabra suelta",
-        /codigo === "weak_password"/.test(bloque) && literales.length > 0 && sueltos.length === 0,
-        sueltos.length ? `patrones que casan por una palabra suelta: ${sueltos.map((r) => `/${r}/`).join(", ")}` : "",
+        "credenciales: los errores de Auth se clasifican por código o por frase, nunca por una palabra suelta",
+        conCodigo === 2 && sueltos.length === 0,
+        sueltos.length
+          ? `patrones que casan por una palabra suelta: ${sueltos.join(", ")}`
+          : conCodigo === 2 ? "" : `solo ${conCodigo}/2 clasificaciones miran el código de error`,
       );
       // Al estrechar la clasificación, más fallos caen en el "no se pudo" opaco. El código de
       // Auth tiene que quedar auditado SIEMPRE o la causa se pierde del todo.
@@ -1873,9 +1888,10 @@ for (const ruta of [
   {
     /**
      * @param {string} archivo  componente con el desplegable de salón
-     * @param {string} aviso    trozo del texto del aviso de "no sale ninguno"
+     * @param {string} aviso    trozo del texto del aviso cuya condición se examina
+     * @param {"vacio"|"lleno"} exige  qué tiene que estar pasando para que se pueda pintar
      */
-    const avisoAtadoAlDesplegable = (archivo, aviso) => {
+    const avisoAtadoAlDesplegable = (archivo, aviso, exige = "vacio") => {
       // `leerCodigo`: los comentarios de estos dos archivos explican justamente la regresión y
       // citan `salones.length`, así que con comentarios el contrato se aprobaría a sí mismo.
       const bloque = entre(leerCodigo(archivo), ">Salón</label>", "</select>");
@@ -1893,34 +1909,46 @@ for (const ruta of [
       const j = antes.lastIndexOf("&& (");
       const cond = j < 0 ? "" : antes.slice(antes.lastIndexOf("{", j), j);
 
-      // 3) Tiene que exigir que ese array esté VACÍO. Y sin `||`: un
-      //    `salones.length === 0 || salonesIlegibles` volvería a permitir pintarlo con opciones.
-      const ok = new RegExp(`${arr}\\.length\\s*===\\s*0`).test(cond) && !cond.includes("||");
-      return { ok, detalle: ok ? "" : `${archivo}: condición del aviso = «${cond.trim()}» (array del desplegable: ${arr})` };
+      // 3) Tiene que exigir que ese array esté VACÍO, y no poder ser cierta por otra vía.
+      //
+      //    CORREGIDO EN N1 (fase 0.a). La primera versión exigía el literal
+      //    `salones\.length\s*===\s*0`, así que `(salones || []).length === 0` —mismo
+      //    comportamiento y estrictamente más seguro— hacía FALLAR el contrato. Y no era
+      //    hipotético: en `EventoDatos` los otros dos props tienen valor por defecto y `salones`
+      //    no, así que la edición defensiva natural sobre ese archivo era justo la prohibida.
+      //    Un contrato que castiga un cambio inocuo acaba borrado por ruidoso, y con él se va
+      //    la propiedad.
+      //
+      //    Lo que importa no es cómo esté escrito, sino que (i) la condición dependa de la
+      //    LONGITUD del array del desplegable y (ii) no haya una disyunción que la haga cierta
+      //    con opciones delante. El `|| []` defensivo no es una disyunción de la guarda: es un
+      //    valor por defecto del propio array, así que se normaliza antes de mirar los `||`.
+      const limpio = cond.replace(new RegExp(`\\(\\s*${arr}\\s*\\|\\|\\s*\\[\\s*\\]\\s*\\)`, "g"), arr);
+      const dependeDeLaLongitud = exige === "vacio"
+        ? new RegExp(`(!\\s*${arr}\\??\\.length\\b)|(${arr}\\??\\.length\\s*(===?\\s*0|<\\s*1))`).test(limpio)
+        : new RegExp(`(${arr}\\??\\.length\\s*(>\\s*0|>=\\s*1|!==?\\s*0))|([^!\\w]${arr}\\??\\.length\\b\\s*&&)`).test(limpio);
+      const sinDisyuncion = !limpio.includes("||");
+      const ok = dependeDeLaLongitud && sinDisyuncion;
+      return {
+        ok,
+        detalle: ok ? "" : `${archivo}: condición del aviso = «${cond.trim()}»`
+          + ` (array del desplegable: ${arr}${dependeDeLaLongitud ? "" : `; no depende de que ${arr} esté ${exige}`}`
+          + `${sinDisyuncion ? "" : "; tiene una disyunción `||` que puede ser cierta en el estado contrario"})`,
+      };
     };
 
-    for (const [archivo, aviso] of [
-      ["src/components/admin/eventos/AdminEventos.jsx", "aquí no sale ninguno"],
-      ["src/components/admin/eventos/EventoDatos.jsx", "aquí no sale ninguno"],
+    // El aviso de "no sale ninguno" y el de "puede estar desactualizada" son la misma propiedad
+    // en las dos direcciones: cada uno habla de un estado del desplegable y no puede pintarse en
+    // el otro. El segundo NO es simetría gratuita — "esta lista puede estar desactualizada" con
+    // el desplegable vacío son dos avisos que se contradicen en el mismo hueco.
+    for (const [archivo, aviso, exige, etiqueta] of [
+      ["src/components/admin/eventos/AdminEventos.jsx", "aquí no sale ninguno", "vacio", "«no sale ninguno» no se pinta con el desplegable lleno"],
+      ["src/components/admin/eventos/EventoDatos.jsx", "aquí no sale ninguno", "vacio", "«no sale ninguno» no se pinta con el desplegable lleno"],
+      ["src/components/admin/eventos/AdminEventos.jsx", "puede estar desactualizada", "lleno", "«puede estar desactualizada» solo con opciones delante"],
+      ["src/components/admin/eventos/EventoDatos.jsx", "puede estar desactualizada", "lleno", "«puede estar desactualizada» solo con opciones delante"],
     ]) {
-      const r = avisoAtadoAlDesplegable(archivo, aviso);
-      check(`9F-1: «no sale ninguno» no se puede pintar con el desplegable lleno (${archivo.split("/").pop()})`, r.ok, r.detalle);
-    }
-
-    // El recíproco, y no es simetría gratuita: el aviso de "puede estar desactualizada" habla de
-    // una lista que se está viendo. Pintado con el desplegable vacío serían dos avisos que se
-    // contradicen en el mismo hueco.
-    for (const archivo of [
-      "src/components/admin/eventos/AdminEventos.jsx",
-      "src/components/admin/eventos/EventoDatos.jsx",
-    ]) {
-      const bloque = entre(leerCodigo(archivo), ">Salón</label>", "</select>");
-      check(
-        `9F-1: «puede estar desactualizada» solo con opciones delante (${archivo.split("/").pop()})`,
-        /salonesDesactualizados && salones\.length > 0 && \(/.test(bloque) &&
-          /desactualizada/.test(bloque),
-        bloque ? "" : `${archivo}: no se encontró el bloque del salón`,
-      );
+      const r = avisoAtadoAlDesplegable(archivo, aviso, exige);
+      check(`9F-1: ${etiqueta} (${archivo.split("/").pop()})`, r.ok, r.detalle);
     }
 
     // Y el motivo sigue siendo distinto según el estado: "no se pudo leer" y "no hay ninguno"

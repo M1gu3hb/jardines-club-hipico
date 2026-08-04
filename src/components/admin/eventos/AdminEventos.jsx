@@ -403,6 +403,22 @@ export default function AdminEventos({ prefill = null, onPrefillConsumido = null
                 Revísalos y corrige lo que haga falta antes de guardar</strong> — lo escribió él, no tú.
                 El usuario y la contraseña los pones tú: no se derivan de sus datos.
               </p>
+              {/* LÍMITE CONOCIDO de estos avisos, escrito aquí porque es aquí donde se leen.
+                  `solicitudAEvento` distingue tres motivos de salón —«no casa», «sin definir» y
+                  «no se pudo leer la lista»—, pero NO un cuarto: «la lista que miré puede estar
+                  desactualizada». Con una lista vieja diría «no coincide con ninguno de los
+                  registrados» de un salón creado después de la última lectura buena.
+
+                  Hoy eso NO es alcanzable, y el motivo está en otro archivo: `AdminDashboard`
+                  monta esta pestaña con `{active === "eventos" && …}`, así que un prellenado
+                  llega SIEMPRE sobre un montaje nuevo, con su primera lectura recién hecha —y si
+                  esa primera lectura falla, `salonesDisponibles` es `null` y el prellenado ni
+                  siquiera se aplica. El único otro llamador de `abrirCrear` es el botón «Nuevo
+                  evento», que pasa `desdeSolicitud = null` y no ejecuta este mapeo.
+
+                  Si algún día esa pestaña se deja montada —el mismo detalle que ya condiciona el
+                  mapa de convertidas en `AdminSolicitudes`—, este aviso pasa a poder mentir y
+                  hará falta el cuarto motivo. */}
               {avisosPrefill.length > 0 && (
                 <ul className="space-y-1 pt-1">
                   {avisosPrefill.map((a, i) => (

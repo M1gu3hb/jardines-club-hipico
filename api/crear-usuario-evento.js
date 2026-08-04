@@ -116,7 +116,15 @@ export default async function handler(req, res) {
       // Token corto de máquina (`weak_password`, `email_exists`, `unexpected_failure`…). No
       // lleva datos de nadie, así que se puede auditar tal cual.
       const codigo = String(createErr.code || "");
-      const duplicado = /already been registered|already exists/i.test(msg);
+      // El duplicado se clasifica con el MISMO criterio que la contraseña débil (fase 0.b):
+      // el código primero. GoTrue declara `email_exists` y `user_already_exists` en su union de
+      // códigos (`@supabase/auth-js`, `lib/error-codes.d.ts`), así que para este caso SÍ hay un
+      // código claro y no hace falta adivinar desde el mensaje — que es justo lo que se acabó de
+      // quitar unas líneas más abajo. Las frases quedan de respaldo, completas y no de una
+      // palabra suelta, para una versión que no traiga `code`.
+      const FRASES_DUPLICADO = [/has already been registered/i, /user already exists/i];
+      const duplicado = codigo === "email_exists" || codigo === "user_already_exists" ||
+        FRASES_DUPLICADO.some((re) => re.test(msg));
       // EL TERCER VALIDADOR. `validarCredenciales` la comparten cliente y servidor, pero GoTrue
       // tiene su PROPIA política de contraseñas —longitud mínima, caracteres exigidos, rechazo
       // de contraseñas filtradas—, y es configuración GLOBAL del proyecto de Supabase: la
