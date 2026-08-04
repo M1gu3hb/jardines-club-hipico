@@ -3,10 +3,15 @@ import { motion } from "framer-motion";
 export default function CtaCotizacion({ onOpenForm }) {
   return (
     <section className="py-20 md:py-28 px-4 sm:px-6 bg-[#050505] relative overflow-hidden w-full">
-      {/* Background image subtle */}
+      {/* Fondo decorativo, AUTO-HOSPEDADO.
+          Antes era una foto de `images.unsplash.com` y la CSP desplegada solo admite
+          `'self'`, `data:`, `blob:` y el bucket de Supabase en `img-src`: el navegador la
+          bloqueaba, así que esta franja —la que pide cotización, la que genera el negocio—
+          llevaba un fondo que nadie ha visto nunca. No se ensancha la CSP para arreglarlo:
+          el proyecto ya sacó imgur por esto mismo (D3, "independencia total"). */}
       <div
         className="absolute inset-0 bg-cover bg-center opacity-10"
-        style={{ backgroundImage: "url('https://images.unsplash.com/photo-1511795409834-ef04bbd61622?w=1600&q=80')" }}
+        style={{ backgroundImage: "url('/media/img/dGg8Xxh.jpg')" }}
       />
       <div className="absolute inset-0 bg-gradient-to-b from-[#050505] via-transparent to-[#050505]" />
       <div className="max-w-3xl mx-auto relative z-10 w-full">

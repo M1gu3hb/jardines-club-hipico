@@ -1597,6 +1597,60 @@ for (const ruta of [
   );
 }
 
+// ---------------------------------------------------------------- CSP e imágenes (9D)
+// J-12: `CtaCotizacion` pintaba SIEMPRE un fondo de `images.unsplash.com`, y la CSP desplegada
+// solo admite `'self'`, `data:`, `blob:` y el bucket en `img-src`. La franja que pide cotización
+// —la que genera el negocio— llevaba un fondo que el navegador bloquea. Otros cuatro
+// componentes tenían placeholders del mismo origen en el camino degradado.
+//
+// El arreglo NO es ensanchar la CSP: el proyecto ya sacó imgur por esto mismo (D3,
+// "independencia total"). Se auto-hospedan.
+{
+  // `leerCodigo` y no `leer`: las cabeceras explican de dónde venía el fallo y citan el
+  // dominio. Buscarlo con comentarios haría fallar el contrato por su propia documentación.
+  const publicos = [
+    "src/components/CtaCotizacion.jsx",
+    "src/components/GaleriaSection.jsx",
+    "src/components/SalonesSection.jsx",
+    "src/components/SalonOverlay.jsx",
+    "src/components/ServiciosAmenidades.jsx",
+    "src/components/Confianza.jsx",
+    "src/pages/Home.jsx",
+  ];
+  const HOSTS_DE_IMAGEN = /https:\/\/(images\.unsplash\.com|i\.imgur\.com|media\.base44\.com|[a-z0-9-]+\.cloudfront\.net|cdn\.[a-z0-9-]+\.[a-z]{2,})/;
+  const sucios = publicos.filter((f) => HOSTS_DE_IMAGEN.test(leerCodigo(f)));
+  check(
+    "9D: ningún componente público carga imágenes de un origen que la CSP bloquea",
+    sucios.length === 0,
+    sucios.join(", "),
+  );
+
+  // Y las que se usan en su lugar existen de verdad en `public/`. Un placeholder que apunta a
+  // un archivo que no está es el mismo hueco roto, solo que sin culpa de la CSP.
+  {
+    const faltan = [];
+    for (const f of publicos) {
+      for (const m of leerCodigo(f).matchAll(/"(\/media\/[A-Za-z0-9_./-]+)"/g)) {
+        try { leer(`public${m[1]}`); } catch { faltan.push(`${f} -> ${m[1]}`); }
+      }
+    }
+    check("9D: los medios auto-hospedados que se citan existen en `public/`", faltan.length === 0, faltan.join(" · "));
+  }
+
+  // La CSP NO se ensancha para arreglarlo. Este es el contrato que impide "resolverlo" por el
+  // camino fácil dentro de seis meses.
+  {
+    const csp = leer("vercel.json");
+    const imgSrc = (csp.match(/img-src[^;\\"]*/) || [""])[0];
+    check(
+      "9D: `img-src` sigue sin admitir orígenes de terceros",
+      /img-src 'self' data: blob: https:\/\/[a-z0-9]+\.supabase\.co/.test(imgSrc) &&
+        !/unsplash|imgur|base44|cloudfront/.test(imgSrc),
+      imgSrc,
+    );
+  }
+}
+
 // ---------------------------------------------------------------- salida
 let fallan = 0;
 for (const c of casos) {

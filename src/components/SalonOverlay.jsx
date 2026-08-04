@@ -80,7 +80,8 @@ export default function SalonOverlay({ salon, onClose, onCotizar }) {
 
   if (!salon) return null;
 
-  const imagenPrincipal = salon.imagenPrincipal || (salon.imagenes && salon.imagenes[0]) || "https://images.unsplash.com/photo-1464366400600-7168b8af9bc3?w=1200&q=80";
+  // Auto-hospedada por la CSP (J-12): `img-src` no admite `images.unsplash.com`.
+  const imagenPrincipal = salon.imagenPrincipal || (salon.imagenes && salon.imagenes[0]) || "/media/img/dGg8Xxh.jpg";
   const galeria = salon.imagenes && salon.imagenes.length > 0 ? salon.imagenes : [imagenPrincipal];
 
   const capacidad = salon.capacidad ||
