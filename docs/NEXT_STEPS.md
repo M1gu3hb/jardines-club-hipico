@@ -24,8 +24,8 @@
 > que estaba en pantalla), G2/G3/G4 (contratos que certificaban prosa en vez de comportamiento).
 > No toca datos.
 >
-> Batería: `lint` 0, `build` exit 0, `test:contratos` **270/270**, `typecheck` 59 (línea base).
-> Migraciones `sec_01..25`, Vero intacto. **`sec_26` recomendada y no aplicada** (J-13). Lo único que impide declarar el proyecto cerrado es el §1.
+> Batería: `lint` 0, `build` exit 0, `test:contratos` **278/278**, `typecheck` 59 (línea base).
+> Migraciones `sec_01..25`, Vero intacto. **`sec_27` recomendada y no aplicada** (J-13; era `sec_26`, renumerada porque `sec_26` pasa a ser la RPC de la invitación). **`sec_26` escrita y no aplicada** (J-14). Lo único que impide declarar el proyecto cerrado es el §1.
 
 ## Urgente — bloquea el cierre del proyecto
 
@@ -38,7 +38,7 @@
    ahora enseña el diálogo, **no** del nombre. No se borran con SQL suelto a propósito — hacerlo
    desde el panel es también la prueba de fuego de la maquinaria de 8B.
 
-0. quater. **Decidir `sec_26`: `unique` parcial sobre `eventos.solicitud_id` (J-13).**
+0. quater. **Decidir `sec_27`: `unique` parcial sobre `eventos.solicitud_id` (J-13).** *(Era `sec_26`; renumerada.)*
    `sec_25` puso un índice **no único**, así que la base no impide dos eventos de la misma
    solicitud. El camino reproducible —el que se ejercitó— ya está cerrado en código: el alta
    relee antes de escribir y para. Lo que queda abierto es la **carrera**: dos admins

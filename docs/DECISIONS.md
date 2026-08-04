@@ -422,3 +422,38 @@ Registro de decisiones técnicas y de producto (formato: decisión · razón · 
 - **Consecuencia:** cada servicio/amenidad tiene descripción; se muestra al expandir, debajo de la
   imagen. Las tarjetas sin imagen también se expanden (canExpand = media o descripción).
 - **Archivos:** `src/components/ServiceAmenityCard.jsx`, `scripts/raw/servicios.json`, `amenidades.json`.
+
+### D-COD-18 — `updateEstricto` aditivo, y `update` se queda como está
+
+**Decisión.** Ante `update()` devolviendo éxito cuando RLS deja la escritura en cero filas, se
+añaden `updateEstricto`/`deleteEstricto` y se migran las escrituras que deciden algo. **No** se
+cambia el comportamiento de `update`/`delete`.
+
+**Por qué no lo segundo, que cerraría la clase entera de una vez.** No por conservadurismo: por
+el inventario. De las 71 escrituras del proyecto, **diez componentes escriben sin un solo
+`catch`** — `AdminSalones` (7), `AdminServicioItems` (5), `AdminAmenidadItems` (5),
+`AdminServicios` (3), `AdminResenas` (3), `AdminGaleria` (3), `AdminAlimentos` (3),
+`EventoMusica` (2), `EventoCronograma` (2), `EventoItems` (2). Hacer que `update` lance
+convertiría hoy un engaño silencioso en un **botón girando para siempre y sin mensaje**, que es
+exactamente el síntoma por el que subir a la galería y el PDF del menú llevan meses muertos. Y
+aterrizaría días antes de que el dueño valide el panel.
+
+**Cuándo se revierte esta decisión.** Cuando toda escritura tenga `catch`. Entonces cambiar
+`update` es un cambio de una línea y cierra J-15. Hasta entonces sería cambiar una forma de
+fallar en silencio por otra peor.
+
+**Lo que se comprobó ejecutando** (bloque revertido, contra producción): UPDATE denegado por RLS
+→ sin error, 0 filas. DELETE → sin error, 0 filas. INSERT → `ERROR 42501`. Por eso `create` no
+lleva variante estricta.
+
+### D-COD-19 — La invitación digital: RPC acotada, no policy
+
+**Decisión pendiente del dueño** (de quién es la invitación), pero si es del cliente, la vía es
+una función `security definer` acotada a cuatro columnas y **no** una policy de UPDATE para el
+rol `cliente`.
+
+**Por qué.** Las policies de `jardines` conceden **la fila entera, no columnas** (J-10). Una
+policy que dejara al cliente escribir su evento le dejaría escribir también `auth_user_id`,
+`usuario`, `estatus`, `saldo`, `salon_id` y `solicitud_id` — incluida la columna que fue la
+entrada del P0 del bloque 8. Sería abrir de par en par la deuda que J-10 ya señala, para
+arreglar otra cosa.

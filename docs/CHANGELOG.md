@@ -1,5 +1,79 @@
 # CHANGELOG.md
 
+## 2026-08-05 — Bloque de cierre, fases 0 y A
+
+> **Desplegado (fase 0).** PR #11 mergeado como `ee19d7a`; deployment
+> `dpl_9c5WPM3Xh3rUjEQzMSKQf8pREJmX`, READY, target `production`, bundle
+> `assets/index-DVu0CBUL.js`. Es 9F + las tres correcciones de su auditoría.
+>
+> **La fase A NO está desplegada** (rama `claude/jardines-security-hardening-rkse8k`).
+
+### Fase 0 — los restos de la auditoría de 9F
+
+- **0.a · N1.** El contrato de G1 derivaba bien el array del render pero exigía el literal
+  `salones.length === 0`, así que `(salones || []).length === 0` —mismo comportamiento,
+  estrictamente más seguro— lo hacía **fallar**. Y no era hipotético: en `EventoDatos` los otros
+  dos props tienen valor por defecto y `salones` no, así que la edición defensiva natural sobre
+  ese archivo era justo la prohibida. Ahora afirma la propiedad y no la forma. **Mutar destapó
+  que el aviso hermano tenía el mismo defecto un contrato más allá.**
+- **0.b.** `duplicado` seguía clasificando desde una subcadena justo encima de lo que arregló
+  G4. Comprobado en `@supabase/auth-js` (`lib/error-codes.d.ts`): `email_exists` y
+  `user_already_exists` son códigos declarados. Código primero, frases completas de respaldo, y
+  el contrato pasa a exigirlo en **las dos** clasificaciones.
+- **0.c.** Comprobado que el matiz de «lista vieja» no es alcanzable: `AdminDashboard` monta la
+  pestaña con `{active === "eventos" && …}`, así que un prellenado llega siempre sobre un
+  montaje nuevo. Es una nota donde se leen los avisos, con la condición que la invalidaría.
+
+### Fase A — la escritura que fabricaba el éxito
+
+**Comprobado ejecutando** contra la base, en un bloque revertido:
+
+| Operación denegada por RLS | Qué devuelve |
+|---|---|
+| `UPDATE` | **sin error, 0 filas** |
+| `DELETE` | **sin error, 0 filas** |
+| `INSERT` | `ERROR 42501` |
+
+De esa asimetría sale todo: `create` no necesita variante estricta; `update` y `delete` sí.
+
+**A.1 · La decisión: `updateEstricto` aditivo, no cambiar `update`.** El argumento no es el
+precedente de `filterEstricto` sino el inventario: de las **71 escrituras** del proyecto, **diez
+componentes escriben sin un solo `catch`**. Hacer que `update` lance cambiaría hoy el engaño
+silencioso por un botón girando para siempre sin mensaje —que es exactamente el síntoma de las
+tres funciones muertas de este bloque— y aterrizaría días antes de la validación del dueño.
+
+**A.2 · El P0: la invitación digital del cliente nunca se guardó.** `eventos_upd` exige
+`is_admin()`, los usuarios del portal tienen rol `cliente`, y `count(invitacion_token)` en
+producción es **0**. `PortalInvitacion` es su único escritor en todo el repo.
+
+Y el panel decía «El cliente aún no activó su invitación digital (la crea desde su portal)»:
+le atribuía al cliente la causa de algo que el cliente **no puede hacer**. Esa frase plausible
+es la que cerró la investigación durante meses.
+
+**`sec_26` escrita y NO aplicada.** RPC `security definer` acotada a las cuatro columnas de la
+invitación contra `is_my_event`. No una policy: las policies de `jardines` conceden la fila
+entera (J-10), así que dejar al cliente escribir su evento le dejaría escribir también
+`auth_user_id` — la entrada del P0 del bloque 8. Ensayada en un bloque revertido por
+construcción; Vero idéntico antes y después (policies 134→134, funciones de `public` 4→4).
+**`sec_26` estaba reservado para el `unique` de `solicitud_id` (J-13); ese pasa a `sec_27`.**
+
+### Autoauditoría — lo que encontró, que no fue nada
+
+Cuatro contratos míos, recién escritos, fallaban una de las dos direcciones:
+
+| Contrato | Qué no veía | Cómo salió |
+|---|---|---|
+| aviso «desactualizada» | exigía el literal, igual que N1 | mutación inocua |
+| clasificación por código | exigía la forma `codigo === "x"` | inocua con `.includes(codigo)` |
+| `sec_26` cuatro columnas | contaba solo columnas `invitacion_*`, así que colar **`auth_user_id = auth.uid()`** en el `SET` pasaba en verde | mutación destructiva |
+| lanza con cero filas | ataba el nombre del ayudante interno | inocua al renombrarlo |
+
+El tercero es el que importa: era la columna del P0 del bloque 8, en la migración escrita para
+cerrar otro P0.
+
+**Contratos 270 → 278.** 20 mutaciones destructivas fallan su contrato; 6 inocuas pasan, cuatro
+de ellas solo después de arreglar el contrato que rompían.
+
 ## 2026-08-04 — Fase A: bloque 9 en producción, y 9F: los contratos que solo certificaban prosa
 
 > **Desplegado.** PR #10 mergeado como `1b0fb4f`; deployment `dpl_46GCBEcs83c7L5ksT6yZJxAH2fJ8`,

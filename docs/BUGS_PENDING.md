@@ -30,6 +30,34 @@ los dos casos el **uso peligroso** ya está cerrado en código; lo que sigue abi
 
 ## Abiertos
 
+### J-14 — La invitación digital del cliente no puede guardarse *(P0; mitigado en fase A, no resuelto)*
+
+`PortalInvitacion` es el **único** escritor de `invitacion_token`, `invitacion_activa`,
+`invitacion_mensaje` e `invitacion_dress_code` en todo el repo, y solo se monta para el rol
+`cliente`. `eventos_upd` es `using (jardines.is_admin()) with check (jardines.is_admin())`, así
+que ese UPDATE **nunca ha tocado una fila**: `select count(invitacion_token) from
+jardines.eventos` = **0**, verificado contra producción.
+
+Duró meses porque fallaba en silencio por partida doble: el shim daba por bueno un UPDATE de
+cero filas (J-02 del lado de la escritura, cerrado en fase A con `updateEstricto`), y el panel
+le decía al dueño «El cliente aún no activó su invitación digital», atribuyéndole al cliente
+una causa falsa.
+
+- **Mitigado**: la pantalla ya no miente ni ofrece compartir un enlace muerto, y el panel dice
+  lo que de verdad pasa.
+- **No resuelto**: la función sigue sin poder funcionar. Exige `sec_26` (escrita, ensayada, sin
+  aplicar) **o** mover la pantalla al panel. Es una decisión de producto del dueño.
+
+### J-15 — Las escrituras que RLS deja en cero filas siguen reportando éxito *(mitad cerrada)*
+
+`update()` y `delete()` del shim devuelven éxito cuando la base no tocó ninguna fila —
+comprobado ejecutando: UPDATE y DELETE denegados por RLS no dan error, `INSERT` sí (42501).
+
+Existen `updateEstricto`/`deleteEstricto` y están migradas las escrituras que **deciden** algo.
+Las demás siguen usando la variante muda. Cerrar la clase entera exige que **toda** escritura
+tenga `catch` primero: hoy diez componentes escriben sin ninguno, y hacer que `update` lance
+cambiaría el engaño por una pantalla muerta. Ver `docs/DECISIONS.md`.
+
 ### J-01 — `SITIO_URL` está hardcodeada al dominio de Vercel
 - **Impacto:** medio. **Todos** los correos transaccionales (alta de cliente, primer acceso,
   aviso de cotización, notificaciones al admin, recordatorios del cron) enlazan a
