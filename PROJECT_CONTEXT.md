@@ -323,11 +323,19 @@ ensayada en `BEGIN/ROLLBACK`, Vero idéntico antes y después). **9C** convierte
 evento con los datos ya puestos, resolviendo el salón por nombre exacto, sin copiar nada que no se
 pueda comprobar y **sin derivar jamás las credenciales** de datos que escribió un desconocido.
 **9D** cierra J-12: catorce imágenes de Unsplash que la CSP bloqueaba, auto-hospedadas — sin
-ensanchar la CSP. Contratos **206 → 246**.
+ensanchar la CSP.
+
+**9E (correcciones de la auditoría del bloque 9).** Los cuatro hallazgos eran la misma pregunta
+sin responder: **un array vacío por fallo tratado como uno por ausencia**. Con la lectura de
+salones caída, la conversión afirmaba que el salón del cliente «no coincide con ninguno de los
+registrados» sin haber mirado ninguno; el guardarraíl de «ya se convirtió» vivía donde se pinta y
+no donde se escribe; la ficha se quedaba en «(cargando…)» para siempre; y nada anclaba
+`PASSWORD_MIN` a la política de Auth, que es un tercer validador que no se puede leer desde aquí.
+Contratos **206 → 259**.
 
 Estado del código: **bloques 3–8 + 8F + C1 desplegados** (commit `b1dbf69`, 2026-08-04).
 El estado revisable completo está en **`docs/ESTADO.md`**.
-Batería: `lint` 0, `build` exit 0, `test:contratos` **246/246**, `typecheck` 59. Base en
+Batería: `lint` 0, `build` exit 0, `test:contratos` **259/259**, `typecheck` 59. Base en
 `sec_01..24`, Vero intacto. Estado formal: **`ESPERANDO_VALIDACION_HUMANA_AUTENTICADA`**
 (ver §8.F) — solo faltan los cinco flujos con credenciales reales, con el guion en
 `docs/VALIDACION.md`. Historial completo en `docs/CHANGELOG.md`.

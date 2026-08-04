@@ -20,8 +20,8 @@
 > datos puestos, y **9D** cierra J-12. Hasta que Vercel despliegue, el formulario sigue pidiendo
 > 6 caracteres y no existe el botón de convertir.
 >
-> Batería: `lint` 0, `build` exit 0, `test:contratos` **246/246**, `typecheck` 59 (línea base).
-> Migraciones `sec_01..25`, Vero intacto. Lo único que impide declarar el proyecto cerrado es el §1.
+> Batería: `lint` 0, `build` exit 0, `test:contratos` **259/259**, `typecheck` 59 (línea base).
+> Migraciones `sec_01..25`, Vero intacto. **`sec_26` recomendada y no aplicada** (J-13). Lo único que impide declarar el proyecto cerrado es el §1.
 
 ## Urgente — bloquea el cierre del proyecto
 
@@ -32,6 +32,16 @@
    lista se pintan idénticos: hay que fiarse del chip "nombre repetido" y de la hora de alta que
    ahora enseña el diálogo, **no** del nombre. No se borran con SQL suelto a propósito — hacerlo
    desde el panel es también la prueba de fuego de la maquinaria de 8B.
+
+0. quater. **Decidir `sec_26`: `unique` parcial sobre `eventos.solicitud_id` (J-13).**
+   `sec_25` puso un índice **no único**, así que la base no impide dos eventos de la misma
+   solicitud. El camino reproducible —el que se ejercitó— ya está cerrado en código: el alta
+   relee antes de escribir y para. Lo que queda abierto es la **carrera**: dos admins
+   convirtiendo a la vez. Recomendado:
+   `create unique index eventos_solicitud_id_uniq on jardines.eventos (solicitud_id) where solicitud_id is not null`,
+   **con precondición** de que no haya duplicados ya (o el índice falla a mitad) y traduciendo el
+   `23505` en el alta, o el dueño verá un error crudo de Postgres donde hoy ve una explicación.
+   **No se aplicó**: el bloque 9 tenía una sola migración autorizada.
 
 0. ter. **Decidir la migración de RLS por columnas (J-10 y J-11).** Son los dos hallazgos que
    8F anotó y no arregló, y salen de la misma causa: las policies de `jardines` conceden **la fila

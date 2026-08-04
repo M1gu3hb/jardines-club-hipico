@@ -16,7 +16,7 @@
 
 ## Estado general
 
-**No hay bugs críticos abiertos.** Quedan nueve pendientes, riesgos residuales aceptados, y lo
+**No hay bugs críticos abiertos.** Quedan diez pendientes, riesgos residuales aceptados, y lo
 que depende de terceros. **J-08 y J-09** (bloque 7) quedan resueltos en código y pendientes de que
 el dueño los vea funcionar en pantalla.
 
@@ -164,6 +164,24 @@ los dos casos el **uso peligroso** ya está cerrado en código; lo que sigue abi
   imagen rota. **La CSP no se ensanchó** —el proyecto ya sacó imgur por esto mismo (D3)— y
   hay un contrato que impide hacerlo después.
 - **Prioridad:** baja. **Estado:** **resuelto**, pendiente de verse desplegado.
+
+### J-13 — `eventos.solicitud_id` no es único: dos admins a la vez pueden duplicar la conversión
+- **Impacto:** bajo hoy (un solo administrador activo), pero es una carrera real.
+  `eventos_solicitud_id_idx` (`sec_25`) es un índice **no único**, así que la base no impide dos
+  eventos de la misma solicitud.
+- **Lo que sí lo impide (9E-2):** `AdminEventos.crear()` relee con `filterEstricto` si esa
+  solicitud ya generó un evento y para si lo hay. Cierra el camino del fallo de lectura de la
+  otra pantalla, que es el que se reprodujo.
+- **Lo que NO cierra:** es comprobar-y-luego-escribir, no una transacción. Dos admins
+  convirtiendo la misma solicitud a la vez podrían pasar los dos.
+- **Qué haría falta:** `sec_26` con
+  `create unique index eventos_solicitud_id_uniq on jardines.eventos (solicitud_id) where solicitud_id is not null`,
+  sustituyendo al índice no único. **Precondición obligatoria:** comprobar antes que no haya ya
+  duplicados, o el índice falla a mitad. Y el mensaje del 23505 hay que traducirlo en el alta,
+  o el dueño verá un error crudo de Postgres donde hoy ve una explicación.
+- **Por qué no se hizo:** el bloque 9 tenía una sola migración autorizada (`sec_25`).
+- **Archivos:** `supabase/migrations/`, `src/components/admin/eventos/AdminEventos.jsx`.
+- **Prioridad:** baja. **Estado:** abierto — el camino reproducible está cerrado, la carrera no.
 
 ### J-05 — El cliente no puede cambiar su contraseña desde el portal
 - **Impacto:** bajo. El primer acceso es por enlace de un solo uso y la contraseña se comparte

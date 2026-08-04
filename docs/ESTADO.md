@@ -32,7 +32,7 @@ fondo salió con un P0 cada vez.
 | URL | <https://jardines-club-hipico.vercel.app> |
 | Funciones serverless | **8** |
 | Migraciones aplicadas | `jardines_sec_01..25` (sin `sec_10`) |
-| Contratos | 246/246 · typecheck 59 (línea base) · lint 0 |
+| Contratos | 259/259 · typecheck 59 (línea base) · lint 0 |
 
 **Bloques desplegados:** 1–8 completos. **El bloque 9 está en `main` y pendiente de que
 Vercel lo despliegue**: hasta entonces, el formulario de alta sigue pidiendo 6 caracteres y
@@ -115,6 +115,7 @@ Asumir lo contrario sería el mismo error que dar 8A por mergeado.
 | **J-07** | `operativo_activo` no se maneja desde el panel; hoy hay 0 eventos con él | Baja |
 | **J-04** | `og:url` y JSON-LD con dominio placeholder | Baja |
 | **J-05** | El cliente no puede cambiar su contraseña desde el portal | Baja |
+| **J-13** | `eventos.solicitud_id` no es único: dos admins a la vez podrían duplicar una conversión. El camino reproducible está cerrado en código; la carrera no | Baja |
 | **D-COD-2** | Los tokens de mesa, invitación y staff se guardan **en claro** | Decisión pendiente |
 
 **Riesgos residuales aceptados y documentados** (no son bugs): los tokens son credenciales

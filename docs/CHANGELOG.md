@@ -1,5 +1,71 @@
 # CHANGELOG.md
 
+## 2026-08-04 — 9E: lo que pasa cuando una lectura se cae, respondido en cinco sitios
+
+> Correcciones de la auditoría del bloque 9, **antes de mergear**. Los cuatro hallazgos son la
+> misma pregunta sin responder: **un array vacío por fallo tratado como un array vacío por
+> ausencia.**
+
+### H1 — La conversión afirmaba lo que nadie había comprobado
+
+`resolverSalon('Salón Encanto', [])` respondía `no_casa`, y la pantalla le decía al dueño que
+ese salón «no coincide con ninguno de los registrados». **El salón sí está registrado**: el
+array estaba vacío porque la lectura se cayó.
+
+La cadena: `useCarga` deja `cargando: false` cuando hay error (llena `error` y deja `datos` en
+`null`), así que `if (!prefill || cargando) return` **dejaba pasar**; `salones` era `[]`; el
+formulario se pintaba igual porque está fuera del `<Estado>`; y el desplegable solo tenía «Sin
+asignar», así que el dueño **no podía elegir el salón correcto aunque se diera cuenta**.
+
+Ahora `resolverSalon` **exige un array** y con `null` responde `lista_no_disponible`; la señal
+del componente es `salonesConocidos = errorCarga ? null : (datos ? salones : null)`; el
+prellenado **se retiene y no se da por consumido** hasta que se aplica, así que en cuanto la
+lectura funciona se abre solo; y mientras tanto se explica y hay botón de reintentar. El mismo
+agujero estaba en `EventoDatos` —`salones.map` sobre una lista vacía por fallo— y también se dice.
+
+**El contrato certificaba el guardarraíl equivocado.** No era vacuo, pero afirmaba
+`if (!prefill || cargando) return` — justo la condición que falla. Reescrito sobre la señal
+correcta, más un contrato de que la señal distingue los tres estados.
+
+### H2 — «Idempotente por `solicitud_id`» no era cierto
+
+`eventos_solicitud_id_idx` es un índice **no único**, y el alta no consultaba nada: lo único que
+impedía convertir dos veces era el distintivo de la interfaz, y ese distintivo desaparece justo
+cuando su lectura se cae — que es cuando vuelve a salir el botón.
+
+**Elegida la opción (a):** el guardarraíl pasa a **donde se escribe**. Antes de crear, si hay
+origen, se relee con `filterEstricto` si otra fila referencia esa solicitud y se para diciendo
+cuál. Se prefiere a un `unique` porque cierra el camino sin migración, cubre el fallo de lectura
+de la otra pantalla y da un mensaje accionable en vez de un `23505` crudo. **Límite conocido y
+escrito:** es comprobar-y-luego-escribir, no una transacción — queda como **J-13**.
+
+### H3 — El «(cargando…)» que no se acababa nunca
+
+`EventoDatos` leía la solicitud de origen con `filter`, que devuelve `[]` sin lanzar: el `.catch`
+no se disparaba y el estado de fallo era **el mismo valor** que el inicial. Ahora `filterEstricto`
+y tres estados, más un cuarto caso que antes se confundía con el fallo: la solicitud borrada
+después de crear el evento.
+
+### H4 — El tercer validador
+
+Bajar `PASSWORD_MIN` mueve cliente y servidor a la vez y no reabre la divergencia entre los dos
+JS — pero **GoTrue tiene su propia política**, es configuración **global** del proyecto (la
+comparte Vero) y **no se puede leer desde aquí**. No se puede anclar el número al valor real, así
+que se ancla a un **suelo de 8** con el motivo escrito donde está el número. Y si Auth rechaza
+igualmente, el alta deja de responder «No se pudo crear el usuario» y dice qué pasó.
+
+### Lo que encontró el barrido
+
+Recorridas las **nueve** lecturas de los archivos del bloque. La que faltaba: `EventoDatos` leía
+con `filter` **la wishlist y las notas que el cliente escribió en su portal**, y sin `.catch`.
+Como esa sección solo se pinta si hay algo, un fallo **la hacía desaparecer entera** y el dueño
+concluía que el cliente no había pedido nada. Y `cargarConvertidas` se tragaba su error en
+silencio.
+
+### Contratos
+**246 → 259.** Validados mutando: **13 destructivas** fallan exactamente su contrato, 1 inocua
+pasa.
+
 ## 2026-08-04 — Bloque 9: 8A mergeado, `sec_25`, convertir solicitudes y la CSP
 
 ### 9A — 8A por fin en `main`
