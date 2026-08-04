@@ -1012,11 +1012,18 @@ for (const ruta of [
       "eliminar-evento: el borrado del usuario declara que es el cliente de ESE evento",
       /borrarUsuario\(admin, authUserId, \{ tipo: "cliente_de_evento", eventoId \}\)/.test(api),
     );
-    // Y el uuid se guarda para la auditoría del catch: si la fila cuaja y falla la relectura, sin
+    // Y el uuid se guarda para la auditoría DEL CATCH: si la fila cuaja y falla la relectura, sin
     // este dato no hay forma de encontrar después la cuenta que quedó viva.
+    //
+    // Se recorta el catch. Buscar `authUserId` sobre todo el archivo no comprobaba nada: ya
+    // aparece en la auditoría del paso 4, así que quitarlo del catch dejaba pasar el contrato —
+    // vacuo, y encima sobre la propiedad que más falta hace cuando algo se rompe a mitad.
+    const cuerpoCatch = entre(api, "} catch (e) {", "\n  }\n}");
     check(
       "eliminar-evento: el catch audita el authUserId y el estado real de la fila",
-      /detalle: \{[\s\S]{0,200}authUserId,/.test(api) && /fila_sin_confirmar/.test(api),
+      /authUserId,/.test(cuerpoCatch) && /fila_sin_confirmar/.test(cuerpoCatch) &&
+        /ESTADO_FILA\[hecho\.fila\]/.test(cuerpoCatch),
+      cuerpoCatch ? "" : "no se encontró el catch",
     );
   }
 }
