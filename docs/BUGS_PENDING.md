@@ -16,11 +16,11 @@
 
 ## Estado general
 
-**No hay bugs críticos abiertos.** Quedan diez pendientes, riesgos residuales aceptados, y lo
+**No hay bugs críticos abiertos.** Quedan nueve pendientes, riesgos residuales aceptados, y lo
 que depende de terceros. **J-08 y J-09** (bloque 7) quedan resueltos en código y pendientes de que
 el dueño los vea funcionar en pantalla.
 
-**J-12 es nuevo (C3)** y salió de cruzar la CSP desplegada contra lo que carga el bundle.
+**J-12 (C3) queda resuelto en 9D**: salió de cruzar la CSP desplegada contra lo que carga el bundle.
 
 **J-10 y J-11 son nuevos (8F) y los dos son de RLS.** Se anotan, no se arreglan: tocar una policy
 de la base compartida exige migración y el orden de despliegue de `docs/SEGURIDAD.md` §8.bis. En
@@ -143,7 +143,7 @@ los dos casos el **uso peligroso** ya está cerrado en código; lo que sigue abi
 - **Archivos:** `supabase/migrations/..._sec_09_*.sql`, `src/api/base44Client.js`.
 - **Prioridad:** media. **Estado:** abierto.
 
-### J-12 — El sitio público carga imágenes de Unsplash que la CSP bloquea
+### J-12 — El sitio público carga imágenes de Unsplash que la CSP bloquea *(resuelto en 9D)*
 - **Impacto:** bajo, pero **visible**. `img-src` de la CSP desplegada solo admite `'self'`,
   `data:`, `blob:` y el bucket de Supabase. `CtaCotizacion.jsx` pinta **siempre** un fondo con
   `url('https://images.unsplash.com/...')`, así que en producción ese fondo está bloqueado y no
@@ -158,7 +158,12 @@ los dos casos el **uso peligroso** ya está cerrado en código; lo que sigue abi
   tercero; peor).
 - **Archivos:** `src/components/{CtaCotizacion,GaleriaSection,SalonesSection,SalonOverlay}.jsx`,
   `vercel.json` (la CSP).
-- **Prioridad:** baja. **Estado:** abierto.
+- **Arreglo (9D):** las **catorce** referencias auto-hospedadas desde `public/media/img/` con
+  fotos reales del salón. El barrido encontró **cinco más** que el reporte no citaba: los
+  cinco salones de respaldo de `SalonesSection`, que en el camino degradado enseñaban la
+  imagen rota. **La CSP no se ensanchó** —el proyecto ya sacó imgur por esto mismo (D3)— y
+  hay un contrato que impide hacerlo después.
+- **Prioridad:** baja. **Estado:** **resuelto**, pendiente de verse desplegado.
 
 ### J-05 — El cliente no puede cambiar su contraseña desde el portal
 - **Impacto:** bajo. El primer acceso es por enlace de un solo uso y la contraseña se comparte

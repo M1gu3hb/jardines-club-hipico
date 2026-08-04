@@ -1,5 +1,92 @@
 # CHANGELOG.md
 
+## 2026-08-04 — Bloque 9: 8A mergeado, `sec_25`, convertir solicitudes y la CSP
+
+### 9A — 8A por fin en `main`
+
+`a56e904` llevaba sin mergear desde el 4 de agosto y **su bug seguía vivo en producción**: el
+panel pedía 6 caracteres de contraseña y el servidor exige 8, y el usuario no se validaba contra
+`/^[a-zA-Z0-9._-]{3,60}$/`. Una contraseña de 7 o un usuario con acento creaba el evento y fallaba
+al crear las credenciales — y cada reintento, otro evento. Así salieron cuatro «Boda ortega».
+
+**Los conflictos fueron tres, no nueve.** `AdminSolicitudes`, `EventoDocumentos`, `MesaEditor`,
+`MesaReglas` y `PortalDocumentos` los resolvió `git` solo, porque `a56e904` no los toca. Los tres
+reales, y cómo se resolvieron con `main` de base:
+
+| Archivo | Conflicto | Resolución |
+|---|---|---|
+| `AdminEventos.jsx` | solo el bloque de imports | **los dos lados**: `useCarga`/`Estado` de main, `nuevoId` y las reglas de 8A. El resto lo auto-mergeó git conservando la estructura de main y la lógica de 8A |
+| `EventoDatos.jsx` | solo imports | **los dos lados**: `EventoEliminar` de main, reglas de 8A |
+| `test-contratos-api.mjs` | un hunk gigante | **entero el lado de main** (ninguno de los 206 desaparece) y encima el bloque de 8A |
+
+`catalogos.js` no hizo falta tocarlo: 8A no declara ninguna lista cerrada propia. Y **ningún
+contrato de 8A quedó obsoleto** — los 12 pasan sobre el código mergeado.
+
+**La autoauditoría encontró un falso negativo residual del propio arreglo de 8A:** con el id fijo,
+si el primer INSERT cuaja y se pierde la respuesta, el reintento choca con la clave primaria pero
+`evento` sigue sin asignarse, así que se caía en «No se pudo crear el evento». Es mentira, y es el
+mismo error que hizo pulsar cuatro veces. Ahora se **relee la fila** —nunca se deduce del texto
+del error— y el aviso dice «YA ESTABA CREADO», diciendo además si le faltan las credenciales.
+
+### 9B — `sec_25`
+
+`jardines.eventos.solicitud_id`: uuid **anulable**, `on delete set null`, con índice parcial.
+Anulable porque los seis eventos que ya existen no vienen de ninguna solicitud; `SET NULL` porque
+borrar el lead no puede llevarse el contrato.
+
+Autoprotegida como `sec_23`/`sec_24`: tres precondiciones (la columna no existe, la PK de
+`solicitudes` es `id` y es `uuid`, RLS activo) y una poscondición (RLS sigue activo). **Ensayada en
+`BEGIN/ROLLBACK`** antes de aplicarla. **Vero, antes y después, idéntico**: `admin_users` 1,
+`insurers` 11, `services` 8, 6 tablas en `public`.
+
+### 9C — Convertir una solicitud en evento
+
+Abrir una solicitud → **«Crear evento con estos datos»** → el alta sale rellenada y el admin
+corrige lo que haga falta antes de guardar. **Usa la ruta de 9A, no una nueva**, así que hereda el
+id estable, la validación de credenciales y la confirmación por relectura.
+
+**De quién son estos datos.** Los escribió un desconocido en el formulario público. Que estén en
+la base solo dice que pasaron por `solicitud_crear`. `src/lib/solicitudAEvento.js` es una función
+**pura** y es donde se decide qué se copia:
+
+- El **salón** no se copia: es texto libre allí y un uuid aquí. Se resuelve por **nombre exacto**
+  —normalizando acentos y espacios— contra los salones reales; si no casa o dice «Por definir», se
+  deja vacío y se avisa. Nada de parecidos: un salón mal asignado no se nota hasta el día.
+- La **fecha** solo si es una fecha de verdad. `2026-02-31` casa el patrón y no existe.
+- El **correo** solo si tiene forma de correo: es donde luego se le mandan sus accesos.
+- **Usuario y contraseña salen vacíos siempre.** Son credenciales; derivarlas del correo o del
+  nombre las haría adivinables desde fuera.
+
+**Lo que no tenía sitio y ahora sí:** `numero_personas` y `actividades_extras` llegan del
+formulario y se perdían al convertir — ahora van a notas internas, editables.
+`horario_inicio`/`horario_fin`, `direccion`, `rfc` y `manteleria_preferida` son columnas que la
+RPC pública **no acepta** (0 de 6 solicitudes tienen dato): se incluyen solo si algún día llegan
+por otra vía.
+
+**El camino de vuelta:** una solicitud ya convertida no ofrece convertirse otra vez — se dice cuál
+es el evento y dónde buscarlo. La lectura que lo decide usa `filterEstricto`: con `filter`, un
+fallo devolvería `[]` y el panel ofrecería duplicar.
+
+**El estatus se propone**, no se impone: `Cotizada`/`Cerrada` de `SOLICITUD_ESTATUS`, con «no
+cambiarlo» por defecto. Si ese cambio falla, el evento **no** se deshace.
+
+### 9D — J-12
+
+`CtaCotizacion` pintaba **siempre** un fondo de `images.unsplash.com`, y la CSP solo admite
+`'self'`, `data:`, `blob:` y el bucket en `img-src`: la franja que pide cotización llevaba un fondo
+que el navegador bloquea. El barrido encontró **cinco más** que el reporte no citaba — los cinco
+salones de respaldo de `SalonesSection`, que en el camino degradado enseñaban la imagen rota.
+
+Las **catorce** referencias auto-hospedadas desde `public/media/img/` con fotos reales del salón.
+**La CSP no se ensanchó**, y hay un contrato que impide hacerlo después.
+
+### Contratos
+**206 → 246.** Delta: +12 de 8A, +1 del falso negativo residual, +8 de `sec_25`, +16 de la
+conversión, +3 de la CSP. Validados mutando: **35 mutaciones destructivas** hacen fallar
+exactamente su contrato y 4 inocuas pasan. **Dos contratos eran vacuos y los encontró la mutación,
+no la lectura**: el de la relectura del alta (mi propio cambio de 9A lo volvió vacuo) y el de los
+medios auto-hospedados (miraba solo comillas dobles y `CtaCotizacion` usa `url('...')`).
+
 ## 2026-08-04 — C1 y despliegue a producción del bloque 8
 
 > **Desplegado.** Commit `b1dbf69`, deployment `dpl_A1Ex55zgGErxznJJYFCNcYhEC5r6`, 8 funciones.

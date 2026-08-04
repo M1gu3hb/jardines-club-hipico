@@ -23,6 +23,7 @@
 |---|---|---|
 | `_lib/guard.js` | **Módulo central de seguridad:** `clienteAdmin`, `autorizarJardines`, `leerBody`, `rateLimit`, `idemIniciar`/`idemCerrar`, `escHtml`, `rpcSeguro`, `escrituraOk`, `compensarAlta`, `auditar`, `ipCliente`, `generico`, `igualSeguro`. **Es el ÚNICO sitio del proyecto que puede llamar a `deleteUser`**, y su `borrarUsuario(admin, userId, permiso)` exige un `permiso` sin valor por defecto: olvidarlo niega el borrado. `auth.users` es la tabla compartida con Vero. Ver `docs/SEGURIDAD.md` §2. | **Muy alto** — todas las rutas dependen de él |
 | `_lib/correo.js` | `plantillaOro`, `enviarCorreo`, `SITIO_URL`. | Medio |
+| `_lib/reglas-credenciales.js` | **Las reglas de usuario y contraseña, en UN solo sitio**, importadas por la ruta Y por el panel. Solo constantes y funciones puras —sin `process.env` ni imports de Node— para que el navegador las pueda incluir. Duplicarlas es lo que hizo que divergieran (cliente ≥6, servidor ≥8). | Alto |
 | `solicitud.js` | Avisa al dueño de un lead. Relee la fila con `service_role`; el body solo trae `solicitudId`. | Alto |
 | `notificar.js` | Notifica al admin. Lista **cerrada** de acciones; `accionOcurrio()` verifica en la base que la acción pasó de verdad. | Alto |
 | `correo-cliente.js` | Avisa al cliente de su cotización. Comprueba que el documento sea de ese evento. | Alto |
@@ -129,6 +130,11 @@ prefijo `evento-`, y manda `documentoId` (no el nombre del documento) a `/api/co
   `RESTRICCION:` en el comentario y un contrato cruza las dos. Un componente que declare la
   suya rompe la suite: es la familia de bugs que ya mordió dos veces (estatus de solicitud,
   tipo de documento).
+- **`lib/solicitudAEvento.js`** — traduce una solicitud del formulario público a los campos
+  del alta de evento. **Función pura.** Es donde se decide qué se copia de un dato que
+  escribió un desconocido: el salón se resuelve por nombre **exacto** contra los salones
+  reales o se deja vacío, la fecha solo si es una fecha, el correo solo si tiene forma de
+  correo, y **usuario y contraseña salen vacíos siempre**.
 - **`lib/useCarga.js`** — una lectura con sus tres estados: cargando, listo y falló. Lleva un
   turno por ejecución para que una respuesta vieja no pise a una nueva, y `recargar()` no borra
   lo último bueno.

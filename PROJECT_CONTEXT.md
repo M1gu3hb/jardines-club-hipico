@@ -316,14 +316,18 @@ anulaba la confirmación de borrado (cerrado en servidor, botón y ficha), la co
 inventario no contaba cuatro tablas que sí se borran. Los dos hallazgos de RLS (J-10, J-11) se
 anotan y esperan decisión: exigen migración. Contratos **177 → 202**.
 
-**8A nunca se mergeó** — vive solo en `claude/jardines-bloque-8` (`a56e904`), sin PR. El bug que
-arregla sigue vivo en producción: el formulario de alta pide 6 caracteres de contraseña y el
-servidor exige 8, así que una contraseña de 6 o 7 crea el evento y falla al crear las
-credenciales. Rebasarla sobre `main` exige resolver conflicto con 8B/8C. Ver `docs/ESTADO.md`.
+**Bloque 9 (2026-08-04).** **9A** mergea por fin 8A —llevaba un mes sin mergear y su bug seguía
+vivo: el panel pedía 6 caracteres de contraseña y el servidor exige 8—; los conflictos fueron tres
+y se resolvieron con `main` de base. **9B** aplica `sec_25` (`eventos.solicitud_id`, aditiva,
+ensayada en `BEGIN/ROLLBACK`, Vero idéntico antes y después). **9C** convierte una solicitud en
+evento con los datos ya puestos, resolviendo el salón por nombre exacto, sin copiar nada que no se
+pueda comprobar y **sin derivar jamás las credenciales** de datos que escribió un desconocido.
+**9D** cierra J-12: catorce imágenes de Unsplash que la CSP bloqueaba, auto-hospedadas — sin
+ensanchar la CSP. Contratos **206 → 246**.
 
 Estado del código: **bloques 3–8 + 8F + C1 desplegados** (commit `b1dbf69`, 2026-08-04).
 El estado revisable completo está en **`docs/ESTADO.md`**.
-Batería: `lint` 0, `build` exit 0, `test:contratos` **206/206**, `typecheck` 59. Base en
+Batería: `lint` 0, `build` exit 0, `test:contratos` **246/246**, `typecheck` 59. Base en
 `sec_01..24`, Vero intacto. Estado formal: **`ESPERANDO_VALIDACION_HUMANA_AUTENTICADA`**
 (ver §8.F) — solo faltan los cinco flujos con credenciales reales, con el guion en
 `docs/VALIDACION.md`. Historial completo en `docs/CHANGELOG.md`.

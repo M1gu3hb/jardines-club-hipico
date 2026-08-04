@@ -1630,7 +1630,9 @@ for (const ruta of [
   {
     const faltan = [];
     for (const f of publicos) {
-      for (const m of leerCodigo(f).matchAll(/"(\/media\/[A-Za-z0-9_./-]+)"/g)) {
+      // Comillas dobles Y simples: `CtaCotizacion` escribe `url('/media/...')` dentro de una
+      // cadena, así que mirar solo `"..."` dejaba fuera justo el archivo del hallazgo.
+      for (const m of leerCodigo(f).matchAll(/["'](\/media\/[A-Za-z0-9_./-]+)["']/g)) {
         try { leer(`public${m[1]}`); } catch { faltan.push(`${f} -> ${m[1]}`); }
       }
     }
