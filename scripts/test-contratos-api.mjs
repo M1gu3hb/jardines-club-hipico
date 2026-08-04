@@ -1018,13 +1018,95 @@ for (const ruta of [
     // Se recorta el catch. Buscar `authUserId` sobre todo el archivo no comprobaba nada: ya
     // aparece en la auditoría del paso 4, así que quitarlo del catch dejaba pasar el contrato —
     // vacuo, y encima sobre la propiedad que más falta hace cuando algo se rompe a mitad.
-    const cuerpoCatch = entre(api, "} catch (e) {", "\n  }\n}");
+    // Hay DOS `} catch (e) {` en el archivo —el del inventario y el del borrado— y `entre()`
+    // coge el primero: el recorte llegaba hasta el final del fichero e incluía la auditoría del
+    // paso 4, que también dice `authUserId`. El contrato volvía a ser vacuo. Se toma el ÚLTIMO.
+    const cuerpoCatch = api.slice(api.lastIndexOf("} catch (e) {"));
     check(
       "eliminar-evento: el catch audita el authUserId y el estado real de la fila",
       /authUserId,/.test(cuerpoCatch) && /fila_sin_confirmar/.test(cuerpoCatch) &&
         /ESTADO_FILA\[hecho\.fila\]/.test(cuerpoCatch),
       cuerpoCatch ? "" : "no se encontró el catch",
     );
+    // El tercer estado tiene que decir algo distinto de "NO borrado": afirmar que no se borró
+    // cuando lo que pasó es que no se pudo comprobar es justo la mentira que hay que evitar.
+    check(
+      "eliminar-evento: «sin confirmar» no se cuenta como «NO borrado»",
+      /sin_confirmar: "no se pudo comprobar/.test(cuerpoCatch),
+    );
+
+    // --- storage: las dos fuentes de rutas, y las subcarpetas
+    check(
+      "eliminar-evento: las rutas salen del listado Y de documentos.archivo_url",
+      /from\("documentos"\)\.select\("archivo_url"\)/.test(api) &&
+        /new Set\(\[[\s\S]{0,400}d\.archivo_url/.test(api),
+    );
+    {
+      // Una subcarpeta llega con `id: null`; mandarla a `remove` no borra nada y `n < pedidos`
+      // dejaba el evento imposible de borrar con el mensaje "0 de 1 archivos".
+      const iCarpetas = api.indexOf("o.id === null");
+      const iCorte = api.indexOf('motivo: "subcarpetas"');
+      const iRutas = api.indexOf("const rutas =");
+      check(
+        "eliminar-evento: las subcarpetas cortan y no entran en las rutas",
+        iCarpetas > 0 && iCorte > iCarpetas && iRutas > iCorte && /o\.id !== null/.test(api),
+        `carpetas=${iCarpetas} corte=${iCorte} rutas=${iRutas}`,
+      );
+    }
+
+    // --- nombre vacío: los TRES sitios
+    check(
+      "eliminar-evento: el servidor rechaza borrar un evento sin nombre",
+      /evento_sin_nombre/.test(api) &&
+        /if \(!String\(ev\.nombre_evento \|\| ""\)\.trim\(\)\)/.test(api),
+    );
+    {
+      const ui = leerCodigo("src/components/admin/eventos/EventoEliminar.jsx");
+      check(
+        "eliminar-evento: el botón exige texto, no solo que coincida",
+        /const coincide = escrito\.length > 0 && escrito === nombreReal;/.test(ui),
+      );
+      const ficha = leerCodigo("src/components/admin/eventos/EventoDatos.jsx");
+      const guardar = entre(ficha, "const guardar = async () => {", "setGuardando(true);");
+      check(
+        "eventos: la ficha no guarda el nombre en blanco",
+        /if \(!String\(form\.nombreEvento \|\| ""\)\.trim\(\)\)/.test(guardar) &&
+          /setErrorNombre\(/.test(guardar) && /return;/.test(guardar),
+        guardar ? "" : "no se encontró `const guardar`",
+      );
+    }
+
+    // --- cuotas: la de consulta antes de contar, la destructiva antes de comparar el nombre
+    {
+      const iConsulta = api.indexOf('rateLimit(admin, "eliminar-evento-consulta"');
+      const iInventario = api.indexOf("inv = await inventario(");
+      const iDestructiva = api.indexOf('rateLimit(admin, "eliminar-evento",');
+      const iNombre = api.indexOf('String(confirmacion || "").trim() !==');
+      check(
+        "eliminar-evento: la cuota de consulta va antes del inventario",
+        iConsulta > 0 && iInventario > iConsulta,
+        `consulta=${iConsulta} inventario=${iInventario}`,
+      );
+      check(
+        "eliminar-evento: la cuota destructiva va antes de comparar el nombre",
+        iDestructiva > 0 && iNombre > iDestructiva,
+        `cuota=${iDestructiva} nombre=${iNombre}`,
+      );
+    }
+
+    // --- inventario completo: las once que cascadean + las tres de SET NULL + segundo nivel
+    {
+      const cuerpoInv = entre(api, "async function inventario(", "\n}\n");
+      const faltan = ["evento_notas", "evento_wishlist", "evento_reglas_mesas",
+                      "operativo_asignacion", "cronograma", "musica", "items_contratados",
+                      "documentos", "mesas", "rsvps", "invitaciones"]
+        .filter((t) => !cuerpoInv.includes(`cuenta("${t}")`));
+      check(
+        "eliminar-evento: el inventario cuenta las once tablas que caen por CASCADE",
+        faltan.length === 0,
+        faltan.join(", "),
+      );
+    }
   }
 }
 
