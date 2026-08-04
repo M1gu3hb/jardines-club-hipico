@@ -125,7 +125,7 @@ Reglas clave:
 - Nunca pongas secretos, tokens, service_role, JWT, contraseñas ni datos personales en commits,
   logs, documentación o salida de pruebas.
 
-Antes de subir: `npm run lint` (0), `npm run build` (exit 0), `npm run test:contratos` (127/127)
+Antes de subir: `npm run lint` (0), `npm run build` (exit 0), `npm run test:contratos` (177/177)
 y `npm run typecheck` (59 = línea base, no debe subir). Si tocaste SQL, corre además
 supabase/tests/seguridad.sql.
 

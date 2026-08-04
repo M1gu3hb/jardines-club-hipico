@@ -1,6 +1,6 @@
 # BUGS_PENDING.md
 
-> Estado a **2026-08-03**.
+> Estado a **2026-08-04**.
 >
 > **Una sola numeración.** Hasta ahora convivían dos esquemas `B*` —el de este archivo y el de
 > las órdenes de trabajo de código— y colisionaban: un mismo reporte decía "cerrado B3" y
@@ -44,8 +44,15 @@ código y pendientes de que el dueño los vea funcionar en pantalla.
   poder probar los flujos de punta a punta el riesgo de romper algo en vivo supera al beneficio.
 - **Mitigación en curso:** `SalonPlanoUpload` y `AdminOperativo` **confirman releyendo** en vez de
   confiar en el shim. Ese es el patrón a extender al resto.
+- **La mitad de LECTURA está cerrada (8E, 2026-08-04).** `filterEstricto` tenía hermano:
+  `listEstricto`. Las pantallas que **deciden** con una lectura ya no la hacen floja, y el `[]`
+  ambiguo dejó de poder disfrazarse de "aquí no hay nada". Dos de esos disfraces llegaban a
+  perder datos: `AdminConfig` caía en la rama "no hay configuración" y guardar creaba una
+  **segunda fila** en `config_sitio` (y el sitio lee la primera que devuelva Postgres);
+  `MesaReglas` hacía lo mismo con las reglas del evento. Lo que sigue abierto es la mitad de
+  **ESCRITURA**: `update` fabricando el objeto y `delete` devolviendo `{success:true}`.
 - **Archivos:** `src/api/base44Client.js` (y todos los llamadores).
-- **Prioridad:** media. **Estado:** abierto.
+- **Prioridad:** media. **Estado:** abierto (mitad de lectura cerrada; escritura pendiente).
 
 ### J-06 — El guardarraíl del operativo es solo de cliente
 - **Impacto:** medio. `AdminOperativo` **bloquea** apagar `acceso_global` a quien tenga 0

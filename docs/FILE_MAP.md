@@ -29,13 +29,14 @@
 | `crear-admin.js` | Alta de administrador. Enlace de un solo uso, sin contraseña en el correo. | **Muy alto** |
 | `crear-usuario-evento.js` | Alta de cliente + enlace de primer acceso + compensación si algo falla. | **Muy alto** |
 | `canjear-acceso.js` | Canje en dos fases; el **servidor** decide el destino según el rol. | **Muy alto** |
+| `eliminar-evento.js` | **Lo único irreversible del panel.** Borra archivos → huérfanas → fila → usuario de Auth, EN ESE ORDEN (los paths viven en `documentos`, que cae por CASCADE). Confirma cada eslabón antes de pasar al siguiente. La reseña **no** se borra. Devuelve `homonimos`/`creadoEl` para poder distinguir eventos con el mismo nombre. | **Muy alto** |
 | `cron-recordatorios.js` | Digest diario + recordatorio de reseña. **Fail-closed** sin `CRON_SECRET`. Semántica at-least-once. | Alto |
 
 ## `src/api/` — capa de datos
 
 | Archivo | Qué hace | Riesgo |
 |---|---|---|
-| `base44Client.js` | **SHIM.** Única puerta a la base. Mapa `TABLES`, camelCase↔snake_case, `create()` de solicitudes vía RPC, `update()` con `.select().maybeSingle()`. | **Muy alto** — todos los componentes usan `base44.entities.*` |
+| `base44Client.js` | **SHIM.** Única puerta a la base. Mapa `TABLES`, camelCase↔snake_case, `create()` de solicitudes vía RPC, `update()` con `.select().maybeSingle()`. **`filterEstricto`/`listEstricto` lanzan** en vez de devolver `[]`: `list`/`filter` no distinguen "no hay filas" de "la lectura falló" (J-02), y esa ambigüedad es la que hace que una pantalla afirme que algo no existe cuando lo que pasó es que no pudo mirarlo. | **Muy alto** — todos los componentes usan `base44.entities.*` |
 | `supabaseClient.js` | Cliente Supabase con `db.schema = "jardines"`. | **Muy alto** — apuntar a `public` toca otra aplicación |
 | `authContext.jsx` | Sesión + rol leído de `jardines.perfiles`. | Alto |
 
@@ -69,7 +70,11 @@ sus items vienen de `MENU_ITEMS` en `Home.jsx`), `SoundToggle`, `soundSystem`, `
 - **Los 4 huérfanos se borraron** el 2026-08-03 (`Sidebar.jsx`, `HeroTrustBar.jsx`,
   `FormularioSection.jsx`, `ItemImageOverlay.jsx`): 0 imports, y `Sidebar` inducía a error porque
   parecía el menú. Están en el historial de git. El menú real es `StaggeredMenu`.
-- `components/ui/*` — primitivas shadcn/ui. No tocar salvo rediseño.
+- `components/ui/*` — primitivas shadcn/ui. No tocar salvo rediseño. **Excepción propia:**
+  **`ui/Estado.jsx`** — los tres estados de una lectura (esqueleto / vacío / falló) y los
+  esqueletos que tienen la forma del contenido. **El orden dentro de `<Estado>` es la
+  propiedad, no el estilo:** quien llama calcula `vacio` desde `datos || []`, así que cuando
+  la lectura falla `vacio` también es cierto. Mirar vacío antes que error devuelve el bug.
 
 ## `src/components/admin/` — panel
 
@@ -83,7 +88,12 @@ resuelve con un OR y dejarlo sin ninguna de las dos vías lo deja en 0 eventos.
 releyendo y borra el objeto anterior al reemplazar.
 
 `admin/eventos/`: `AdminEventos`, `EventoDatos`, `EventoFicha`, `EventoItems`, `EventoRsvps`,
-`_ui.jsx` (primitivas compartidas del módulo de eventos) y
+`_ui.jsx` (primitivas compartidas del módulo de eventos),
+**`EventoEliminar.jsx`** — riesgo **muy alto**: la pantalla del borrado. Pide el inventario al
+servidor antes de enseñar nada, confirma escribiendo el nombre exacto (que el servidor vuelve a
+comparar contra la fila) y, si hay **homónimos**, dice CUÁL se está borrando: hora de alta y si
+tiene cuenta de portal. Escribir el nombre no distingue entre eventos que se llaman igual, y
+en producción hay cuatro «Boda ortega». Y
 **`EventoDocumentos.jsx`** — riesgo alto: la carpeta de Storage debe ser **`<eventoId>/`** sin
 prefijo `evento-`, y manda `documentoId` (no el nombre del documento) a `/api/correo-cliente`.
 
@@ -112,6 +122,16 @@ prefijo `evento-`, y manda `documentoId` (no el nombre del documento) a `/api/co
 `test-contratos-api.mjs`**), `lib/catalogo.js`, `lib/sugerencias.js`,
 `lib/cronogramaSugerencias.js`, `lib/fechas.js`, `lib/media.js`, `lib/utils.js` (`cn`),
 `lib/query-client.js`, `lib/PageNotFound.jsx`.
+
+- **`lib/catalogos.js`** — el **único** sitio donde vive una lista cerrada que espeja una
+  restricción de la base (`DOCUMENTO_TIPOS`, `EVENTO_ESTATUS`, `SOLICITUD_ESTATUS`,
+  `MESA_FORMAS`, `MUSICA_TIPOS`, `BUCKET_MIME`, `BUCKET_MAX_BYTES`). Cada una declara su
+  `RESTRICCION:` en el comentario y un contrato cruza las dos. Un componente que declare la
+  suya rompe la suite: es la familia de bugs que ya mordió dos veces (estatus de solicitud,
+  tipo de documento).
+- **`lib/useCarga.js`** — una lectura con sus tres estados: cargando, listo y falló. Lleva un
+  turno por ejecución para que una respuesta vieja no pise a una nueva, y `recargar()` no borra
+  lo último bueno.
 
 `hooks/useLockBodyScroll.js` — con `overflow:hidden`, **no** `position:fixed` (causaba salto de
 scroll, D8). `hooks/useBackButtonClose.js`, `hooks/use-mobile.jsx`.

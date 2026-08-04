@@ -295,8 +295,19 @@ actividad del portal se borra (a mano y a los 7 días desde el cron), el resumen
 que entró de lo que se enfría, y el aviso de nueva solicitud pasa a la plantilla dorada.
 Contratos **99 → 127**. **Ninguna migración.** PR #6.
 
-Estado del código: **bloques 3–6 desplegados; bloque 7 mergeado a `main` y esperando deploy.**
-Batería: `lint` 0, `build` exit 0, `test:contratos` **127/127**, `typecheck` 59. Base en
+**Bloque 8 (2026-08-04).** 8A (el falso negativo al crear eventos, ya en `main`), **8B** —
+eliminar un evento: lo único irreversible del panel, con el orden archivos → huérfanas → fila →
+Auth y confirmación negativa en cada eslabón—, **8C** — cuatro eventos «Boda ortega» idénticos en
+producción, y la confirmación por nombre no distingue entre ellos: ahora el diálogo dice cuál se
+borra (hora de alta + cuenta) y la lista los marca— y **8E** — cargando, vacío y falló dejan de
+ser la misma pantalla. De 8E salieron dos cosas que **no** eran cosméticas: `AdminConfig` y
+`MesaReglas` podían crear una **segunda fila** de configuración/reglas tras una lectura caída, y
+tres pantallas se quedaban en "Cargando…" para siempre. **8D quedó bloqueado**: la trazabilidad
+solicitud→evento exige una columna que no existe. Contratos **146 → 177**. **Ninguna migración.**
+
+Estado del código: **bloques 3–6 desplegados; bloque 7 mergeado a `main` y esperando deploy;
+bloque 8 en `claude/bloque-8-etapa2`.**
+Batería: `lint` 0, `build` exit 0, `test:contratos` **177/177**, `typecheck` 59. Base en
 `sec_01..24`, Vero intacto. Estado formal: **`ESPERANDO_VALIDACION_HUMANA_AUTENTICADA`**
 (ver §8.F) — solo faltan los cinco flujos con credenciales reales, con el guion en
 `docs/VALIDACION.md`. Historial completo en `docs/CHANGELOG.md`.
