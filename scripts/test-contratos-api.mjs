@@ -1638,6 +1638,14 @@ for (const ruta of [
       /Evento\.filterEstricto\(null, "-created_date"\)/.test(sol) &&
         !/Evento\.filter\(null/.test(sol),
     );
+    // Del barrido de 9E: la wishlist y las notas del cliente también decidían con `filter`, y
+    // su sección solo se pinta si hay algo — así que un fallo la hacía desaparecer entera y el
+    // dueño concluía que el cliente no había pedido nada.
+    check(
+      "9C: lo que el cliente pidió en su portal se lee estricto y el fallo se dice",
+      /EventoWishlist\.filterEstricto/.test(ficha) && /EventoNota\.filterEstricto/.test(ficha) &&
+        /setFalloDeseos\(true\)/.test(ficha) && /No es\s*\n?\s*que no haya pedido nada/.test(ficha),
+    );
     check(
       "9C: la ficha del evento dice de qué solicitud salió",
       /evento\.solicitudId &&/.test(ficha) && /salió de una solicitud/.test(ficha) &&

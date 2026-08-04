@@ -39,9 +39,19 @@ export default function EventoDatos({ evento, salones, salonesFallaron = false, 
       .catch(() => { setSolicitudOrigen(null); setOrigenEstado("fallo"); });
   }, [evento.solicitudId]);
 
+  // La wishlist y las notas que el cliente escribió en su portal. Salieron del barrido de
+  // "¿y si esta lectura se cae?": con `filter` un fallo devuelve [] sin lanzar, la sección
+  // entera desaparece —solo se pinta si hay algo— y el dueño concluye que el cliente no ha
+  // pedido nada. Es lo mismo que J-02, en el sitio donde más se nota: es la única forma que
+  // tiene el dueño de saber qué quiere el cliente.
+  const [falloDeseos, setFalloDeseos] = useState(false);
   useEffect(() => {
-    base44.entities.EventoWishlist.filter({ eventoId: evento.id }, "-created_date").then(setDeseos);
-    base44.entities.EventoNota.filter({ eventoId: evento.id }, "-created_date").then(setNotasCliente);
+    Promise.all([
+      base44.entities.EventoWishlist.filterEstricto({ eventoId: evento.id }, "-created_date"),
+      base44.entities.EventoNota.filterEstricto({ eventoId: evento.id }, "-created_date"),
+    ])
+      .then(([d, n]) => { setDeseos(d); setNotasCliente(n); setFalloDeseos(false); })
+      .catch(() => { setDeseos([]); setNotasCliente([]); setFalloDeseos(true); });
   }, [evento.id]);
 
   const guardar = async () => {
@@ -222,6 +232,14 @@ export default function EventoDatos({ evento, salones, salonesFallaron = false, 
       </div>
 
       {/* Lo que el cliente sueña (wishlist + notas de su portal) */}
+      {falloDeseos && (
+        <p className="text-amber-300/85 text-xs flex items-start gap-1.5 border-t border-white/5 pt-4">
+          <AlertTriangle size={12} className="mt-0.5 flex-shrink-0" />
+          No se pudo leer lo que el cliente pidió en su portal (lista de deseos y notas). No es
+          que no haya pedido nada: la lectura falló. Recarga la página.
+        </p>
+      )}
+
       {(deseos.length > 0 || notasCliente.length > 0) && (
         <div className="border-t border-white/5 pt-4 space-y-3">
           <p className="text-white/40 text-xs uppercase tracking-wider flex items-center gap-2">
