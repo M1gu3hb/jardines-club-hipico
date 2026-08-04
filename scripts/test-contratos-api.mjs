@@ -2017,6 +2017,139 @@ for (const ruta of [
   }
 }
 
+// ------------------------------------------- FASE A · la escritura que fabricaba el éxito
+//
+// EL HECHO, comprobado EJECUTANDO contra la base (en un bloque revertido):
+//
+//     UPDATE denegado por RLS  ->  sin error, 0 filas   (silencioso)
+//     DELETE denegado por RLS  ->  sin error, 0 filas   (silencioso)
+//     INSERT denegado por RLS  ->  ERROR 42501          (ruidoso)
+//
+// De esa asimetría sale todo: `create` no necesita variante estricta y `update`/`delete` sí.
+// El shim devolvía el propio `patch` cuando el UPDATE tocaba cero filas, así que el llamador
+// leía la fila "guardada" que él mismo había escrito. Es el gemelo de J-02 del lado de la
+// escritura, y de ahí salió el P0 del portal.
+{
+  const shim = leerCodigo("src/api/base44Client.js");
+
+  // 1) Las variantes estrictas existen y **lanzan** cuando no se tocó ninguna fila. No basta
+  //    con que estén escritas: sin el `if (!data) throw` son un alias de `update`.
+  {
+    const upd = entre(shim, "async updateEstricto(", "\n    },");
+    const del = entre(shim, "async deleteEstricto(", "\n    },");
+    // Se afirma que LANZAN, no cómo se llama el ayudante que construye el error: renombrar una
+    // función interna es un refactor, no una regresión, y un contrato que lo castiga acaba
+    // borrado. Lo que sí es un contrato entre módulos —y se afirma aparte, abajo— es el `code`,
+    // porque las pantallas lo leen para no mandar a reintentar un permiso denegado.
+    const fallos = [];
+    if (!/if \(!data\) throw \w+\(/.test(upd)) fallos.push("`updateEstricto` no lanza con cero filas");
+    if (!/return rowToObj\(data\);/.test(upd) || /\{ id, \.\.\.patch \}/.test(upd)) fallos.push("`updateEstricto` sigue devolviendo el parche");
+    if (!/\.select\(\)/.test(del)) fallos.push("`deleteEstricto` no pide las filas borradas, así que no puede contarlas");
+    if (!/if \(!data \|\| data\.length === 0\) throw \w+\(/.test(del)) fallos.push("`deleteEstricto` no lanza con cero filas");
+    check("A.1: `updateEstricto`/`deleteEstricto` lanzan cuando la escritura no tocó nada", fallos.length === 0, fallos.join(" · "));
+  }
+
+  // 2) El error es DISTINGUIBLE de un fallo de red. Sin `code`, una pantalla no puede decir
+  //    "no tienes permiso" en vez de "reintenta", y mandar a reintentar algo que nunca va a
+  //    funcionar es la forma de mentira que este bloque persigue.
+  check(
+    "A.1: el fallo de escritura llega con un código propio y un mensaje legible",
+    /code = "escritura_sin_efecto"/.test(shim) &&
+      /El cambio no se guardó/.test(leer("src/api/base44Client.js")),
+  );
+
+  // 3) `update` y `delete` NO se han vuelto estrictos. Es deliberado y hay que poder verlo: hoy
+  //    diez componentes escriben sin un solo `catch`, así que hacerlos lanzar cambiaría el
+  //    engaño silencioso por una pantalla muerta, justo antes de la validación del dueño.
+  check(
+    "A.1: `update` sigue siendo el no estricto, y está marcado como tal",
+    /return rowToObj\(data\) \|\| \{ id, \.\.\.patch \};/.test(shim) &&
+      /FABRICA EL ÉXITO/.test(leer("src/api/base44Client.js")),
+  );
+
+  // 4) EL P0. `PortalInvitacion` es el único escritor de la invitación en todo el repo y solo se
+  //    monta para el rol `cliente`, cuyo UPDATE sobre `eventos` no toca ninguna fila. Tiene que
+  //    escribir estricto **y** traducir ese caso a algo que no sea "intenta de nuevo".
+  {
+    const inv = leerCodigo("src/components/portal/PortalInvitacion.jsx");
+    const fallos = [];
+    if (!/Evento\.updateEstricto\(/.test(inv)) fallos.push("no escribe con `updateEstricto`");
+    if (/Evento\.update\(/.test(inv)) fallos.push("queda un `update` no estricto");
+    if (!/escritura_sin_efecto/.test(inv)) fallos.push("no distingue el permiso denegado de un fallo de red");
+    // Y el «Guardado ✓» tiene que quedar DESPUÉS de la escritura y dentro del `try`: si
+    // `setOk(true)` volviera a estar fuera, la pantalla afirmaría lo mismo de siempre.
+    const cuerpo = entre(inv, "const guardar = async (activar) => {", "\n  };");
+    const iEscribe = cuerpo.indexOf("updateEstricto");
+    const iOk = cuerpo.indexOf("setOk(true)");
+    const iCatch = cuerpo.indexOf("} catch");
+    if (!(iEscribe >= 0 && iOk > iEscribe && iCatch > iOk)) fallos.push(`el «Guardado ✓» no está entre la escritura y el catch (escribe=${iEscribe}, ok=${iOk}, catch=${iCatch})`);
+    check("A.2 (P0): la invitación del cliente no puede volver a decir «Guardado ✓» sin haber guardado", fallos.length === 0, fallos.join(" · "));
+  }
+
+  // 5) Y el panel deja de atribuirle al cliente una causa falsa. Esa frase es la que tapó el P0
+  //    durante meses: el dueño leía una explicación plausible y no volvía a mirar.
+  {
+    const rsvps = leerCodigo("src/components/admin/eventos/EventoRsvps.jsx");
+    check(
+      "A.2: el panel ya no dice que el cliente «aún no activó» algo que no puede activar",
+      !/aún no activó su invitación/.test(rsvps) && /no puede activarla/.test(rsvps),
+    );
+  }
+
+  // 6) Las dos pantallas del panel que afirmaban «Guardado.» sin mirar. La propiedad es la
+  //    misma que en el P0 y se afirma igual: la confirmación va DESPUÉS de la escritura y
+  //    DENTRO del `try`. Y el `catch` es obligatorio: estricto sin `catch` es un botón girando.
+  for (const [archivo, ancla, fin, escritura] of [
+    ["src/components/admin/eventos/EventoDatos.jsx", "const guardar = async () => {", "\n  };", "Evento.updateEstricto("],
+    ["src/components/mesas/MesaReglas.jsx", "const guardar = async () => {", "\n  };", "EventoReglasMesas.updateEstricto("],
+  ]) {
+    const cuerpo = entre(leerCodigo(archivo), ancla, fin);
+    const iEscribe = cuerpo.indexOf(escritura);
+    const iOk = cuerpo.indexOf("setOk(true)");
+    const iCatch = cuerpo.indexOf("} catch");
+    const ok = iEscribe >= 0 && iOk > iEscribe && iCatch > iOk;
+    check(
+      `A.3: «Guardado.» solo si la base lo confirmó (${archivo.split("/").pop()})`,
+      ok, ok ? "" : `escribe=${iEscribe}, ok=${iOk}, catch=${iCatch}`,
+    );
+  }
+}
+
+// ------------------------------------------- sec_26, escrita y NO aplicada
+// La RPC que permitiría que el cliente active su invitación. Es una decisión de producto del
+// dueño, así que aquí solo se contrata que el archivo, si existe, cumpla las reglas del
+// proyecto para una `security definer` — no que esté aplicada.
+{
+  const ruta = "supabase/migrations/20260805120000_jardines_sec_26_invitacion_cliente.sql";
+  let sql = "";
+  try { sql = leer(ruta); } catch { sql = ""; }
+  const fallos = [];
+  if (!sql) fallos.push("no existe el archivo de sec_26");
+  else {
+    if (!/set search_path = ''/.test(sql)) fallos.push("la función no fija `search_path`");
+    if (!/revoke all on function jardines\.invitacion_guardar/.test(sql)) fallos.push("no revoca EXECUTE a PUBLIC");
+    if (!/grant execute on function jardines\.invitacion_guardar[^;]*to authenticated/.test(sql)) fallos.push("no concede EXECUTE a `authenticated`");
+    if (!/jardines\.is_my_event\(p_evento_id\)/.test(sql)) fallos.push("no comprueba que el evento sea del llamador");
+    // No puede tocar policies ni el schema de Vero, ni siquiera de paso.
+    if (/create policy|alter policy|drop policy/i.test(sql)) fallos.push("toca policies");
+    if (/\bpublic\.[a-z_]+/i.test(sql.replace(/--.*$/gm, "").replace(/from public|to public/gi, ""))) fallos.push("referencia el schema `public` (candado de Vero)");
+    // Y las cuatro columnas de la invitación, NI UNA MÁS.
+    //
+    // La primera versión de esto contaba solo columnas `invitacion_*`, así que una quinta
+    // asignación a **otra** columna era invisible. Lo cazó la mutación: colar
+    // `auth_user_id = auth.uid()` en el SET dejaba la suite en verde — y `auth_user_id` es
+    // exactamente la columna que provocó el P0 del bloque 8. El contrato tiene que mirar
+    // TODAS las asignaciones y exigir que todas sean de la invitación, no contar las que ya
+    // sabe que le gustan.
+    const upd = entre(sql, "update jardines.eventos", "where id = p_evento_id;");
+    const columnas = [...upd.matchAll(/(?:^|,)\s*(?:set\s+)?([a-z_]+)\s*=/gm)].map((m) => m[1]);
+    const ajenas = columnas.filter((c) => !c.startsWith("invitacion_"));
+    if (ajenas.length) fallos.push(`el UPDATE escribe columnas que no son de la invitación: ${ajenas.join(", ")}`);
+    else if (columnas.length !== 4) fallos.push(`el UPDATE toca ${columnas.length} columnas, no 4: ${columnas.join(", ")}`);
+  }
+  check("A.2: `sec_26` acota la escritura del cliente a sus cuatro columnas y no toca nada más", fallos.length === 0, fallos.join(" · "));
+}
+
 // ---------------------------------------------------------------- salida
 let fallan = 0;
 for (const c of casos) {

@@ -10,6 +10,7 @@ export default function EventoDatos({ evento, salones, salonesIlegibles = false,
   const [guardando, setGuardando] = useState(false);
   const [ok, setOk] = useState(false);
   const [errorNombre, setErrorNombre] = useState("");
+  const [errorGuardar, setErrorGuardar] = useState("");
   const set = (k, v) => { setForm((f) => ({ ...f, [k]: v })); setOk(false); if (k === "nombreEvento") setErrorNombre(""); };
 
   // Credenciales (solo si el evento aún no tiene usuario ligado).
@@ -63,6 +64,7 @@ export default function EventoDatos({ evento, salones, salonesIlegibles = false,
       return;
     }
     setErrorNombre("");
+    setErrorGuardar("");
     setGuardando(true);
     const patch = {
       nombreEvento: form.nombreEvento.trim(),
@@ -84,10 +86,28 @@ export default function EventoDatos({ evento, salones, salonesIlegibles = false,
       // quedaba marcado para siempre. Ahora borrar el monto lo revierte.
       anticipoPagado: Number(form.anticipoMonto) > 0,
     };
-    const actualizado = await base44.entities.Evento.update(evento.id, patch);
-    setGuardando(false);
-    setOk(true);
-    onActualizado?.({ ...evento, ...patch, ...actualizado });
+    // `updateEstricto`: es el guardado principal del panel y **afirma** «Guardado.». Con
+    // `update`, una escritura que RLS dejara en cero filas devuelve el propio `patch`, así que
+    // `onActualizado` repintaría la ficha con los valores nuevos, el dueño leería «Guardado.» y
+    // la base seguiría con los viejos. Es la misma forma del P0 del portal, un piso más arriba.
+    //
+    // Y con `try/catch`: sin él, cambiar a estricto convertiría la mentira en un botón girando
+    // para siempre. Eso es exactamente lo que hace que las tres funciones muertas de este
+    // bloque lo estén — no se puede arreglar una mitad y dejar la otra.
+    try {
+      const actualizado = await base44.entities.Evento.updateEstricto(evento.id, patch);
+      setOk(true);
+      onActualizado?.({ ...evento, ...patch, ...actualizado });
+    } catch (e) {
+      console.error("[EventoDatos] guardar", e?.message);
+      setErrorGuardar(
+        e?.code === "escritura_sin_efecto"
+          ? "No se guardó: la base no modificó ninguna fila. Puede ser un problema de permisos, o que el evento ya no exista. Recarga la página."
+          : "No se pudo guardar. Revisa la conexión e inténtalo otra vez.",
+      );
+    } finally {
+      setGuardando(false);
+    }
   };
 
   const crearCredenciales = async () => {
@@ -236,7 +256,8 @@ export default function EventoDatos({ evento, salones, salonesIlegibles = false,
           className="flex items-center gap-2 bg-[#C9A84C] text-[#0a0a0a] px-6 py-2.5 text-sm font-medium hover:bg-[#d4b558] transition-all disabled:opacity-50">
           {guardando ? <Loader2 size={13} className="animate-spin" /> : <Check size={13} />} Guardar cambios
         </button>
-        {ok && <span className="text-green-400/80 text-xs">Guardado.</span>}
+        {ok && !errorGuardar && <span className="text-green-400/80 text-xs">Guardado.</span>}
+        {errorGuardar && <span className="text-red-400/90 text-xs">{errorGuardar}</span>}
       </div>
 
       {/* Lo que el cliente sueña (wishlist + notas de su portal) */}

@@ -41,11 +41,29 @@ export default function PortalInvitacion({ evento }) {
         invitacionMensaje: form.invitacionMensaje || null,
         invitacionDressCode: form.invitacionDressCode || null,
       };
-      await base44.entities.Evento.update(evento.id, patch);
+      // `updateEstricto` y NO `update`. Esta pantalla es el P0 del bloque de cierre: `update`
+      // devuelve el parche que se le pasa cuando RLS deja el UPDATE en cero filas, así que
+      // durante meses el cliente escribió su mensaje, leyó «Guardado ✓», recibió la tarjeta
+      // «Comparte tu invitación» y mandó por WhatsApp un enlace que a sus invitados les decía
+      // «Esta invitación no está disponible por ahora». `eventos_upd` exige `is_admin()` y los
+      // usuarios del portal tienen rol `cliente`: el UPDATE no tocó NUNCA una fila —comprobado,
+      // `count(invitacion_token)` es 0 en producción— y nada lo dijo.
+      //
+      // Con esto, el fallo se ve: se lanza, se pinta el error, `setForm` no corre y la tarjeta
+      // de compartir —que cuelga de `form`— no aparece. Deja de mentir aunque la función siga
+      // sin poder funcionar; que pueda funcionar exige `sec_26`, que es decisión del dueño.
+      await base44.entities.Evento.updateEstricto(evento.id, patch);
       setForm((f) => ({ ...f, ...patch }));
       setOk(true);
     } catch (e) {
-      setError(e?.message || "No se pudo guardar. Intenta de nuevo.");
+      // Dos causas distintas, dos mensajes distintos. "Intenta de nuevo" ante un permiso
+      // denegado manda al cliente a repetir algo que no va a funcionar nunca.
+      setError(
+        e?.code === "escritura_sin_efecto"
+          ? "No se pudo activar la invitación: tu cuenta no tiene permiso para guardarla. " +
+            "Avísale a Jardines — no es algo que puedas resolver desde aquí."
+          : e?.message || "No se pudo guardar. Intenta de nuevo.",
+      );
     } finally {
       setGuardando(false);
     }

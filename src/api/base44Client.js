@@ -102,6 +102,27 @@ async function runQueryEstricto(table, { sort, filter }) {
   return (data || []).map(rowToObj);
 }
 
+/**
+ * El error de "la escritura no tocó ninguna fila".
+ *
+ * Lleva `code` para que una pantalla pueda distinguirlo de un fallo de red, y un `message` en
+ * castellano **pensado para enseñarse tal cual**: las pantallas del portal ya pintan
+ * `e?.message`, así que sin un texto legible el cliente vería un tecnicismo o nada.
+ *
+ * No dice "no tienes permiso" a secas: la causa real puede ser esa, o que la fila ya no exista.
+ * Afirmar la que no es, es el error que este bloque persigue.
+ */
+function escrituraSinEfecto(op, table) {
+  const e = new Error(
+    "El cambio no se guardó: la base no modificó ninguna fila. Puede ser que no tengas permiso " +
+    "para cambiar esto, o que ya no exista.",
+  );
+  /** @type {any} */ (e).code = "escritura_sin_efecto";
+  /** @type {any} */ (e).op = op;
+  /** @type {any} */ (e).tabla = table;
+  return e;
+}
+
 function makeEntity(name) {
   const table = TABLES[name] || toSnake(name);
   return {
@@ -152,15 +173,59 @@ function makeEntity(name) {
       if (error) { console.error("[shim] create", table, error.message); throw error; }
       return rowToObj(row);
     },
+    /**
+     * ⚠️ FABRICA EL ÉXITO. Un UPDATE que RLS deja en **cero filas no da error**: `data` llega
+     * `null` y esta función devuelve `{ id, ...patch }` — el parche que le pasaron— como si
+     * fuera la fila guardada. El llamador no tiene forma de enterarse.
+     *
+     * Es el gemelo de J-02 del lado de la escritura: J-02 era "la lectura falló y parece que no
+     * hay nada"; esto es "la escritura no ocurrió y parece que sí". De aquí salió el P0 del
+     * portal: el cliente pulsaba «Crear y activar invitación», leía «Guardado ✓» y compartía un
+     * enlace muerto, durante meses, porque `eventos_upd` exige `is_admin()`.
+     *
+     * NO se ha cambiado su comportamiento (ver `updateEstricto` justo debajo y
+     * `docs/DECISIONS.md`): hacerlo lanzar convertiría el engaño silencioso en una pantalla
+     * muerta en los diez componentes que hoy escriben **sin un solo `catch`**.
+     */
     async update(id, patch) {
       const row = objToRow(patch);
       const { data, error } = await supabase.from(table).update(row).eq("id", id).select().maybeSingle();
       if (error) { console.error("[shim] update", table, error.message); throw error; }
       return rowToObj(data) || { id, ...patch };
     },
+    /**
+     * Como `update`, pero **lanza si no se modificó ninguna fila**.
+     *
+     * Aditivo, igual que `filterEstricto`/`listEstricto` en 8E: no sustituye a `update`, se usa
+     * en las escrituras que **deciden** algo o cuya pantalla le afirma al usuario que se guardó.
+     *
+     * LÍMITE, y hay que conocerlo: la comprobación es `.select()` sobre las filas afectadas, así
+     * que exige que la política de **SELECT** también deje ver la fila. Si alguna vez hubiera
+     * una tabla con UPDATE permitido y SELECT denegado, esto reportaría un fallo que no ocurrió.
+     * Es la dirección segura del error —decir "no se guardó" cuando sí— y hoy no se da en
+     * `jardines`: todas las policies de escritura conceden también lectura sobre la misma fila.
+     */
+    async updateEstricto(id, patch) {
+      const row = objToRow(patch);
+      const { data, error } = await supabase.from(table).update(row).eq("id", id).select().maybeSingle();
+      if (error) { console.error("[shim] updateEstricto", table, error.message); throw error; }
+      if (!data) throw escrituraSinEfecto("update", table);
+      return rowToObj(data);
+    },
+    /**
+     * ⚠️ Misma forma que `update`: un DELETE bloqueado por RLS **no da error**, borra cero filas
+     * y esta función devuelve `{ success: true }`. Ver `deleteEstricto`.
+     */
     async delete(id) {
       const { error } = await supabase.from(table).delete().eq("id", id);
       if (error) { console.error("[shim] delete", table, error.message); throw error; }
+      return { success: true };
+    },
+    /** Como `delete`, pero **lanza si no se borró ninguna fila**. Ver `updateEstricto`. */
+    async deleteEstricto(id) {
+      const { data, error } = await supabase.from(table).delete().eq("id", id).select();
+      if (error) { console.error("[shim] deleteEstricto", table, error.message); throw error; }
+      if (!data || data.length === 0) throw escrituraSinEfecto("delete", table);
       return { success: true };
     },
   };
