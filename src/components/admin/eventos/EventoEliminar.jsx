@@ -52,7 +52,13 @@ export default function EventoEliminar({ evento, onBorrado }) {
       .finally(() => setCargando(false));
   }, [abierto, evento.id]);
 
-  const coincide = texto.trim() === String(evento.nombreEvento || "").trim();
+  // `texto.trim() === nombre.trim()` es cierto cuando LOS DOS están vacíos: con un evento sin
+  // nombre el botón se habilitaba con la caja en blanco y la confirmación dejaba de existir.
+  // Se exige texto, no solo coincidencia. El servidor lo rechaza igual (es quien manda), pero
+  // habilitar el botón para algo que va a fallar es prometer lo que no se puede cumplir.
+  const escrito = texto.trim();
+  const nombreReal = String(evento.nombreEvento || "").trim();
+  const coincide = escrito.length > 0 && escrito === nombreReal;
 
   const borrar = async () => {
     if (!coincide || borrando) return;
@@ -94,10 +100,17 @@ export default function EventoEliminar({ evento, onBorrado }) {
         ["Mesas", inv.mesas, ""],
         ["Invitados", inv.invitados, ""],
         ["Invitaciones", inv.invitaciones, ""],
+        ["Accesos registrados", inv.accesos, ""],
         ["Confirmaciones (RSVP)", inv.rsvps, ""],
         ["Cronograma", inv.cronograma, ""],
         ["Música", inv.musica, ""],
         ["Items contratados", inv.items, ""],
+        // Se pintan dos secciones más arriba, en esta misma pantalla, y el inventario no las
+        // nombraba: un evento que solo tuviera wishlist decía "no tiene datos cargados todavía".
+        ["Lista de deseos del cliente", inv.deseos, ""],
+        ["Notas del cliente", inv.notas, ""],
+        ["Reglas de mesas", inv.reglas, ""],
+        ["Asignaciones de personal", inv.asignaciones, ""],
         ["Avisos del portal", inv.notificaciones, ""],
         ["Ubicaciones del operativo", inv.ubicaciones, ""],
       ].filter(([, n]) => n > 0)
@@ -178,6 +191,12 @@ export default function EventoEliminar({ evento, onBorrado }) {
             Para confirmar, escribe el nombre exacto del evento:
             <span className="text-white/30"> {evento.nombreEvento}</span>
           </label>
+          {!nombreReal && (
+            <p className="text-amber-300/90 text-xs">
+              Este evento no tiene nombre, así que no se puede confirmar el borrado. Ponle uno en
+              «Datos del evento» y vuelve aquí.
+            </p>
+          )}
           <input
             value={texto}
             onChange={(e) => setTexto(e.target.value)}

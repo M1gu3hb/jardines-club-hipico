@@ -839,10 +839,22 @@ for (const ruta of [
     "eliminar-evento: un listado truncado corta en vez de dejar archivos sueltos",
     />= TOPE_LISTADO/.test(api) && /listado_truncado/.test(api),
   );
+  // Se confirma que NO SOBREVIVE NINGUNA, no que el número coincida con el inventario. Comparar
+  // contra un conteo de hace segundos era una carrera garantizada —el cron y el propio cliente
+  // escriben en `notificaciones` mientras esto corre— y abortaba en el paso 2, con el bucket ya
+  // vaciado. Las DOS huérfanas tienen que confirmarse: recoger el resultado de una y no mirarlo
+  // era declarar el criterio y no aplicarlo.
   check(
-    "eliminar-evento: las huérfanas se confirman contando, no solo mirando `error`",
+    "eliminar-evento: las huérfanas se confirman releyendo que no queda ninguna",
     /\.delete\(\)\.eq\("evento_id", eventoId\)\.select\("id"\)/.test(api) &&
-      /hecho\.notificaciones !== inv\.notificaciones/.test(api),
+      /const notifsVivas = await sobrevivientes\("notificaciones"\)/.test(api) &&
+      /if \(notifsVivas > 0\)/.test(api) &&
+      /const ubicVivas = await sobrevivientes\("operativo_ubicaciones"\)/.test(api) &&
+      /if \(ubicVivas > 0\)/.test(api),
+  );
+  check(
+    "eliminar-evento: la confirmación de huérfanas NO se mide contra el inventario viejo",
+    !/hecho\.(notificaciones|ubicaciones) !== inv\./.test(api),
   );
   check(
     "eliminar-evento: el borrado de la fila se confirma releyendo",
@@ -862,8 +874,16 @@ for (const ruta of [
   // antes de un borrado irreversible.
   check(
     "eliminar-evento: los invitados se cuentan vía mesas, no por evento_id",
-    /from\("invitados"\)[\s\S]{0,120}\.in\("mesa_id", ids\)/.test(api) &&
-      !/from\("invitados"\)[\s\S]{0,80}eq\("evento_id"/.test(api),
+    /cuentaPorLote\("invitados", "mesa_id", await idsDe\("mesas"\)\)/.test(api) &&
+      !/"invitados"[\s\S]{0,80}eq\("evento_id"/.test(api),
+  );
+  // Mismo caso, encontrado al revisar el mapa de FKs entero: `accesos` tampoco tiene `evento_id`
+  // (cae por CASCADE desde `invitaciones`, y su `invitacion_id` es NOT NULL, así que ninguno
+  // sobrevive al borrado).
+  check(
+    "eliminar-evento: los accesos se cuentan vía invitaciones, no por evento_id",
+    /cuentaPorLote\("accesos", "invitacion_id", await idsDe\("invitaciones"\)\)/.test(api) &&
+      !/"accesos"[\s\S]{0,80}eq\("evento_id"/.test(api),
   );
   // `operativo_ubicaciones` tiene PK compuesta y NO tiene `id`.
   check(
@@ -892,6 +912,113 @@ for (const ruta of [
     /cuentaCliente: ev\.auth_user_id \? ev\.usuario : null/.test(api) &&
       /\{cuenta &&/.test(ui) && !/\{evento\.usuario &&/.test(ui),
   );
+}
+
+// ---------------------------------------------------------------- borrado de usuarios (8F)
+// EL CONTRATO QUE VALE PARA SIEMPRE. `auth.users` es la tabla COMPARTIDA con Vero Seguros y
+// `deleteUser` es un hard delete sobre ella. El uuid que se le pasaba venía de
+// `jardines.eventos.auth_user_id`, una columna que cualquier admin puede escribir desde el
+// navegador (`eventos_upd` no restringe columnas), y nadie comprobaba de quién era. Vero tiene
+// UN administrador. Lo que sigue es lo que impide que vuelva a pasar, en este llamador y en
+// cualquiera que se escriba después.
+{
+  const guard = leerCodigo("api/_lib/guard.js");
+
+  // 1) Un solo sitio en TODO el proyecto puede llamar a deleteUser.
+  {
+    const archivos = [
+      "api/_lib/guard.js", "api/_lib/correo.js", "api/eliminar-evento.js", "api/crear-admin.js",
+      "api/crear-usuario-evento.js", "api/canjear-acceso.js", "api/notificar.js",
+      "api/correo-cliente.js", "api/solicitud.js", "api/cron-recordatorios.js",
+      "src/api/base44Client.js", "src/api/supabaseClient.js",
+    ];
+    const fuera = archivos
+      .filter((f) => f !== "api/_lib/guard.js")
+      .filter((f) => /deleteUser\s*\(/.test(leerCodigo(f)));
+    check(
+      "auth: solo `guard.js` puede llamar a deleteUser",
+      /deleteUser\s*\(/.test(guard) && fuera.length === 0,
+      fuera.join(", "),
+    );
+  }
+
+  // 2) Y ahí dentro, el deleteUser va DESPUÉS del permiso, no antes ni en paralelo.
+  {
+    const cuerpo = entre(guard, "export async function borrarUsuario(", "\n}\n");
+    const iPermiso = cuerpo.indexOf("permiso?.tipo");
+    const iNoDeclarado = cuerpo.indexOf('motivo: "permiso_no_declarado"');
+    const iDelete = cuerpo.indexOf("deleteUser(");
+    check(
+      "borrarUsuario: sin permiso declarado NO se borra, y el permiso se mira antes",
+      iPermiso >= 0 && iNoDeclarado > iPermiso && iDelete > iNoDeclarado,
+      `permiso=${iPermiso} sin_declarar=${iNoDeclarado} delete=${iDelete}`,
+    );
+    // El argumento no puede tener valor por defecto: si lo tuviera, olvidarlo dejaría de fallar.
+    check(
+      "borrarUsuario: `permiso` no tiene valor por defecto",
+      /export async function borrarUsuario\(admin, userId, permiso\)/.test(guard),
+    );
+  }
+
+  // 3) Las cinco comprobaciones de pertenencia, cada una atada a su motivo.
+  {
+    const cuerpo = entre(guard, "export async function usuarioEsClienteDelEvento(", "\n}\n");
+    // Se afirma sobre el ORDEN, no sobre la distancia: cada condición tiene que aparecer, su
+    // rechazo detrás, y el rechazo ANTES del `return` de éxito. Un `[\s\S]{0,200}` solo diría
+    // que dos textos están cerca, que no es lo mismo que "esto gobierna aquello".
+    const iExito = cuerpo.indexOf('motivo: "cliente_del_evento"');
+    const reglas = [
+      ["dominio del correo", "endsWith(DOMINIO_CLIENTE_PORTAL)", "no_es_cuenta_de_portal"],
+      ["marca de otra app", 'app !== "jardines"', "marcado_de_otra_aplicacion"],
+      ["rol en perfiles", 'perfil.rol !== "cliente"', "no_es_un_cliente"],
+      ["otro evento", 'from("eventos")', "compartido_con_otro_evento"],
+      ["personal de operativo", 'from("operativo_personal")', "es_personal_de_operativo"],
+    ];
+    for (const [nombre, condicion, motivo] of reglas) {
+      const iCond = cuerpo.indexOf(condicion);
+      const iMotivo = cuerpo.indexOf(motivo);
+      check(
+        `usuarioEsClienteDelEvento: comprueba ${nombre}`,
+        iExito > 0 && iCond >= 0 && iMotivo > iCond && iMotivo < iExito,
+        `cond=${iCond} motivo=${iMotivo} exito=${iExito}`,
+      );
+    }
+    // Falla CERRADO: cada lectura que no se pueda hacer devuelve "no", nunca sigue adelante.
+    check(
+      "usuarioEsClienteDelEvento: una lectura que falla dice que NO",
+      /lectura_de_auth_fallida/.test(cuerpo) && /lectura_de_perfiles_fallida/.test(cuerpo) &&
+        /lectura_de_eventos_fallida/.test(cuerpo) && /lectura_de_operativo_fallida/.test(cuerpo),
+    );
+  }
+
+  // 4) La excepción de la compensación es estrecha: solo el uuid que ESA petición acaba de crear.
+  {
+    const cuerpo = entre(guard, "export async function borrarUsuario(", "\n}\n");
+    check(
+      "borrarUsuario: la excepción de compensación exige que el uuid sea el creado en la petición",
+      /permiso\.creadoEnEstaPeticion !== userId/.test(cuerpo) &&
+        /no_es_el_usuario_creado_aqui/.test(cuerpo),
+    );
+    check(
+      "compensarAlta: usa la excepción estrecha, no la de cliente",
+      /borrarUsuario\(admin, userId, \{ tipo: "recien_creado_aqui", creadoEnEstaPeticion: userId \}\)/.test(guard),
+    );
+  }
+
+  // 5) El endpoint pasa el permiso de cliente, con SU eventoId.
+  {
+    const api = leerCodigo("api/eliminar-evento.js");
+    check(
+      "eliminar-evento: el borrado del usuario declara que es el cliente de ESE evento",
+      /borrarUsuario\(admin, authUserId, \{ tipo: "cliente_de_evento", eventoId \}\)/.test(api),
+    );
+    // Y el uuid se guarda para la auditoría del catch: si la fila cuaja y falla la relectura, sin
+    // este dato no hay forma de encontrar después la cuenta que quedó viva.
+    check(
+      "eliminar-evento: el catch audita el authUserId y el estado real de la fila",
+      /detalle: \{[\s\S]{0,200}authUserId,/.test(api) && /fila_sin_confirmar/.test(api),
+    );
+  }
 }
 
 // ---------------------------------------------------------------- homónimos (8C)
