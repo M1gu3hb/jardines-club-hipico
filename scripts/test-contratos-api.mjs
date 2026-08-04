@@ -801,6 +801,89 @@ for (const ruta of [
   );
 }
 
+// ---------------------------------------------------------------- eliminar evento (8B)
+// La ÚNICA operación irreversible del panel. El orden de los pasos no es estilo: es lo que
+// impide dejar archivos sin asa o huérfanas invisibles.
+{
+  const api = leerCodigo("api/eliminar-evento.js");
+  const ui = leerCodigo("src/components/admin/eventos/EventoEliminar.jsx");
+
+  // ORDEN: los paths viven en `documentos`, que cae por CASCADE. Si la fila se borrara antes,
+  // los archivos quedarían en el bucket para siempre y sin forma de localizarlos.
+  {
+    const iStorage = api.indexOf('storage.from(BUCKET).remove');
+    const iHuerfanas = api.indexOf('from("notificaciones").delete()');
+    const iFila = api.indexOf('from("eventos").delete()');
+    const iAuth = api.indexOf("borrarUsuario(");
+    check(
+      "eliminar-evento: el orden es archivos → huérfanas → fila → usuario de Auth",
+      iStorage > 0 && iHuerfanas > iStorage && iFila > iHuerfanas && iAuth > iFila,
+      `storage=${iStorage} huerfanas=${iHuerfanas} fila=${iFila} auth=${iAuth}`,
+    );
+  }
+  check(
+    "eliminar-evento: se compara lo borrado del bucket con lo pedido",
+    /Array\.isArray\(borrados\) \? borrados\.length : 0/.test(api) && /n < rutas\.length/.test(api),
+  );
+  check(
+    "eliminar-evento: un listado truncado corta en vez de dejar archivos sueltos",
+    />= TOPE_LISTADO/.test(api) && /listado_truncado/.test(api),
+  );
+  check(
+    "eliminar-evento: las huérfanas se confirman contando, no solo mirando `error`",
+    /\.delete\(\)\.eq\("evento_id", eventoId\)\.select\("id"\)/.test(api) &&
+      /hecho\.notificaciones !== inv\.notificaciones/.test(api),
+  );
+  check(
+    "eliminar-evento: el borrado de la fila se confirma releyendo",
+    /la fila sigue existiendo/.test(api) && /paso: "confirmar"/.test(api),
+  );
+  // `resenas` es SET NULL y se conserva A PROPÓSITO: es prueba social del salón.
+  check(
+    "eliminar-evento: la reseña NO se borra",
+    !/from\("resenas"\)\.delete/.test(api) && /resenas/.test(api),
+  );
+  check(
+    "eliminar-evento: la UI avisa de que la reseña seguirá publicada",
+    /inv\.resenas > 0/.test(ui) && /NO se borra/.test(ui),
+  );
+  // El inventario cuenta invitados vía `mesas`: la tabla NO tiene `evento_id`, y pedirlo daría
+  // 42703 — el mismo fallo que tuvo `correo-cliente` — con el inventario mostrando 0 justo
+  // antes de un borrado irreversible.
+  check(
+    "eliminar-evento: los invitados se cuentan vía mesas, no por evento_id",
+    /from\("invitados"\)[\s\S]{0,120}\.in\("mesa_id", ids\)/.test(api) &&
+      !/from\("invitados"\)[\s\S]{0,80}eq\("evento_id"/.test(api),
+  );
+  // `operativo_ubicaciones` tiene PK compuesta y NO tiene `id`.
+  check(
+    "eliminar-evento: las ubicaciones se confirman por personal_id, no por id",
+    /from\("operativo_ubicaciones"\)\.delete\(\)\.eq\("evento_id", eventoId\)\.select\("personal_id"\)/.test(api),
+  );
+  // La confirmación por nombre se compara contra la FILA. Que el botón se habilite en el
+  // navegador no autoriza nada.
+  check(
+    "eliminar-evento: el nombre se compara contra la fila del servidor",
+    /String\(confirmacion \|\| ""\)\.trim\(\) !== String\(ev\.nombre_evento \|\| ""\)\.trim\(\)/.test(api),
+  );
+  check(
+    "eliminar-evento: solo admin, con rate limit e idempotencia",
+    /autorizarJardines\(req, admin, \{ rol: "admin" \}\)/.test(api) &&
+      /rateLimit\(admin, "eliminar-evento"/.test(api) && /idemIniciar\(admin, "eliminar-evento"/.test(api),
+  );
+  check(
+    "eliminar-evento: si se interrumpe, se dice qué quedó hecho",
+    /hecho\.archivos\}\/\$\{hecho\.archivosPedidos\}/.test(api) && /NO borrado/.test(api),
+  );
+  // La UI no puede prometer que borra una cuenta a partir de `evento.usuario`: una fila puede
+  // tener usuario sin `auth_user_id` (los tres duplicados de "Boda ortega" estaban así).
+  check(
+    "eliminar-evento: la cuenta a borrar la dice el servidor, no el objeto del navegador",
+    /cuentaCliente: ev\.auth_user_id \? ev\.usuario : null/.test(api) &&
+      /\{cuenta &&/.test(ui) && !/\{evento\.usuario &&/.test(ui),
+  );
+}
+
 // ---------------------------------------------------------------- salida
 let fallan = 0;
 for (const c of casos) {

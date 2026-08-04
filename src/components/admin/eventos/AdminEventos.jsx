@@ -102,6 +102,7 @@ export default function AdminEventos() {
         salones={salones}
         onVolver={() => { setAbierto(null); cargar(); }}
         onActualizado={(ev) => { setAbierto(ev); cargar(); }}
+        onBorrado={() => { setAbierto(null); cargar(); }}
       />
     );
   }

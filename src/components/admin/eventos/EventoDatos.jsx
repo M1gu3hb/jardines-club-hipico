@@ -2,8 +2,9 @@ import { useState, useEffect } from "react";
 import { base44 } from "@/api/base44Client";
 import { Loader2, Check, KeyRound, Heart, StickyNote } from "lucide-react";
 import { Field, Area, Toggle, ESTATUS } from "./_ui";
+import EventoEliminar from "./EventoEliminar";
 
-export default function EventoDatos({ evento, salones, onActualizado }) {
+export default function EventoDatos({ evento, salones, onActualizado, onBorrado }) {
   const [form, setForm] = useState({ ...evento });
   const [guardando, setGuardando] = useState(false);
   const [ok, setOk] = useState(false);
@@ -195,6 +196,13 @@ export default function EventoDatos({ evento, salones, onActualizado }) {
           </div>
         )}
       </div>
+
+      {/* Zona de peligro, al final y separada: el borrado es lo único irreversible del panel. */}
+      <div className="border-t border-red-400/15 pt-5 mt-2">
+        <p className="text-red-400/50 text-xs uppercase tracking-wider mb-3">Zona de peligro</p>
+        <EventoEliminar evento={evento} onBorrado={onBorrado} />
+      </div>
+
     </div>
   );
 }

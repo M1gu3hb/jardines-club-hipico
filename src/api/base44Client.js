@@ -200,6 +200,25 @@ const functions = {
     if (!res.ok) throw new Error(json.error || `Error ${res.status}`);
     return json;
   },
+  /**
+   * Borra un evento COMPLETO: filas, archivos del bucket y usuario de Auth.
+   * Todo ocurre en el servidor (`api/eliminar-evento.js`) porque borrar un usuario de Auth
+   * exige `service_role`, y repartirlo entre navegador y servidor dejaría estados a medias.
+   *
+   * Con `soloInventario: true` no borra nada: devuelve el recuento de lo que se llevaría.
+   */
+  async eliminarEvento(payload) {
+    const { data } = await supabase.auth.getSession();
+    const token = data?.session?.access_token;
+    const res = await fetch("/api/eliminar-evento", {
+      method: "POST",
+      headers: { "Content-Type": "application/json", Authorization: `Bearer ${token || ""}` },
+      body: JSON.stringify(payload),
+    });
+    const json = await res.json().catch(() => ({}));
+    if (!res.ok) throw new Error(json.error || `Error ${res.status}`);
+    return json;
+  },
   // Crea otro ADMINISTRADOR del panel (server-side con service_role; valida rol admin).
   async crearAdmin(payload) {
     const { data } = await supabase.auth.getSession();
