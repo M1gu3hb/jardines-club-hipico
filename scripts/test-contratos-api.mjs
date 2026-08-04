@@ -1366,6 +1366,41 @@ for (const ruta of [
     "credenciales: las reglas no dependen del servidor (el navegador las importa)",
     !/process\.env/.test(reglas) && !/require\(|from "node:/.test(reglas),
   );
+  // H4 · EL TERCER VALIDADOR. Con una sola fuente, bajar `PASSWORD_MIN` mueve cliente y servidor
+  // a la vez — hasta ahí, correcto por diseño. Pero GoTrue tiene su propia política, es
+  // configuración GLOBAL del proyecto (la comparte Vero) y **no se puede leer desde aquí**. Si
+  // esta constante bajara por debajo del mínimo de Auth, el formulario aceptaría y el alta
+  // moriría en `createUser`: la misma forma del bug original.
+  //
+  // El número no se puede anclar al valor real, así que se ancla a un SUELO con el motivo
+  // escrito: 8 es lo que Supabase recomienda explícitamente y el defecto de GoTrue es 6, así
+  // que cualquier proyecto configurado por encima del defecto estará en 8 o más.
+  {
+    // El motivo vive en un COMENTARIO, así que aquí hace falta el archivo con comentarios.
+    const reglasConComentarios = leer("api/_lib/reglas-credenciales.js");
+    const min = Number((reglas.match(/export const PASSWORD_MIN = (\d+);/) || [])[1]);
+    check(
+      "credenciales: `PASSWORD_MIN` no baja del suelo de 8 (política de Auth, no legible desde aquí)",
+      Number.isFinite(min) && min >= 8,
+      `PASSWORD_MIN = ${min}`,
+    );
+    // Y el motivo tiene que estar escrito donde está el número, o el suelo se borra sin saber
+    // por qué existía.
+    check(
+      "credenciales: el suelo dice de dónde sale y que Auth es un validador aparte",
+      /GoTrue tiene su propia política/.test(reglasConComentarios) &&
+        /configuración\s+global\s+del\s*\n?\s*\*?\s*proyecto/i.test(reglasConComentarios) &&
+        /no se debe tocar/.test(reglasConComentarios),
+    );
+    // Y si Auth rechaza igualmente, el alta lo dice en vez de responder opaco.
+    check(
+      "credenciales: un rechazo de la política de Auth no se responde como «no se pudo»",
+      /password_rechazada_por_auth/.test(api) &&
+        /La política de contraseñas del proyecto rechazó/.test(api) &&
+        /campo: "password"/.test(api),
+    );
+  }
+
   check(
     "credenciales: el 400 dice QUÉ campo falló",
     /status\(400\)\.json\(\{ error: v\.mensaje, campo: v\.campo \}\)/.test(api),
@@ -1605,7 +1640,11 @@ for (const ruta of [
     );
     check(
       "9C: la ficha del evento dice de qué solicitud salió",
-      /evento\.solicitudId &&/.test(ficha) && /salió de la solicitud/.test(ficha),
+      /evento\.solicitudId &&/.test(ficha) && /salió de una solicitud/.test(ficha) &&
+        // Y con tres estados: "buscando", "esta es", y "no se pudo leer" — nunca el mismo
+        // valor para "todavía no ha llegado" y para "la lectura se cayó" (H3).
+        /origenEstado === "cargando"/.test(ficha) && /origenEstado === "fallo"/.test(ficha) &&
+        /SolicitudEvento\.filterEstricto/.test(ficha),
     );
   }
 

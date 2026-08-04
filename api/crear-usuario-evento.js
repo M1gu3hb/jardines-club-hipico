@@ -112,11 +112,29 @@ export default async function handler(req, res) {
     });
     if (createErr) {
       await idemCerrar(admin, "crear-usuario-evento", claveIdem, false);
-      const duplicado = /already been registered|already exists/i.test(createErr.message || "");
-      await auditar(admin, "crear_usuario_evento", "denegado",
-        { detalle: { motivo: duplicado ? "usuario_duplicado" : "alta_fallida" } });
-      // Genérico salvo el caso de duplicado, que el admin necesita distinguir.
-      res.status(409).json({ error: duplicado ? "Ese usuario ya existe" : "No se pudo crear el usuario" });
+      const msg = createErr.message || "";
+      const duplicado = /already been registered|already exists/i.test(msg);
+      // EL TERCER VALIDADOR. `validarCredenciales` la comparten cliente y servidor, pero GoTrue
+      // tiene su PROPIA política de contraseñas —longitud mínima, caracteres exigidos, rechazo
+      // de contraseñas filtradas—, y es configuración GLOBAL del proyecto de Supabase: la
+      // comparte Vero y puede cambiar sin que este código se entere. Si rechaza, decirlo con
+      // un "No se pudo crear el usuario" opaco es exactamente la forma del bug original, un
+      // piso más abajo: el formulario acepta y el alta muere sin explicar por qué.
+      const debil = /password|weak|pwned|leaked|caracteres/i.test(msg);
+      await auditar(admin, "crear_usuario_evento", "denegado", {
+        detalle: { motivo: duplicado ? "usuario_duplicado" : debil ? "password_rechazada_por_auth" : "alta_fallida" },
+      });
+      if (duplicado) {
+        res.status(409).json({ error: "Ese usuario ya existe", campo: "usuario" });
+      } else if (debil) {
+        res.status(400).json({
+          error: "La política de contraseñas del proyecto rechazó esta contraseña. " +
+                 "Prueba con una más larga y que mezcle letras, números y símbolos.",
+          campo: "password",
+        });
+      } else {
+        res.status(409).json({ error: "No se pudo crear el usuario" });
+      }
       return;
     }
 

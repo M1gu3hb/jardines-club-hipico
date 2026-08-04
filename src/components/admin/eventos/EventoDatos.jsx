@@ -19,16 +19,24 @@ export default function EventoDatos({ evento, salones, salonesFallaron = false, 
 
   // De qué solicitud salió este evento (`sec_25`). Se lee aparte porque el evento solo guarda
   // el id: enseñar un uuid no le dice nada a nadie, y el folio sí.
+  //
+  // TRES estados, no uno. Antes era un solo `null` para "todavía no ha llegado" y para "la
+  // lectura se cayó", y con `filter` —que devuelve [] sin lanzar— la ficha se quedaba diciendo
+  // «salió de la solicitud (cargando…)» **para siempre**. J-02 en pequeño.
   const [solicitudOrigen, setSolicitudOrigen] = useState(null);
+  const [origenEstado, setOrigenEstado] = useState("cargando"); // cargando | ok | fallo
 
   // Lo que el cliente armó en su portal (lectura: wishlist + notas).
   const [deseos, setDeseos] = useState([]);
   const [notasCliente, setNotasCliente] = useState([]);
   useEffect(() => {
-    if (!evento.solicitudId) { setSolicitudOrigen(null); return; }
-    base44.entities.SolicitudEvento.filter({ id: evento.solicitudId })
-      .then((r) => setSolicitudOrigen(r[0] || null))
-      .catch(() => setSolicitudOrigen(null));
+    if (!evento.solicitudId) { setSolicitudOrigen(null); setOrigenEstado("ok"); return; }
+    setOrigenEstado("cargando");
+    // `filterEstricto`: con `filter`, un fallo devuelve [] sin lanzar y el `.catch` no se
+    // dispara nunca, así que el fallo era indistinguible de "todavía no ha llegado".
+    base44.entities.SolicitudEvento.filterEstricto({ id: evento.solicitudId })
+      .then((r) => { setSolicitudOrigen(r[0] || null); setOrigenEstado("ok"); })
+      .catch(() => { setSolicitudOrigen(null); setOrigenEstado("fallo"); });
   }, [evento.solicitudId]);
 
   useEffect(() => {
@@ -157,14 +165,26 @@ export default function EventoDatos({ evento, salones, salonesFallaron = false, 
       {evento.solicitudId && (
         <div className="border border-[#C9A84C]/20 bg-[#C9A84C]/5 px-4 py-2.5 rounded">
           <p className="text-[#E6C870]/90 text-xs flex items-center gap-2">
-            <Inbox size={13} /> Este evento salió de la solicitud{" "}
-            <strong>{solicitudOrigen?.folio || "(cargando…)"}</strong>
-            {solicitudOrigen?.nombreCompleto ? ` · ${solicitudOrigen.nombreCompleto}` : ""}
+            <Inbox size={13} /> Este evento salió de una solicitud{" "}
+            {origenEstado === "ok" && solicitudOrigen && <strong>{solicitudOrigen.folio || "(sin folio)"}</strong>}
+            {origenEstado === "cargando" && <span className="text-white/35">(buscando cuál…)</span>}
+            {origenEstado === "ok" && solicitudOrigen?.nombreCompleto ? ` · ${solicitudOrigen.nombreCompleto}` : ""}
           </p>
-          {solicitudOrigen && (
+          {origenEstado === "ok" && solicitudOrigen && (
             <p className="text-white/35 text-xs mt-1">
               Recibida el {solicitudOrigen.fechaEnvio || "—"}
               {solicitudOrigen.estatus ? ` · la solicitud está en «${solicitudOrigen.estatus}»` : ""}
+            </p>
+          )}
+          {origenEstado === "ok" && !solicitudOrigen && (
+            <p className="text-white/35 text-xs mt-1">
+              La solicitud ya no existe: se borró después de crear el evento.
+            </p>
+          )}
+          {origenEstado === "fallo" && (
+            <p className="text-amber-300/85 text-xs mt-1 flex items-start gap-1.5">
+              <AlertTriangle size={12} className="mt-0.5 flex-shrink-0" />
+              No se pudo leer cuál. No es que no exista: la lectura falló. Recarga la página.
             </p>
           )}
         </div>

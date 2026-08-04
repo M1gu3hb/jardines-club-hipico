@@ -69,6 +69,7 @@ export default function AdminSolicitudes({ onConvertir = null }) {
   // es el único sitio donde consta: sin esto, el dueño podría convertir la misma solicitud
   // tres veces sin enterarse — que es exactamente cómo salieron cuatro «Boda ortega».
   const [eventosPorSolicitud, setEventosPorSolicitud] = useState({});
+  const [falloConvertidas, setFalloConvertidas] = useState(false);
 
   // `filterEstricto`, no `list`: con `list` un fallo de lectura devuelve `[]` y la pantalla
   // dice "0 solicitudes recibidas" — indistinguible de que no haya ninguna.
@@ -105,8 +106,11 @@ export default function AdminSolicitudes({ onConvertir = null }) {
           const mapa = {};
           for (const ev of evs) if (ev.solicitudId) mapa[ev.solicitudId] = ev;
           setEventosPorSolicitud(mapa);
+          setFalloConvertidas(false);
         })
-        .catch(() => setEventosPorSolicitud({})),
+        // Y se DICE. Tragarse el error dejaba el mapa vacío sin ninguna señal, así que una
+        // solicitud ya convertida se veía exactamente igual que una sin convertir.
+        .catch(() => { setEventosPorSolicitud({}); setFalloConvertidas(true); }),
     [],
   );
   useEffect(() => { cargarConvertidas(); }, [cargarConvertidas]);
@@ -264,6 +268,13 @@ export default function AdminSolicitudes({ onConvertir = null }) {
                   fallo—, así que se nombra el evento y se explica. Es el mismo criterio que el
                   distintivo de homónimos: enseñar el dato que distingue, no esconder el botón. */}
               <div className="border-t border-white/5 pt-5">
+                {falloConvertidas && !eventosPorSolicitud[selected.id] && (
+                  <p className="text-amber-300/85 text-xs mb-3 flex items-start gap-1.5">
+                    <AlertTriangle size={12} className="mt-0.5 flex-shrink-0" />
+                    No se pudo comprobar si esta solicitud ya se convirtió en evento. Puedes
+                    convertirla igual: si ya lo estaba, el alta lo detecta y para.
+                  </p>
+                )}
                 {eventosPorSolicitud[selected.id] ? (
                   <div className="border border-green-400/25 bg-green-400/5 px-4 py-3 rounded space-y-1">
                     <p className="text-green-300/90 text-sm flex items-center gap-2">

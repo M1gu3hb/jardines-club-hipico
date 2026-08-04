@@ -24,6 +24,28 @@
 export const USUARIO_RE = /^[a-zA-Z0-9._-]{3,60}$/;
 export const USUARIO_MIN = 3;
 export const USUARIO_MAX = 60;
+/**
+ * MÍNIMO DE CONTRASEÑA — y por qué 8 es un SUELO, no una preferencia.
+ *
+ * Hay TRES validadores, no dos. Este archivo lo comparten cliente y servidor, así que entre
+ * ellos no pueden divergir. Pero **GoTrue tiene su propia política** —longitud mínima,
+ * caracteres exigidos, rechazo de contraseñas filtradas— y es **configuración global del
+ * proyecto de Supabase**, la misma que usa Vero Seguros (ver `docs/SEGURIDAD.md` §9.1). No se
+ * puede leer desde el código ni desde las herramientas de esta sesión, y **no se debe tocar**.
+ *
+ * Consecuencia: bajar este número no reabre la divergencia entre los dos JS —se mueven a la
+ * vez— pero sí puede reabrirla contra Auth. Si aquí dijera 6 y GoTrue exige 8, el formulario
+ * aceptaría y el alta moriría en `createUser`: la misma forma del bug original, un piso más
+ * abajo.
+ *
+ * 8 es el suelo porque es lo que Supabase recomienda explícitamente ("anything less than 8
+ * characters is not recommended") y porque el mínimo de GoTrue por defecto es 6: cualquier
+ * proyecto configurado por encima del defecto estará en 8 o más. Si alguna vez se sube la
+ * política de Auth por encima de 8, hay que subir esta constante también — y hasta entonces,
+ * `api/crear-usuario-evento.js` traduce el rechazo de Auth a un mensaje que dice qué pasó.
+ *
+ * Un contrato de `scripts/test-contratos-api.mjs` impide bajarlo.
+ */
 export const PASSWORD_MIN = 8;
 export const PASSWORD_MAX = 200;
 export const NOMBRE_MAX = 120;
