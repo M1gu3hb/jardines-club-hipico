@@ -76,7 +76,7 @@ que se hizo el seed inicial (histórico). **Si Supabase no responde, el sitio se
 
 ## B. Operación del evento (privado, RLS por dueño)
 
-### Evento → `eventos` (tabla central, 30 columnas)
+### Evento → `eventos` (tabla central, 31 columnas)
 - **Propósito:** un evento vendido. Todo lo demás cuelga de aquí.
 - **Campos de negocio:** `nombre_evento`, `tipo_evento`, `fecha_evento`, `salon_id`, `estatus`,
   `monto_total`, `anticipo_monto`, `anticipo_pagado`, `notas`, `creado_por`.
@@ -86,8 +86,10 @@ que se hizo el seed inicial (histórico). **Si Supabase no responde, el sitio se
   `invitacion_dress_code`.
 - **Operativo / staff:** `operativo_activo`, `operativo_desde`, `staff_token_hash`,
   `staff_token_expira`, `staff_token_revocado_at`, `staff_token_rotado_at`.
-- **Otros:** `resena_recordada` (marca del cron).
-- **Relaciones:** `salon_id → salones` (SET NULL), `auth_user_id → auth.users` (SET NULL).
+- **Otros:** `resena_recordada` (marca del cron), **`solicitud_id`** (`sec_25`): de qué
+  solicitud salió este evento. Anulable — los eventos creados a mano no vienen de ninguna.
+- **Relaciones:** `salon_id → salones` (SET NULL), `auth_user_id → auth.users` (SET NULL),
+  **`solicitud_id → solicitudes` (SET NULL)** — borrar el lead no puede llevarse el contrato.
   Hijos con `ON DELETE CASCADE`: `documentos`, `mesas`, `invitaciones`, `cronograma`, `musica`,
   `items_contratados`, `evento_notas`, `evento_wishlist`, `evento_reglas_mesas`, `rsvps`.
 - **Reglas críticas:**
@@ -306,7 +308,7 @@ textuales. Ese hueco quedó cerrado (ver `docs/CHANGELOG.md`, bloque 3).
 ## F. Migraciones
 
 Forward-only, en `supabase/migrations/`, nombradas
-`<timestamp>_jardines_sec_NN_<tema>.sql`. **23 aplicadas en producción** (`sec_01`…`sec_24`;
+`<timestamp>_jardines_sec_NN_<tema>.sql`. **24 aplicadas en producción** (`sec_01`…`sec_25`;
 no existe `sec_10`: se planeó como archivo `.noapply` y su contenido acabó en `sec_20`).
 
 | # | Tema |
@@ -334,6 +336,7 @@ no existe `sec_10`: se planeó como archivo `.noapply` y su contenido acabó en 
 | 22 | Limpieza del único perfil cruzado con Vero |
 | 23 | **Retiro de las 3 RPC residuales** superadas por `sec_19` y `sec_06`/`sec_17` |
 | 24 | `salon_planos`: índice único por salón + `imagen_plano_path` |
+| 25 | `eventos.solicitud_id` + índice parcial: de qué solicitud salió cada evento |
 
 **Regla de despliegue:** la base es producción compartida. Primero lo **aditivo**, luego se
 despliega el frontend, y **solo entonces** se retira lo viejo. Ver `docs/SEGURIDAD.md` §8.bis.

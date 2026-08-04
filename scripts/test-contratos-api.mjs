@@ -1429,6 +1429,40 @@ for (const ruta of [
   }
 }
 
+// ---------------------------------------------------------------- sec_25 (9B)
+// La migración que añade `eventos.solicitud_id`. Se afirma que sigue siendo ADITIVA y
+// autoprotegida: es la única de este bloque y toca la base compartida con Vero.
+{
+  const sql = leer("supabase/migrations/20260804180000_jardines_sec_25_evento_solicitud_id.sql");
+  check(
+    "sec_25: es aditiva — no borra, no reescribe y no toca policies ni grants",
+    /add column solicitud_id uuid/.test(sql) &&
+      !/\bdrop\b/i.test(sql) && !/\bdelete from\b/i.test(sql) &&
+      !/\bcreate policy\b/i.test(sql) && !/\bgrant\b/i.test(sql) && !/\brevoke\b/i.test(sql),
+  );
+  // El candado de Vero, como contrato y no solo como comentario.
+  check(
+    "sec_25: no toca nada del schema `public` (Vero)",
+    !/\bpublic\.[a-z_]+/i.test(sql.replace(/--.*$/gm, "")),
+  );
+  check(
+    "sec_25: `on delete set null` — borrar la solicitud no se lleva el evento",
+    /references jardines\.solicitudes\(id\) on delete set null/.test(sql) &&
+      !/on delete cascade/i.test(sql),
+  );
+  // Las tres precondiciones y la poscondición: sin ellas, reaplicarla o correrla contra una
+  // base distinta haría daño en vez de negarse.
+  for (const [nombre, re] of [
+    ["la columna no existe ya", /column_name = 'solicitud_id'[\s\S]{0,300}raise notice/],
+    ["la PK de solicitudes es la esperada", /v_pk is distinct from 'id'[\s\S]{0,160}raise exception/],
+    ["el tipo de esa PK es uuid", /v_tipo is distinct from 'uuid'[\s\S]{0,160}raise exception/],
+    ["RLS está activo antes", /Precondicion fallida: RLS NO esta activo/],
+    ["RLS sigue activo después", /Poscondicion fallida: RLS quedo desactivado/],
+  ]) {
+    check(`sec_25: comprueba que ${nombre}`, re.test(sql));
+  }
+}
+
 // ---------------------------------------------------------------- salida
 let fallan = 0;
 for (const c of casos) {
