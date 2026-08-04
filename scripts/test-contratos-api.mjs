@@ -1793,10 +1793,25 @@ for (const ruta of [
     }
     // El traspaso NO se consume hasta que se aplica: si se perdiera, el dueño tendría que
     // volver a Solicitudes sin saber que hace falta.
-    check(
-      "9C: el prellenado no se da por consumido si no se llegó a aplicar",
-      /abrirCrear\(prefill, salonesDisponibles\);\s*\n\s*onPrefillConsumido\?\.\(\);/.test(alta),
-    );
+    //
+    // CORREGIDO EN 9F-3, y es un caso de manual. La versión de 9E afirmaba
+    // `/abrirCrear\(…\);\s*\n\s*onPrefillConsumido\?\.\(\);/` sobre TODO el archivo: comprueba
+    // que esas dos líneas están juntas y en ese orden, pero no que no haya OTRA llamada antes.
+    // Metiendo `onPrefillConsumido?.();` justo detrás de `if (!prefill) return;` —o sea,
+    // consumiendo el traspaso antes del guardarraíl, que es exactamente el bug— el contrato
+    // seguía en verde. Comprobado mutando.
+    //
+    // Se afirma sobre el efecto entero y sobre el orden: **una sola** llamada, y después de
+    // aplicar.
+    {
+      const iAplica = efecto.indexOf("abrirCrear(prefill");
+      const consumos = [...efecto.matchAll(/onPrefillConsumido\?\.\(\)/g)].map((m) => m.index);
+      check(
+        "9C: el prellenado no se da por consumido si no se llegó a aplicar",
+        consumos.length === 1 && iAplica >= 0 && consumos[0] > iAplica,
+        `aplica en ${iAplica}, se consume en [${consumos.join(", ")}]`,
+      );
+    }
     // Y el dueño tiene salida: se le dice qué pasa y puede reintentar.
     check(
       "9C: sin ninguna lista y con una conversión esperando, se explica y se ofrece reintentar",
