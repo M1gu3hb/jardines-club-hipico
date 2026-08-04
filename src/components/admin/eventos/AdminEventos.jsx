@@ -1,7 +1,7 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { base44 } from "@/api/base44Client";
 import { useAuth } from "@/api/authContext";
-import { Plus, Loader2, Check, Search, Calendar, User, DoorOpen, KeyRound, AlertTriangle } from "lucide-react";
+import { Plus, Loader2, Check, Search, Calendar, User, DoorOpen, KeyRound, AlertTriangle, Inbox } from "lucide-react";
 import { Field, ESTATUS, estatusColor } from "./_ui";
 import { MESA_FORMAS } from "@/lib/catalogos";
 import EventoFicha from "./EventoFicha";
@@ -12,14 +12,15 @@ import { nuevoId } from "@/lib/tokenSeguro";
 // Duplicarlas es lo que hizo que divergieran: el formulario pedía 6 caracteres de contraseña
 // y el servidor exigía 8, así que una de 6 o 7 pasaba aquí y moría allá con un 400 opaco.
 import { validarCredenciales, AYUDA_USUARIO, AYUDA_PASSWORD } from "../../../../api/_lib/reglas-credenciales.js";
+import { solicitudAEvento, ESTATUS_TRAS_CONVERTIR } from "@/lib/solicitudAEvento";
 
 const FORM_VACIO = {
   nombreEvento: "", tipoEvento: "", fechaEvento: "", salonId: "",
-  clienteNombre: "", clienteEmail: "", clienteTelefono: "",
+  clienteNombre: "", clienteEmail: "", clienteTelefono: "", notas: "",
   usuario: "", password: "",
 };
 
-export default function AdminEventos() {
+export default function AdminEventos({ prefill = null, onPrefillConsumido = null }) {
   const { perfil } = useAuth();
   const [abierto, setAbierto] = useState(null); // evento seleccionado (ficha)
   const [creando, setCreando] = useState(false);
@@ -29,6 +30,10 @@ export default function AdminEventos() {
   const [campoMal, setCampoMal] = useState("");
   const [aviso, setAviso] = useState("");
   const [eventoId, setEventoId] = useState("");
+  // De qué solicitud sale este alta, y qué hay que enseñarle al admin de la traducción.
+  const [origen, setOrigen] = useState(null);      // la solicitud entera, o null
+  const [avisosPrefill, setAvisosPrefill] = useState([]);
+  const [cerrarSolicitud, setCerrarSolicitud] = useState("");
   const [filtro, setFiltro] = useState("Todos");
   const [busqueda, setBusqueda] = useState("");
 
@@ -64,8 +69,25 @@ export default function AdminEventos() {
    * una ruta nueva con `service_role` justo antes de la validación humana, y deja el
    * reintento seguro incluso si el fallo ocurre entre las escrituras 1 y 3.
    */
-  const abrirCrear = () => {
-    setForm(FORM_VACIO); setError(""); setAviso(""); setCampoMal("");
+  const abrirCrear = (desdeSolicitud = null, salonesDisponibles = salones) => {
+    setError(""); setAviso(""); setCampoMal("");
+    // El prellenado sale de `solicitudAEvento`, que es pura y NO copia lo que no puede
+    // comprobar: el salón se resuelve por nombre contra los salones reales, la fecha solo si
+    // es una fecha, el correo solo si tiene forma de correo, y las credenciales nunca. Lo que
+    // no se pudo trasladar sale como aviso, arriba del formulario, para que el admin lo vea
+    // ANTES de guardar. Es una ayuda para no volver a teclear, no un automatismo.
+    if (desdeSolicitud) {
+      const { form: prelleno, avisos } = solicitudAEvento(desdeSolicitud, salonesDisponibles);
+      setForm({ ...FORM_VACIO, ...prelleno });
+      setOrigen(desdeSolicitud);
+      setAvisosPrefill(avisos);
+      setCerrarSolicitud("");
+    } else {
+      setForm(FORM_VACIO);
+      setOrigen(null);
+      setAvisosPrefill([]);
+      setCerrarSolicitud("");
+    }
     try {
       setEventoId(nuevoId());
       setCreando(true);
@@ -73,6 +95,16 @@ export default function AdminEventos() {
       setError(e?.message || "No se pudo preparar el formulario.");
     }
   };
+
+  // El salto desde Solicitudes. Se espera a tener los salones cargados: sin ellos el salón no
+  // se puede resolver y se propondría "sin asignar" para uno que sí casa.
+  useEffect(() => {
+    if (!prefill || cargando) return;
+    abrirCrear(prefill, salones);
+    onPrefillConsumido?.();
+    // Solo al llegar un prefill nuevo; `abrirCrear` se recrea en cada render.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [prefill, cargando]);
 
   const crear = async () => {
     setError(""); setAviso(""); setCampoMal("");
@@ -101,8 +133,12 @@ export default function AdminEventos() {
         clienteTelefono: form.clienteTelefono || null,
         estatus: "Apartado",
         portalActivo: false,
+        notas: form.notas || null,
         // Trazabilidad: qué administrador creó este evento.
         creadoPor: perfil?.nombre || null,
+        // Y de qué solicitud salió (`sec_25`). Sin esto la conversión queda huérfana: no se
+        // podría ver desde la solicitud que ya se convirtió, y se podría convertir tres veces.
+        solicitudId: origen?.id || null,
       });
       // 2) Reglas de mesas por defecto.
       await base44.entities.EventoReglasMesas.create({
@@ -125,7 +161,22 @@ export default function AdminEventos() {
       if (!guardado || !guardado.usuario) {
         throw new Error("El evento se guardó, pero no se pudo confirmar que quedaran las credenciales.");
       }
+      // El estatus de la solicitud: se PROPONE, no se impone. Si el admin no eligió nada, la
+      // solicitud se queda como estaba — convertirla no decide por él en qué punto del embudo
+      // está. Y si esto falla, el evento YA está creado y bien: se avisa, no se revierte.
+      if (origen?.id && cerrarSolicitud) {
+        try {
+          await base44.entities.SolicitudEvento.update(origen.id, { estatus: cerrarSolicitud });
+        } catch (e2) {
+          setAviso(
+            `El evento se creó correctamente, pero no se pudo cambiar el estatus de la solicitud ` +
+            `${origen.folio || ""} a «${cerrarSolicitud}»: ${e2?.message || "error desconocido"}. ` +
+            `Cámbialo a mano desde Solicitudes.`,
+          );
+        }
+      }
       setCreando(false);
+      setOrigen(null); setAvisosPrefill([]); setCerrarSolicitud("");
       await cargar();
     } catch (e) {
       // Si el evento QUEDÓ creado, el formulario se cierra: dejarlo abierto con un aviso en
@@ -222,7 +273,7 @@ export default function AdminEventos() {
           <h2 className="text-white text-2xl font-thin">Eventos</h2>
           <p className="text-white/30 text-sm mt-1">Todos los eventos y sus portales de cliente.</p>
         </div>
-        <button onClick={abrirCrear}
+        <button onClick={() => abrirCrear()}
           className="flex items-center gap-2 bg-[#C9A84C] text-[#0a0a0a] px-5 py-2.5 text-sm font-medium hover:bg-[#d4b558] transition-all">
           <Plus size={14} /> Nuevo evento
         </button>
@@ -244,7 +295,32 @@ export default function AdminEventos() {
 
       {creando && (
         <div className="bg-[#111] border border-[#C9A84C]/20 p-6 mb-6">
-          <h3 className="text-white/70 text-sm mb-5 uppercase tracking-wider">Nuevo evento</h3>
+          <h3 className="text-white/70 text-sm mb-5 uppercase tracking-wider">
+            {origen ? "Nuevo evento — desde una solicitud" : "Nuevo evento"}
+          </h3>
+
+          {origen && (
+            <div className="border border-[#C9A84C]/25 bg-[#C9A84C]/5 px-4 py-3 mb-5 rounded space-y-2">
+              <p className="text-[#E6C870] text-xs font-medium flex items-center gap-2">
+                <Inbox size={13} /> Viene de la solicitud {origen.folio || "(sin folio)"}
+                {origen.nombreCompleto ? ` · ${origen.nombreCompleto}` : ""}
+              </p>
+              <p className="text-white/45 text-xs leading-relaxed">
+                Los campos están rellenados con lo que escribió el cliente. <strong className="text-white/70">
+                Revísalos y corrige lo que haga falta antes de guardar</strong> — lo escribió él, no tú.
+                El usuario y la contraseña los pones tú: no se derivan de sus datos.
+              </p>
+              {avisosPrefill.length > 0 && (
+                <ul className="space-y-1 pt-1">
+                  {avisosPrefill.map((a, i) => (
+                    <li key={i} className="text-amber-300/85 text-xs flex items-start gap-2">
+                      <AlertTriangle size={12} className="mt-0.5 flex-shrink-0" />{a}
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </div>
+          )}
           <div className="space-y-4">
             <Field label="Nombre del evento *" value={form.nombreEvento} onChange={(v) => set("nombreEvento", v)} placeholder="Boda Ana & Luis" />
             <div className="grid grid-cols-2 gap-3">
@@ -271,6 +347,16 @@ export default function AdminEventos() {
               </div>
             </div>
 
+            {(origen || form.notas) && (
+              <div className="border-t border-white/5 pt-4">
+                <label className="text-white/30 text-xs uppercase tracking-wider mb-1.5 block">
+                  Notas internas (lo que el cliente pidió y no tiene campo propio)
+                </label>
+                <textarea value={form.notas || ""} onChange={(e) => set("notas", e.target.value)} rows={6}
+                  className="w-full bg-white/5 border border-white/10 text-white/70 text-xs px-4 py-3 outline-none focus:border-[#C9A84C]/40 font-mono leading-relaxed" />
+              </div>
+            )}
+
             <div className="border-t border-white/5 pt-4">
               <p className="text-white/40 text-xs uppercase tracking-wider mb-1">Acceso al portal (usuario + contraseña)</p>
               <p className="text-white/25 text-xs mb-3">El cliente entra SOLO con estos datos (sin correo). Anótalos: la contraseña no se puede recuperar después.</p>
@@ -285,6 +371,28 @@ export default function AdminEventos() {
                 </div>
               </div>
             </div>
+
+            {origen && (
+              <div className="border-t border-white/5 pt-4">
+                <p className="text-white/40 text-xs uppercase tracking-wider mb-1">
+                  Al guardar, la solicitud {origen.folio || ""} pasa a…
+                </p>
+                <p className="text-white/25 text-xs mb-3">
+                  Es una propuesta. Si lo dejas en «no cambiarlo», la solicitud se queda como está
+                  ({origen.estatus || "Nueva"}).
+                </p>
+                <select
+                  value={cerrarSolicitud}
+                  onChange={(e) => setCerrarSolicitud(e.target.value)}
+                  className="w-full bg-white/5 border border-white/10 text-white/70 text-sm px-4 py-3 outline-none focus:border-[#C9A84C]/40"
+                >
+                  <option value="" className="bg-[#111]">— No cambiarlo —</option>
+                  {ESTATUS_TRAS_CONVERTIR.map((e) => (
+                    <option key={e} value={e} className="bg-[#111]">{e}</option>
+                  ))}
+                </select>
+              </div>
+            )}
 
             {error && (
               <p className="text-red-400/90 text-xs border border-red-400/20 bg-red-400/5 px-3 py-2 rounded flex items-start gap-2">

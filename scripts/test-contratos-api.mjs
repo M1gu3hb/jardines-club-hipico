@@ -1463,6 +1463,140 @@ for (const ruta of [
   }
 }
 
+// ---------------------------------------------------------------- solicitud -> evento (9C)
+// ¿DE QUIÉN ES ESTE DATO Y QUIÉN ME LO DIO? Lo escribió un desconocido en el formulario
+// público. Que esté en la base solo dice que pasó por `solicitud_crear`, no que sea bueno.
+// Estos contratos atan lo que NO puede copiarse tal cual.
+{
+  const mapeo = leerCodigo("src/lib/solicitudAEvento.js");
+  const alta = leerCodigo("src/components/admin/eventos/AdminEventos.jsx");
+  const sol = leerCodigo("src/components/admin/AdminSolicitudes.jsx");
+  const ficha = leerCodigo("src/components/admin/eventos/EventoDatos.jsx");
+
+  // 1) EL SALÓN. Es texto libre en la solicitud y un uuid en el evento. Solo casa exacto: un
+  // salón mal asignado es peor que uno sin asignar, y nadie lo notaría hasta el día del evento.
+  {
+    const cuerpo = entre(mapeo, "export function resolverSalon(", "\n}\n");
+    check(
+      "9C: el salón se resuelve por nombre exacto contra los salones reales, o se deja vacío",
+      /clave\(s\.nombre\) === t/.test(cuerpo) &&
+        /salonId: ""/.test(cuerpo) && /motivo: "no_casa"/.test(cuerpo) &&
+        !/includes\(t\)|startsWith|indexOf\(t\)/.test(cuerpo.replace("SALON_SIN_DEFINIR.includes(t)", "")),
+      cuerpo ? "" : "no se encontró resolverSalon",
+    );
+    // El id del salón NUNCA sale de la solicitud: solo de la lista de salones.
+    check(
+      "9C: el salonId sale de `salones`, nunca de la solicitud",
+      !/salonId: s\.|salonId: solicitud\.|salonId: .*salonSeleccionado/.test(mapeo),
+    );
+  }
+
+  // 2) LAS CREDENCIALES. No se derivan del correo ni del nombre: son credenciales, y
+  // derivarlas de datos públicos las haría adivinables desde fuera.
+  {
+    const cuerpo = entre(mapeo, "export function solicitudAEvento(", "\n}\n");
+    check(
+      "9C: usuario y contraseña salen VACÍOS del prellenado",
+      /usuario: "",\s*\n\s*password: "",/.test(cuerpo) &&
+        !/usuario: .*email|usuario: .*nombre|password: /.test(cuerpo.replace('password: "",', "")),
+      cuerpo ? "" : "no se encontró solicitudAEvento",
+    );
+  }
+
+  // 3) FECHA Y CORREO. Solo se proponen si son lo que dicen ser; si no, campo vacío y aviso.
+  check(
+    "9C: la fecha solo se copia si es una fecha de verdad",
+    /export function fechaValida/.test(mapeo) &&
+      /d\.toISOString\(\)\.slice\(0, 10\) !== s/.test(mapeo) &&
+      /fechaEvento: fecha/.test(mapeo),
+  );
+  check(
+    "9C: el correo solo se copia si tiene forma de correo",
+    /export function correoValido/.test(mapeo) && /clienteEmail: correo/.test(mapeo),
+  );
+
+  // 4) LOS TEXTOS LARGOS se recortan antes de escribirse. `comentarios` admite 2000 en la
+  // solicitud y `eventos.notas` no tiene tope: sin recortar, la nota interna se vuelve ilegible.
+  check(
+    "9C: todo lo que se copia pasa por `recorta`",
+    /const recorta = \(v, max\)/.test(mapeo) &&
+      /clienteNombre: recorta\(/.test(mapeo) && /tipoEvento: recorta\(/.test(mapeo) &&
+      /clienteTelefono: recorta\(/.test(mapeo),
+  );
+
+  // 5) EL NOMBRE DEL EVENTO nunca puede quedar vacío: con "" la confirmación del borrado se
+  // cumple sola (8F-2), así que un prellenado vacío reabriría ese agujero por la puerta de atrás.
+  {
+    const cuerpo = entre(mapeo, "export function nombrePropuesto(", "\n}\n");
+    check(
+      "9C: el nombre propuesto nunca es cadena vacía",
+      /return tipo \|\| cliente \|\| `Solicitud/.test(cuerpo),
+      cuerpo ? "" : "no se encontró nombrePropuesto",
+    );
+  }
+
+  // 6) EL ESTATUS de la solicitud sale del catálogo, nunca de una lista nueva: esa divergencia
+  // es la que rompió el guardado del estatus en el bloque 7.
+  check(
+    "9C: el estatus propuesto sale de SOLICITUD_ESTATUS",
+    /from "@\/lib\/catalogos"/.test(mapeo) &&
+      /SOLICITUD_ESTATUS\.filter\(/.test(mapeo) &&
+      !/\["Cotizada", ?"Cerrada"\]/.test(mapeo),
+  );
+  // Y se PROPONE: si el admin no elige, la solicitud se queda como estaba.
+  {
+    const crear = entre(alta, "const crear = async", "if (abierto)");
+    check(
+      "9C: el estatus de la solicitud solo cambia si el admin lo eligió",
+      /if \(origen\?\.id && cerrarSolicitud\)/.test(crear),
+      crear ? "" : "no se encontró crear()",
+    );
+    // Y si ese cambio falla, el evento NO se revierte: ya está bien creado.
+    check(
+      "9C: si el cambio de estatus falla, el evento no se deshace",
+      /catch \(e2\)[\s\S]{0,400}Cámbialo a mano desde Solicitudes/.test(crear),
+    );
+  }
+
+  // 7) LA TRAZABILIDAD. Sin `solicitud_id` escrito, la conversión queda huérfana y la misma
+  // solicitud se puede convertir tres veces sin que nada lo note.
+  {
+    const crear = entre(alta, "const crear = async", "if (abierto)");
+    check(
+      "9C: el alta escribe de qué solicitud salió",
+      /solicitudId: origen\?\.id \|\| null/.test(crear),
+      crear ? "" : "no se encontró crear()",
+    );
+    check(
+      "9C: la solicitud ya convertida no ofrece convertirse otra vez",
+      /eventosPorSolicitud\[selected\.id\] \?/.test(sol) &&
+        /ya se convirtió en evento/.test(sol),
+    );
+    // Esa lectura decide si se ofrece un botón destructivo de duplicar: no puede ser floja.
+    check(
+      "9C: lo ya convertido se lee con `filterEstricto`, no con `filter`",
+      /Evento\.filterEstricto\(null, "-created_date"\)/.test(sol) &&
+        !/Evento\.filter\(null/.test(sol),
+    );
+    check(
+      "9C: la ficha del evento dice de qué solicitud salió",
+      /evento\.solicitudId &&/.test(ficha) && /salió de la solicitud/.test(ficha),
+    );
+  }
+
+  // 8) EL PRELLENADO ES EDITABLE y se ve que viene de fuera. Es lo que separa una ayuda de un
+  // automatismo: el admin tiene que poder corregir lo que escribió un desconocido.
+  check(
+    "9C: se avisa de que los datos los escribió el cliente y hay que revisarlos",
+    /lo escribió él, no tú/.test(alta) && /avisosPrefill\.map/.test(alta),
+  );
+  // El prellenado espera a los salones: sin ellos, un salón que SÍ casa saldría "sin asignar".
+  check(
+    "9C: el prellenado espera a que los salones estén cargados",
+    /if \(!prefill \|\| cargando\) return;/.test(alta),
+  );
+}
+
 // ---------------------------------------------------------------- salida
 let fallan = 0;
 for (const c of casos) {

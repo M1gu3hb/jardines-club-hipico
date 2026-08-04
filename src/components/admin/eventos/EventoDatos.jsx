@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { base44 } from "@/api/base44Client";
-import { Loader2, Check, KeyRound, Heart, StickyNote } from "lucide-react";
+import { Loader2, Check, KeyRound, Heart, StickyNote, Inbox } from "lucide-react";
 import { Field, Area, Toggle, ESTATUS } from "./_ui";
 import EventoEliminar from "./EventoEliminar";
 import { validarCredenciales, AYUDA_USUARIO, AYUDA_PASSWORD } from "../../../../api/_lib/reglas-credenciales.js";
@@ -17,9 +17,20 @@ export default function EventoDatos({ evento, salones, onActualizado, onBorrado 
   const [credMsg, setCredMsg] = useState("");
   const [credBusy, setCredBusy] = useState(false);
 
+  // De qué solicitud salió este evento (`sec_25`). Se lee aparte porque el evento solo guarda
+  // el id: enseñar un uuid no le dice nada a nadie, y el folio sí.
+  const [solicitudOrigen, setSolicitudOrigen] = useState(null);
+
   // Lo que el cliente armó en su portal (lectura: wishlist + notas).
   const [deseos, setDeseos] = useState([]);
   const [notasCliente, setNotasCliente] = useState([]);
+  useEffect(() => {
+    if (!evento.solicitudId) { setSolicitudOrigen(null); return; }
+    base44.entities.SolicitudEvento.filter({ id: evento.solicitudId })
+      .then((r) => setSolicitudOrigen(r[0] || null))
+      .catch(() => setSolicitudOrigen(null));
+  }, [evento.solicitudId]);
+
   useEffect(() => {
     base44.entities.EventoWishlist.filter({ eventoId: evento.id }, "-created_date").then(setDeseos);
     base44.entities.EventoNota.filter({ eventoId: evento.id }, "-created_date").then(setNotasCliente);
@@ -133,6 +144,22 @@ export default function EventoDatos({ evento, salones, onActualizado, onBorrado 
           <Field label="Teléfono" value={form.clienteTelefono} onChange={(v) => set("clienteTelefono", v)} />
         </div>
       </div>
+
+      {evento.solicitudId && (
+        <div className="border border-[#C9A84C]/20 bg-[#C9A84C]/5 px-4 py-2.5 rounded">
+          <p className="text-[#E6C870]/90 text-xs flex items-center gap-2">
+            <Inbox size={13} /> Este evento salió de la solicitud{" "}
+            <strong>{solicitudOrigen?.folio || "(cargando…)"}</strong>
+            {solicitudOrigen?.nombreCompleto ? ` · ${solicitudOrigen.nombreCompleto}` : ""}
+          </p>
+          {solicitudOrigen && (
+            <p className="text-white/35 text-xs mt-1">
+              Recibida el {solicitudOrigen.fechaEnvio || "—"}
+              {solicitudOrigen.estatus ? ` · la solicitud está en «${solicitudOrigen.estatus}»` : ""}
+            </p>
+          )}
+        </div>
+      )}
 
       <Area label="Notas internas" value={form.notas} onChange={(v) => set("notas", v)} />
 
