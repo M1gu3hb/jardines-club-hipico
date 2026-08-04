@@ -1,23 +1,22 @@
-import { useState, useEffect } from "react";
 import { base44 } from "@/api/base44Client";
 import { Package, Check, Sparkles } from "lucide-react";
+import { useCarga } from "@/lib/useCarga";
+import { Estado, EsqueletoFilas } from "@/components/ui/Estado";
 
 export default function PortalContratado({ eventoId }) {
-  const [items, setItems] = useState([]);
-  const [cargando, setCargando] = useState(true);
-
-  useEffect(() => {
-    base44.entities.ItemContratado.filter({ eventoId }, "orden")
-      .then(setItems)
-      .finally(() => setCargando(false));
-  }, [eventoId]);
-
-  if (cargando) return <p className="text-white/25 text-sm py-10 text-center">Repasando tu paquete…</p>;
+  const { datos, cargando, error, recargar } = useCarga(
+    () => base44.entities.ItemContratado.filterEstricto({ eventoId }, "orden"), [eventoId]);
+  const items = datos || [];
 
   const total = items.reduce((acc, it) => acc + (Number(it.precio) || 0) * (Number(it.cantidad) || 1), 0);
 
   return (
     <div className="max-w-xl mx-auto">
+      <Estado
+        cargando={cargando} error={error} onReintentar={recargar}
+        mensajeError="No pudimos cargar tu paquete."
+        esqueleto={<EsqueletoFilas filas={4} alto="h-[68px]" />}
+      >
       <div className="space-y-2.5">
         {items.map((it) => (
           <div key={it.id} className="skeu-card flex items-center gap-3.5 px-4 py-3.5">
@@ -54,6 +53,7 @@ export default function PortalContratado({ eventoId }) {
           </div>
         )}
       </div>
+      </Estado>
     </div>
   );
 }

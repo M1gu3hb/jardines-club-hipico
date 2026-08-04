@@ -1,10 +1,12 @@
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { base44 } from "@/api/base44Client";
 import { useAuth } from "@/api/authContext";
 import { Plus, Loader2, Check, Search, Calendar, User, DoorOpen } from "lucide-react";
 import { Field, ESTATUS, estatusColor } from "./_ui";
 import { MESA_FORMAS } from "@/lib/catalogos";
 import EventoFicha from "./EventoFicha";
+import { useCarga } from "@/lib/useCarga";
+import { Estado, EsqueletoFilas } from "@/components/ui/Estado";
 
 const FORM_VACIO = {
   nombreEvento: "", tipoEvento: "", fechaEvento: "", salonId: "",
@@ -14,8 +16,6 @@ const FORM_VACIO = {
 
 export default function AdminEventos() {
   const { perfil } = useAuth();
-  const [eventos, setEventos] = useState([]);
-  const [salones, setSalones] = useState([]);
   const [abierto, setAbierto] = useState(null); // evento seleccionado (ficha)
   const [creando, setCreando] = useState(false);
   const [form, setForm] = useState(FORM_VACIO);
@@ -25,15 +25,18 @@ export default function AdminEventos() {
   const [filtro, setFiltro] = useState("Todos");
   const [busqueda, setBusqueda] = useState("");
 
-  const cargar = async () => {
-    const [evs, sals] = await Promise.all([
-      base44.entities.Evento.list("-created_date"),
-      base44.entities.Salon.list("orden"),
-    ]);
-    setEventos(evs);
-    setSalones(sals);
-  };
-  useEffect(() => { cargar(); }, []);
+  // Las dos lecturas van juntas: la lista no se puede pintar sin los salones (cada fila
+  // enseña el suyo), así que comparten estado de carga y de error.
+  const { datos, cargando, error: errorCarga, recargar } = useCarga(
+    () => Promise.all([
+      base44.entities.Evento.listEstricto("-created_date"),
+      base44.entities.Salon.listEstricto("orden"),
+    ]).then(([evs, sals]) => ({ evs, sals })),
+    [],
+  );
+  const eventos = datos?.evs || [];
+  const salones = datos?.sals || [];
+  const cargar = recargar;
 
   const set = (k, v) => setForm((f) => ({ ...f, [k]: v }));
   const salonNombre = (id) => salones.find((s) => s.id === id)?.nombre || "—";
@@ -102,9 +105,30 @@ export default function AdminEventos() {
         salones={salones}
         onVolver={() => { setAbierto(null); cargar(); }}
         onActualizado={(ev) => { setAbierto(ev); cargar(); }}
+        onBorrado={() => { setAbierto(null); cargar(); }}
       />
     );
   }
+
+  // NOMBRES REPETIDOS. Un doble clic en "Crear evento" deja filas gemelas: mismo nombre, mismo
+  // cliente, misma fecha, mismo salón, mismo creador. En la lista se pintan IDÉNTICAS, y como el
+  // borrado se confirma escribiendo el nombre, nada distingue la que sobra de la buena. Se marcan
+  // con lo único que las separa: la hora de alta y si tienen acceso de portal.
+  // Se cuenta sobre `eventos` (todos), no sobre `lista`: un filtro puede esconder a la gemela y
+  // entonces la marca desaparecería justo cuando más falta hace.
+  const vecesPorNombre = eventos.reduce((acc, e) => {
+    const k = (e.nombreEvento || "").trim().toLowerCase();
+    acc[k] = (acc[k] || 0) + 1;
+    return acc;
+  }, {});
+  const repetido = (e) => (vecesPorNombre[(e.nombreEvento || "").trim().toLowerCase()] || 0) > 1;
+  const altaCorta = (iso) => {
+    if (!iso) return "";
+    const d = new Date(iso);
+    return Number.isNaN(d.getTime())
+      ? ""
+      : d.toLocaleString("es-MX", { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit", second: "2-digit" });
+  };
 
   const lista = eventos
     .filter((e) => filtro === "Todos" || e.estatus === filtro)
@@ -195,6 +219,13 @@ export default function AdminEventos() {
         ))}
       </div>
 
+      <Estado
+        cargando={cargando} error={errorCarga} onReintentar={recargar}
+        vacio={lista.length === 0}
+        mensajeVacio={eventos.length === 0 ? "Todavía no hay eventos. Crea el primero." : "No hay eventos que coincidan."}
+        mensajeError="No se pudieron cargar los eventos."
+        esqueleto={<EsqueletoFilas filas={4} alto="h-[74px]" />}
+      >
       <div className="space-y-2.5">
         {lista.map((e) => (
           <button key={e.id} onClick={() => setAbierto(e)}
@@ -203,20 +234,32 @@ export default function AdminEventos() {
               <Calendar size={16} className="text-[#C9A84C]/70" />
             </div>
             <div className="flex-1 min-w-0">
-              <p className="text-white/90 text-sm font-medium truncate">{e.nombreEvento}</p>
+              <p className="text-white/90 text-sm font-medium truncate flex items-center gap-2">
+                {e.nombreEvento}
+                {repetido(e) && (
+                  <span className="text-amber-300/80 bg-amber-400/10 border border-amber-400/25 text-[10px] px-1.5 py-0.5 rounded-full flex-shrink-0 font-normal">
+                    nombre repetido
+                  </span>
+                )}
+              </p>
               <div className="flex items-center gap-3 mt-1 text-white/35 text-xs">
                 <span>{e.fechaEvento || "sin fecha"}</span>
                 <span className="flex items-center gap-1 truncate"><User size={11} />{e.clienteNombre || e.usuario || "—"}</span>
                 <span className="truncate hidden sm:inline">{salonNombre(e.salonId)}</span>
                 {e.creadoPor && <span className="text-[#C9A84C]/50 truncate hidden md:inline">· creado por {e.creadoPor}</span>}
+                {repetido(e) && (
+                  <span className="text-amber-300/60 truncate">
+                    · alta {altaCorta(e.createdAt) || "—"} · {e.usuario ? `acceso «${e.usuario}»` : "sin acceso"}
+                  </span>
+                )}
               </div>
             </div>
             {e.portalActivo && <span className="flex items-center gap-1 text-green-400/70 text-xs flex-shrink-0"><DoorOpen size={12} /> Portal</span>}
             <span className={`text-xs px-2.5 py-1 rounded-full flex-shrink-0 ${estatusColor(e.estatus)}`}>{e.estatus || "Apartado"}</span>
           </button>
         ))}
-        {lista.length === 0 && <p className="text-white/20 text-sm py-8 text-center">No hay eventos que coincidan.</p>}
       </div>
+      </Estado>
     </div>
   );
 }

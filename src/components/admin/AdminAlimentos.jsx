@@ -1,17 +1,20 @@
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { base44 } from "@/api/base44Client";
 import { Plus, Trash2, FileText, Loader2 } from "lucide-react";
+import { useCarga } from "@/lib/useCarga";
+import { Estado, EsqueletoFilas } from "@/components/ui/Estado";
 
 const empty = { nombre: "", descripcion: "", pdfUrl: "", orden: 0, activo: true };
 
 export default function AdminAlimentos() {
-  const [items, setItems] = useState([]);
   const [form, setForm] = useState({ ...empty });
   const [editing, setEditing] = useState(null);
   const [uploading, setUploading] = useState(false);
 
-  const load = () => base44.entities.AlimentoMenu.list("orden").then(setItems);
-  useEffect(() => { load(); }, []);
+  const { datos, cargando, error, recargar } = useCarga(
+    () => base44.entities.AlimentoMenu.listEstricto("orden"), []);
+  const items = datos || [];
+  const load = recargar;
 
   const set = (k, v) => setForm(f => ({ ...f, [k]: v }));
 
@@ -111,6 +114,13 @@ export default function AdminAlimentos() {
       </div>
 
       {/* List */}
+      <Estado
+        cargando={cargando} error={error} onReintentar={recargar}
+        vacio={items.length === 0}
+        mensajeVacio="Sin menús registrados aún."
+        mensajeError="No se pudieron cargar los menús."
+        esqueleto={<EsqueletoFilas filas={3} alto="h-14" />}
+      >
       <div className="space-y-2">
         {items.map(item => (
           <div key={item.id} className="flex items-center gap-4 bg-[#111] border border-white/5 px-5 py-3">
@@ -131,8 +141,8 @@ export default function AdminAlimentos() {
             <button onClick={() => del(item.id)} className="text-white/20 hover:text-red-400/60 transition-colors"><Trash2 size={14} /></button>
           </div>
         ))}
-        {items.length === 0 && <p className="text-white/20 text-sm italic py-4">Sin menús registrados aún.</p>}
       </div>
+      </Estado>
     </div>
   );
 }

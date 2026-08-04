@@ -1,15 +1,18 @@
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { base44 } from "@/api/base44Client";
 import { Plus, Pencil, Trash2, Loader2, Check } from "lucide-react";
+import { useCarga } from "@/lib/useCarga";
+import { Estado, EsqueletoFilas } from "@/components/ui/Estado";
 
 export default function AdminServicios() {
-  const [servicios, setServicios] = useState([]);
   const [editing, setEditing] = useState(null);
   const [saving, setSaving] = useState(false);
   const [form, setForm] = useState({ nombre: "", categoria: "", descripcion: "", activo: true, orden: 0, aplicaA: "todos" });
 
-  const load = () => base44.entities.ServicioExtra.list("orden").then(setServicios);
-  useEffect(() => { load(); }, []);
+  const { datos, cargando, error, recargar } = useCarga(
+    () => base44.entities.ServicioExtra.listEstricto("orden"), []);
+  const servicios = datos || [];
+  const load = recargar;
 
   const startEdit = (s) => {
     setForm(s ? { ...s } : { nombre: "", categoria: "", descripcion: "", activo: true, orden: 0, aplicaA: "todos" });
@@ -92,10 +95,13 @@ export default function AdminServicios() {
         </div>
       )}
 
-      {Object.keys(byCategory).length === 0 && (
-        <p className="text-white/20 text-sm py-6 text-center">No hay servicios. Crea el primero.</p>
-      )}
-
+      <Estado
+        cargando={cargando} error={error} onReintentar={recargar}
+        vacio={Object.keys(byCategory).length === 0}
+        mensajeVacio="No hay servicios. Crea el primero."
+        mensajeError="No se pudieron cargar los servicios extra."
+        esqueleto={<EsqueletoFilas filas={4} alto="h-14" />}
+      >
       {Object.entries(byCategory).map(([cat, items]) => (
         <div key={cat} className="mb-6">
           <p className="text-[#C9A84C]/50 text-xs uppercase tracking-widest mb-2">{cat}</p>
@@ -124,6 +130,7 @@ export default function AdminServicios() {
           </div>
         </div>
       ))}
+      </Estado>
     </div>
   );
 }

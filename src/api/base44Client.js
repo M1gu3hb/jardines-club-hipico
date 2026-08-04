@@ -81,6 +81,27 @@ async function runQuery(table, { sort, filter } = {}) {
   return (data || []).map(rowToObj);
 }
 
+/**
+ * Igual que `runQuery`, pero **lanza** en vez de devolver `[]`.
+ *
+ * `runQuery` devuelve `[]` tanto cuando no hay filas como cuando la lectura falla, y ese `[]`
+ * ambiguo es el bug J-02. Da igual en una lista que solo se pinta; es peligroso cuando la
+ * lectura se usa para **decidir** (confirmar que una escritura cuajó, contar si alguien se queda
+ * sin acceso) y es lo que impide distinguir "vacío" de "se cayó" en pantalla.
+ *
+ * Aplica el orden por defecto de `CON_ORDEN` igual que `runQuery`, para que sea un reemplazo
+ * directo y cambiar `list` por `listEstricto` no reordene nada por sorpresa.
+ */
+async function runQueryEstricto(table, { sort, filter }) {
+  let q = supabase.from(table).select("*");
+  if (filter) for (const k in filter) q = q.eq(toSnake(k), filter[k]);
+  if (sort) { const { col, ascending } = sortColumn(sort); q = q.order(col, { ascending, nullsFirst: false }); }
+  else if (CON_ORDEN.has(table)) q = q.order("orden", { ascending: true, nullsFirst: false });
+  const { data, error } = await q;
+  if (error) { console.error("[shim] estricto", table, error.message); throw error; }
+  return (data || []).map(rowToObj);
+}
+
 function makeEntity(name) {
   const table = TABLES[name] || toSnake(name);
   return {
@@ -97,14 +118,14 @@ function makeEntity(name) {
      *
      * No sustituye a `filter`: es aditivo, para las lecturas que deciden.
      */
-    async filterEstricto(filter, sort) {
-      let q = supabase.from(table).select("*");
-      if (filter) for (const k in filter) q = q.eq(toSnake(k), filter[k]);
-      if (sort) { const { col, ascending } = sortColumn(sort); q = q.order(col, { ascending, nullsFirst: false }); }
-      const { data, error } = await q;
-      if (error) { console.error("[shim] filterEstricto", table, error.message); throw error; }
-      return (data || []).map(rowToObj);
-    },
+    async filterEstricto(filter, sort) { return runQueryEstricto(table, { sort, filter }); },
+    /**
+     * Como `list`, pero **propaga el error**. Mismo motivo que `filterEstricto`, y hace falta
+     * para poder pintar tres estados distintos en pantalla: *cargando*, *vacío* y *falló*.
+     * Con `list` los dos últimos son indistinguibles —ambos llegan como `[]`— y la pantalla
+     * acaba diciendo "no hay nada todavía" cuando lo cierto es que la lectura se cayó.
+     */
+    async listEstricto(sort) { return runQueryEstricto(table, { sort, filter: null }); },
     async get(id) { const { data } = await supabase.from(table).select("*").eq("id", id).maybeSingle(); return rowToObj(data); },
     async create(data) {
       // Las solicitudes del formulario público ya no se insertan directo: pasan por
@@ -192,6 +213,25 @@ const functions = {
     const { data } = await supabase.auth.getSession();
     const token = data?.session?.access_token;
     const res = await fetch("/api/crear-usuario-evento", {
+      method: "POST",
+      headers: { "Content-Type": "application/json", Authorization: `Bearer ${token || ""}` },
+      body: JSON.stringify(payload),
+    });
+    const json = await res.json().catch(() => ({}));
+    if (!res.ok) throw new Error(json.error || `Error ${res.status}`);
+    return json;
+  },
+  /**
+   * Borra un evento COMPLETO: filas, archivos del bucket y usuario de Auth.
+   * Todo ocurre en el servidor (`api/eliminar-evento.js`) porque borrar un usuario de Auth
+   * exige `service_role`, y repartirlo entre navegador y servidor dejaría estados a medias.
+   *
+   * Con `soloInventario: true` no borra nada: devuelve el recuento de lo que se llevaría.
+   */
+  async eliminarEvento(payload) {
+    const { data } = await supabase.auth.getSession();
+    const token = data?.session?.access_token;
+    const res = await fetch("/api/eliminar-evento", {
       method: "POST",
       headers: { "Content-Type": "application/json", Authorization: `Bearer ${token || ""}` },
       body: JSON.stringify(payload),

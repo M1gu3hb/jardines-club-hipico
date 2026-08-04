@@ -8,7 +8,9 @@ export default function EventoMesasAdmin({ eventoId, salonId }) {
   const [reglas, setReglas] = useState(null);
 
   useEffect(() => {
-    base44.entities.EventoReglasMesas.filter({ eventoId }).then((r) => setReglas(r[0] || null));
+    base44.entities.EventoReglasMesas.filterEstricto({ eventoId })
+      .then((r) => setReglas(r[0] || null))
+      .catch(() => setReglas(null)); // MesaReglas, justo debajo, es quien enseña el fallo
   }, [eventoId]);
 
   return (

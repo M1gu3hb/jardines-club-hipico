@@ -7,6 +7,7 @@ import {
 } from "lucide-react";
 import { estatusColor } from "@/components/admin/eventos/_ui";
 import { fechaLarga, diasFaltantes, tiempoRelativo } from "@/lib/fechas";
+import { Estado, EsqueletoFilas } from "@/components/ui/Estado";
 
 /** Saludo según la hora (el dueño abre esto a cualquier hora del día del evento). */
 function saludo() {
@@ -59,6 +60,9 @@ export default function AdminInicio({ onIr }) {
 
   const [eventosMapa, setEventosMapa] = useState({});
   const [grupoAbierto, setGrupoAbierto] = useState(null);
+  // Sin esto, una lectura caída deja `datos` en null PARA SIEMPRE y el tablero se queda
+  // diciendo "Cargando…" sin que nada vuelva a intentarlo.
+  const [errorDatos, setErrorDatos] = useState(null);
   const [errorNotif, setErrorNotif] = useState("");
   const [quitando, setQuitando] = useState("");
 
@@ -110,11 +114,17 @@ export default function AdminInicio({ onIr }) {
   useEffect(() => {
     let activo = true;
     (async () => {
-      const [eventos, solicitudes, resenas] = await Promise.all([
-        base44.entities.Evento.list("-created_date"),
-        base44.entities.SolicitudEvento.list("-created_date"),
-        base44.entities.Resena.list("-created_date"),
-      ]);
+      let eventos, solicitudes, resenas;
+      try {
+        [eventos, solicitudes, resenas] = await Promise.all([
+          base44.entities.Evento.listEstricto("-created_date"),
+          base44.entities.SolicitudEvento.listEstricto("-created_date"),
+          base44.entities.Resena.listEstricto("-created_date"),
+        ]);
+      } catch (e) {
+        if (activo) setErrorDatos(e || new Error("Falló la lectura"));
+        return;
+      }
       if (!activo) return;
 
       const hoyStr = new Date().toISOString().slice(0, 10);
@@ -186,6 +196,12 @@ export default function AdminInicio({ onIr }) {
       </div>
 
       {/* Métricas */}
+      {errorDatos && (
+        <div className="mb-6">
+          <Estado error={errorDatos} mensajeError="No se pudo cargar el resumen del día." />
+        </div>
+      )}
+
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 mb-8">
         <Metrica icon={CalendarDays} valor={datos?.proximos30} label="Eventos en 30 días" onClick={() => onIr("eventos")} />
         <Metrica icon={Inbox} valor={datos?.solicitudesNuevas.length} label="Solicitudes nuevas"
@@ -316,7 +332,7 @@ export default function AdminInicio({ onIr }) {
             <button onClick={() => onIr("eventos")} className="text-[#C9A84C]/60 hover:text-[#C9A84C] text-xs transition-colors">Ver todos →</button>
           </div>
           <div className="space-y-2">
-            {datos === null && <p className="text-white/20 text-sm py-4">Cargando…</p>}
+            {datos === null && !errorDatos && <EsqueletoFilas filas={3} alto="h-14" />}
             {datos?.proximos.slice(0, 5).map((e) => {
               const dias = diasFaltantes(e.fechaEvento);
               const esHoy = dias === 0;

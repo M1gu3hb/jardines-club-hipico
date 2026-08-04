@@ -1,10 +1,11 @@
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { base44 } from "@/api/base44Client";
 import { Plus, Pencil, Trash2, Loader2, Upload, X, Check, ChevronUp, ChevronDown } from "lucide-react";
 import SalonPlanoUpload from "./SalonPlanoUpload";
+import { useCarga } from "@/lib/useCarga";
+import { Estado, EsqueletoFilas } from "@/components/ui/Estado";
 
 export default function AdminSalones() {
-  const [salones, setSalones] = useState([]);
   const [editing, setEditing] = useState(null);
   const [saving, setSaving] = useState(false);
   const [uploadingImg, setUploadingImg] = useState(false);
@@ -16,8 +17,10 @@ export default function AdminSalones() {
   });
   const [caracInput, setCaracInput] = useState("");
 
-  const load = () => base44.entities.Salon.list("orden").then(setSalones);
-  useEffect(() => { load(); }, []);
+  const { datos, cargando, error, recargar } = useCarga(
+    () => base44.entities.Salon.listEstricto("orden"), []);
+  const salones = datos || [];
+  const load = recargar;
 
   const set = (k, v) => setForm((f) => ({ ...f, [k]: v }));
 
@@ -224,6 +227,13 @@ export default function AdminSalones() {
         </div>
       )}
 
+      <Estado
+        cargando={cargando} error={error} onReintentar={recargar}
+        vacio={salones.length === 0}
+        mensajeVacio="No hay salones. Crea el primero."
+        mensajeError="No se pudieron cargar los salones."
+        esqueleto={<EsqueletoFilas filas={3} alto="h-20" />}
+      >
       <div className="space-y-2">
         {salones.map((s, idx) => (
           <div key={s.id} className="flex items-center gap-4 bg-[#111] border border-white/5 px-5 py-4">
@@ -266,10 +276,8 @@ export default function AdminSalones() {
             </div>
           </div>
         ))}
-        {salones.length === 0 && (
-          <p className="text-white/20 text-sm py-6 text-center">No hay salones. Crea el primero.</p>
-        )}
       </div>
+      </Estado>
     </div>
   );
 }

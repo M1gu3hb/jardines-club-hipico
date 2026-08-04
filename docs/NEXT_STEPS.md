@@ -9,14 +9,37 @@
 >
 > **Bloque 7 mergeado** (PR #6) — arregla las cuatro cosas que encontró el dueño usando el panel:
 > estatus de solicitudes, borrado de actividad, resumen diario y correo de nueva solicitud.
-> Batería: `lint` 0, `build` exit 0, `test:contratos` **127/127**, `typecheck` 59 (línea base).
+>
+> **Bloque 8 en `claude/bloque-8-etapa2`** — 8A (falso negativo al crear eventos, ya en `main`),
+> 8B (eliminar un evento), 8C (distinguir homónimos), 8E (los tres estados de una lectura) y
+> **8F**, las correcciones de la auditoría: el P0 del borrado de usuarios de Auth y los diez
+> puntos de `api/eliminar-evento.js`. Producción sigue en `82154f6`; nada de esto está desplegado.
+> Batería: `lint` 0, `build` exit 0, `test:contratos` **202/202**, `typecheck` 59 (línea base).
 > Migraciones `sec_01..24`, Vero intacto. Lo único que impide declarar el proyecto cerrado es el §1.
 
 ## Urgente — bloquea el cierre del proyecto
 
-0. **Esperar el deploy del bloque 7.** Ya está en `main`; hasta que Vercel termine, el dueño
-   **sigue sin poder cambiar el estatus de una solicitud** en producción — es un arreglo de
-   frontend y de `api/`, así que necesita redespliegue.
+0. **Borrar los tres duplicados de «Boda ortega» (8C), desde el panel, tras el deploy.**
+   `1cf6b357`, `45c19b82`, `1e01d947` — cada uno con 1 fila de `evento_reglas_mesas` y **0** en
+   todo lo demás, sin usuario de Auth y sin objetos en el bucket (medido el 2026-08-04). **Se
+   conserva `53f69d07`**, el único con la cuenta `ortega-jch`. Los cuatro se llaman igual y en la
+   lista se pintan idénticos: hay que fiarse del chip "nombre repetido" y de la hora de alta que
+   ahora enseña el diálogo, **no** del nombre. No se borran con SQL suelto a propósito — hacerlo
+   desde el panel es también la prueba de fuego de la maquinaria de 8B.
+
+0. ter. **Decidir la migración de RLS por columnas (J-10 y J-11).** Son los dos hallazgos que
+   8F anotó y no arregló, y salen de la misma causa: las policies de `jardines` conceden **la fila
+   entera**, no columnas. Por eso `eventos.auth_user_id` y `documentos.archivo_url` —las dos
+   entradas de las operaciones destructivas— las escribe el navegador. El **uso** ya está
+   protegido en código; el **permiso** no. Haría falta un `sec_26` con `revoke update ... grant
+   update (columnas)` y, para J-11, revocar `delete` sobre `jardines.eventos` **después** de que
+   el endpoint esté desplegado y validado (§8.bis: aditivo primero, restrictivo al final).
+
+0. bis. **Decidir la migración de 8D.** La trazabilidad solicitud→evento **no se puede hacer sin
+   una columna nueva**: `eventos` no tiene `solicitud_id` y `solicitudes` no tiene `evento_id`.
+   Recomendado: `sec_25` aditiva con
+   `solicitud_id uuid references jardines.solicitudes(id) on delete set null`. Sin esa decisión
+   8D queda bloqueado — es la única fase del bloque 8 que no se pudo hacer.
 
 1. **Validación humana autenticada.** Es lo único que impide declarar CERRADO el blindaje de
    seguridad. El guion está escrito y es autónomo: **`docs/VALIDACION.md`**. Miguel debe confirmar

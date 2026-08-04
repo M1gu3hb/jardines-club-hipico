@@ -1,16 +1,19 @@
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { base44 } from "@/api/base44Client";
 import { Plus, Pencil, Trash2, ChevronUp, ChevronDown, Check, X } from "lucide-react";
+import { useCarga } from "@/lib/useCarga";
+import { Estado, EsqueletoFilas } from "@/components/ui/Estado";
 
 const emptyForm = { titulo: "", descripcion: "", imagenUrl: "", imagenesUrl: [], activo: true, orden: 0 };
 
 export default function AdminServicioItems() {
-  const [items, setItems] = useState([]);
   const [editing, setEditing] = useState(null);
   const [form, setForm] = useState({ ...emptyForm });
 
-  const load = () => base44.entities.ServicioItem.list("orden").then(setItems);
-  useEffect(() => { load(); }, []);
+  const { datos, cargando, error, recargar } = useCarga(
+    () => base44.entities.ServicioItem.listEstricto("orden"), []);
+  const items = datos || [];
+  const load = recargar;
 
   const startNew = () => { setForm({ ...emptyForm, orden: items.length + 1 }); setEditing("new"); };
   const startEdit = (item) => { setForm({ ...item, imagenesUrl: item.imagenesUrl || [] }); setEditing(item.id); };
@@ -49,6 +52,13 @@ export default function AdminServicioItems() {
 
       {editing === "new" && <ItemForm form={form} setForm={setForm} onSave={save} onCancel={cancel} />}
 
+      <Estado
+        cargando={cargando} error={error} onReintentar={recargar}
+        vacio={items.length === 0 && editing !== "new"}
+        mensajeVacio="Sin servicios. Agrega el primero."
+        mensajeError="No se pudieron cargar los servicios."
+        esqueleto={<EsqueletoFilas filas={4} alto="h-14" />}
+      >
       <div className="space-y-2">
         {items.map((item, i) => (
           <div key={item.id}>
@@ -75,10 +85,8 @@ export default function AdminServicioItems() {
             )}
           </div>
         ))}
-        {items.length === 0 && editing !== "new" && (
-          <p className="text-white/20 text-sm text-center py-8">Sin servicios. Agrega el primero.</p>
-        )}
       </div>
+      </Estado>
     </div>
   );
 }

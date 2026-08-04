@@ -295,8 +295,30 @@ actividad del portal se borra (a mano y a los 7 días desde el cron), el resumen
 que entró de lo que se enfría, y el aviso de nueva solicitud pasa a la plantilla dorada.
 Contratos **99 → 127**. **Ninguna migración.** PR #6.
 
-Estado del código: **bloques 3–6 desplegados; bloque 7 mergeado a `main` y esperando deploy.**
-Batería: `lint` 0, `build` exit 0, `test:contratos` **127/127**, `typecheck` 59. Base en
+**Bloque 8 (2026-08-04).** 8A (el falso negativo al crear eventos, ya en `main`), **8B** —
+eliminar un evento: lo único irreversible del panel, con el orden archivos → huérfanas → fila →
+Auth y confirmación negativa en cada eslabón—, **8C** — cuatro eventos «Boda ortega» idénticos en
+producción, y la confirmación por nombre no distingue entre ellos: ahora el diálogo dice cuál se
+borra (hora de alta + cuenta) y la lista los marca— y **8E** — cargando, vacío y falló dejan de
+ser la misma pantalla. De 8E salieron dos cosas que **no** eran cosméticas: `AdminConfig` y
+`MesaReglas` podían crear una **segunda fila** de configuración/reglas tras una lectura caída, y
+tres pantallas se quedaban en "Cargando…" para siempre. **8D quedó bloqueado**: la trazabilidad
+solicitud→evento exige una columna que no existe. Contratos **146 → 177**. **Ninguna migración.**
+
+**8F (2026-08-04), correcciones de la auditoría del bloque 8.** Un **P0**: `eliminar-evento` le
+pasaba a `deleteUser` el uuid de `eventos.auth_user_id` sin comprobar de quién era, y esa columna
+la escribe cualquier admin desde el navegador (`eventos_upd` autoriza la fila entera, no
+columnas). `deleteUser` es un hard delete sobre `auth.users`, **la tabla compartida con Vero**,
+que tiene un único administrador. Ahora `guard.js` es el único sitio que puede llamar a
+`deleteUser` y exige un permiso explícito sin valor por defecto. Además: un `nombre_evento` vacío
+anulaba la confirmación de borrado (cerrado en servidor, botón y ficha), la comprobación de
+`notificaciones` era una carrera con el cron que abortaba **con el bucket ya vaciado**, y el
+inventario no contaba cuatro tablas que sí se borran. Los dos hallazgos de RLS (J-10, J-11) se
+anotan y esperan decisión: exigen migración. Contratos **177 → 202**.
+
+Estado del código: **bloques 3–6 desplegados; bloque 7 mergeado a `main` y esperando deploy;
+bloque 8 + 8F en `claude/bloque-8-etapa2`.**
+Batería: `lint` 0, `build` exit 0, `test:contratos` **202/202**, `typecheck` 59. Base en
 `sec_01..24`, Vero intacto. Estado formal: **`ESPERANDO_VALIDACION_HUMANA_AUTENTICADA`**
 (ver §8.F) — solo faltan los cinco flujos con credenciales reales, con el guion en
 `docs/VALIDACION.md`. Historial completo en `docs/CHANGELOG.md`.

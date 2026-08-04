@@ -1,5 +1,187 @@
 # CHANGELOG.md
 
+## 2026-08-04 — 8F: ningún borrado de usuario sin comprobar de quién es la cuenta
+
+> Correcciones de la auditoría del bloque 8, **antes de mergear**. Nada de lo de abajo llegó a
+> desplegarse: producción sigue en `82154f6`.
+
+### El P0
+
+`api/eliminar-evento.js` le pasaba a `deleteUser` el uuid de `jardines.eventos.auth_user_id`, y
+nadie comprobaba de quién era. La cadena, verificada contra producción:
+
+1. `eventos_upd` (`sec_09`) es `using is_admin() with check is_admin()` — autoriza **la fila
+   entera, sin restricción de columna**. `Evento.update(id, { authUserId: "<cualquier uuid>" })`
+   desde el navegador pasa RLS.
+2. `deleteUser` es un **hard delete** sobre `auth.users`, la tabla compartida con Vero Seguros.
+3. `public.admin_users` tiene **una sola fila**, y su `user_id` existe en `auth.users`.
+4. No hay `UNIQUE` sobre `eventos.auth_user_id` — el único índice único de `eventos` es sobre
+   `usuario`—, así que dos eventos pueden apuntar al mismo usuario.
+
+No hace falta mala fe: un `auth_user_id` mal escrito por un bug basta.
+
+**El guardarraíl va en `guard.js`, no en el endpoint**, para que proteja también a los llamadores
+que todavía no existen. `borrarUsuario` exige ahora un `permiso` **sin valor por defecto**:
+olvidarlo niega el borrado. Dos permisos y solo dos — `cliente_de_evento` (cinco condiciones) y
+`recien_creado_aqui` (solo el uuid que esa misma petición acaba de crear, que es lo que necesita
+`compensarAlta` y lo único que necesita). Falla cerrado. Detalle en `docs/SEGURIDAD.md` §2.
+
+**Un diagnóstico del brief no se aplicó tal cual, y se explica por qué.** Pedía exigir
+`app_metadata.app === "jardines"`. Medido en producción: `api/crear-admin.js` pone **la misma
+marca**, así que no distingue un cliente de un administrador de Jardines; y de los tres clientes
+de portal que hay hoy **solo uno** la lleva. Exigirla dejaría las otras dos cuentas imposibles de
+borrar para siempre. Se usa como **descalificador** (rechaza si dice otra cosa) y se añaden dos
+condiciones que el brief no pedía: el rol en `jardines.perfiles` y que ningún otro evento
+referencie ese uuid.
+
+### El segundo bloqueante: un nombre vacío anulaba la confirmación
+
+Con `nombre_evento = ""`, `String("" || "").trim() !== String("" || "").trim()` es `false` — la
+confirmación pasa— y en el navegador el botón se habilitaba con la caja en blanco. El nombre se
+podía vaciar desde la ficha, que lo guardaba sin validar. Cerrado en los tres sitios: servidor,
+botón y ficha.
+
+### Los otros ocho
+
+- **La carrera de `notificaciones`.** Se comprobaba `borradas !== inventario`, contra un conteo de
+  segundos antes; el cron y el propio cliente escriben en esa tabla mientras el borrado corre. Una
+  notificación nueva abortaba el proceso **en el paso 2, con el bucket ya vaciado**: el evento
+  quedaba visible con documentos que no se pueden abrir. Ahora se comprueba que **no sobreviva
+  ninguna**, no que el número coincida.
+- **Inventario incompleto.** Faltaban `evento_notas`, `evento_wishlist`, `evento_reglas_mesas`,
+  `operativo_asignacion` y los `accesos`. El caso feo: `EventoDatos` pinta la wishlist y las notas
+  del cliente dos secciones más arriba, y el bloque "se va a borrar" no las nombraba — un evento
+  que solo tuviera wishlist decía "no tiene datos cargados todavía" y se la llevaba.
+- **`operativo_ubicaciones` se borraba sin confirmar**: se recogía el resultado y no se miraba,
+  justo al lado del bloque que sí lo hacía.
+- **El `catch` no guardaba `auth_user_id` ni el estado real de la fila.** Si la fila cuajaba y
+  fallaba la relectura se respondía "Evento: NO borrado" —falso—, el reintento daba 404 y la
+  cuenta del cliente quedaba viva sin rastro. `fila` pasa a tener **tres** estados.
+- **Las rutas del bucket ahora salen de dos fuentes**: el listado por prefijo y
+  `documentos.archivo_url`, que es la referencia real sobre la que razona la cabecera.
+- **Las subcarpetas** llegan con `id: null`, `remove` no las borra y `n < pedidos` se cumplía
+  siempre: el evento quedaba **imposible de borrar** con el mensaje "Se borraron 0 de 1 archivos".
+- **Las dos cuotas.** `soloInventario` respondía **antes** del rate limit (16 consultas por
+  petición, barra libre) y el 429 llegaba **después** de comparar el nombre, así que los intentos
+  fallidos de confirmación no contaban. Ahora hay cuota de consulta antes del inventario y la
+  destructiva antes de la comparación.
+- **Los dos hallazgos de RLS se anotan, no se arreglan**: J-10 (las policies no restringen
+  columnas) y J-11 (`eventos_del` permite borrar desde el navegador, así que el orden
+  storage-primero es convención y no garantía). Exigen migración.
+
+### Lo que encontró la autoauditoría
+
+Al arreglar el punto de las rutas introduje **el mismo fallo un piso más abajo**:
+`documentos.archivo_url` también la escribe el navegador (`documentos_ins`/`documentos_upd` son
+`is_admin()` sin restricción de columna), así que una `archivo_url` con cualquier ruta habría
+hecho que este borrado destruyera un objeto arbitrario del bucket `clientes` — los documentos de
+otro cliente. Las rutas se acotan ahora a `<eventoId>/`; lo que quede fuera no se borra y queda
+auditado.
+
+Y la prueba de comportamiento encontró que `getUserById` **resuelve con `{ error }`** en vez de
+lanzar —el mismo comportamiento que ya obligó a arreglar `deleteUser`—, así que un corte de Auth
+se auditaba como "ese usuario no existe". Rechaza igual, pero era una respuesta falsa sobre el
+porqué.
+
+### Archivos modificados
+`api/_lib/guard.js`, `api/eliminar-evento.js`,
+`src/components/admin/eventos/{EventoEliminar,EventoDatos}.jsx`, `scripts/test-contratos-api.mjs`,
+`docs/{SEGURIDAD,BUGS_PENDING,CHANGELOG,FILE_MAP,NEXT_STEPS}.md`, `PROJECT_CONTEXT.md`.
+
+### Contratos
+**177 → 202.** Entre ellos el que vale para siempre: **ningún `deleteUser` fuera de `guard.js`**,
+y dentro de `guard.js` el permiso se mira **antes**. Dos contratos previos se reescribieron
+porque el mecanismo que afirmaban cambió a propósito (la carrera de `notificaciones` y el conteo
+de invitados). Validados mutando: 21 mutaciones destructivas hacen fallar exactamente su
+contrato, 1 inocua pasa. **Dos de los contratos nuevos eran vacuos y los descubrió la mutación,
+no la lectura** — los dos anclaban a un texto que ya existía en otro sitio del mismo archivo.
+
+### Lo que NO se tocó
+Ninguna migración. Ninguna policy. Ninguna escritura en producción. Nada de `public` ni del bucket
+`site-media`.
+
+## 2026-08-04 — Bloque 8: borrar un evento, separar homónimos y los tres estados de una lectura
+
+### Cambios realizados
+
+**8B — Eliminar un evento (nuevo).** Lo único irreversible del panel, así que el orden de los
+pasos es la pieza de diseño: **archivos primero** (los paths viven en `documentos.archivo_url`,
+que cae por CASCADE — borrar la fila antes dejaría los archivos en el bucket sin ninguna asa),
+luego las **huérfanas** (`notificaciones` y `operativo_ubicaciones` tienen la FK en SET NULL y
+sobrevivirían con `evento_id = NULL`), luego **la fila**, y **el usuario de Auth al final**. Sin
+confirmación negativa no se pasa al siguiente eslabón: `storage.remove` responde 200 con lista
+vacía cuando una policy deniega, así que se compara lo pedido con lo devuelto, y los borrados
+huérfanos se cuentan con `.select()` contra el inventario. La `reseña` **se conserva a
+propósito** — es prueba social del salón, no del registro administrativo — y la pantalla lo dice.
+Probado por ejecución en `BEGIN/ROLLBACK` con un evento de prueba con datos en las tres capas.
+
+**Tres divergencias entre la base y lo que el código creía**, encontradas verificando
+`information_schema.columns` antes de escribir una línea:
+
+- `invitados` **no tiene `evento_id`** (solo `mesa_id`). Contarlos por `evento_id` habría dado
+  `42703` — el mismo fallo que `correo-cliente` — y el inventario habría mostrado **0 invitados
+  justo antes de un borrado irreversible**. Se cuentan uniendo por `mesas`.
+- `operativo_ubicaciones` **no tiene `id`** (PK compuesta): se borra por `evento_id` y se
+  confirma con `personal_id`.
+- **8D está bloqueado**: la trazabilidad solicitud→evento necesita una columna que no existe
+  (`eventos` no tiene `solicitud_id`, `solicitudes` no tiene `evento_id`). Requiere migración.
+
+**8C — Los homónimos.** Medido en producción: **cuatro** eventos «Boda ortega» creados con 24
+segundos de diferencia, con el **mismo** cliente, fecha, salón y creador. En la lista del panel
+se pintan **idénticos**; el único distinto es el cuarto, que tiene la cuenta de portal. La
+confirmación de 8B es "escribe el nombre exacto", y ese nombre **no identifica la fila**:
+protege de borrar por accidente, no de borrar el equivocado. Tal como estaba, limpiar los
+duplicados era una ruleta que podía llevarse el acceso del cliente. Ahora el endpoint devuelve
+`homonimos` y `creadoEl`, el diálogo dice **cuál** se está borrando (hora de alta + si tiene
+cuenta) y la lista marca los nombres repetidos.
+
+**Los tres duplicados siguen en producción**: `1cf6b357`, `45c19b82`, `1e01d947`, cada uno con
+1 fila de `evento_reglas_mesas` y 0 en todo lo demás, sin usuario de Auth y sin objetos en el
+bucket. Se conserva `53f69d07` (`ortega-jch`). El borrado se hace con la maquinaria de 8B desde
+el panel, **después** de que esto se despliegue — es también su prueba de fuego.
+
+**8E — Cargando, vacío y falló dejan de ser la misma pantalla.** El shim devuelve `[]` cuando
+la lectura falla, así que "todavía no ha llegado", "de verdad no hay nada" y "se cayó la lectura"
+se pintaban las tres con el texto de vacío. `AdminAdministradores` era el caso límite: su estado
+vacío decía literalmente *"Cargando equipo…"*. Dos hallazgos que **no son cosméticos**:
+
+- **`AdminConfig` podía crear una segunda fila de configuración.** Leía con `list()`; un fallo
+  devolvía `[]`, el componente tomaba la rama "no hay configuración" y pintaba el formulario
+  **en blanco** con `configId = null`. Guardar desde ahí **creaba** otra fila en `config_sitio`,
+  y el sitio lee la primera que devuelva Postgres: el teléfono y el correo del salón podían
+  desaparecer sin que nadie borrara nada. `MesaReglas` tenía la misma forma (segunda fila de
+  reglas para el mismo evento).
+- **Pantallas colgadas en "Cargando…" para siempre**: `setCargando(false)` vivía *después* del
+  `await`, así que un fallo dejaba `MesaEditor`, `EventoMeseros` y `AdminInicio` en el mensaje
+  de carga sin nada que reintentar.
+
+Piezas nuevas: `listEstricto` en el shim (aditivo, hermano de `filterEstricto`), el hook
+`useCarga` (turno por lectura, para que una respuesta vieja no pise a una nueva) y
+`src/components/ui/Estado.jsx` con esqueletos que tienen **la forma** del contenido.
+
+**El orden dentro de `<Estado>` es la propiedad, no el estilo**: quien llama calcula `vacio`
+desde `datos || []`, así que cuando la lectura falla `vacio` **también** es cierto. Si la rama
+de vacío se mirara antes que la de error, el bug entero volvería. Hay un contrato para eso.
+
+### Archivos modificados
+`api/eliminar-evento.js` (nuevo), `src/components/admin/eventos/EventoEliminar.jsx` (nuevo),
+`src/lib/useCarga.js` (nuevo), `src/components/ui/Estado.jsx` (nuevo),
+`src/api/base44Client.js`, `src/components/admin/eventos/{AdminEventos,EventoDatos,EventoFicha,EventoDocumentos,EventoItems,EventoRsvps}.jsx`,
+`src/components/admin/{AdminServicios,AdminAlimentos,AdminGaleria,AdminResenas,AdminAdministradores,AdminServicioItems,AdminAmenidadItems,AdminSalones,AdminSolicitudes,AdminInicio,AdminConfig}.jsx`,
+`src/components/evento/{EventoCronograma,EventoMusica}.jsx`,
+`src/components/mesas/{MesaEditor,MesaReglas,EventoMesasAdmin}.jsx`,
+`src/components/meseros/EventoMeseros.jsx`,
+`src/components/portal/{PortalContratado,PortalDocumentos}.jsx`,
+`scripts/test-contratos-api.mjs`.
+
+### Contratos
+**146 → 177.** Los 31 nuevos, validados mutando la regresión real en el archivo real: 18
+mutaciones destructivas hacen fallar exactamente el contrato que les toca, 2 inocuas pasan.
+
+### Lo que NO se tocó
+Ninguna migración. Ninguna escritura en producción (solo lecturas de verificación). Nada de
+`public` ni del bucket `site-media` — el candado de Vero, intacto.
+
 ## 2026-08-04 — P0: el tipo de documento «comprobante» no existe en la base
 
 ### Cambios realizados

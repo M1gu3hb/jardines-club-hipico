@@ -1,8 +1,10 @@
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { base44 } from "@/api/base44Client";
 import { useAuth } from "@/api/authContext";
 import { UserPlus, Loader2, Check, ShieldCheck, Phone, Mail, Eye, EyeOff } from "lucide-react";
 import { Field } from "@/components/admin/eventos/_ui";
+import { useCarga } from "@/lib/useCarga";
+import { Estado, EsqueletoFilas } from "@/components/ui/Estado";
 
 const VACIO = { nombre: "", correo: "", telefono: "", password: "" };
 
@@ -12,7 +14,6 @@ const VACIO = { nombre: "", correo: "", telefono: "", password: "" };
  */
 export default function AdminAdministradores() {
   const { user } = useAuth();
-  const [admins, setAdmins] = useState([]);
   const [creando, setCreando] = useState(false);
   const [form, setForm] = useState(VACIO);
   const [verPass, setVerPass] = useState(false);
@@ -20,8 +21,10 @@ export default function AdminAdministradores() {
   const [msg, setMsg] = useState(null); // { ok, texto }
   const set = (k, v) => setForm((f) => ({ ...f, [k]: v }));
 
-  const cargar = () => base44.entities.Perfil.filter({ rol: "admin" }).then(setAdmins);
-  useEffect(() => { cargar(); }, []);
+  const { datos, cargando, error, recargar } = useCarga(
+    () => base44.entities.Perfil.filterEstricto({ rol: "admin" }), []);
+  const admins = datos || [];
+  const cargar = recargar;
 
   const crear = async () => {
     setMsg(null);
@@ -100,6 +103,13 @@ export default function AdminAdministradores() {
         </div>
       )}
 
+      <Estado
+        cargando={cargando} error={error} onReintentar={recargar}
+        vacio={admins.length === 0}
+        mensajeVacio="No hay administradores dados de alta."
+        mensajeError="No se pudo cargar el equipo de administradores."
+        esqueleto={<EsqueletoFilas filas={2} alto="h-[68px]" />}
+      >
       <div className="space-y-2">
         {admins.map((a) => (
           <div key={a.id} className="skeu-card flex items-center gap-4 px-5 py-4">
@@ -118,8 +128,8 @@ export default function AdminAdministradores() {
             </div>
           </div>
         ))}
-        {admins.length === 0 && <p className="text-white/20 text-sm py-6 text-center">Cargando equipo…</p>}
       </div>
+      </Estado>
     </div>
   );
 }

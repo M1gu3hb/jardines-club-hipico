@@ -1,6 +1,6 @@
 # BUGS_PENDING.md
 
-> Estado a **2026-08-03**.
+> Estado a **2026-08-04**.
 >
 > **Una sola numeración.** Hasta ahora convivían dos esquemas `B*` —el de este archivo y el de
 > las órdenes de trabajo de código— y colisionaban: un mismo reporte decía "cerrado B3" y
@@ -16,9 +16,13 @@
 
 ## Estado general
 
-**No hay bugs críticos abiertos.** Quedan siete pendientes —tres medios, cuatro bajos—, riesgos
-residuales aceptados, y lo que depende de terceros. **J-08 y J-09** (bloque 7) quedan resueltos en
-código y pendientes de que el dueño los vea funcionar en pantalla.
+**No hay bugs críticos abiertos.** Quedan nueve pendientes, riesgos residuales aceptados, y lo
+que depende de terceros. **J-08 y J-09** (bloque 7) quedan resueltos en código y pendientes de que
+el dueño los vea funcionar en pantalla.
+
+**J-10 y J-11 son nuevos (8F) y los dos son de RLS.** Se anotan, no se arreglan: tocar una policy
+de la base compartida exige migración y el orden de despliegue de `docs/SEGURIDAD.md` §8.bis. En
+los dos casos el **uso peligroso** ya está cerrado en código; lo que sigue abierto es el permiso.
 
 ---
 
@@ -44,8 +48,15 @@ código y pendientes de que el dueño los vea funcionar en pantalla.
   poder probar los flujos de punta a punta el riesgo de romper algo en vivo supera al beneficio.
 - **Mitigación en curso:** `SalonPlanoUpload` y `AdminOperativo` **confirman releyendo** en vez de
   confiar en el shim. Ese es el patrón a extender al resto.
+- **La mitad de LECTURA está cerrada (8E, 2026-08-04).** `filterEstricto` tenía hermano:
+  `listEstricto`. Las pantallas que **deciden** con una lectura ya no la hacen floja, y el `[]`
+  ambiguo dejó de poder disfrazarse de "aquí no hay nada". Dos de esos disfraces llegaban a
+  perder datos: `AdminConfig` caía en la rama "no hay configuración" y guardar creaba una
+  **segunda fila** en `config_sitio` (y el sitio lee la primera que devuelva Postgres);
+  `MesaReglas` hacía lo mismo con las reglas del evento. Lo que sigue abierto es la mitad de
+  **ESCRITURA**: `update` fabricando el objeto y `delete` devolviendo `{success:true}`.
 - **Archivos:** `src/api/base44Client.js` (y todos los llamadores).
-- **Prioridad:** media. **Estado:** abierto.
+- **Prioridad:** media. **Estado:** abierto (mitad de lectura cerrada; escritura pendiente).
 
 ### J-06 — El guardarraíl del operativo es solo de cliente
 - **Impacto:** medio. `AdminOperativo` **bloquea** apagar `acceso_global` a quien tenga 0
@@ -89,6 +100,46 @@ código y pendientes de que el dueño los vea funcionar en pantalla.
   `og:url` y el `url` de los **dos** bloques JSON-LD.
 - **Archivos:** `index.html`.
 - **Prioridad:** baja. **Estado:** abierto. Se resuelve a la vez que J-01, al conectar el dominio.
+
+### J-10 — Las policies de `jardines` no restringen COLUMNAS, y una de ellas es `auth_user_id`
+- **Impacto:** alto, y es el que causó el P0 del bloque 8F. `eventos_upd` (`sec_09`) es
+  `for update to authenticated using (jardines.is_admin()) with check (jardines.is_admin())`:
+  autoriza **la fila entera**, sin decir qué columnas. Así que cualquier admin puede hacer
+  `Evento.update(id, { authUserId: "<cualquier uuid>" })` desde el navegador y RLS lo acepta.
+  Ese uuid alimentaba un `deleteUser` sobre `auth.users`, la tabla **compartida con Vero**, que
+  tiene **un solo administrador**. `documentos_ins`/`documentos_upd` tienen la misma forma, y su
+  columna `archivo_url` alimenta un `storage.remove` sobre el bucket `clientes`.
+- **Causa:** las policies conceden por rol, no por columna. Postgres sí permite acotarlo
+  (`GRANT UPDATE (col1, col2)`), pero eso es una migración.
+- **Mitigación aplicada (8F, sin migración):** ningún dato que venga de esas columnas se usa para
+  destruir nada sin comprobar antes a quién pertenece. `borrarUsuario` exige un permiso explícito
+  y verifica cinco condiciones; las rutas de `archivo_url` se acotan a `<eventoId>/`. El agujero
+  de RLS **sigue abierto**: lo que se cerró es el uso peligroso, no el permiso.
+- **Por qué no se arregla aquí:** cambiar una policy de producción compartida es una decisión con
+  migración, y el orden de despliegue de `docs/SEGURIDAD.md` §8.bis dice que lo aditivo va antes
+  y lo restrictivo después de desplegar. Revocar antes de desplegar ya rompió el formulario
+  público una vez.
+- **Qué haría falta:** `sec_26` con `revoke update on jardines.eventos from authenticated` +
+  `grant update (columnas...) on jardines.eventos to authenticated`, dejando `auth_user_id` fuera
+  de la lista (solo `service_role` la escribe, desde `crear-usuario-evento`). Lo mismo con
+  `documentos.archivo_url`.
+- **Archivos:** `supabase/migrations/..._sec_09_*.sql` (policies), `api/_lib/guard.js`,
+  `api/eliminar-evento.js` (los usos, ya protegidos).
+- **Prioridad:** media-alta. **Estado:** abierto — el uso está mitigado, el permiso no.
+
+### J-11 — `eventos_del` permite borrar un evento desde el navegador, saltándose el endpoint
+- **Impacto:** medio. `eventos_del` (`sec_09`) es `for delete to authenticated using
+  (jardines.is_admin())` y el shim expone `Evento.delete`. Todo el orden de `api/eliminar-evento.js`
+  —archivos primero, huérfanas después, fila al final— es **convención, no garantía**: un
+  `base44.entities.Evento.delete(id)` desde la consola del navegador borra la fila directamente y
+  deja los archivos del bucket sin ninguna referencia (los paths viven en `documentos`, que cae
+  por CASCADE) y el usuario de Auth vivo.
+- **Por qué no se arregla aquí:** misma razón que J-10 — es una policy, exige migración, y
+  revocar antes de desplegar el sustituto rompe el panel.
+- **Qué haría falta:** revocar `delete` a `authenticated` sobre `jardines.eventos` **después** de
+  que el endpoint esté desplegado y validado, y quitar `Evento.delete` del shim.
+- **Archivos:** `supabase/migrations/..._sec_09_*.sql`, `src/api/base44Client.js`.
+- **Prioridad:** media. **Estado:** abierto.
 
 ### J-05 — El cliente no puede cambiar su contraseña desde el portal
 - **Impacto:** bajo. El primer acceso es por enlace de un solo uso y la contraseña se comparte

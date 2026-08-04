@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import { base44 } from "@/api/base44Client";
 import { Save, Upload, Loader2 } from "lucide-react";
+import { Estado, EsqueletoTexto } from "@/components/ui/Estado";
 
 export default function AdminConfig() {
   const [config, setConfig] = useState(null);
@@ -9,17 +10,26 @@ export default function AdminConfig() {
   const [uploadingLogo, setUploadingLogo] = useState(false);
   const [uploadingProx, setUploadingProx] = useState(false);
   const [saved, setSaved] = useState(false);
+  // No es cosmético: con `list()` una lectura caída devolvía [] (J-02), el componente tomaba
+  // la rama "no hay configuración" y pintaba el formulario EN BLANCO con `configId = null`.
+  // Guardar desde ahí CREABA una segunda fila en `config_sitio` — y el sitio lee la primera
+  // que devuelva Postgres, así que el contacto del salón podía desaparecer sin que nadie
+  // borrara nada. Por eso se lee estricto y el fallo no se disfraza de "aún no hay config".
+  const [errorCarga, setErrorCarga] = useState(null);
 
-  useEffect(() => {
-    base44.entities.ConfigSitio.list().then((d) => {
-      if (d[0]) { setConfig(d[0]); setConfigId(d[0].id); }
-      else setConfig({
-        logoUrl: "", telefonoContacto: "", correoAdmin: "",
-        ubicacionTexto: "", ubicacionLinkMapa: "",
-        textoNoIncluye: "", textoServicios: "", textoAmenidades: "",
-      });
-    });
-  }, []);
+  const cargar = () =>
+    base44.entities.ConfigSitio.listEstricto()
+      .then((d) => {
+        setErrorCarga(null);
+        if (d[0]) { setConfig(d[0]); setConfigId(d[0].id); }
+        else setConfig({
+          logoUrl: "", telefonoContacto: "", correoAdmin: "",
+          ubicacionTexto: "", ubicacionLinkMapa: "",
+          textoNoIncluye: "", textoServicios: "", textoAmenidades: "",
+        });
+      })
+      .catch((e) => setErrorCarga(e || new Error("Falló la lectura")));
+  useEffect(() => { cargar(); }, []);
 
   const set = (field, val) => setConfig((c) => ({ ...c, [field]: val }));
 
@@ -54,7 +64,11 @@ export default function AdminConfig() {
     setTimeout(() => setSaved(false), 2500);
   };
 
-  if (!config) return <div className="text-white/30 text-sm py-10 text-center">Cargando...</div>;
+  if (errorCarga) {
+    return <Estado error={errorCarga} onReintentar={cargar}
+      mensajeError="No se pudo cargar la configuración del sitio." />;
+  }
+  if (!config) return <EsqueletoTexto lineas={8} />;
 
   return (
     <div>

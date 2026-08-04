@@ -2,12 +2,14 @@ import { useState, useEffect } from "react";
 import { base44 } from "@/api/base44Client";
 import { Loader2, Check, KeyRound, Heart, StickyNote } from "lucide-react";
 import { Field, Area, Toggle, ESTATUS } from "./_ui";
+import EventoEliminar from "./EventoEliminar";
 
-export default function EventoDatos({ evento, salones, onActualizado }) {
+export default function EventoDatos({ evento, salones, onActualizado, onBorrado }) {
   const [form, setForm] = useState({ ...evento });
   const [guardando, setGuardando] = useState(false);
   const [ok, setOk] = useState(false);
-  const set = (k, v) => { setForm((f) => ({ ...f, [k]: v })); setOk(false); };
+  const [errorNombre, setErrorNombre] = useState("");
+  const set = (k, v) => { setForm((f) => ({ ...f, [k]: v })); setOk(false); if (k === "nombreEvento") setErrorNombre(""); };
 
   // Credenciales (solo si el evento aún no tiene usuario ligado).
   const [cred, setCred] = useState({ usuario: "", password: "" });
@@ -23,9 +25,17 @@ export default function EventoDatos({ evento, salones, onActualizado }) {
   }, [evento.id]);
 
   const guardar = async () => {
+    // El nombre en blanco no es solo feo: el borrado se confirma escribiendo el nombre exacto,
+    // y con "" esa confirmación se cumple sola. `AdminEventos` ya lo exige al crear; aquí se
+    // guardaba sin mirar, así que el candado se podía quitar desde esta pantalla.
+    if (!String(form.nombreEvento || "").trim()) {
+      setErrorNombre("El evento necesita un nombre. Es lo que se pide escribir para confirmar un borrado.");
+      return;
+    }
+    setErrorNombre("");
     setGuardando(true);
     const patch = {
-      nombreEvento: form.nombreEvento,
+      nombreEvento: form.nombreEvento.trim(),
       tipoEvento: form.tipoEvento || null,
       fechaEvento: form.fechaEvento || null,
       salonId: form.salonId || null,
@@ -84,7 +94,10 @@ export default function EventoDatos({ evento, salones, onActualizado }) {
 
   return (
     <div className="space-y-5 max-w-2xl">
-      <Field label="Nombre del evento" value={form.nombreEvento} onChange={(v) => set("nombreEvento", v)} />
+      <div>
+        <Field label="Nombre del evento" value={form.nombreEvento} onChange={(v) => set("nombreEvento", v)} />
+        {errorNombre && <p className="text-red-400 text-xs mt-1.5">{errorNombre}</p>}
+      </div>
       <div className="grid grid-cols-2 gap-3">
         <Field label="Tipo" value={form.tipoEvento} onChange={(v) => set("tipoEvento", v)} />
         <Field label="Fecha" value={form.fechaEvento} onChange={(v) => set("fechaEvento", v)} type="date" />
@@ -195,6 +208,13 @@ export default function EventoDatos({ evento, salones, onActualizado }) {
           </div>
         )}
       </div>
+
+      {/* Zona de peligro, al final y separada: el borrado es lo único irreversible del panel. */}
+      <div className="border-t border-red-400/15 pt-5 mt-2">
+        <p className="text-red-400/50 text-xs uppercase tracking-wider mb-3">Zona de peligro</p>
+        <EventoEliminar evento={evento} onBorrado={onBorrado} />
+      </div>
+
     </div>
   );
 }

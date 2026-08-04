@@ -2,6 +2,7 @@ import { useState, useEffect, useRef, useCallback } from "react";
 import { base44 } from "@/api/base44Client";
 import { MESA_FORMAS } from "@/lib/catalogos";
 import { Plus, Trash2, Circle, Square, X, Users } from "lucide-react";
+import { Estado, EsqueletoFilas } from "@/components/ui/Estado";
 
 /**
  * Editor de mesas estilo POS sobre un lienzo (plano placeholder).
@@ -20,6 +21,7 @@ export default function MesaEditor({ eventoId, salonId, reglas, editable = false
   const [plano, setPlano] = useState(null);
   const [sel, setSel] = useState(null); // mesa seleccionada
   const [cargando, setCargando] = useState(true);
+  const [errorCarga, setErrorCarga] = useState(null);
   const lienzoRef = useRef(null);
   const dragRef = useRef(null);
 
@@ -28,9 +30,18 @@ export default function MesaEditor({ eventoId, salonId, reglas, editable = false
   const libre = !!reglas?.capacidadLibre;
 
   const cargar = useCallback(async () => {
-    const ms = await base44.entities.Mesa.filter({ eventoId }, "orden");
-    setMesas(ms);
-    setCargando(false);
+    // `filterEstricto` + try/finally: con `filter` un fallo devolvía [] y el lienzo salía
+    // vacío como si el evento no tuviera mesas. Y sin el `finally`, un error dejaba la
+    // pantalla en "Cargando mesas…" indefinidamente.
+    try {
+      const ms = await base44.entities.Mesa.filterEstricto({ eventoId }, "orden");
+      setMesas(ms);
+      setErrorCarga(null);
+    } catch (e) {
+      setErrorCarga(e || new Error("Falló la lectura"));
+    } finally {
+      setCargando(false);
+    }
   }, [eventoId]);
 
   useEffect(() => { cargar(); }, [cargar]);
@@ -98,7 +109,11 @@ export default function MesaEditor({ eventoId, salonId, reglas, editable = false
 
   const tamano = (cap) => Math.min(88, 44 + Number(cap || 8) * 2.4);
 
-  if (cargando) return <p className="text-white/25 text-sm py-10 text-center">Cargando mesas…</p>;
+  if (cargando) return <EsqueletoFilas filas={1} alto="h-64" />;
+  if (errorCarga) {
+    return <Estado error={errorCarga} onReintentar={cargar}
+      mensajeError="No se pudieron cargar las mesas de este evento." />;
+  }
 
   return (
     <div>

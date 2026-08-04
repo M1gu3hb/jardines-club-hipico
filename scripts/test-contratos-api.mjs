@@ -379,12 +379,22 @@ for (const ruta of [
 }
 {
   const s = leerCodigo("src/api/base44Client.js");
-  // Dentro del cuerpo de `filterEstricto`: el `throw` que importa es el suyo. Medido
-  // por distancia, el contrato se sostenía sobre el texto de un `console.error`.
+  // El `throw` que importa es el del cuerpo estricto, no uno cualquiera del archivo: medido
+  // por distancia, el contrato llegó a sostenerse sobre el texto de un `console.error`.
+  // Desde 8E ese cuerpo es compartido (`runQueryEstricto`), así que se afirman las dos mitades:
+  // que el cuerpo lanza, y que las dos lecturas estrictas son ese cuerpo y no otro.
+  const cEstricto = entre(s, "async function runQueryEstricto(", "\nfunction makeEntity(");
+  check(
+    "shim: la lectura estricta propaga el error en vez de devolver []",
+    /throw error/.test(cEstricto),
+    cEstricto ? "" : "no se encontró runQueryEstricto",
+  );
   const cFiltro = entre(s, "async filterEstricto(", "async get(");
   check(
-    "shim: filterEstricto propaga el error en vez de devolver []",
-    /throw error/.test(cFiltro),
+    "shim: filterEstricto y listEstricto usan ese cuerpo, no `runQuery`",
+    /async filterEstricto\(filter, sort\) \{ return runQueryEstricto\(/.test(cFiltro) &&
+      /async listEstricto\(sort\) \{ return runQueryEstricto\(/.test(cFiltro) &&
+      !/return runQuery\(/.test(cFiltro),
     cFiltro ? "" : "no se encontró filterEstricto",
   );
   check("shim: storage.remove distingue 'no borró nada'", /borrado: Array\.isArray\(data\)/.test(s));
@@ -799,6 +809,529 @@ for (const ruta of [
     "documentos: la carga no confunde 'vacío' con 'falló'",
     /Documento\.filterEstricto\(\{ eventoId \}/.test(s) && !/Documento\.filter\(\{ eventoId \}/.test(s),
   );
+}
+
+// ---------------------------------------------------------------- eliminar evento (8B)
+// La ÚNICA operación irreversible del panel. El orden de los pasos no es estilo: es lo que
+// impide dejar archivos sin asa o huérfanas invisibles.
+{
+  const api = leerCodigo("api/eliminar-evento.js");
+  const ui = leerCodigo("src/components/admin/eventos/EventoEliminar.jsx");
+
+  // ORDEN: los paths viven en `documentos`, que cae por CASCADE. Si la fila se borrara antes,
+  // los archivos quedarían en el bucket para siempre y sin forma de localizarlos.
+  {
+    const iStorage = api.indexOf('storage.from(BUCKET).remove');
+    const iHuerfanas = api.indexOf('from("notificaciones").delete()');
+    const iFila = api.indexOf('from("eventos").delete()');
+    const iAuth = api.indexOf("borrarUsuario(");
+    check(
+      "eliminar-evento: el orden es archivos → huérfanas → fila → usuario de Auth",
+      iStorage > 0 && iHuerfanas > iStorage && iFila > iHuerfanas && iAuth > iFila,
+      `storage=${iStorage} huerfanas=${iHuerfanas} fila=${iFila} auth=${iAuth}`,
+    );
+  }
+  check(
+    "eliminar-evento: se compara lo borrado del bucket con lo pedido",
+    /Array\.isArray\(borrados\) \? borrados\.length : 0/.test(api) && /n < rutas\.length/.test(api),
+  );
+  check(
+    "eliminar-evento: un listado truncado corta en vez de dejar archivos sueltos",
+    />= TOPE_LISTADO/.test(api) && /listado_truncado/.test(api),
+  );
+  // Se confirma que NO SOBREVIVE NINGUNA, no que el número coincida con el inventario. Comparar
+  // contra un conteo de hace segundos era una carrera garantizada —el cron y el propio cliente
+  // escriben en `notificaciones` mientras esto corre— y abortaba en el paso 2, con el bucket ya
+  // vaciado. Las DOS huérfanas tienen que confirmarse: recoger el resultado de una y no mirarlo
+  // era declarar el criterio y no aplicarlo.
+  check(
+    "eliminar-evento: las huérfanas se confirman releyendo que no queda ninguna",
+    /\.delete\(\)\.eq\("evento_id", eventoId\)\.select\("id"\)/.test(api) &&
+      /const notifsVivas = await sobrevivientes\("notificaciones"\)/.test(api) &&
+      /if \(notifsVivas > 0\)/.test(api) &&
+      /const ubicVivas = await sobrevivientes\("operativo_ubicaciones"\)/.test(api) &&
+      /if \(ubicVivas > 0\)/.test(api),
+  );
+  check(
+    "eliminar-evento: la confirmación de huérfanas NO se mide contra el inventario viejo",
+    !/hecho\.(notificaciones|ubicaciones) !== inv\./.test(api),
+  );
+  check(
+    "eliminar-evento: el borrado de la fila se confirma releyendo",
+    /la fila sigue existiendo/.test(api) && /paso: "confirmar"/.test(api),
+  );
+  // `resenas` es SET NULL y se conserva A PROPÓSITO: es prueba social del salón.
+  check(
+    "eliminar-evento: la reseña NO se borra",
+    !/from\("resenas"\)\.delete/.test(api) && /resenas/.test(api),
+  );
+  check(
+    "eliminar-evento: la UI avisa de que la reseña seguirá publicada",
+    /inv\.resenas > 0/.test(ui) && /NO se borra/.test(ui),
+  );
+  // El inventario cuenta invitados vía `mesas`: la tabla NO tiene `evento_id`, y pedirlo daría
+  // 42703 — el mismo fallo que tuvo `correo-cliente` — con el inventario mostrando 0 justo
+  // antes de un borrado irreversible.
+  check(
+    "eliminar-evento: los invitados se cuentan vía mesas, no por evento_id",
+    /cuentaPorLote\("invitados", "mesa_id", await idsDe\("mesas"\)\)/.test(api) &&
+      !/"invitados"[\s\S]{0,80}eq\("evento_id"/.test(api),
+  );
+  // Mismo caso, encontrado al revisar el mapa de FKs entero: `accesos` tampoco tiene `evento_id`
+  // (cae por CASCADE desde `invitaciones`, y su `invitacion_id` es NOT NULL, así que ninguno
+  // sobrevive al borrado).
+  check(
+    "eliminar-evento: los accesos se cuentan vía invitaciones, no por evento_id",
+    /cuentaPorLote\("accesos", "invitacion_id", await idsDe\("invitaciones"\)\)/.test(api) &&
+      !/"accesos"[\s\S]{0,80}eq\("evento_id"/.test(api),
+  );
+  // `operativo_ubicaciones` tiene PK compuesta y NO tiene `id`.
+  check(
+    "eliminar-evento: las ubicaciones se confirman por personal_id, no por id",
+    /from\("operativo_ubicaciones"\)\.delete\(\)\.eq\("evento_id", eventoId\)\.select\("personal_id"\)/.test(api),
+  );
+  // La confirmación por nombre se compara contra la FILA. Que el botón se habilite en el
+  // navegador no autoriza nada.
+  check(
+    "eliminar-evento: el nombre se compara contra la fila del servidor",
+    /String\(confirmacion \|\| ""\)\.trim\(\) !== String\(ev\.nombre_evento \|\| ""\)\.trim\(\)/.test(api),
+  );
+  check(
+    "eliminar-evento: solo admin, con rate limit e idempotencia",
+    /autorizarJardines\(req, admin, \{ rol: "admin" \}\)/.test(api) &&
+      /rateLimit\(admin, "eliminar-evento"/.test(api) && /idemIniciar\(admin, "eliminar-evento"/.test(api),
+  );
+  check(
+    "eliminar-evento: si se interrumpe, se dice qué quedó hecho",
+    /hecho\.archivos\}\/\$\{hecho\.archivosPedidos\}/.test(api) && /NO borrado/.test(api),
+  );
+  // La UI no puede prometer que borra una cuenta a partir de `evento.usuario`: una fila puede
+  // tener usuario sin `auth_user_id` (los tres duplicados de "Boda ortega" estaban así).
+  check(
+    "eliminar-evento: la cuenta a borrar la dice el servidor, no el objeto del navegador",
+    /cuentaCliente: ev\.auth_user_id \? ev\.usuario : null/.test(api) &&
+      /\{cuenta &&/.test(ui) && !/\{evento\.usuario &&/.test(ui),
+  );
+}
+
+// ---------------------------------------------------------------- borrado de usuarios (8F)
+// EL CONTRATO QUE VALE PARA SIEMPRE. `auth.users` es la tabla COMPARTIDA con Vero Seguros y
+// `deleteUser` es un hard delete sobre ella. El uuid que se le pasaba venía de
+// `jardines.eventos.auth_user_id`, una columna que cualquier admin puede escribir desde el
+// navegador (`eventos_upd` no restringe columnas), y nadie comprobaba de quién era. Vero tiene
+// UN administrador. Lo que sigue es lo que impide que vuelva a pasar, en este llamador y en
+// cualquiera que se escriba después.
+{
+  const guard = leerCodigo("api/_lib/guard.js");
+
+  // 1) Un solo sitio en TODO el proyecto puede llamar a deleteUser.
+  {
+    const archivos = [
+      "api/_lib/guard.js", "api/_lib/correo.js", "api/eliminar-evento.js", "api/crear-admin.js",
+      "api/crear-usuario-evento.js", "api/canjear-acceso.js", "api/notificar.js",
+      "api/correo-cliente.js", "api/solicitud.js", "api/cron-recordatorios.js",
+      "src/api/base44Client.js", "src/api/supabaseClient.js",
+    ];
+    const fuera = archivos
+      .filter((f) => f !== "api/_lib/guard.js")
+      .filter((f) => /deleteUser\s*\(/.test(leerCodigo(f)));
+    check(
+      "auth: solo `guard.js` puede llamar a deleteUser",
+      /deleteUser\s*\(/.test(guard) && fuera.length === 0,
+      fuera.join(", "),
+    );
+  }
+
+  // 2) Y ahí dentro, el deleteUser va DESPUÉS del permiso, no antes ni en paralelo.
+  {
+    const cuerpo = entre(guard, "export async function borrarUsuario(", "\n}\n");
+    const iPermiso = cuerpo.indexOf("permiso?.tipo");
+    const iNoDeclarado = cuerpo.indexOf('motivo: "permiso_no_declarado"');
+    const iDelete = cuerpo.indexOf("deleteUser(");
+    check(
+      "borrarUsuario: sin permiso declarado NO se borra, y el permiso se mira antes",
+      iPermiso >= 0 && iNoDeclarado > iPermiso && iDelete > iNoDeclarado,
+      `permiso=${iPermiso} sin_declarar=${iNoDeclarado} delete=${iDelete}`,
+    );
+    // El argumento no puede tener valor por defecto: si lo tuviera, olvidarlo dejaría de fallar.
+    check(
+      "borrarUsuario: `permiso` no tiene valor por defecto",
+      /export async function borrarUsuario\(admin, userId, permiso\)/.test(guard),
+    );
+  }
+
+  // 3) Las cinco comprobaciones de pertenencia, cada una atada a su motivo.
+  {
+    const cuerpo = entre(guard, "export async function usuarioEsClienteDelEvento(", "\n}\n");
+    // Se afirma sobre el ORDEN, no sobre la distancia: cada condición tiene que aparecer, su
+    // rechazo detrás, y el rechazo ANTES del `return` de éxito. Un `[\s\S]{0,200}` solo diría
+    // que dos textos están cerca, que no es lo mismo que "esto gobierna aquello".
+    const iExito = cuerpo.indexOf('motivo: "cliente_del_evento"');
+    const reglas = [
+      ["dominio del correo", "endsWith(DOMINIO_CLIENTE_PORTAL)", "no_es_cuenta_de_portal"],
+      ["marca de otra app", 'app !== "jardines"', "marcado_de_otra_aplicacion"],
+      ["rol en perfiles", 'perfil.rol !== "cliente"', "no_es_un_cliente"],
+      ["otro evento", 'from("eventos")', "compartido_con_otro_evento"],
+      ["personal de operativo", 'from("operativo_personal")', "es_personal_de_operativo"],
+    ];
+    for (const [nombre, condicion, motivo] of reglas) {
+      const iCond = cuerpo.indexOf(condicion);
+      const iMotivo = cuerpo.indexOf(motivo);
+      check(
+        `usuarioEsClienteDelEvento: comprueba ${nombre}`,
+        iExito > 0 && iCond >= 0 && iMotivo > iCond && iMotivo < iExito,
+        `cond=${iCond} motivo=${iMotivo} exito=${iExito}`,
+      );
+    }
+    // Falla CERRADO: cada lectura que no se pueda hacer devuelve "no", nunca sigue adelante.
+    check(
+      "usuarioEsClienteDelEvento: una lectura que falla dice que NO",
+      /lectura_de_auth_fallida/.test(cuerpo) && /lectura_de_perfiles_fallida/.test(cuerpo) &&
+        /lectura_de_eventos_fallida/.test(cuerpo) && /lectura_de_operativo_fallida/.test(cuerpo),
+    );
+  }
+
+  // 4) La excepción de la compensación. Tiene DOS mitades y hay que vigilar las dos por separado,
+  // porque una es una comprobación y la otra es un contrato de llamador.
+  //
+  // Aquí vivía un contrato que pasaba sin comprobar nada: afirmaba
+  // `permiso.creadoEnEstaPeticion !== userId`, y el único llamador pasaba `userId` como las dos
+  // cosas — `userId !== userId`, siempre falso, no rechazaba nunca. El contrato era cierto y la
+  // propiedad que decía vigilar no existía.
+  {
+    const cuerpo = entre(guard, "export async function borrarUsuario(", "\n}\n");
+    // (i) La mitad que SÍ es una comprobación: la cuenta tiene que ser reciente.
+    check(
+      "borrarUsuario: la compensación solo borra cuentas recién creadas",
+      /usuarioRecienCreado\(admin, userId\)/.test(cuerpo) && !/creadoEnEstaPeticion/.test(cuerpo),
+      cuerpo ? "" : "no se encontró borrarUsuario",
+    );
+    const ventana = entre(guard, "export async function usuarioRecienCreado(", "\n}\n");
+    check(
+      "usuarioRecienCreado: mide contra `created_at` y falla cerrado",
+      /Date\.now\(\) - creado > VENTANA_RECIEN_CREADO_MS/.test(ventana) &&
+        /la_cuenta_no_es_reciente/.test(ventana) &&
+        /lectura_de_auth_fallida/.test(ventana) && /sin_fecha_de_alta/.test(ventana),
+      ventana ? "" : "no se encontró usuarioRecienCreado",
+    );
+    check(
+      "compensarAlta: usa la excepción estrecha, no la de cliente",
+      /borrarUsuario\(admin, userId, \{ tipo: "recien_creado_aqui" \}\)/.test(guard),
+    );
+  }
+
+  // (ii) La mitad que es un CONTRATO DE LLAMADOR, y por eso se verifica aquí y no en ejecución:
+  // el uuid que se compensa tiene que salir de `createUser`, nunca de una lectura de la base. Si
+  // alguien pasara a `compensarAlta` un `auth_user_id` leído de `eventos`, la compensación se
+  // convertiría en el mismo agujero que 8F cerró.
+  {
+    for (const ruta of ["api/crear-admin.js", "api/crear-usuario-evento.js"]) {
+      const s = leerCodigo(ruta);
+      // La variable arranca en null y solo se le asigna el id que devuelve `createUser`.
+      const asignaciones = [...s.matchAll(/\bnuevoId\s*=\s*([^;]+);/g)].map((m) => m[1].trim());
+      const validas = asignaciones.length > 0 &&
+        asignaciones.every((v) => v === "null" || v === "created.user.id");
+      // Y lo que se compensa es esa variable, no otra cosa.
+      const compensaciones = [...s.matchAll(/compensarAlta\(admin,\s*\{([\s\S]*?)\}\)/g)]
+        .map((m) => m[1]).filter((c) => /userId\s*:/.test(c));
+      const compensanNuevoId = compensaciones.length > 0 &&
+        compensaciones.every((c) => /userId:\s*nuevoId\b/.test(c));
+      check(
+        `${ruta}: lo que se compensa es el id que devolvió createUser, no uno leído de la base`,
+        validas && compensanNuevoId,
+        `asignaciones=[${asignaciones.join(" | ")}] compensaciones=${compensaciones.length}`,
+      );
+    }
+    // Nadie más puede llamar a `compensarAlta`: un tercer llamador quedaría fuera del contrato de
+    // arriba y la propiedad dejaría de estar cubierta sin que nada fallara.
+    const rutas = ["api/eliminar-evento.js", "api/canjear-acceso.js", "api/notificar.js",
+                   "api/correo-cliente.js", "api/solicitud.js", "api/cron-recordatorios.js"];
+    const intrusos = rutas.filter((r) => /compensarAlta\(/.test(leerCodigo(r)));
+    check("compensarAlta: solo la llaman las dos rutas de alta", intrusos.length === 0, intrusos.join(", "));
+  }
+
+  // 5) El endpoint pasa el permiso de cliente, con SU eventoId.
+  {
+    const api = leerCodigo("api/eliminar-evento.js");
+    check(
+      "eliminar-evento: el borrado del usuario declara que es el cliente de ESE evento",
+      /borrarUsuario\(admin, authUserId, \{ tipo: "cliente_de_evento", eventoId \}\)/.test(api),
+    );
+    // Y el uuid se guarda para la auditoría DEL CATCH: si la fila cuaja y falla la relectura, sin
+    // este dato no hay forma de encontrar después la cuenta que quedó viva.
+    //
+    // Se recorta el catch. Buscar `authUserId` sobre todo el archivo no comprobaba nada: ya
+    // aparece en la auditoría del paso 4, así que quitarlo del catch dejaba pasar el contrato —
+    // vacuo, y encima sobre la propiedad que más falta hace cuando algo se rompe a mitad.
+    // Hay DOS `} catch (e) {` en el archivo —el del inventario y el del borrado— y `entre()`
+    // coge el primero: el recorte llegaba hasta el final del fichero e incluía la auditoría del
+    // paso 4, que también dice `authUserId`. El contrato volvía a ser vacuo. Se toma el ÚLTIMO.
+    const cuerpoCatch = api.slice(api.lastIndexOf("} catch (e) {"));
+    check(
+      "eliminar-evento: el catch audita el authUserId y el estado real de la fila",
+      /authUserId,/.test(cuerpoCatch) && /fila_sin_confirmar/.test(cuerpoCatch) &&
+        /ESTADO_FILA\[hecho\.fila\]/.test(cuerpoCatch),
+      cuerpoCatch ? "" : "no se encontró el catch",
+    );
+    // El tercer estado tiene que decir algo distinto de "NO borrado": afirmar que no se borró
+    // cuando lo que pasó es que no se pudo comprobar es justo la mentira que hay que evitar.
+    check(
+      "eliminar-evento: «sin confirmar» no se cuenta como «NO borrado»",
+      /sin_confirmar: "no se pudo comprobar/.test(cuerpoCatch),
+    );
+
+    // --- storage: las dos fuentes de rutas, y las subcarpetas
+    check(
+      "eliminar-evento: las rutas salen del listado Y de documentos.archivo_url",
+      /from\("documentos"\)\.select\("archivo_url"\)/.test(api) &&
+        /const rutasDeTabla = \(docs \|\| \[\]\)[\s\S]{0,120}d\.archivo_url/.test(api),
+    );
+    // `archivo_url` la escribe el navegador (`documentos_upd` es `is_admin()` sin restricción de
+    // columna). Sin acotar al prefijo, este borrado destruiría un objeto arbitrario del bucket
+    // `clientes` — los documentos de otro cliente. La unión de fuentes solo es segura acotada.
+    {
+      const iPrefijo = api.indexOf("const prefijo = `${eventoId}/`");
+      const iRutas = api.indexOf("const rutas = [...new Set([");
+      check(
+        "eliminar-evento: solo se borran rutas dentro de la carpeta del evento",
+        iPrefijo > 0 && iRutas > iPrefijo &&
+          /rutasDeTabla\.filter\(\(r\) => r\.startsWith\(prefijo\)\)/.test(api) &&
+          /archivo_url_fuera_de_prefijo/.test(api),
+        `prefijo=${iPrefijo} rutas=${iRutas}`,
+      );
+    }
+    {
+      // Una subcarpeta llega con `id: null`; mandarla a `remove` no borra nada y `n < pedidos`
+      // dejaba el evento imposible de borrar con el mensaje "0 de 1 archivos".
+      const iCarpetas = api.indexOf("o.id === null");
+      const iCorte = api.indexOf('motivo: "subcarpetas"');
+      const iRutas = api.indexOf("const rutas =");
+      check(
+        "eliminar-evento: las subcarpetas cortan y no entran en las rutas",
+        iCarpetas > 0 && iCorte > iCarpetas && iRutas > iCorte && /o\.id !== null/.test(api),
+        `carpetas=${iCarpetas} corte=${iCorte} rutas=${iRutas}`,
+      );
+    }
+
+    // --- nombre vacío: los TRES sitios
+    check(
+      "eliminar-evento: el servidor rechaza borrar un evento sin nombre",
+      /evento_sin_nombre/.test(api) &&
+        /if \(!String\(ev\.nombre_evento \|\| ""\)\.trim\(\)\)/.test(api),
+    );
+    {
+      const ui = leerCodigo("src/components/admin/eventos/EventoEliminar.jsx");
+      check(
+        "eliminar-evento: el botón exige texto, no solo que coincida",
+        /const coincide = escrito\.length > 0 && escrito === nombreReal;/.test(ui),
+      );
+      const ficha = leerCodigo("src/components/admin/eventos/EventoDatos.jsx");
+      const guardar = entre(ficha, "const guardar = async () => {", "setGuardando(true);");
+      check(
+        "eventos: la ficha no guarda el nombre en blanco",
+        /if \(!String\(form\.nombreEvento \|\| ""\)\.trim\(\)\)/.test(guardar) &&
+          /setErrorNombre\(/.test(guardar) && /return;/.test(guardar),
+        guardar ? "" : "no se encontró `const guardar`",
+      );
+    }
+
+    // --- cuotas: la de consulta antes de contar, la destructiva antes de comparar el nombre
+    {
+      const iConsulta = api.indexOf('rateLimit(admin, "eliminar-evento-consulta"');
+      const iInventario = api.indexOf("inv = await inventario(");
+      const iDestructiva = api.indexOf('rateLimit(admin, "eliminar-evento",');
+      const iNombre = api.indexOf('String(confirmacion || "").trim() !==');
+      check(
+        "eliminar-evento: la cuota de consulta va antes del inventario",
+        iConsulta > 0 && iInventario > iConsulta,
+        `consulta=${iConsulta} inventario=${iInventario}`,
+      );
+      check(
+        "eliminar-evento: la cuota destructiva va antes de comparar el nombre",
+        iDestructiva > 0 && iNombre > iDestructiva,
+        `cuota=${iDestructiva} nombre=${iNombre}`,
+      );
+    }
+
+    // --- inventario completo: las once que cascadean + las tres de SET NULL + segundo nivel
+    {
+      const cuerpoInv = entre(api, "async function inventario(", "\n}\n");
+      const faltan = ["evento_notas", "evento_wishlist", "evento_reglas_mesas",
+                      "operativo_asignacion", "cronograma", "musica", "items_contratados",
+                      "documentos", "mesas", "rsvps", "invitaciones"]
+        .filter((t) => !cuerpoInv.includes(`cuenta("${t}")`));
+      check(
+        "eliminar-evento: el inventario cuenta las once tablas que caen por CASCADE",
+        faltan.length === 0,
+        faltan.join(", "),
+      );
+    }
+  }
+}
+
+// ---------------------------------------------------------------- homónimos (8C)
+// Medido en producción antes de escribir esto: cuatro eventos «Boda ortega» creados con 24
+// segundos de diferencia, con el MISMO cliente, fecha, salón y creador. En la lista se pintan
+// idénticos y el único distinto —el que tiene cuenta de portal— es el que hay que conservar.
+// La confirmación "escribe el nombre exacto" NO distingue entre ellos: protege del borrado por
+// accidente, no del borrado equivocado. Sin discriminante visible, 8C es una ruleta.
+{
+  const api = leerCodigo("api/eliminar-evento.js");
+  const ui = leerCodigo("src/components/admin/eventos/EventoEliminar.jsx");
+  const lista = leerCodigo("src/components/admin/eventos/AdminEventos.jsx");
+
+  // El recuento excluye la propia fila (si no, «1 más» sería siempre al menos 1) y se hace
+  // sobre el nombre de la FILA leída, no sobre lo que mande el navegador.
+  const bloque = entre(api, "const { count: homonimos", "return res.status(200).json({");
+  check(
+    "eliminar-evento: los homónimos se cuentan por nombre de la fila, excluyéndola",
+    /\.eq\("nombre_evento", ev\.nombre_evento\)\s*\.neq\("id", eventoId\)/.test(bloque) &&
+      /count: "exact", head: true/.test(bloque),
+    bloque.slice(0, 160),
+  );
+  // El error del recuento corta: un `homonimos` a 0 por fallo de lectura escondería el aviso
+  // justo en el caso que lo necesita.
+  {
+    const iErr = api.indexOf("if (errHom)");
+    const iCorte = iErr < 0 ? -1 : api.indexOf("generico(res, 500)", iErr);
+    const iResp = api.indexOf("homonimos: homonimos");
+    check(
+      "eliminar-evento: si el recuento de homónimos falla, no se responde inventario",
+      iErr > 0 && iCorte > iErr && iResp > iCorte,
+      `errHom=${iErr} corte=${iCorte} respuesta=${iResp}`,
+    );
+  }
+
+  // El aviso de la UI: se enseña SOLO cuando hay homónimos, y dice cuál es este.
+  const aviso = entre(ui, "{inv && homonimos > 0 && (", "{inv && (");
+  check(
+    "eliminar-evento: con homónimos, la UI dice la hora de alta y si tiene cuenta",
+    aviso.includes("fechaLarga(creadoEl)") &&
+      /cuenta[\s\S]{0,200}no tiene cuenta de portal/.test(aviso),
+    aviso ? "" : "no se encontró el bloque de aviso",
+  );
+  check(
+    "eliminar-evento: la UI no inventa el discriminante — viene del servidor",
+    /setHomonimos\(r\.homonimos \|\| 0\);\s*setCreadoEl\(r\.creadoEl \|\| ""\)/.test(ui) &&
+      !/evento\.createdAt/.test(ui),
+  );
+
+  // La lista: la marca se calcula sobre TODOS los eventos, no sobre los filtrados. Contarlo
+  // sobre `lista` haría desaparecer la marca en cuanto un filtro escondiera a la gemela — justo
+  // cuando más falta hace.
+  const recuento = entre(lista, "const vecesPorNombre =", "const repetido =");
+  check(
+    "eventos: los nombres repetidos se cuentan sobre todos los eventos, no sobre los filtrados",
+    /^const vecesPorNombre = eventos\s*\.reduce\(/.test(recuento.trim()) && !/\blista\b/.test(recuento),
+    recuento.slice(0, 120),
+  );
+  check(
+    "eventos: una fila con nombre repetido enseña alta y acceso para poder distinguirla",
+    /repetido\(e\) && \([\s\S]{0,400}altaCorta\(e\.createdAt\)[\s\S]{0,200}sin acceso/.test(lista),
+  );
+}
+
+// ---------------------------------------------------------------- tres estados (8E)
+// "Todavía no ha llegado", "de verdad no hay nada" y "la lectura se cayó" se pintaban las tres
+// igual, porque el shim devuelve `[]` en las tres. Lo que sigue ata las piezas que impiden que
+// vuelvan a fundirse.
+{
+  const estado = leerCodigo("src/components/ui/Estado.jsx");
+  const hook = leerCodigo("src/lib/useCarga.js");
+
+  // EL ORDEN ES LA PROPIEDAD. Quien llama calcula `vacio` desde `datos || []`, así que cuando
+  // la lectura falla `vacio` TAMBIÉN es cierto. Si la rama de vacío se mirara antes que la de
+  // error, un fallo volvería a presentarse como "no hay nada" — el bug entero, de vuelta.
+  {
+    const cuerpo = entre(estado, "export function Estado({", "\n}\n");
+    const iCarga = cuerpo.indexOf("if (cargando)");
+    const iError = cuerpo.indexOf("if (error)");
+    const iVacio = cuerpo.indexOf("if (vacio)");
+    check(
+      "Estado: se mira cargando, luego error, y solo al final vacío",
+      iCarga >= 0 && iError > iCarga && iVacio > iError,
+      `cargando=${iCarga} error=${iError} vacio=${iVacio}`,
+    );
+  }
+  check(
+    "Estado: el fallo dice que NO está vacío y ofrece reintentar",
+    /No es que esté vacío/.test(estado) && /onReintentar &&/.test(estado),
+  );
+
+  // El efecto tiene que depender de `deps`, no de la función: `cargar` se recrea en cada render,
+  // así que depender de ella dispararía una lectura por render — un bucle contra la base.
+  {
+    const cb = entre(hook, "const fnRef = useRef(cargar);", "useEffect((");
+    check(
+      "useCarga: la lectura depende de las `deps`, no de la función que se recrea",
+      /useCallback\(\(\) => fnRef\.current\(\), deps\)/.test(cb),
+      cb.slice(0, 120),
+    );
+  }
+  {
+    // Reintentar NO borra lo último bueno: parpadear a esqueleto en cada recarga esconde datos
+    // que sí están.
+    const rec = entre(hook, "const recargar = useCallback(", "return {");
+    check(
+      "useCarga: reintentar limpia el error pero no los datos",
+      /setError\(null\)/.test(rec) && /setRefresco\(/.test(rec) && !/setDatos\(/.test(rec),
+      rec.slice(0, 140),
+    );
+  }
+  check(
+    "useCarga: una respuesta vieja no pisa a una nueva",
+    /mio !== turno\.current/.test(hook) && /\+\+turno\.current/.test(hook),
+  );
+
+  // AdminConfig y MesaReglas: aquí el fallo disfrazado de "aún no hay nada" no es cosmético.
+  // Ambos tienen una rama "no existe todavía" que construye un objeto SIN `id`, y guardar desde
+  // ahí CREA una fila nueva. Con la lectura floja, un fallo llevaba a esa rama y se acababa con
+  // dos filas de configuración (o dos de reglas) para lo que solo admite una.
+  for (const [archivo, ent, nombre, guarda] of [
+    ["src/components/admin/AdminConfig.jsx", "ConfigSitio", "AdminConfig", "if (!config)"],
+    ["src/components/mesas/MesaReglas.jsx", "EventoReglasMesas", "MesaReglas", "if (!reglas)"],
+  ]) {
+    const src = leerCodigo(archivo);
+    const cargarBloque = entre(src, "const cargar = () =>", "useEffect(");
+    check(
+      `${nombre}: la lectura que decide si crear fila nueva es estricta`,
+      /Estricto\(/.test(cargarBloque) &&
+        !new RegExp(`${ent}\\.(list|filter)\\(`).test(cargarBloque) &&
+        /\.catch\(\(e\) => setErrorCarga\(/.test(cargarBloque),
+      cargarBloque ? "" : "no se encontró el bloque `const cargar`",
+    );
+    // Y el fallo corta ANTES de que se pueda pintar el formulario en blanco.
+    const iError = src.indexOf("if (errorCarga)");
+    const iGuarda = src.indexOf(guarda);
+    check(
+      `${nombre}: con la lectura caída no se llega al formulario vacío`,
+      iError > 0 && iGuarda > iError,
+      `errorCarga=${iError} ${guarda}=${iGuarda}`,
+    );
+  }
+
+  // Las pantallas que se quedaban en "Cargando…": el apagado del flag tiene que ocurrir también
+  // cuando la lectura falla, o no hay forma de salir de ahí.
+  {
+    const editor = leerCodigo("src/components/mesas/MesaEditor.jsx");
+    const cargarEditor = entre(editor, "const cargar = useCallback(", "}, [eventoId]);");
+    check(
+      "MesaEditor: un fallo también apaga el estado de carga",
+      /finally \{\s*setCargando\(false\);/.test(cargarEditor) && /catch \(e\)/.test(cargarEditor),
+      cargarEditor ? "" : "no se encontró `const cargar`",
+    );
+    const meseros = leerCodigo("src/components/meseros/EventoMeseros.jsx");
+    const cargarMeseros = entre(meseros, "const cargar = useCallback(", "}, [eventoId]);");
+    check(
+      "EventoMeseros: un fallo también apaga el estado de carga",
+      cortaAntesDe(
+        cargarMeseros.replace("return;", "throw;"),
+        "catch (e)",
+        cargarMeseros.replace("return;", "throw;").indexOf("setMesas(ms)"),
+      ) && /setCargando\(false\);\s*(return|throw)/.test(cargarMeseros.replace("return;", "throw;")),
+      cargarMeseros ? "" : "no se encontró `const cargar`",
+    );
+  }
 }
 
 // ---------------------------------------------------------------- salida
