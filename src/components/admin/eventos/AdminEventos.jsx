@@ -1,12 +1,17 @@
 import { useState } from "react";
 import { base44 } from "@/api/base44Client";
 import { useAuth } from "@/api/authContext";
-import { Plus, Loader2, Check, Search, Calendar, User, DoorOpen } from "lucide-react";
+import { Plus, Loader2, Check, Search, Calendar, User, DoorOpen, KeyRound, AlertTriangle } from "lucide-react";
 import { Field, ESTATUS, estatusColor } from "./_ui";
 import { MESA_FORMAS } from "@/lib/catalogos";
 import EventoFicha from "./EventoFicha";
 import { useCarga } from "@/lib/useCarga";
 import { Estado, EsqueletoFilas } from "@/components/ui/Estado";
+import { nuevoId } from "@/lib/tokenSeguro";
+// LAS MISMAS reglas que aplica `api/crear-usuario-evento.js`, importadas del mismo archivo.
+// Duplicarlas es lo que hizo que divergieran: el formulario pedía 6 caracteres de contraseña
+// y el servidor exigía 8, así que una de 6 o 7 pasaba aquí y moría allá con un 400 opaco.
+import { validarCredenciales, AYUDA_USUARIO, AYUDA_PASSWORD } from "../../../../api/_lib/reglas-credenciales.js";
 
 const FORM_VACIO = {
   nombreEvento: "", tipoEvento: "", fechaEvento: "", salonId: "",
@@ -21,7 +26,9 @@ export default function AdminEventos() {
   const [form, setForm] = useState(FORM_VACIO);
   const [guardando, setGuardando] = useState(false);
   const [error, setError] = useState("");
+  const [campoMal, setCampoMal] = useState("");
   const [aviso, setAviso] = useState("");
+  const [eventoId, setEventoId] = useState("");
   const [filtro, setFiltro] = useState("Todos");
   const [busqueda, setBusqueda] = useState("");
 
@@ -41,20 +48,50 @@ export default function AdminEventos() {
   const set = (k, v) => setForm((f) => ({ ...f, [k]: v }));
   const salonNombre = (id) => salones.find((s) => s.id === id)?.nombre || "—";
 
-  const abrirCrear = () => { setForm(FORM_VACIO); setError(""); setAviso(""); setCreando(true); };
+  /**
+   * El id se fija AQUÍ, una sola vez por formulario abierto — no en cada clic.
+   *
+   * Antes lo generaba el shim dentro de `create()`, así que cada reintento era, para el
+   * sistema, un evento que jamás había visto: se creaba otra fila, y la clave de
+   * idempotencia del alta de usuario (`${eventoId}:${usuario}`) nunca podía coincidir con
+   * la del intento anterior. El dueño le dio cuatro veces y quedaron cuatro eventos.
+   *
+   * Con el id fijo, el segundo INSERT choca con la clave primaria: el reintento es
+   * idempotente **por construcción**, sin lógica nueva que mantener.
+   *
+   * Se prefirió esto a mover las tres escrituras a un endpoint con compensación (como
+   * `api/crear-admin.js`): resuelve el mismo fondo con una superficie mucho menor, no añade
+   * una ruta nueva con `service_role` justo antes de la validación humana, y deja el
+   * reintento seguro incluso si el fallo ocurre entre las escrituras 1 y 3.
+   */
+  const abrirCrear = () => {
+    setForm(FORM_VACIO); setError(""); setAviso(""); setCampoMal("");
+    try {
+      setEventoId(nuevoId());
+      setCreando(true);
+    } catch (e) {
+      setError(e?.message || "No se pudo preparar el formulario.");
+    }
+  };
 
   const crear = async () => {
-    setError(""); setAviso("");
-    if (!form.nombreEvento.trim() || !form.usuario.trim() || !form.password) {
-      setError("Nombre del evento, usuario y contraseña son obligatorios.");
+    setError(""); setAviso(""); setCampoMal("");
+    if (!form.nombreEvento.trim()) {
+      setCampoMal("nombreEvento");
+      setError("Falta el nombre del evento.");
       return;
     }
-    if (form.password.length < 6) { setError("La contraseña debe tener al menos 6 caracteres."); return; }
+    // MISMA validación que el servidor, importada del mismo archivo, y ANTES de escribir
+    // nada. Así el error sale con el campo señalado en vez de dejar un evento a medias.
+    const v = validarCredenciales({ usuario: form.usuario.trim(), password: form.password, nombre: form.clienteNombre });
+    if (!v.ok) { setCampoMal(v.campo); setError(v.mensaje); return; }
+
     setGuardando(true);
     let evento;
     try {
-      // 1) Crear la fila del evento.
+      // 1) Crear la fila del evento, con el id fijado al abrir el formulario.
       evento = await base44.entities.Evento.create({
+        id: eventoId,
         nombreEvento: form.nombreEvento.trim(),
         tipoEvento: form.tipoEvento || null,
         fechaEvento: form.fechaEvento || null,
@@ -82,16 +119,56 @@ export default function AdminEventos() {
         eventoId: evento.id,
         nombre: form.clienteNombre || form.nombreEvento,
       });
+      // Confirmar releyendo: `create` del shim inserta sin `.select()`, así que no distingue
+      // "el INSERT falló" de "cuajó y se perdió la respuesta" (J-02).
+      const guardado = (await base44.entities.Evento.filterEstricto({ id: eventoId }))[0];
+      if (!guardado || !guardado.usuario) {
+        throw new Error("El evento se guardó, pero no se pudo confirmar que quedaran las credenciales.");
+      }
       setCreando(false);
       await cargar();
     } catch (e) {
-      // El evento pudo quedar creado sin credenciales: se avisa y se permite reintentar en la ficha.
-      if (evento) {
-        setAviso("El evento se creó, pero no se pudo crear el usuario del cliente: " + e.message +
-          ". Puedes reintentar las credenciales desde la ficha del evento.");
+      // Si el evento QUEDÓ creado, el formulario se cierra: dejarlo abierto con un aviso en
+      // ámbar pequeño es justo lo que llevó al dueño a pulsar "Crear evento" cuatro veces.
+      // Ahora se cierra, se recarga la lista —donde el evento aparece marcado como
+      // incompleto— y el aviso es de bloque, no una línea suelta.
+      const mensaje = e?.message || "Error desconocido";
+      // ÚLTIMO FALSO NEGATIVO DE ESTA PANTALLA, y el que quedaba después de 8A.
+      //
+      // Con el id fijo, si el primer INSERT cuajó y se perdió la respuesta, el reintento choca
+      // con la clave primaria — que es justamente lo que 8A busca — pero `evento` sigue sin
+      // asignarse, así que se caía en la rama de abajo y el mensaje decía "No se pudo crear el
+      // evento". Es mentira: sí se creó. Y es exactamente el error que hizo que el dueño
+      // pulsara cuatro veces.
+      //
+      // No se deduce del texto del error: se RELEE la fila. Si está, el alta ocurrió.
+      let yaExistia = null;
+      if (!evento) {
+        try {
+          yaExistia = (await base44.entities.Evento.filterEstricto({ id: eventoId }))[0] || null;
+        } catch { /* si no se puede releer, se cae a la rama honesta de abajo */ }
+      }
+      if (yaExistia) {
+        setCreando(false);
         await cargar();
+        setAviso(
+          `El evento «${yaExistia.nombreEvento || form.nombreEvento.trim()}» YA ESTABA CREADO — el ` +
+          `intento anterior sí funcionó aunque no lo pareciera. NO lo crees otra vez. ` +
+          (yaExistia.usuario
+            ? `Tiene sus credenciales («${yaExistia.usuario}»): está completo.`
+            : `Le faltan las credenciales: ábrelo en la lista (sale marcado como "sin ` +
+              `credenciales") y termínalo desde su pestaña Datos.`),
+        );
+      } else if (evento) {
+        setCreando(false);
+        await cargar();
+        setAviso(
+          `El evento «${form.nombreEvento.trim()}» SÍ se creó, pero se quedó sin credenciales de acceso: ` +
+          `${mensaje} — NO vuelvas a crearlo. Ábrelo en la lista de abajo (sale marcado como ` +
+          `"sin credenciales") y termínalo desde su pestaña Datos.`,
+        );
       } else {
-        setError("No se pudo crear el evento: " + e.message);
+        setError("No se pudo crear el evento: " + mensaje);
       }
     } finally {
       setGuardando(false);
@@ -151,6 +228,20 @@ export default function AdminEventos() {
         </button>
       </div>
 
+      {/* El evento quedó a medias. Va FUERA del formulario y con peso visual: en ámbar
+          pequeño dentro de un formulario abierto, el dueño lo leyó como "falló" y volvió a
+          pulsar Crear — cuatro veces. */}
+      {aviso && (
+        <div className="border border-amber-400/40 bg-amber-400/5 px-4 py-3 mb-5 rounded flex items-start gap-3">
+          <AlertTriangle size={16} className="text-amber-400 mt-0.5 flex-shrink-0" />
+          <div>
+            <p className="text-amber-300 text-sm font-medium">El evento sí se creó — no lo crees otra vez</p>
+            <p className="text-white/50 text-xs mt-1 leading-relaxed">{aviso}</p>
+          </div>
+          <button onClick={() => setAviso("")} className="ml-auto text-white/25 hover:text-white/50 text-xs flex-shrink-0">Entendido</button>
+        </div>
+      )}
+
       {creando && (
         <div className="bg-[#111] border border-[#C9A84C]/20 p-6 mb-6">
           <h3 className="text-white/70 text-sm mb-5 uppercase tracking-wider">Nuevo evento</h3>
@@ -184,13 +275,22 @@ export default function AdminEventos() {
               <p className="text-white/40 text-xs uppercase tracking-wider mb-1">Acceso al portal (usuario + contraseña)</p>
               <p className="text-white/25 text-xs mb-3">El cliente entra SOLO con estos datos (sin correo). Anótalos: la contraseña no se puede recuperar después.</p>
               <div className="grid grid-cols-2 gap-3">
-                <Field label="Usuario *" value={form.usuario} onChange={(v) => set("usuario", v)} placeholder="ana-luis" />
-                <Field label="Contraseña *" value={form.password} onChange={(v) => set("password", v)} />
+                <div className={campoMal === "usuario" ? "ring-1 ring-red-400/50 rounded" : ""}>
+                  <Field label="Usuario *" value={form.usuario} onChange={(v) => { set("usuario", v); setCampoMal(""); }} placeholder="ana-luis" />
+                  <p className="text-white/25 text-[11px] mt-1">{AYUDA_USUARIO}</p>
+                </div>
+                <div className={campoMal === "password" ? "ring-1 ring-red-400/50 rounded" : ""}>
+                  <Field label="Contraseña *" value={form.password} onChange={(v) => { set("password", v); setCampoMal(""); }} />
+                  <p className="text-white/25 text-[11px] mt-1">{AYUDA_PASSWORD}</p>
+                </div>
               </div>
             </div>
 
-            {error && <p className="text-red-400 text-xs">{error}</p>}
-            {aviso && <p className="text-amber-400/80 text-xs">{aviso}</p>}
+            {error && (
+              <p className="text-red-400/90 text-xs border border-red-400/20 bg-red-400/5 px-3 py-2 rounded flex items-start gap-2">
+                <AlertTriangle size={13} className="mt-0.5 flex-shrink-0" />{error}
+              </p>
+            )}
           </div>
           <div className="flex gap-3 mt-5">
             <button onClick={crear} disabled={guardando}
@@ -254,6 +354,13 @@ export default function AdminEventos() {
                 )}
               </div>
             </div>
+            {/* Un evento sin `usuario` quedó a medias: se ve en la lista, no solo en un
+                aviso que desaparece al recargar. */}
+            {!e.usuario && (
+              <span className="flex items-center gap-1 text-amber-400/80 text-xs flex-shrink-0 border border-amber-400/25 bg-amber-400/5 px-2 py-0.5 rounded-full">
+                <KeyRound size={11} /> Sin credenciales
+              </span>
+            )}
             {e.portalActivo && <span className="flex items-center gap-1 text-green-400/70 text-xs flex-shrink-0"><DoorOpen size={12} /> Portal</span>}
             <span className={`text-xs px-2.5 py-1 rounded-full flex-shrink-0 ${estatusColor(e.estatus)}`}>{e.estatus || "Apartado"}</span>
           </button>

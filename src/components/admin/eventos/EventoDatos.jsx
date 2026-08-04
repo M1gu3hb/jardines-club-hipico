@@ -3,6 +3,7 @@ import { base44 } from "@/api/base44Client";
 import { Loader2, Check, KeyRound, Heart, StickyNote } from "lucide-react";
 import { Field, Area, Toggle, ESTATUS } from "./_ui";
 import EventoEliminar from "./EventoEliminar";
+import { validarCredenciales, AYUDA_USUARIO, AYUDA_PASSWORD } from "../../../../api/_lib/reglas-credenciales.js";
 
 export default function EventoDatos({ evento, salones, onActualizado, onBorrado }) {
   const [form, setForm] = useState({ ...evento });
@@ -62,10 +63,14 @@ export default function EventoDatos({ evento, salones, onActualizado, onBorrado 
 
   const crearCredenciales = async () => {
     setCredMsg("");
-    if (!cred.usuario.trim() || cred.password.length < 6) {
-      setCredMsg("Usuario y contraseña (mín. 6) requeridos.");
-      return;
-    }
+    // MISMA validación que el servidor, del mismo archivo. Esta pantalla es la que se usa
+    // para terminar un evento que quedó sin credenciales, así que un rechazo tardío aquí
+    // es todavía más confuso que en el alta.
+    const v = validarCredenciales({
+      usuario: cred.usuario.trim(), password: cred.password,
+      nombre: form.clienteNombre || form.nombreEvento,
+    });
+    if (!v.ok) { setCredMsg(v.mensaje); return; }
     setCredBusy(true);
     try {
       const r = await base44.functions.crearUsuarioEvento({
@@ -200,6 +205,10 @@ export default function EventoDatos({ evento, salones, onActualizado, onBorrado 
               <Field label="Usuario" value={cred.usuario} onChange={(v) => setCred((c) => ({ ...c, usuario: v }))} />
               <Field label="Contraseña" value={cred.password} onChange={(v) => setCred((c) => ({ ...c, password: v }))} />
             </div>
+            <p className="text-white/25 text-[11px]">
+              <span className="text-white/35">Usuario:</span> {AYUDA_USUARIO}{" "}
+              <span className="text-white/35">· Contraseña:</span> {AYUDA_PASSWORD}
+            </p>
             <button onClick={crearCredenciales} disabled={credBusy}
               className="flex items-center gap-2 border border-[#C9A84C]/40 text-[#C9A84C] px-4 py-2 text-sm hover:bg-[#C9A84C]/10 transition-all disabled:opacity-50">
               {credBusy ? <Loader2 size={13} className="animate-spin" /> : <KeyRound size={13} />} Crear credenciales

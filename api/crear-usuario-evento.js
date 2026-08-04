@@ -10,6 +10,7 @@
 // Variables de entorno requeridas en Vercel:
 //   SUPABASE_URL           -> https://<proyecto>.supabase.co
 //   SUPABASE_SERVICE_ROLE  -> service_role key (SECRETA; solo en el servidor)
+import { validarCredenciales } from "./_lib/reglas-credenciales.js";
 import { plantillaOro, enviarCorreo, SITIO_URL } from "./_lib/correo.js";
 import {
   escHtml, clienteAdmin, leerBody, autorizarJardines, rateLimit,
@@ -47,12 +48,19 @@ export default async function handler(req, res) {
   if (!lectura.ok) return generico(res, lectura.status);
   const { usuario, password, eventoId, nombre } = lectura.body;
 
-  // Validación estricta de formato y longitud.
-  if (!usuario || !password || !eventoId) return generico(res, 400);
-  if (String(usuario).length > 60 || !/^[a-zA-Z0-9._-]{3,60}$/.test(String(usuario))) return generico(res, 400);
-  if (String(password).length < 8 || String(password).length > 200) return generico(res, 400);
-  if (nombre && String(nombre).length > 120) return generico(res, 400);
-  if (!/^[0-9a-f-]{36}$/i.test(String(eventoId))) return generico(res, 400);
+  // Validación estricta de formato y longitud. Las reglas viven en `_lib/reglas-credenciales.js`
+  // y las importa TAMBIÉN el formulario del panel: duplicarlas aquí es exactamente lo que hizo
+  // que divergieran (cliente ≥6, servidor ≥8) y que el dueño creara cuatro eventos creyendo
+  // que fallaba.
+  //
+  // El 400 dice QUÉ campo está mal. Antes los dos casos eran el mismo `generico(res, 400)`
+  // opaco. No se filtra nada sensible: quien llega aquí es un admin autenticado escribiendo
+  // su propio formulario.
+  if (!eventoId || !/^[0-9a-f-]{36}$/i.test(String(eventoId))) {
+    return res.status(400).json({ error: "Falta el evento o su identificador no es válido.", campo: "eventoId" });
+  }
+  const v = validarCredenciales({ usuario, password, nombre });
+  if (!v.ok) return res.status(400).json({ error: v.mensaje, campo: v.campo });
 
   if (!(await rateLimit(admin, "crear-usuario-evento", aut.user.id, 20, 3600))) {
     await auditar(admin, "crear_usuario_evento", "denegado", { detalle: { motivo: "rate_limit" } });
