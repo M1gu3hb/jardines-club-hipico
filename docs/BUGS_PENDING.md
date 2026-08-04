@@ -16,9 +16,11 @@
 
 ## Estado general
 
-**No hay bugs críticos abiertos.** Quedan nueve pendientes, riesgos residuales aceptados, y lo
+**No hay bugs críticos abiertos.** Quedan diez pendientes, riesgos residuales aceptados, y lo
 que depende de terceros. **J-08 y J-09** (bloque 7) quedan resueltos en código y pendientes de que
 el dueño los vea funcionar en pantalla.
+
+**J-12 es nuevo (C3)** y salió de cruzar la CSP desplegada contra lo que carga el bundle.
 
 **J-10 y J-11 son nuevos (8F) y los dos son de RLS.** Se anotan, no se arreglan: tocar una policy
 de la base compartida exige migración y el orden de despliegue de `docs/SEGURIDAD.md` §8.bis. En
@@ -140,6 +142,23 @@ los dos casos el **uso peligroso** ya está cerrado en código; lo que sigue abi
   que el endpoint esté desplegado y validado, y quitar `Evento.delete` del shim.
 - **Archivos:** `supabase/migrations/..._sec_09_*.sql`, `src/api/base44Client.js`.
 - **Prioridad:** media. **Estado:** abierto.
+
+### J-12 — El sitio público carga imágenes de Unsplash que la CSP bloquea
+- **Impacto:** bajo, pero **visible**. `img-src` de la CSP desplegada solo admite `'self'`,
+  `data:`, `blob:` y el bucket de Supabase. `CtaCotizacion.jsx` pinta **siempre** un fondo con
+  `url('https://images.unsplash.com/...')`, así que en producción ese fondo está bloqueado y no
+  se ve (va al 10 % de opacidad, por eso no salta a la vista). `GaleriaSection`, `SalonesSection`
+  y `SalonOverlay` tienen placeholders del mismo origen, que solo salen si Supabase no devuelve
+  contenido — es decir, **justo en el camino degradado**.
+- **Cómo se encontró:** cruzando la CSP desplegada contra los orígenes que pide el bundle, en la
+  verificación post-deploy de C3. No lo habría visto una prueba de humo.
+- **Dos arreglos posibles, y son decisiones distintas:** quitar los placeholders de Unsplash y
+  poner medios propios de `public/media/` (**recomendado** — el proyecto ya auto-hospeda todo), o
+  añadir `https://images.unsplash.com` a `img-src` (ensancha la CSP para servir decoración de un
+  tercero; peor).
+- **Archivos:** `src/components/{CtaCotizacion,GaleriaSection,SalonesSection,SalonOverlay}.jsx`,
+  `vercel.json` (la CSP).
+- **Prioridad:** baja. **Estado:** abierto.
 
 ### J-05 — El cliente no puede cambiar su contraseña desde el portal
 - **Impacto:** bajo. El primer acceso es por enlace de un solo uso y la contraseña se comparte
