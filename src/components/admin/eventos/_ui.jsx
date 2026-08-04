@@ -49,7 +49,10 @@ export function Toggle({ label, checked, onChange, hint }) {
   );
 }
 
-export const ESTATUS = ["Apartado", "Confirmado", "Realizado", "Cancelado"];
+// Re-export del catálogo: la lista vive en `src/lib/catalogos.js`, que es espejo de
+// `eventos_estatus_check`. Aquí NO se declara una segunda copia — es como se colaron los
+// dos bugs de lista cerrada del proyecto.
+export { EVENTO_ESTATUS as ESTATUS } from "@/lib/catalogos";
 
 export function estatusColor(estatus) {
   switch (estatus) {

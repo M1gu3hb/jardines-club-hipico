@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
 import { base44 } from "@/api/base44Client";
+import { MESA_FORMAS } from "@/lib/catalogos";
 import { Loader2, Check, X } from "lucide-react";
 import { Toggle } from "@/components/admin/eventos/_ui";
 
@@ -16,7 +17,7 @@ export default function MesaReglas({ eventoId, onCambio }) {
 
   useEffect(() => {
     base44.entities.EventoReglasMesas.filter({ eventoId }).then((r) => setReglas(r[0] || {
-      eventoId, formasPermitidas: ["redonda", "cuadrada"], opcionesPersonas: [8, 10, 12], capacidadLibre: false, clientePuedeEditar: false,
+      eventoId, formasPermitidas: MESA_FORMAS, opcionesPersonas: [8, 10, 12], capacidadLibre: false, clientePuedeEditar: false,
     }));
   }, [eventoId]);
 
@@ -61,7 +62,7 @@ export default function MesaReglas({ eventoId, onCambio }) {
       <div>
         <label className="text-white/30 text-xs uppercase tracking-wider mb-2 block">Formas permitidas</label>
         <div className="flex gap-2">
-          {["redonda", "cuadrada"].map((f) => (
+          {MESA_FORMAS.map((f) => (
             <button key={f} onClick={() => toggleForma(f)}
               className={`px-3 py-2 text-xs capitalize border transition-all ${(reglas.formasPermitidas || []).includes(f) ? "border-[#C9A84C] text-[#C9A84C]" : "border-white/10 text-white/40"}`}>
               {f}

@@ -1,13 +1,14 @@
 import { useState, useEffect } from "react";
 import { base44 } from "@/api/base44Client";
-import { FileText, Download, Loader2, FileSignature, ReceiptText, FileCheck2 } from "lucide-react";
+import { FileText, Download, Loader2, FileSignature, ReceiptText } from "lucide-react";
 
 const BUCKET = "clientes";
 
+// Las claves son los tipos que admite `documentos_tipo_check`. Había una entrada para
+// "comprobante", un tipo que la base nunca ha aceptado: icono para algo que no existe.
 const ICONO = {
   contrato: FileSignature,
   cotizacion: ReceiptText,
-  comprobante: FileCheck2,
   otro: FileText,
 };
 

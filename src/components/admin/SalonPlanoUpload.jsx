@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback } from "react";
 import { base44 } from "@/api/base44Client";
+import { BUCKET_MIME, BUCKET_MAX_BYTES } from "@/lib/catalogos";
 import { Loader2, Upload, Trash2, Image as ImageIcon } from "lucide-react";
 
 /**
@@ -27,8 +28,8 @@ import { Loader2, Upload, Trash2, Image as ImageIcon } from "lucide-react";
  */
 
 const BUCKET = "planos";
-const MAX_BYTES = 10 * 1024 * 1024;
-const MIME_OK = ["image/jpeg", "image/png", "image/webp", "image/avif"];
+const MAX_BYTES = BUCKET_MAX_BYTES.planos;
+const MIME_OK = BUCKET_MIME.planos;
 
 /**
  * Lee ancho/alto reales del archivo. Devuelve `null` si no se pudieron medir,

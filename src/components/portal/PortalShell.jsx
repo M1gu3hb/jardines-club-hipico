@@ -133,7 +133,7 @@ export default function PortalShell({ evento, onRefresh }) {
             )}
             {seccion === "documentos" && (
               <div className="max-w-xl mx-auto">
-                <TituloSeccion titulo="Documentos" descripcion="Tus cotizaciones, contratos y comprobantes, siempre a la mano." />
+                <TituloSeccion titulo="Documentos" descripcion="Tus cotizaciones y contratos, siempre a la mano." />
                 <PortalDocumentos eventoId={evento.id} />
               </div>
             )}

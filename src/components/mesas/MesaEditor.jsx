@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef, useCallback } from "react";
 import { base44 } from "@/api/base44Client";
+import { MESA_FORMAS } from "@/lib/catalogos";
 import { Plus, Trash2, Circle, Square, X, Users } from "lucide-react";
 
 /**
@@ -22,7 +23,7 @@ export default function MesaEditor({ eventoId, salonId, reglas, editable = false
   const lienzoRef = useRef(null);
   const dragRef = useRef(null);
 
-  const formas = reglas?.formasPermitidas?.length ? reglas.formasPermitidas : ["redonda", "cuadrada"];
+  const formas = reglas?.formasPermitidas?.length ? reglas.formasPermitidas : MESA_FORMAS;
   const opciones = reglas?.opcionesPersonas?.length ? reglas.opcionesPersonas : [8, 10, 12];
   const libre = !!reglas?.capacidadLibre;
 

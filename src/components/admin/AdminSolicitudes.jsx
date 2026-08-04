@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback } from "react";
 import { base44 } from "@/api/base44Client";
+import { SOLICITUD_ESTATUS } from "@/lib/catalogos";
 import { Eye, X, User, Calendar, Building2, AlertTriangle, Loader2 } from "lucide-react";
 
 /**
@@ -18,7 +19,7 @@ import { Eye, X, User, Calendar, Building2, AlertTriangle, Loader2 } from "lucid
  * Si alguna vez hay que añadir un estatus, se añade PRIMERO al CHECK (migración) y después
  * aquí. Al revés vuelve a romperse en silencio.
  */
-const ESTATUS = ["Nueva", "En proceso", "Cotizada", "Cerrada", "Descartada"];
+const ESTATUS = SOLICITUD_ESTATUS;
 
 const STATUS_COLORS = {
   "Nueva": "bg-blue-400/10 text-blue-400/80 border-blue-400/20",
