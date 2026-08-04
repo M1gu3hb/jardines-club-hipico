@@ -21,6 +21,15 @@
  *   Un contrato de `scripts/test-contratos-api.mjs` impide que un componente vuelva a
  *   declarar la suya.
  *
+ * QUÉ COMPRUEBA EL CONTRATO, Y QUÉ NO
+ *   Cada bloque de abajo declara su restricción en una línea `RESTRICCION: [...]`, y un
+ *   contrato compara esa línea con el array de al lado. Eso atrapa el fallo real —añadir un
+ *   valor a la lista sin que exista en la base—, pero **no** consulta Postgres: si alguien
+ *   edita las DOS a la vez, el contrato pasa. Por eso la línea `RESTRICCION` es lo que hay
+ *   que cotejar contra producción al revisar el diff, y por eso está escrita literal.
+ *   `SOLICITUD_ESTATUS` sí se cruza además contra `sec_07`, que es la única de estas
+ *   restricciones que vive en una migración del repo.
+ *
  * PARA AÑADIR UN VALOR
  *   Primero la migración que lo mete en la restricción, y **después** esta lista. Al revés
  *   es exactamente cómo se produjeron los dos bugs de arriba.
@@ -36,32 +45,32 @@
 
 /**
  * Espejo de `documentos_tipo_check`:
- *   CHECK (tipo = ANY (ARRAY['cotizacion','contrato','otro']))
+ *   RESTRICCION: ['cotizacion','contrato','otro']
  * "comprobante" NO está: se ofrecía y la base lo rechazaba con 23514.
  */
 export const DOCUMENTO_TIPOS = ["contrato", "cotizacion", "otro"];
 
 /**
  * Espejo de `eventos_estatus_check`:
- *   CHECK (estatus = ANY (ARRAY['Apartado','Confirmado','Realizado','Cancelado']))
+ *   RESTRICCION: ['Apartado','Confirmado','Realizado','Cancelado']
  */
 export const EVENTO_ESTATUS = ["Apartado", "Confirmado", "Realizado", "Cancelado"];
 
 /**
  * Espejo de `solicitudes_estatus_valido`:
- *   CHECK (estatus IS NULL OR estatus = ANY (ARRAY['Nueva','En proceso','Cotizada','Cerrada','Descartada']))
+ *   RESTRICCION: ['Nueva','En proceso','Cotizada','Cerrada','Descartada']
  */
 export const SOLICITUD_ESTATUS = ["Nueva", "En proceso", "Cotizada", "Cerrada", "Descartada"];
 
 /**
  * Espejo de `mesas_forma_check`:
- *   CHECK (forma = ANY (ARRAY['redonda','cuadrada']))
+ *   RESTRICCION: ['redonda','cuadrada']
  */
 export const MESA_FORMAS = ["redonda", "cuadrada"];
 
 /**
  * Espejo de `musica_tipo_check`:
- *   CHECK (tipo = ANY (ARRAY['poner','no_poner']))
+ *   RESTRICCION: ['poner','no_poner']
  */
 export const MUSICA_TIPOS = ["poner", "no_poner"];
 

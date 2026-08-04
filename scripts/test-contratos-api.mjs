@@ -665,17 +665,39 @@ for (const ruta of [
 {
   const catalogo = leerCodigo("src/lib/catalogos.js");
 
-  // Cada catálogo declara de qué restricción es espejo. Sin esa referencia, el siguiente que
-  // lo lea no sabe contra qué cruzarlo — que es como se perdió la pista las dos veces.
-  for (const nombre of ["DOCUMENTO_TIPOS", "EVENTO_ESTATUS", "SOLICITUD_ESTATUS", "MESA_FORMAS", "MUSICA_TIPOS"]) {
+  // CADA LISTA CONTRA SU RESTRICCIÓN DECLARADA.
+  //
+  // Un contrato estático no puede consultar Postgres, pero la restricción real está escrita
+  // literal encima de cada catálogo en una línea `RESTRICCION: [...]`. Comparar las dos
+  // mitades atrapa el fallo que de verdad ocurrió las dos veces: alguien añade un valor a la
+  // lista de la UI que la base no admite.
+  //
+  // Lo que NO prueba: que la línea `RESTRICCION` coincida con producción. Si se editan las dos
+  // a la vez, pasa. Esa comprobación es humana, al revisar el diff — y por eso la línea está
+  // escrita literal y adyacente.
+  //
+  // (Se descubrió mutando: la primera versión de este contrato solo exigía que el comentario
+  //  mencionara el nombre de la restricción, así que devolver "comprobante" al catálogo pasaba
+  //  146/146. Un contrato que no atrapa su propia regresión es peor que ninguno.)
+  {
     const doc = leer("src/lib/catalogos.js");
-    const i = doc.indexOf(`export const ${nombre}`);
-    const cabecera = i < 0 ? "" : doc.slice(Math.max(0, i - 700), i);
-    check(
-      `catálogos: ${nombre} dice de qué restricción es espejo`,
-      i >= 0 && /(_check|_valido|allowed_mime_types|file_size_limit)/.test(cabecera),
-      i < 0 ? "no existe" : "su comentario no nombra la restricción",
-    );
+    for (const nombre of ["DOCUMENTO_TIPOS", "EVENTO_ESTATUS", "SOLICITUD_ESTATUS", "MESA_FORMAS", "MUSICA_TIPOS"]) {
+      const i = doc.indexOf(`export const ${nombre}`);
+      const cabecera = i < 0 ? "" : doc.slice(Math.max(0, i - 900), i);
+      // La ÚLTIMA de la cabecera, no la primera: la ventana de 900 caracteres alcanza el
+      // bloque del catálogo anterior, así que `match` a secas cogía su restricción y todos
+      // menos el primero fallaban contra la lista equivocada.
+      const todas = [...cabecera.matchAll(/RESTRICCION:\s*\[([^\]]*)\]/g)];
+      const declarada = todas.length ? todas[todas.length - 1][1] : "";
+      const enBase = [...declarada.matchAll(/'([^']+)'/g)].map((m) => m[1]).sort();
+      const lista = (doc.slice(i).match(/= \[([^\]]*)\]/) || ["", ""])[1];
+      const enUI = [...lista.matchAll(/"([^"]+)"/g)].map((m) => m[1]).sort();
+      check(
+        `catálogos: ${nombre} ofrece EXACTAMENTE lo que admite su restricción`,
+        enBase.length > 0 && enUI.length > 0 && enBase.join("|") === enUI.join("|"),
+        i < 0 ? "no existe" : `restricción=[${enBase.join(", ")}]  lista=[${enUI.join(", ")}]`,
+      );
+    }
   }
 
   // NINGÚN otro archivo puede declarar la misma lista. Se comprueba buscando el array literal
