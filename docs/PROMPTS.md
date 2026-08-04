@@ -125,7 +125,7 @@ Reglas clave:
 - Nunca pongas secretos, tokens, service_role, JWT, contraseñas ni datos personales en commits,
   logs, documentación o salida de pruebas.
 
-Antes de subir: `npm run lint` (0), `npm run build` (exit 0), `npm run test:contratos` (259/259)
+Antes de subir: `npm run lint` (0), `npm run build` (exit 0), `npm run test:contratos` (270/270)
 y `npm run typecheck` (59 = línea base, no debe subir). Si tocaste SQL, corre además
 supabase/tests/seguridad.sql.
 
@@ -194,6 +194,17 @@ Los cuatro casos reales, para que se reconozca el patrón:
 | `/inertesDe/` | las inertes son visibles y revocables | no miraba la UI en absoluto |
 | `/ocupadaPersona/` | el botón se bloquea con algo en vuelo | la función seguía definida |
 
+**Y dos formas más, encontradas en 9F, que no son "identificador suelto" y engañan igual:**
+
+| Contrato | Decía cubrir | Lo que pasaba |
+|---|---|---|
+| `/abrirCrear\(…\);\s*\n\s*onPrefillConsumido\?\.\(\);/` | el traspaso no se consume si no se aplicó | comprueba que esas dos líneas están juntas y en ese orden, **no que no haya otra llamada antes**. Metiendo el consumo detrás del `return` del guardarraíl, la suite seguía verde |
+| tres cadenas sueltas del mensaje de error de Auth | el rechazo de contraseña se explica | con `const debil = false;` la rama queda muerta y **las tres cadenas siguen escritas** |
+
+La lección común: **adyacencia no es exclusividad, y presencia no es alcanzabilidad.** Si el
+contrato habla de una rama, hay que afirmar que la rama se puede alcanzar: que su condición se
+calcula desde datos reales y que es ella quien gobierna la respuesta.
+
 **La regla.**
 
 1. **Ata la afirmación al uso concreto**, no al identificador. Recorta primero el trozo —la
@@ -210,7 +221,16 @@ Los cuatro casos reales, para que se reconozca el patrón:
    `git checkout -- <archivo>`. Al terminar, `git status --porcelain` tiene que salir vacío.
 5. **Muta también algo inocuo** (un reformateo) y comprueba que **pasa**: si no, cambiaste un
    contrato vacuo por un falso positivo, que es la otra forma de no comprobar nada.
-6. Si una propiedad **no se puede expresar estáticamente** sin quedar frágil, **dilo y no escribas
+6. **Afirma sobre la propiedad, no sobre el texto, y derívala del propio código cuando se pueda.**
+   El aviso "aquí no sale ninguno" no se contrata comprobando que la frase existe —existía
+   también cuando se pintaba con ocho salones delante— sino leyendo del render de qué array salen
+   las opciones y exigiendo que el aviso cuelgue de la longitud de **ese** array. Así el contrato
+   sigue al código si cambia de fuente.
+7. **No lo ates a un nombre local.** Un contrato que falla porque alguien renombró una variable
+   es ruido, y el ruido acaba en `git rm`. Localiza por estructura (de qué se hace el `.some(`,
+   qué array mapea el `<select>`), no por identificador literal. Pasó en 9F con un contrato
+   recién escrito, y lo cazó la mutación inocua.
+8. Si una propiedad **no se puede expresar estáticamente** sin quedar frágil, **dilo y no escribas
    el contrato**. Un contrato que no comprueba nada es peor que no tenerlo: da falsa confianza y
    nadie vuelve a mirarlo.
 

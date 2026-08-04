@@ -15,17 +15,22 @@
 > usuarios de Auth y los diez puntos de `api/eliminar-evento.js`) y **C1** (la rama tautológica
 > del permiso).
 >
-> **Bloque 9 en `main`, pendiente de deploy** — **9A** mergea por fin 8A (cliente y servidor
-> validan lo mismo), **9B** aplica `sec_25`, **9C** convierte una solicitud en evento con los
-> datos puestos, y **9D** cierra J-12. Hasta que Vercel despliegue, el formulario sigue pidiendo
-> 6 caracteres y no existe el botón de convertir.
+> **Bloque 9 + 9E DESPLEGADOS** (PR #10, commit `1b0fb4f`, deployment
+> `dpl_46GCBEcs83c7L5ksT6yZJxAH2fJ8`) — **9A** mergea por fin 8A (cliente y servidor validan lo
+> mismo, mínimo 8), **9B** aplica `sec_25`, **9C** convierte una solicitud en evento con los datos
+> puestos, **9D** cierra J-12, y 9E responde «¿qué pasa si esta lectura se cae?» en cinco sitios.
 >
-> Batería: `lint` 0, `build` exit 0, `test:contratos` **259/259**, `typecheck` 59 (línea base).
+> **Bloque 9F escrito y SIN desplegar** — G1 (la señal de salones llamaba "no legible" a una lista
+> que estaba en pantalla), G2/G3/G4 (contratos que certificaban prosa en vez de comportamiento).
+> No toca datos.
+>
+> Batería: `lint` 0, `build` exit 0, `test:contratos` **270/270**, `typecheck` 59 (línea base).
 > Migraciones `sec_01..25`, Vero intacto. **`sec_26` recomendada y no aplicada** (J-13). Lo único que impide declarar el proyecto cerrado es el §1.
 
 ## Urgente — bloquea el cierre del proyecto
 
-0. **Borrar los tres duplicados de «Boda ortega» (8C), desde el panel, tras el deploy.**
+0. **Borrar los tres duplicados de «Boda ortega» (8C), desde el panel.** *(Ya se puede: el
+   código está en producción desde `1b0fb4f`.)*
    `1cf6b357`, `45c19b82`, `1e01d947` — cada uno con 1 fila de `evento_reglas_mesas` y **0** en
    todo lo demás, sin usuario de Auth y sin objetos en el bucket (medido el 2026-08-04). **Se
    conserva `53f69d07`**, el único con la cuenta `ortega-jch`. Los cuatro se llaman igual y en la
