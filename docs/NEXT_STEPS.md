@@ -11,8 +11,10 @@
 > estatus de solicitudes, borrado de actividad, resumen diario y correo de nueva solicitud.
 >
 > **Bloque 8 en `claude/bloque-8-etapa2`** — 8A (falso negativo al crear eventos, ya en `main`),
-> 8B (eliminar un evento), 8C (distinguir homónimos) y 8E (los tres estados de una lectura).
-> Batería: `lint` 0, `build` exit 0, `test:contratos` **177/177**, `typecheck` 59 (línea base).
+> 8B (eliminar un evento), 8C (distinguir homónimos), 8E (los tres estados de una lectura) y
+> **8F**, las correcciones de la auditoría: el P0 del borrado de usuarios de Auth y los diez
+> puntos de `api/eliminar-evento.js`. Producción sigue en `82154f6`; nada de esto está desplegado.
+> Batería: `lint` 0, `build` exit 0, `test:contratos` **202/202**, `typecheck` 59 (línea base).
 > Migraciones `sec_01..24`, Vero intacto. Lo único que impide declarar el proyecto cerrado es el §1.
 
 ## Urgente — bloquea el cierre del proyecto
@@ -24,6 +26,14 @@
    lista se pintan idénticos: hay que fiarse del chip "nombre repetido" y de la hora de alta que
    ahora enseña el diálogo, **no** del nombre. No se borran con SQL suelto a propósito — hacerlo
    desde el panel es también la prueba de fuego de la maquinaria de 8B.
+
+0. ter. **Decidir la migración de RLS por columnas (J-10 y J-11).** Son los dos hallazgos que
+   8F anotó y no arregló, y salen de la misma causa: las policies de `jardines` conceden **la fila
+   entera**, no columnas. Por eso `eventos.auth_user_id` y `documentos.archivo_url` —las dos
+   entradas de las operaciones destructivas— las escribe el navegador. El **uso** ya está
+   protegido en código; el **permiso** no. Haría falta un `sec_26` con `revoke update ... grant
+   update (columnas)` y, para J-11, revocar `delete` sobre `jardines.eventos` **después** de que
+   el endpoint esté desplegado y validado (§8.bis: aditivo primero, restrictivo al final).
 
 0. bis. **Decidir la migración de 8D.** La trazabilidad solicitud→evento **no se puede hacer sin
    una columna nueva**: `eventos` no tiene `solicitud_id` y `solicitudes` no tiene `evento_id`.

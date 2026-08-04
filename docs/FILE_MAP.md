@@ -21,7 +21,7 @@
 
 | Archivo | Qué hace | Riesgo |
 |---|---|---|
-| `_lib/guard.js` | **Módulo central de seguridad:** `clienteAdmin`, `autorizarJardines`, `leerBody`, `rateLimit`, `idemIniciar`/`idemCerrar`, `escHtml`, `rpcSeguro`, `escrituraOk`, `compensarAlta`, `auditar`, `ipCliente`, `generico`, `igualSeguro`. | **Muy alto** — todas las rutas dependen de él |
+| `_lib/guard.js` | **Módulo central de seguridad:** `clienteAdmin`, `autorizarJardines`, `leerBody`, `rateLimit`, `idemIniciar`/`idemCerrar`, `escHtml`, `rpcSeguro`, `escrituraOk`, `compensarAlta`, `auditar`, `ipCliente`, `generico`, `igualSeguro`. **Es el ÚNICO sitio del proyecto que puede llamar a `deleteUser`**, y su `borrarUsuario(admin, userId, permiso)` exige un `permiso` sin valor por defecto: olvidarlo niega el borrado. `auth.users` es la tabla compartida con Vero. Ver `docs/SEGURIDAD.md` §2. | **Muy alto** — todas las rutas dependen de él |
 | `_lib/correo.js` | `plantillaOro`, `enviarCorreo`, `SITIO_URL`. | Medio |
 | `solicitud.js` | Avisa al dueño de un lead. Relee la fila con `service_role`; el body solo trae `solicitudId`. | Alto |
 | `notificar.js` | Notifica al admin. Lista **cerrada** de acciones; `accionOcurrio()` verifica en la base que la acción pasó de verdad. | Alto |
@@ -29,7 +29,7 @@
 | `crear-admin.js` | Alta de administrador. Enlace de un solo uso, sin contraseña en el correo. | **Muy alto** |
 | `crear-usuario-evento.js` | Alta de cliente + enlace de primer acceso + compensación si algo falla. | **Muy alto** |
 | `canjear-acceso.js` | Canje en dos fases; el **servidor** decide el destino según el rol. | **Muy alto** |
-| `eliminar-evento.js` | **Lo único irreversible del panel.** Borra archivos → huérfanas → fila → usuario de Auth, EN ESE ORDEN (los paths viven en `documentos`, que cae por CASCADE). Confirma cada eslabón antes de pasar al siguiente. La reseña **no** se borra. Devuelve `homonimos`/`creadoEl` para poder distinguir eventos con el mismo nombre. | **Muy alto** |
+| `eliminar-evento.js` | **Lo único irreversible del panel.** Borra archivos → huérfanas → fila → usuario de Auth, EN ESE ORDEN (los paths viven en `documentos`, que cae por CASCADE). Confirma cada eslabón antes de pasar al siguiente; las huérfanas se confirman releyendo que **no queda ninguna**, no comparando con el inventario (carrera con el cron). La reseña **no** se borra. Rechaza borrar un evento **sin nombre**: la confirmación por nombre exacto se cumpliría sola. Las rutas del bucket salen del listado **y** de `documentos.archivo_url`, acotadas a `<eventoId>/` — esa columna la escribe el navegador. Devuelve `homonimos`/`creadoEl` para distinguir eventos con el mismo nombre. | **Muy alto** |
 | `cron-recordatorios.js` | Digest diario + recordatorio de reseña. **Fail-closed** sin `CRON_SECRET`. Semántica at-least-once. | Alto |
 
 ## `src/api/` — capa de datos

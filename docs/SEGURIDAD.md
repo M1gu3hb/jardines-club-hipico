@@ -1,6 +1,6 @@
 # SEGURIDAD.md — Modelo de seguridad de Jardines Club Hípico
 
-> Última revisión: **2026-08-03**. 23 migraciones (`jardines_sec_01..24`, sin `sec_10`) aplicadas
+> Última revisión: **2026-08-04**. 23 migraciones (`jardines_sec_01..24`, sin `sec_10`) aplicadas
 > en producción. Proyecto Supabase `vuzyhbiwnnngeohysxcw` (PostgreSQL 17, `us-east-1`),
 > **compartido con Vero Seguros**.
 >
@@ -43,6 +43,49 @@ Reglas del trigger:
    El dominio del correo **ya no cuenta** (`sec_18`): era un dato que elige quien se registra.
 2. **Nunca** lee `raw_user_meta_data` para decidir el rol. Como máximo asigna `cliente`.
 3. Nunca lanza excepción: un fallo aquí jamás debe impedir el alta de un usuario de Vero.
+
+### Borrar un usuario de Auth (2026-08-04, bloque 8F)
+
+Crear usuarios de Jardines está protegido desde `sec_18`. **Borrarlos no lo estaba**, y es la
+operación más peligrosa que existe contra la tabla compartida: `deleteUser` es un *hard delete*
+sobre `auth.users`, y `public.admin_users` tiene **una sola fila** — Vero tiene un único
+administrador.
+
+El fallo: `api/eliminar-evento.js` le pasaba a `deleteUser` el uuid de `jardines.eventos.auth_user_id`,
+y esa columna la escribe **cualquier admin desde el navegador** (`eventos_upd` autoriza la fila
+entera, no columnas concretas — ver J-10). No hacía falta mala fe: un `auth_user_id` mal escrito
+por un bug bastaba para que borrar un evento se llevara una cuenta ajena.
+
+**Regla, desde 8F:** `api/_lib/guard.js` es el **único** sitio del proyecto que puede llamar a
+`deleteUser`, y su `borrarUsuario(admin, userId, permiso)` exige un `permiso` **sin valor por
+defecto**: olvidarlo niega el borrado, no lo concede. Hay dos permisos y solo dos.
+
+| Permiso | Cuándo | Qué comprueba |
+|---|---|---|
+| `cliente_de_evento` | el borrado de un evento | las cinco condiciones de abajo |
+| `recien_creado_aqui` | compensar un alta que falló a mitad | que el uuid sea **idéntico** al que esa misma petición acaba de crear |
+
+Las cinco condiciones de `usuarioEsClienteDelEvento`:
+
+1. **El correo termina en `@portal.jardines.local`.** Es la que sostiene todo lo demás:
+   `auth.users.email` solo lo escribe la Admin API con `service_role`, nunca el navegador, y el
+   único sitio que acuña ese dominio es `crear-usuario-evento`. El admin de Vero y los admins de
+   Jardines tienen correos reales; el personal de operativo usa `@staff.jardines.local`.
+2. `app_metadata.app` no dice que sea de otra aplicación.
+3. `jardines.perfiles` no lo tiene como `admin` ni `operativo`.
+4. Ningún **otro** evento lo referencia. No hay `UNIQUE` sobre `auth_user_id` — el único índice
+   único de `eventos` es sobre `usuario`.
+5. No es personal de operativo (`jardines.operativo_personal.auth_user_id`).
+
+Falla **cerrado**: cualquier lectura que no se pueda hacer devuelve "no". Si el veredicto es
+negativo el evento se borra igual, pero la cuenta se deja intacta y el incidente queda auditado
+con el uuid: **mejor una cuenta huérfana que una cuenta ajena destruida.**
+
+> **`app_metadata.app = 'jardines'` NO sirve para distinguir a un cliente de un administrador.**
+> `api/crear-admin.js` pone exactamente la misma marca. Lo que los separa es el dominio del
+> correo. Y de los tres clientes de portal que hay en producción solo uno la lleva (los otros dos
+> son anteriores al endurecimiento), así que exigirla dejaría sus cuentas imposibles de borrar.
+> Por eso se usa como **descalificador** —rechaza si dice otra cosa—, no como requisito.
 
 ### Cómo se conceden roles
 
