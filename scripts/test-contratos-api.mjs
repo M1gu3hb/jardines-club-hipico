@@ -1393,8 +1393,42 @@ for (const ruta of [
         /no se debe tocar/.test(reglasConComentarios),
     );
     // Y si Auth rechaza igualmente, el alta lo dice en vez de responder opaco.
+    //
+    // G2 · REESCRITO EN 9F-2. La versión anterior buscaba tres cadenas
+    // —`password_rechazada_por_auth`, el texto del mensaje y `campo: "password"`— sueltas sobre
+    // el archivo entero. Las tres seguirían presentes con `const debil = false;` delante: la
+    // rama quedaría muerta, el dueño volvería a leer "No se pudo crear el usuario" y el
+    // contrato pasaría igual, afirmando en su nombre una propiedad que ya no se cumple. Era un
+    // contrato sobre el TEXTO ESCRITO, no sobre el comportamiento.
+    //
+    // Lo que hay que afirmar es que la rama es ALCANZABLE: que la clasificación se calcula a
+    // partir del error real que devolvió Auth, y que es esa clasificación —no otra cosa— la que
+    // gobierna el 400 y el motivo auditado.
+    {
+      const bloque = entre(api, "if (createErr) {", "nuevoId = created.user.id;");
+      const def = entre(bloque, "const debil =", ";");
+      const rama = entre(bloque, "} else if (debil) {", "} else {");
+      const fallos = [];
+      // 1) El material de la decisión sale del error real, no de una constante ni del cuerpo
+      //    de la petición.
+      if (!/const msg = createErr\.message \|\| "";/.test(bloque)) fallos.push("`msg` no sale de `createErr.message`");
+      if (!/\bmsg\b|\bcreateErr\b/.test(def)) fallos.push(`\`debil\` no se calcula desde el error: «${def.trim()}»`);
+      // 2) Es `debil` quien gobierna el 400, y el 400 dice qué campo y por qué.
+      if (!rama) fallos.push("no hay una rama gobernada por `debil`");
+      if (!/res\.status\(400\)/.test(rama)) fallos.push("la rama de `debil` no responde 400");
+      if (!/campo: "password"/.test(rama)) fallos.push("el 400 no señala el campo `password`");
+      if (!/La política de contraseñas del proyecto rechazó/.test(rama)) fallos.push("el 400 no explica la causa");
+      // 3) Y el rastro auditado sale de la misma decisión: si se separaran, la auditoría diría
+      //    una cosa y la pantalla otra.
+      if (!/debil \? "password_rechazada_por_auth"/.test(bloque)) fallos.push("el motivo auditado no lo gobierna `debil`");
+      check(
+        "credenciales: la rama del rechazo de Auth es ALCANZABLE y gobierna el 400 (no solo está escrita)",
+        fallos.length === 0,
+        fallos.join(" · "),
+      );
+    }
     check(
-      "credenciales: un rechazo de la política de Auth no se responde como «no se pudo»",
+      "credenciales: el rechazo de Auth no se responde como «no se pudo» (texto)",
       /password_rechazada_por_auth/.test(api) &&
         /La política de contraseñas del proyecto rechazó/.test(api) &&
         /campo: "password"/.test(api),
