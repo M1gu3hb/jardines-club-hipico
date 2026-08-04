@@ -13,6 +13,8 @@ continúe el trabajo sin perder contexto.
 
 ## Regla crítica — leer antes de tocar código
 
+0. `docs/ESTADO.md` — **dónde está el proyecto ahora mismo**: qué hay en producción, qué queda
+   abierto y la deuda viva. Es lo primero que hay que leer y manda sobre el resto.
 1. `PROJECT_CONTEXT.md` — fuente principal de transferencia. Léelo completo.
 2. `docs/SEGURIDAD.md` — **modelo de seguridad vigente. Obligatorio antes de tocar SQL,
    RLS, funciones, Storage, `api/` o cualquier cosa de auth.**
@@ -103,7 +105,7 @@ Los cuatro tienen que pasar:
 ```bash
 npm run lint            # 0 problemas
 npm run build           # exit 0
-npm run test:contratos  # 202/202
+npm run test:contratos  # 206/206
 npm run typecheck       # 59 errores = línea base actual, no debe SUBIR
 ```
 

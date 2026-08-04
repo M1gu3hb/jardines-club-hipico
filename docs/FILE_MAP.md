@@ -170,6 +170,10 @@ Para cambiar contenido se usa el panel admin, no estos archivos.
 
 ## `docs/`
 
+
+**`ESTADO.md`** — el estado revisable de un vistazo, sin optimismo: qué está en producción
+(commit y deployment), qué NO se ha hecho, lo que nunca se ha ejercitado de verdad, y la deuda
+viva en una tabla. **Si contradice a otro documento, gana ESTADO.md.**
 `SEGURIDAD.md` (modelo de seguridad — **lectura obligatoria antes de tocar SQL o `api/`**),
 `ARCHITECTURE.md`, `DATABASE.md`, `FILE_MAP.md`, `DECISIONS.md`, `BUGS_PENDING.md`,
 `NEXT_STEPS.md`, `CHANGELOG.md`, `PROMPTS.md`, y los mapas de UI `MAPA.md`, `COMPONENTES.md`,

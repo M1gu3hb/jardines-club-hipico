@@ -10,11 +10,15 @@
 > **Bloque 7 mergeado** (PR #6) — arregla las cuatro cosas que encontró el dueño usando el panel:
 > estatus de solicitudes, borrado de actividad, resumen diario y correo de nueva solicitud.
 >
-> **Bloque 8 en `claude/bloque-8-etapa2`** — 8A (falso negativo al crear eventos, ya en `main`),
-> 8B (eliminar un evento), 8C (distinguir homónimos), 8E (los tres estados de una lectura) y
-> **8F**, las correcciones de la auditoría: el P0 del borrado de usuarios de Auth y los diez
-> puntos de `api/eliminar-evento.js`. Producción sigue en `82154f6`; nada de esto está desplegado.
-> Batería: `lint` 0, `build` exit 0, `test:contratos` **202/202**, `typecheck` 59 (línea base).
+> **Bloque 8 desplegado** (PR #9, commit `b1dbf69`, 2026-08-04) — 8B (eliminar un evento),
+> 8C (distinguir homónimos), 8E (los tres estados de una lectura), **8F** (el P0 del borrado de
+> usuarios de Auth y los diez puntos de `api/eliminar-evento.js`) y **C1** (la rama tautológica
+> del permiso).
+>
+> **8A NO está en `main`.** Se escribió en la rama `claude/jardines-bloque-8` (`a56e904`), nunca
+> se abrió PR y nunca se mergeó. Lo comprobé al cerrar: `AdminEventos.jsx` en producción sigue
+> pidiendo 6 caracteres de contraseña cuando el servidor exige 8. Ver §1 bis.
+> Batería: `lint` 0, `build` exit 0, `test:contratos` **206/206**, `typecheck` 59 (línea base).
 > Migraciones `sec_01..24`, Vero intacto. Lo único que impide declarar el proyecto cerrado es el §1.
 
 ## Urgente — bloquea el cierre del proyecto
@@ -26,6 +30,17 @@
    lista se pintan idénticos: hay que fiarse del chip "nombre repetido" y de la hora de alta que
    ahora enseña el diálogo, **no** del nombre. No se borran con SQL suelto a propósito — hacerlo
    desde el panel es también la prueba de fuego de la maquinaria de 8B.
+
+1 bis. **Recuperar 8A, que nunca se mergeó.** Es el falso negativo al crear eventos: el
+   formulario valida `password.length < 6` y un usuario "no vacío", mientras el servidor exige 8
+   caracteres y `/^[a-zA-Z0-9._-]{3,60}$/`. Una contraseña de 6 o 7, o un usuario con espacio,
+   acento o ñ, **pasa el formulario, crea el evento y muere en el servidor con un «Solicitud
+   inválida»**: el evento queda a medias, sin credenciales. Está arreglado en
+   `claude/jardines-bloque-8` (`a56e904`) — con `api/_lib/reglas-credenciales.js` como único
+   sitio donde viven las reglas — pero esa rama salió de antes del bloque 8 y toca los dos
+   archivos que 8B/8C reescribieron (`AdminEventos.jsx`, `EventoDatos.jsx`), así que **hay que
+   rebasarla sobre `main` y resolver el conflicto a mano**. No se hizo aquí porque estaba fuera
+   del encargo de cierre. **Es el hueco funcional más grande que queda abierto.**
 
 0. ter. **Decidir la migración de RLS por columnas (J-10 y J-11).** Son los dos hallazgos que
    8F anotó y no arregló, y salen de la misma causa: las policies de `jardines` conceden **la fila

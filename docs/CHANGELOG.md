@@ -1,5 +1,62 @@
 # CHANGELOG.md
 
+## 2026-08-04 — C1 y despliegue a producción del bloque 8
+
+> **Desplegado.** Commit `b1dbf69`, deployment `dpl_A1Ex55zgGErxznJJYFCNcYhEC5r6`, 8 funciones.
+> Es el primer despliegue que incluye el endpoint de borrado de eventos.
+
+### C1 — la rama del permiso aparentaba comprobar y no comprobaba
+
+`if (permiso.creadoEnEstaPeticion !== userId)` con el único llamador pasando `userId` como las
+dos cosas es `userId !== userId`: siempre falso, no rechazaba nunca nada. **Un guardarraíl que
+parece comprobar y no comprueba es peor que no tenerlo, porque invita a confiar.**
+
+Se hicieron las dos cosas, porque son mitades distintas del mismo problema:
+
+- **Fuera el `if` tautológico.** En su lugar, una comprobación que sí mira algo real: la cuenta
+  tiene que haberse creado hace menos de 10 minutos. No demuestra que el uuid venga de esta
+  petición, pero descarta lo que importa — cualquier uuid leído de la base apunta a una cuenta
+  vieja. Falla cerrado.
+- **El contrato estático que cierra el resto:** los dos llamadores de `compensarAlta` solo
+  asignan `nuevoId` desde `created.user.id`, solo compensan esa variable, y **nadie más puede
+  llamar a `compensarAlta`** — un tercer llamador quedaría fuera del contrato sin que nada
+  fallara.
+
+El comentario dice ahora explícitamente cuál de las dos mitades es una comprobación y cuál es un
+contrato de llamador.
+
+### Verificación post-deploy, sin sesión
+
+Las seis cabeceras y `Cache-Control: no-store` en las ocho rutas `api/`. Cada función responde
+405 al método incorrecto y 401 sin sesión; **`/api/eliminar-evento` responde 405 a GET y 401 a
+POST sin sesión**. Las rutas por token con un token inventado devuelven el mismo HTML que
+cualquier otra ruta, así que no filtran si existe. El bundle: `comprobante` **0** apariciones, el
+código nuevo presente, **0 secretos** (el único JWT es la `anon`, que es pública por diseño).
+
+### Dos cosas que salieron de la verificación, y ninguna es cosmética
+
+- **8A nunca se mergeó.** La documentación afirmaba que estaba en `main`; era falso, arrastrado
+  de un resumen anterior. `AdminEventos.jsx` en producción sigue pidiendo 6 caracteres de
+  contraseña cuando el servidor exige 8: una contraseña de 6 o 7 crea el evento y falla al crear
+  las credenciales. Vive en `claude/jardines-bloque-8` (`a56e904`), sin PR, y hay que rebasarlo.
+- **J-12:** cruzando la CSP desplegada contra lo que carga el bundle, `CtaCotizacion` pinta
+  siempre un fondo de `images.unsplash.com` que `img-src` **bloquea**. Otros tres componentes
+  tienen placeholders del mismo origen en el camino degradado.
+
+### Entregables
+
+- **`docs/ESTADO.md` (nuevo)** — el estado revisable de un vistazo, sin optimismo: qué está en
+  producción, qué no se ha hecho, y la deuda viva en una tabla.
+- **`docs/VALIDACION.md`** — reescrito como documento único de cierre, con una **Parte 0** para
+  borrar los tres duplicados de «Boda ortega» (la primera ejecución real del borrado) y una
+  **Parte 1** con las seis cosas nuevas que hay que ver funcionando.
+
+### Contratos
+**202 → 206.** Los cuatro nuevos validados mutando: quitar la comprobación de recencia, ablandar
+la ventana, compensar un uuid leído de la base en cada ruta de alta, y añadir un tercer llamador
+de `compensarAlta`. Los seis fallan exactamente su contrato; subir la ventana de 10 a 15 minutos
+(inocua) pasa.
+
 ## 2026-08-04 — 8F: ningún borrado de usuario sin comprobar de quién es la cuenta
 
 > Correcciones de la auditoría del bloque 8, **antes de mergear**. Nada de lo de abajo llegó a

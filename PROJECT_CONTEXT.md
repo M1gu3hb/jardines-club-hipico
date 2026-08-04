@@ -295,7 +295,7 @@ actividad del portal se borra (a mano y a los 7 días desde el cron), el resumen
 que entró de lo que se enfría, y el aviso de nueva solicitud pasa a la plantilla dorada.
 Contratos **99 → 127**. **Ninguna migración.** PR #6.
 
-**Bloque 8 (2026-08-04).** 8A (el falso negativo al crear eventos, ya en `main`), **8B** —
+**Bloque 8 (2026-08-04, desplegado en `b1dbf69`).** **8B** —
 eliminar un evento: lo único irreversible del panel, con el orden archivos → huérfanas → fila →
 Auth y confirmación negativa en cada eslabón—, **8C** — cuatro eventos «Boda ortega» idénticos en
 producción, y la confirmación por nombre no distingue entre ellos: ahora el diálogo dice cuál se
@@ -316,9 +316,14 @@ anulaba la confirmación de borrado (cerrado en servidor, botón y ficha), la co
 inventario no contaba cuatro tablas que sí se borran. Los dos hallazgos de RLS (J-10, J-11) se
 anotan y esperan decisión: exigen migración. Contratos **177 → 202**.
 
-Estado del código: **bloques 3–6 desplegados; bloque 7 mergeado a `main` y esperando deploy;
-bloque 8 + 8F en `claude/bloque-8-etapa2`.**
-Batería: `lint` 0, `build` exit 0, `test:contratos` **202/202**, `typecheck` 59. Base en
+**8A nunca se mergeó** — vive solo en `claude/jardines-bloque-8` (`a56e904`), sin PR. El bug que
+arregla sigue vivo en producción: el formulario de alta pide 6 caracteres de contraseña y el
+servidor exige 8, así que una contraseña de 6 o 7 crea el evento y falla al crear las
+credenciales. Rebasarla sobre `main` exige resolver conflicto con 8B/8C. Ver `docs/ESTADO.md`.
+
+Estado del código: **bloques 3–8 + 8F + C1 desplegados** (commit `b1dbf69`, 2026-08-04).
+El estado revisable completo está en **`docs/ESTADO.md`**.
+Batería: `lint` 0, `build` exit 0, `test:contratos` **206/206**, `typecheck` 59. Base en
 `sec_01..24`, Vero intacto. Estado formal: **`ESPERANDO_VALIDACION_HUMANA_AUTENTICADA`**
 (ver §8.F) — solo faltan los cinco flujos con credenciales reales, con el guion en
 `docs/VALIDACION.md`. Historial completo en `docs/CHANGELOG.md`.

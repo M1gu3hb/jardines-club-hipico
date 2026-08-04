@@ -1,9 +1,19 @@
 # VALIDACIÓN — guion para el dueño
 
-> Para Miguel. **No hace falta saber de código.** Son cinco pruebas: haces algo, y compruebas
-> que pasa lo que dice aquí. Si algo no coincide, en cada apartado está dónde mirar.
+> Para Miguel. **No hace falta saber de código.** Haces algo, y compruebas que pasa lo que dice
+> aquí. Si algo no coincide, en cada apartado está dónde mirar.
 >
-> Desplegado el **2026-08-03** · commit `7596324` · <https://jardines-club-hipico.vercel.app>
+> **Este es el documento único para cerrar el proyecto.** Desde que se escribió han entrado los
+> bloques 7, 8 y 8F, así que ahora tiene tres partes:
+>
+> | Parte | Qué es | ¿Bloquea el cierre? |
+> |---|---|---|
+> | **Parte 0** | Borrar los tres duplicados de «Boda ortega» | **Sí — hazlo primero** |
+> | **Parte 1** | Las seis cosas nuevas que hay que ver funcionando | Sí |
+> | **Parte 2** | Los cinco flujos originales, con credenciales reales | Sí |
+> | Anexo | Las dos pantallas que nadie ha visto nunca | No |
+>
+> Desplegado el **2026-08-04** · commit `b1dbf69` · <https://jardines-club-hipico.vercel.app>
 
 ---
 
@@ -40,6 +50,162 @@
 | **Bandeja de correo** | si salió el mensaje | incluida la carpeta de **spam** |
 
 ---
+
+---
+---
+
+# PARTE 0 — Borrar los tres duplicados de «Boda ortega»
+
+> **Empieza por aquí, y hazlo mirando.** No es limpieza: es la **primera vez que el borrado de
+> eventos se ejecuta de verdad**. Su lógica está probada pieza a pieza, pero nunca ha corrido
+> contra la base real. Por eso lo haces tú, desde el panel, y no yo por detrás — hacerlo por
+> detrás no probaría nada.
+
+Al crear el evento de la boda Ortega se quedaron **cuatro** filas en vez de una, seguramente de
+un doble clic: se crearon con 24 segundos de diferencia entre la primera y la última.
+
+**El problema:** las cuatro se llaman igual, tienen el mismo cliente, la misma fecha, el mismo
+salón y el mismo creador. En la lista se ven **idénticas**. Y como el borrado se confirma
+escribiendo el nombre exacto, el nombre **no sirve** para distinguirlas: escribir el correcto no
+te protege de borrar la que no era.
+
+**La buena es la última**, la única que tiene cuenta de portal (`ortega-jch`). Las otras tres
+están vacías.
+
+### Qué hacer
+
+1. Entra al panel → **Eventos**. Verás cuatro «Boda ortega», cada una con una etiqueta ámbar que
+   dice **«nombre repetido»** y, al lado, la **hora de alta** y si tiene acceso.
+2. **Guíate por la hora de alta y por el acceso. Nunca por el nombre.**
+   - La que dice **`acceso «ortega-jch»`** → **NO la toques.** Esa se queda.
+   - Las tres que dicen **`sin acceso`** → esas son las que se van.
+3. Abre una de las tres, baja hasta **«Zona de peligro»** y pulsa **Eliminar este evento**.
+4. **Antes de confirmar, lee lo que sale.** Tiene que aparecer:
+   - Un aviso ámbar: *«Hay 3 eventos más con este mismo nombre»*, y debajo **cuál** vas a borrar:
+     la fecha y hora de alta, y que **no tiene cuenta de portal**.
+   - Un inventario de lo que se lleva. En estos tres debería ser muy poco: solo *«1 Reglas de
+     mesas»*.
+5. Escribe `Boda ortega` en la caja y pulsa **Eliminar definitivamente**.
+6. Repite con las otras dos.
+
+### Qué debe pasar
+
+- Tras cada borrado vuelves a la lista y hay **un evento menos**.
+- Al final queda **una sola** «Boda ortega», la de `ortega-jch`, y **ya no aparece la etiqueta
+  «nombre repetido»** (porque ya no hay repetidos).
+- El cliente sigue pudiendo entrar a su portal con `ortega-jch`.
+
+### Cómo sé que falló
+
+| Lo que ves | Qué significa |
+|---|---|
+| El aviso ámbar dice que la que vas a borrar **sí** tiene cuenta | **PARA.** Te has metido en la que hay que conservar. Cancela. |
+| El inventario enseña documentos, mesas o invitados | **PARA.** Esa no es una de las vacías. Cancela y avísame. |
+| «El evento se borró, pero queda algo pendiente» | Se borró el evento pero **no** su cuenta. Copia el mensaje entero y mándamelo. |
+| «El borrado se interrumpió en...» | No se completó. El mensaje dice exactamente qué quedó hecho. Cópialo y mándamelo. |
+| Sale un error y **no** se borra nada | Copia el mensaje. No lo reintentes más de dos veces. |
+
+**Si algo se tuerce, no hay prisa:** el diseño está hecho para que, si falla a mitad, **no borre
+el evento** hasta haber borrado sus archivos. Lo peor que puede pasar es que haya que reintentar.
+
+---
+---
+
+# PARTE 1 — Lo que ha cambiado y hay que ver funcionando
+
+## 1.1 · El tipo de documento: ahora son tres y las tres funcionan
+
+**Qué pasaba:** el desplegable ofrecía cuatro tipos y la base solo admite tres. Elegir
+**«comprobante»** hacía que la subida fallara siempre. Nunca funcionó, desde el primer día.
+
+**Qué hacer:** ficha de un evento → **Documentos** → sube un archivo con cada uno de los tres
+tipos: **cotización**, **contrato** y **otro**.
+
+**Qué debe pasar:** los tres suben y aparecen en la lista. **Ya no existe la opción
+«comprobante»**.
+
+**Cómo sé que falló:** si alguno da error al subir, copia el mensaje — ahora los errores están
+escritos en cristiano, no en jerga de base de datos.
+
+## 1.2 · El botón «Avisar»: funciona por primera vez
+
+**Qué pasaba:** llevaba meses devolviendo error. Pedía a la base una columna que no existe, así
+que **fallaba siempre**, en todos los casos, y además dejaba anotado en la auditoría que habías
+intentado tocar un documento ajeno — algo que no habías hecho.
+
+**Qué hacer:** en un documento de un evento **que tenga correo de contacto**, pulsa **Avisar**.
+Hazlo con una **cotización** y luego con un **contrato**.
+
+**Qué debe pasar:**
+- El botón confirma que se envió.
+- **Llega el correo al cliente.**
+- **El titular corresponde al tipo:** en la cotización habla de la cotización; en el contrato,
+  del contrato. Antes decía «cotización» pasara lo que pasara — eso ya no.
+
+**Cómo sé que falló:** si no llega, mira **spam** primero. Si sigue sin llegar, dímelo.
+
+## 1.3 · El estatus de una solicitud: ahora se guarda
+
+**Qué pasaba:** cambiar el estatus no hacía nada y no avisaba de nada. Los nombres del panel no
+coincidían con los que la base admite.
+
+**Qué hacer:** **Solicitudes** → cambia el estatus de una.
+
+**Qué debe pasar:** aparece **«Guardado»**, y si recargas la página el cambio **sigue ahí**. Las
+opciones ahora son: `Nueva`, `En proceso`, `Cotizada`, `Cerrada`, `Descartada` — **los nombres
+cambiaron**, ya no hay «En revisión», «Confirmada» ni «Cancelada».
+
+**Cómo sé que falló:** si recargas y volvió al valor anterior, no se guardó. Antes eso pasaba en
+silencio; ahora tiene que salir un mensaje de error.
+
+## 1.4 · La actividad del portal: se puede quitar
+
+**Qué pasaba:** el bloque de actividad del inicio crecía sin límite y no había forma de quitar
+nada.
+
+**Qué hacer:** **Inicio** → en «Actividad del portal», quita un aviso.
+
+**Qué debe pasar:** desaparece y **no vuelve** al recargar. Además se limpia sola: los avisos de
+más de **7 días** se borran cada noche.
+
+## 1.5 · El selector de archivos: solo deja elegir lo que se puede subir
+
+**Qué hacer:** en **Documentos**, pulsa «Elegir archivo» y mira qué te deja seleccionar. Si
+tienes una foto **HEIC** de iPhone, pruébala.
+
+**Qué debe pasar:** solo deja elegir PDF, JPG, PNG, WEBP y AVIF. Un **HEIC se rechaza antes de
+subirse**, con un mensaje que te dice que lo conviertas a JPG (en el iPhone: Ajustes → Cámara →
+Formatos → «Más compatible»).
+
+**Por qué importa:** antes el selector dejaba elegir cualquier imagen y el rechazo llegaba
+después, ya subiendo, con un error que no explicaba nada.
+
+## 1.6 · «Cargando», «vacío» y «falló» ya no se ven igual
+
+**Qué pasaba:** cuando una pantalla no podía leer los datos, ponía **«no hay nada»** — que es
+mentira. Daba igual que estuviera cargando, que de verdad estuviera vacío, o que la lectura se
+hubiera caído: las tres cosas se veían igual.
+
+**Qué hacer:** ve entrando por las secciones del panel y del portal, y **fíjate en el medio
+segundo mientras cargan**.
+
+**Qué debe pasar:**
+- **Mientras carga:** bloques grises con la forma de lo que va a aparecer.
+- **Si de verdad está vacío:** un texto que lo dice, tipo «No hay servicios. Crea el primero.»
+- **Si algo falla:** un recuadro rojo que dice **que no se pudo cargar, no que esté vacío**, con
+  un botón de **Reintentar**.
+
+**Cómo sé que falló:** si ves «no hay nada» en una sección donde **sabes** que hay cosas, o si
+algo se queda cargando para siempre. Cualquier cosa rara al cargar, apúntala y dímela — aunque
+te parezca una tontería.
+
+---
+---
+
+# PARTE 2 — Los cinco flujos originales
+
+> Estos siguen **sin validar con credenciales reales**. Son los que cierran el blindaje de
+> seguridad.
 
 ## Prueba 1 — Alta de cliente (crear evento + credenciales)
 
@@ -179,6 +345,11 @@ invitados y ver el avance de mesas **sin entrar al panel**.
 
 Dime, para cada prueba, si pasó o no. Si algo falló, con lo que viste en pantalla es suficiente —
 yo miro los logs.
+
+**Lo importante de todo esto**, por orden: la **Parte 0** (es la primera ejecución real del
+borrado), la prueba **1.2** (el botón «Avisar» nunca ha funcionado, así que es la primera vez que
+alguien ve si el correo sale bien) y las cinco pruebas de la **Parte 2**, que son las que cierran
+el blindaje.
 
 Después puedes **borrar el evento de prueba**. También quedó una solicitud de prueba en el
 formulario público, con folio `JCH-828EF1` y nombre **PRUEBA DEPLOY**: es del despliegue, se puede
