@@ -1590,11 +1590,66 @@ for (const ruta of [
     "9C: se avisa de que los datos los escribió el cliente y hay que revisarlos",
     /lo escribió él, no tú/.test(alta) && /avisosPrefill\.map/.test(alta),
   );
-  // El prellenado espera a los salones: sin ellos, un salón que SÍ casa saldría "sin asignar".
-  check(
-    "9C: el prellenado espera a que los salones estén cargados",
-    /if \(!prefill \|\| cargando\) return;/.test(alta),
-  );
+  // EL PRELLENADO Y LA LISTA DE SALONES — reescrito en 9E-1.
+  //
+  // El contrato anterior afirmaba `if (!prefill || cargando) return;`. No era vacuo —mutarlo
+  // fallaba— pero certificaba **el guardarraíl equivocado**, que es peor: daba luz verde justo
+  // a la condición que falla. `cargando` es `false` cuando la lectura se CAE (`useCarga` llena
+  // `error` y deja `datos` en null), así que el prellenado pasaba con la lista vacía y la
+  // pantalla afirmaba que el salón del cliente "no coincide con ninguno de los registrados"
+  // sin haber mirado ninguno.
+  //
+  // Ahora se afirma sobre la señal correcta: que el prellenado no ocurre mientras los salones
+  // no se puedan DECIDIR, y que esa señal distingue los tres estados.
+  {
+    const efecto = entre(alta, "useEffect(() => {\n    if (!prefill) return;", "}, [prefill, salonesConocidos]);");
+    check(
+      "9C: el prellenado no ocurre con la lista de salones en un estado que no permite decidir",
+      /if \(salonesConocidos === null\) return;/.test(efecto) &&
+        !/cargando\) return;/.test(efecto),
+      efecto ? "" : "no se encontró el efecto del prellenado",
+    );
+    // Y la señal tiene que ser de TRES estados: `null` cuando no se sabe (ni cargando ni caído),
+    // la lista cuando sí. Si volviera a ser `datos?.sals || []`, el contrato de arriba pasaría
+    // sin que la propiedad se cumpliera.
+    check(
+      "9C: `salonesConocidos` distingue «no lo sé» de «no hay ninguno»",
+      /const salonesConocidos = errorCarga \? null : \(datos \? salones : null\);/.test(alta),
+    );
+    // Y el módulo puro tiene que tener ese tercer resultado, o la señal no serviría de nada.
+    check(
+      "9C: `resolverSalon` no afirma nada si no recibe la lista",
+      /if \(!Array\.isArray\(salones\)\) return \{ salonId: "", motivo: "lista_no_disponible" \};/.test(mapeo) &&
+        /puedeDecidirSalon: salon\.motivo !== "lista_no_disponible"/.test(mapeo),
+    );
+    // El aviso, con la lista caída, NO puede decir que no coincide.
+    {
+      const rama = entre(mapeo, 'if (salon.motivo === "lista_no_disponible")', 'else if (salon.motivo === "no_casa")');
+      check(
+        "9C: con la lista caída no se afirma que el salón no coincide",
+        /NO se ha comprobado/.test(rama) && !/no coincide con ninguno/.test(rama),
+        rama ? "" : "no se encontró la rama de lista no disponible",
+      );
+    }
+    // El traspaso NO se consume hasta que se aplica: si se perdiera, el dueño tendría que
+    // volver a Solicitudes sin saber que hace falta.
+    check(
+      "9C: el prellenado no se da por consumido si no se llegó a aplicar",
+      /abrirCrear\(prefill, salonesConocidos\);\s*\n\s*onPrefillConsumido\?\.\(\);/.test(alta),
+    );
+    // Y el dueño tiene salida: se le dice qué pasa y puede reintentar.
+    check(
+      "9C: con la lista caída y una conversión esperando, se explica y se ofrece reintentar",
+      /prefill && salonesConocidos === null &&/.test(alta) &&
+        /No se puede convertir ahora mismo/.test(alta) && /onClick=\{recargar\}/.test(alta),
+    );
+    // La ficha del evento tiene el mismo desplegable y el mismo riesgo.
+    check(
+      "9C: la ficha avisa si el desplegable de salón está vacío por un fallo de lectura",
+      /salonesFallaron && \(/.test(leerCodigo("src/components/admin/eventos/EventoDatos.jsx")) &&
+        /salonesFallaron=\{salonesConocidos === null && !cargando\}/.test(alta),
+    );
+  }
 }
 
 // ---------------------------------------------------------------- CSP e imágenes (9D)

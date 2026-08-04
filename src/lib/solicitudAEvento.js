@@ -64,12 +64,25 @@ export const SALON_SIN_DEFINIR = ["por definir", "sin definir", "no lo se", "no 
  * asignado es peor que uno sin asignar — el evento se prepararía en el sitio equivocado y
  * nadie lo notaría hasta el día.
  *
- * @returns {{salonId: string, motivo: "exacto"|"sin_definir"|"no_casa"}}
+ * TRES RESULTADOS, NO DOS. `salones` puede llegar vacío por dos motivos que no se parecen en
+ * nada: **no hay salones registrados** o **la lectura se cayó**. Juntarlos hacía que, con la
+ * lectura caída, esta función dijera `no_casa` para un salón que SÍ está registrado, y la
+ * pantalla se lo afirmaba al dueño. Es el `[]` ambiguo de J-02 un piso más arriba: `useCarga`
+ * lo separa en tres estados y aquí se volvían a juntar dos.
+ *
+ * Por eso `salones` **no puede ser opcional**: quien llama tiene que pasar `null` cuando no
+ * lo sabe. Un array vacío significa "miré y no hay ninguno", que es una afirmación distinta.
+ *
+ * @param {string} texto  el salón que escribió el cliente
+ * @param {Array|null} salones  los salones reales, o `null` si no se pudieron leer
+ * @returns {{salonId: string, motivo: "exacto"|"sin_definir"|"no_casa"|"lista_no_disponible"}}
  */
 export function resolverSalon(texto, salones) {
+  // Antes que nada: si no se sabe qué salones hay, no se puede afirmar NADA sobre este.
+  if (!Array.isArray(salones)) return { salonId: "", motivo: "lista_no_disponible" };
   const t = clave(texto);
   if (SALON_SIN_DEFINIR.includes(t)) return { salonId: "", motivo: "sin_definir" };
-  const encontrado = (salones || []).find((s) => clave(s.nombre) === t);
+  const encontrado = salones.find((s) => clave(s.nombre) === t);
   return encontrado
     ? { salonId: encontrado.id, motivo: "exacto" }
     : { salonId: "", motivo: "no_casa" };
@@ -140,7 +153,15 @@ export function solicitudAEvento(solicitud, salones) {
   const correo = correoValido(s.email);
 
   const avisos = [];
-  if (salon.motivo === "no_casa") {
+  if (salon.motivo === "lista_no_disponible") {
+    // NO se dice que no casa: no se ha podido mirar. Afirmar lo contrario es exactamente el
+    // fallo que este caso existe para evitar.
+    avisos.push(
+      `No se pudo leer la lista de salones, así que NO se ha comprobado si «` +
+      `${recorta(s.salonSeleccionado, 60) || "(sin salón)"}» está registrado. No se afirma nada ` +
+      `sobre él.`,
+    );
+  } else if (salon.motivo === "no_casa") {
     avisos.push(
       `El salón que pidió («${recorta(s.salonSeleccionado, 60)}») no coincide con ninguno de los ` +
       `registrados, así que se deja SIN ASIGNAR. Elígelo tú: asignar el equivocado es peor.`,
@@ -159,6 +180,10 @@ export function solicitudAEvento(solicitud, salones) {
   }
 
   return {
+    // Quien llama NO debe dejar guardar mientras esto sea falso: el desplegable de salón
+    // estaría vacío y el evento se guardaría sin salón después de que la pantalla dijera que
+    // el que pidió el cliente no existe.
+    puedeDecidirSalon: salon.motivo !== "lista_no_disponible",
     form: {
       nombreEvento: nombrePropuesto(s),
       tipoEvento: recorta(s.tipoEvento, 80),

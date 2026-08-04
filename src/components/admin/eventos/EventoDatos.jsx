@@ -1,11 +1,11 @@
 import { useState, useEffect } from "react";
 import { base44 } from "@/api/base44Client";
-import { Loader2, Check, KeyRound, Heart, StickyNote, Inbox } from "lucide-react";
+import { Loader2, Check, KeyRound, Heart, StickyNote, Inbox, AlertTriangle } from "lucide-react";
 import { Field, Area, Toggle, ESTATUS } from "./_ui";
 import EventoEliminar from "./EventoEliminar";
 import { validarCredenciales, AYUDA_USUARIO, AYUDA_PASSWORD } from "../../../../api/_lib/reglas-credenciales.js";
 
-export default function EventoDatos({ evento, salones, onActualizado, onBorrado }) {
+export default function EventoDatos({ evento, salones, salonesFallaron = false, onActualizado, onBorrado }) {
   const [form, setForm] = useState({ ...evento });
   const [guardando, setGuardando] = useState(false);
   const [ok, setOk] = useState(false);
@@ -121,6 +121,15 @@ export default function EventoDatos({ evento, salones, onActualizado, onBorrado 
       <div className="grid grid-cols-2 gap-3">
         <div>
           <label className="text-white/30 text-xs uppercase tracking-wider mb-1.5 block">Salón</label>
+          {/* Sin esto, una lectura caída deja el desplegable con una sola opción —«Sin asignar»—
+              y ninguna pista de por qué. El dueño concluiría que se borraron los salones. */}
+          {salonesFallaron && (
+            <p className="text-amber-300/85 text-xs mb-1.5 flex items-start gap-1.5">
+              <AlertTriangle size={12} className="mt-0.5 flex-shrink-0" />
+              No se pudo leer la lista de salones: aquí no sale ninguno. No es que se hayan
+              borrado. Vuelve a Eventos y recarga.
+            </p>
+          )}
           <select value={form.salonId || ""} onChange={(e) => set("salonId", e.target.value)}
             className="w-full bg-white/5 border border-white/10 text-white/70 text-sm px-4 py-3 outline-none focus:border-[#C9A84C]/40">
             <option value="" className="bg-[#111]">— Sin asignar —</option>

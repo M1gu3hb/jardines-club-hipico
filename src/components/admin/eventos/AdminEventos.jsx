@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import { base44 } from "@/api/base44Client";
 import { useAuth } from "@/api/authContext";
-import { Plus, Loader2, Check, Search, Calendar, User, DoorOpen, KeyRound, AlertTriangle, Inbox } from "lucide-react";
+import { Plus, Loader2, Check, Search, Calendar, User, DoorOpen, KeyRound, AlertTriangle, Inbox, RotateCw } from "lucide-react";
 import { Field, ESTATUS, estatusColor } from "./_ui";
 import { MESA_FORMAS } from "@/lib/catalogos";
 import EventoFicha from "./EventoFicha";
@@ -53,6 +53,11 @@ export default function AdminEventos({ prefill = null, onPrefillConsumido = null
   const set = (k, v) => setForm((f) => ({ ...f, [k]: v }));
   const salonNombre = (id) => salones.find((s) => s.id === id)?.nombre || "—";
 
+  // Los salones, en TRES estados y no en dos. `datos?.sals || []` da `[]` tanto cuando no han
+  // llegado como cuando la lectura se cayó, y `resolverSalon` sobre `[]` responde "no casa" para
+  // un salón que SÍ está registrado. `null` significa "no lo sé"; `[]`, "miré y no hay ninguno".
+  const salonesConocidos = errorCarga ? null : (datos ? salones : null);
+
   /**
    * El id se fija AQUÍ, una sola vez por formulario abierto — no en cada clic.
    *
@@ -69,7 +74,7 @@ export default function AdminEventos({ prefill = null, onPrefillConsumido = null
    * una ruta nueva con `service_role` justo antes de la validación humana, y deja el
    * reintento seguro incluso si el fallo ocurre entre las escrituras 1 y 3.
    */
-  const abrirCrear = (desdeSolicitud = null, salonesDisponibles = salones) => {
+  const abrirCrear = (desdeSolicitud = null, salonesDisponibles = salonesConocidos) => {
     setError(""); setAviso(""); setCampoMal("");
     // El prellenado sale de `solicitudAEvento`, que es pura y NO copia lo que no puede
     // comprobar: el salón se resuelve por nombre contra los salones reales, la fecha solo si
@@ -96,15 +101,26 @@ export default function AdminEventos({ prefill = null, onPrefillConsumido = null
     }
   };
 
-  // El salto desde Solicitudes. Se espera a tener los salones cargados: sin ellos el salón no
-  // se puede resolver y se propondría "sin asignar" para uno que sí casa.
+  // El salto desde Solicitudes.
+  //
+  // Solo se abre el formulario cuando los salones se PUEDEN decidir. Antes la condición era
+  // `cargando`, y eso solo cubre uno de los dos motivos por los que la lista puede estar vacía:
+  // con la lectura caída, `cargando` es `false` (`useCarga` pone el error y deja `datos` en
+  // null), así que pasaba, y la conversión le afirmaba al dueño que el salón que pidió el
+  // cliente "no coincide con ninguno de los registrados" sin haber mirado ninguno.
+  //
+  // Y el prellenado NO se consume hasta que se aplica de verdad: si se consumiera aquí y luego
+  // no se abriera nada, el traspaso se perdería y volver a Solicitudes y pulsar otra vez sería
+  // la única salida... salvo que el dueño no sabría que hace falta.
   useEffect(() => {
-    if (!prefill || cargando) return;
-    abrirCrear(prefill, salones);
+    if (!prefill) return;
+    if (salonesConocidos === null) return;   // ni cargando ni caído: hasta entonces, se espera
+    abrirCrear(prefill, salonesConocidos);
     onPrefillConsumido?.();
-    // Solo al llegar un prefill nuevo; `abrirCrear` se recrea en cada render.
+    // Solo al llegar un prefill nuevo o al pasar a poder decidir; `abrirCrear` se recrea en
+    // cada render.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [prefill, cargando]);
+  }, [prefill, salonesConocidos]);
 
   const crear = async () => {
     setError(""); setAviso(""); setCampoMal("");
@@ -231,6 +247,9 @@ export default function AdminEventos({ prefill = null, onPrefillConsumido = null
       <EventoFicha
         evento={abierto}
         salones={salones}
+        // Mismo motivo que arriba: en la ficha, `salones` vacío por un fallo de lectura deja el
+        // desplegable de salón sin opciones y sin explicación — un control muerto.
+        salonesFallaron={salonesConocidos === null && !cargando}
         onVolver={() => { setAbierto(null); cargar(); }}
         onActualizado={(ev) => { setAbierto(ev); cargar(); }}
         onBorrado={() => { setAbierto(null); cargar(); }}
@@ -293,6 +312,33 @@ export default function AdminEventos({ prefill = null, onPrefillConsumido = null
         </div>
       )}
 
+      {/* Hay una solicitud esperando a convertirse y la lista de salones no se puede decidir.
+          No se abre el formulario: con el desplegable vacío, el dueño no podría elegir el salón
+          correcto aunque se diera cuenta, y la conversión le afirmaría que el que pidió el
+          cliente no existe. Se dice qué pasa y se ofrece reintentar; el traspaso NO se pierde,
+          se aplica solo en cuanto la lectura funcione. */}
+      {prefill && salonesConocidos === null && (
+        <div className="border border-amber-400/40 bg-amber-400/5 px-4 py-3.5 mb-6 rounded space-y-2">
+          <p className="text-amber-300 text-sm font-medium flex items-center gap-2">
+            <AlertTriangle size={15} />
+            {cargando ? "Preparando la conversión…" : "No se puede convertir ahora mismo"}
+          </p>
+          <p className="text-white/50 text-xs leading-relaxed">
+            {cargando
+              ? "Esperando a la lista de salones para poder asignar el que pidió el cliente."
+              : "No se pudo leer la lista de salones. Sin ella no se puede saber si el salón que " +
+                "pidió el cliente existe, ni elegir otro, así que el formulario no se abre en vez " +
+                "de abrirse a medias. La solicitud sigue esperando: en cuanto cargue, se abre sola."}
+          </p>
+          {!cargando && (
+            <button onClick={recargar}
+              className="flex items-center gap-2 text-amber-300/85 hover:text-amber-300 text-xs border border-amber-400/30 hover:border-amber-400/60 px-3 py-1.5 rounded transition-all">
+              <RotateCw size={12} /> Reintentar
+            </button>
+          )}
+        </div>
+      )}
+
       {creando && (
         <div className="bg-[#111] border border-[#C9A84C]/20 p-6 mb-6">
           <h3 className="text-white/70 text-sm mb-5 uppercase tracking-wider">
@@ -329,6 +375,13 @@ export default function AdminEventos({ prefill = null, onPrefillConsumido = null
             </div>
             <div>
               <label className="text-white/30 text-xs uppercase tracking-wider mb-1.5 block">Salón</label>
+              {salonesConocidos === null && !cargando && (
+                <p className="text-amber-300/85 text-xs mb-1.5 flex items-start gap-1.5">
+                  <AlertTriangle size={12} className="mt-0.5 flex-shrink-0" />
+                  No se pudo leer la lista de salones, así que aquí no sale ninguno. Puedes crear el
+                  evento sin salón y asignarlo luego desde su ficha.
+                </p>
+              )}
               <select value={form.salonId} onChange={(e) => set("salonId", e.target.value)}
                 className="w-full bg-white/5 border border-white/10 text-white/70 text-sm px-4 py-3 outline-none focus:border-[#C9A84C]/40">
                 <option value="" className="bg-[#111]">— Sin asignar —</option>
