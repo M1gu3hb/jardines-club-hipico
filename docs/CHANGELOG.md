@@ -1,5 +1,60 @@
 # CHANGELOG.md
 
+## 2026-08-04 — P0: el tipo de documento «comprobante» no existe en la base
+
+### Cambios realizados
+
+**El hallazgo.** `EventoDocumentos` ofrecía cuatro tipos de documento y `documentos_tipo_check`
+admite tres. Elegir «comprobante» daba `23514` y la subida fallaba. `jardines.documentos` tenía
+**0 filas**: ese flujo nunca funcionó desde el día uno. Es el **segundo** bug de la misma familia
+que el estatus de solicitud del bloque 7.
+
+**El barrido, antes de tocar nada.** Los **17 `CHECK`** de `jardines`, las **5** configuraciones
+de Storage y los **8 `<select>`** del proyecto, cruzados uno a uno. Además del P0 conocido
+aparecieron **tres casos que la auditoría no había visto**:
+
+- `PortalDocumentos.jsx:10` tenía un icono mapeado a «comprobante» — un control muerto.
+- `PortalShell.jsx:136` le prometía al cliente "y comprobantes".
+- `EventoDocumentos.jsx:99` usaba `accept=".pdf,image/*"`, pero el bucket `clientes` solo admite
+  `pdf/jpeg/png/webp/avif`. Un **HEIC de iPhone** pasa el selector y lo rechaza Storage.
+
+**La consolidación.** `src/lib/catalogos.js` es ahora el único sitio donde vive una lista espejo
+de la base. Migradas las seis que había sueltas. Un contrato prohíbe que un componente vuelva a
+declarar la suya, y otro cruza cada lista contra la restricción que declara.
+
+**`api/correo-cliente.js` nunca había funcionado** — hallazgo de la autoauditoría, no del brief.
+Pedía `select("id, nombre, evento_id")` y la tabla tiene **`titulo`**. PostgREST responde
+`42703`, el `error` se descartaba, `doc` quedaba en `null` y la guarda de pertenencia lo tomaba
+por documento ajeno: **400 en todos los casos**. El botón "Avisar" del panel fallaba siempre y
+dejaba en la auditoría un `documento_ajeno` que acusaba al admin de algo que no hizo. Es uno de
+los cinco flujos de validación del dueño.
+
+**Los dos P1 de la misma pantalla.** El huérfano en el bucket al fallar la subida (ahora se
+compensa y se comprueba el `{borrado}`) y el `catch {}` vacío al borrar (ahora: primero la fila,
+se confirma releyendo, y el archivo **solo** con confirmación negativa, criterio de 5A).
+
+### Archivos modificados
+`src/lib/catalogos.js` (nuevo), `src/components/admin/eventos/EventoDocumentos.jsx`,
+`src/components/admin/eventos/_ui.jsx`, `src/components/admin/AdminSolicitudes.jsx`,
+`src/components/admin/SalonPlanoUpload.jsx`, `src/components/mesas/{MesaEditor,MesaReglas}.jsx`,
+`src/components/admin/eventos/AdminEventos.jsx`,
+`src/components/portal/{PortalDocumentos,PortalShell}.jsx`, `api/correo-cliente.js`,
+`scripts/test-contratos-api.mjs`.
+
+### Entidades/BD afectadas
+**Ninguna migración.** Solo lecturas y ensayos en `BEGIN/ROLLBACK`.
+
+### Bugs resueltos
+Cierra los hallazgos **P0-1, P1-1, P1-2 y P2-3** de `docs/AUDITORIA-FUNCIONAL.md` (el informe
+**no se toca**: se anota aquí). Y uno que la auditoría no vio: `correo-cliente` roto de origen.
+
+### Bugs nuevos
+Ninguno.
+
+### Próximo paso
+Terminar el bloque 8 (8B–8E).
+
+
 ## 2026-08-03 (i) — Bloque 7: las cuatro cosas que encontró el dueño usando el panel
 
 > Esta rama salió de `main` en `7596324`, antes de que se mergeara el commit `7768de2` del
