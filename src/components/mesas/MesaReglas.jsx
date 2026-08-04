@@ -3,6 +3,7 @@ import { base44 } from "@/api/base44Client";
 import { MESA_FORMAS } from "@/lib/catalogos";
 import { Loader2, Check, X } from "lucide-react";
 import { Toggle } from "@/components/admin/eventos/_ui";
+import { Estado, EsqueletoTexto } from "@/components/ui/Estado";
 
 /**
  * Editor de reglas de mesas del evento (solo admin). Controla el motor del editor:
@@ -14,14 +15,24 @@ export default function MesaReglas({ eventoId, onCambio }) {
   const [nuevaOpcion, setNuevaOpcion] = useState("");
   const [guardando, setGuardando] = useState(false);
   const [ok, setOk] = useState(false);
+  const [errorCarga, setErrorCarga] = useState(null);
 
-  useEffect(() => {
-    base44.entities.EventoReglasMesas.filter({ eventoId }).then((r) => setReglas(r[0] || {
-      eventoId, formasPermitidas: MESA_FORMAS, opcionesPersonas: [8, 10, 12], capacidadLibre: false, clientePuedeEditar: false,
-    }));
-  }, [eventoId]);
+  const cargar = () =>
+    base44.entities.EventoReglasMesas.filterEstricto({ eventoId })
+      .then((r) => {
+        setErrorCarga(null);
+        setReglas(r[0] || {
+          eventoId, formasPermitidas: MESA_FORMAS, opcionesPersonas: [8, 10, 12], capacidadLibre: false, clientePuedeEditar: false,
+        });
+      })
+      .catch((e) => setErrorCarga(e || new Error("Falló la lectura")));
+  useEffect(() => { cargar(); }, [eventoId]);
 
-  if (!reglas) return <p className="text-white/25 text-sm py-6">Cargando reglas…</p>;
+  if (errorCarga) {
+    return <Estado error={errorCarga} onReintentar={cargar}
+      mensajeError="No se pudieron cargar las reglas de mesas." />;
+  }
+  if (!reglas) return <EsqueletoTexto lineas={4} />;
 
   const set = (k, v) => { setReglas((r) => ({ ...r, [k]: v })); setOk(false); };
   const toggleForma = (f) => {

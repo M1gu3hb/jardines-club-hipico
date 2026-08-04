@@ -4,6 +4,7 @@ import { base44 } from "@/api/base44Client";
 import { Plus, Loader2, Trash2, Printer, QrCode, ExternalLink, Users, Link2, Copy, RefreshCw, Share2 } from "lucide-react";
 import QrImg from "./QrImg";
 import { tokenSeguro } from "@/lib/tokenSeguro";
+import { Estado, EsqueletoFilas } from "@/components/ui/Estado";
 
 const accesoUrl = (token) => `${window.location.origin}/acceso/${token}`;
 const staffUrl = (token) => `${window.location.origin}/staff/${token}`;
@@ -15,6 +16,7 @@ export default function EventoMeseros({ eventoId }) {
   const [mesas, setMesas] = useState([]);
   const [invitaciones, setInvitaciones] = useState([]);
   const [cargando, setCargando] = useState(true);
+  const [errorCarga, setErrorCarga] = useState(null);
   const [mesaId, setMesaId] = useState("");
   const [nombre, setNombre] = useState("");
   const [maxPersonas, setMaxPersonas] = useState("");
@@ -25,11 +27,19 @@ export default function EventoMeseros({ eventoId }) {
   const [copiado, setCopiado] = useState(false);
 
   const cargar = useCallback(async () => {
-    const [ms, invs, ev] = await Promise.all([
-      base44.entities.Mesa.filter({ eventoId }, "orden"),
-      base44.entities.Invitacion.filter({ eventoId }, "-created_date"),
-      base44.entities.Evento.get(eventoId),
-    ]);
+    let ms, invs, ev;
+    try {
+      [ms, invs, ev] = await Promise.all([
+        base44.entities.Mesa.filterEstricto({ eventoId }, "orden"),
+        base44.entities.Invitacion.filterEstricto({ eventoId }, "-created_date"),
+        base44.entities.Evento.get(eventoId),
+      ]);
+      setErrorCarga(null);
+    } catch (e) {
+      setErrorCarga(e || new Error("Falló la lectura"));
+      setCargando(false);
+      return;
+    }
     setMesas(ms);
     setInvitaciones(invs);
     // El token NO se relee de la tabla: solo existe en memoria durante la sesión
@@ -127,7 +137,11 @@ export default function EventoMeseros({ eventoId }) {
     return { reg, cap: mesaCap(id) };
   };
 
-  if (cargando) return <p className="text-white/25 text-sm py-10 text-center">Cargando…</p>;
+  if (cargando) return <EsqueletoFilas filas={3} alto="h-16" />;
+  if (errorCarga) {
+    return <Estado error={errorCarga} onReintentar={cargar}
+      mensajeError="No se pudo cargar el avance de mesas." />;
+  }
 
   return (
     <div>
