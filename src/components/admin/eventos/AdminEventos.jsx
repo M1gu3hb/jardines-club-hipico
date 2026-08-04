@@ -137,6 +137,36 @@ export default function AdminEventos({ prefill = null, onPrefillConsumido = null
     setGuardando(true);
     let evento;
     try {
+      // 0) ¿ESTA SOLICITUD YA GENERÓ UN EVENTO?
+      //
+      // El guardarraíl va DONDE SE ESCRIBE, no donde se pinta. El distintivo de la pantalla de
+      // Solicitudes ("ya se convirtió") desaparece justo cuando su lectura se cae — que es
+      // cuando vuelve a salir el botón. Camino completo: falla la lectura allí → no sale el
+      // aviso → el dueño convierte → aquí la lectura sí funciona → segundo evento de la misma
+      // solicitud, sin un solo aviso.
+      //
+      // `eventos_solicitud_id_idx` NO es único (`sec_25` no lo puso), así que la base no lo
+      // impide. Esto sí, y además cubre el fallo de lectura de la otra pantalla.
+      //
+      // LÍMITE CONOCIDO: es una comprobación y luego una escritura, no una transacción. Dos
+      // admins convirtiendo la misma solicitud a la vez podrían pasar los dos. Cerrarlo del
+      // todo pide un `unique` parcial sobre `solicitud_id` — una migración, fuera del alcance
+      // de este bloque. Queda recomendado en `docs/NEXT_STEPS.md`.
+      if (origen?.id) {
+        const yaHay = await base44.entities.Evento.filterEstricto({ solicitudId: origen.id });
+        const otro = (yaHay || []).find((ev) => ev.id !== eventoId);
+        if (otro) {
+          setGuardando(false);
+          setError(
+            `Esta solicitud (${origen.folio || "sin folio"}) ya generó el evento ` +
+            `«${otro.nombreEvento}»${otro.fechaEvento ? ` del ${otro.fechaEvento}` : ""}. ` +
+            `No se creó nada. Si de verdad hacen falta dos eventos de la misma solicitud, ` +
+            `créalo desde «Nuevo evento» sin partir de ella.`,
+          );
+          return;
+        }
+      }
+
       // 1) Crear la fila del evento, con el id fijado al abrir el formulario.
       evento = await base44.entities.Evento.create({
         id: eventoId,

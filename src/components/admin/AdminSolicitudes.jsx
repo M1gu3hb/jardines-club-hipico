@@ -83,9 +83,21 @@ export default function AdminSolicitudes({ onConvertir = null }) {
   useEffect(() => { load(); }, [load]);
 
   // `filterEstricto` y no `filter`: si esta lectura falla y devuelve [], el panel diría que
-  // ninguna solicitud se ha convertido y ofrecería convertirlas otra vez. Ante la duda, no se
-  // afirma nada — se deja el mapa vacío y el aviso de abajo no aparece, pero tampoco miente:
-  // el error se ve, y la conversión sigue siendo idempotente por `solicitud_id`.
+  // ninguna solicitud se ha convertido y ofrecería convertirlas otra vez.
+  //
+  // OJO CON LO QUE ESTE MAPA **NO** GARANTIZA. Es informativo, no un candado:
+  //
+  //  - `eventos_solicitud_id_idx` NO es único, así que la base no impide dos eventos de la
+  //    misma solicitud. Lo que lo impide es la comprobación de `AdminEventos.crear()`, que
+  //    relee antes de escribir. **Ahí** está el guardarraíl; aquí solo se pinta.
+  //  - Si esta lectura se cae, el mapa queda vacío y el botón vuelve a salir. Es aceptable
+  //    precisamente porque el guardarraíl no está aquí: al convertir, el alta para.
+  //
+  // Y se lee **una sola vez al montar**. Hoy sale fresco porque el padre desmonta la pestaña
+  // al cambiar de sección (`{active === "solicitudes" && …}` en `AdminDashboard`), así que
+  // volver a Solicitudes vuelve a montar este componente. Es correcto por un detalle de OTRO
+  // archivo: si algún día esa pestaña se deja montada, este mapa se quedará viejo — y lo que
+  // se verá es un aviso de "ya se convirtió" que falta, no uno de más.
   const cargarConvertidas = useCallback(
     () =>
       base44.entities.Evento.filterEstricto(null, "-created_date")

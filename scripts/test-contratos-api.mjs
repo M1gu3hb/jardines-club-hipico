@@ -1572,6 +1572,31 @@ for (const ruta of [
       /eventosPorSolicitud\[selected\.id\] \?/.test(sol) &&
         /ya se convirtió en evento/.test(sol),
     );
+    // 9E-2 · EL GUARDARRAÍL DONDE SE ESCRIBE. El distintivo de arriba es informativo y
+    // desaparece justo cuando su lectura se cae — que es cuando vuelve a salir el botón. Lo que
+    // impide de verdad el segundo evento es esta comprobación, ANTES de crear la fila, y
+    // `eventos_solicitud_id_idx` no es único, así que la base tampoco lo impide.
+    {
+      const iGuarda = crear.indexOf("if (origen?.id) {");
+      const iLee = crear.indexOf("Evento.filterEstricto({ solicitudId: origen.id })");
+      const iCrea = crear.indexOf("Evento.create({");
+      check(
+        "9C: antes de crear se comprueba que esa solicitud no generó ya otro evento",
+        iGuarda >= 0 && iLee > iGuarda && iCrea > iLee &&
+          /ya generó el evento/.test(crear) && /ev\.id !== eventoId/.test(crear),
+        `guarda=${iGuarda} lee=${iLee} crea=${iCrea}`,
+      );
+      // Y esa lectura decide si se duplica un dato: no puede ser floja.
+      check(
+        "9C: esa comprobación usa `filterEstricto`, no `filter`",
+        !/Evento\.filter\(\{ solicitudId/.test(crear),
+      );
+    }
+    // El comentario de la otra pantalla NO puede volver a afirmar una garantía que no existe.
+    check(
+      "9C: no se afirma que la conversión sea idempotente por `solicitud_id`",
+      !/idempotente por `solicitud_id`/.test(leer("src/components/admin/AdminSolicitudes.jsx")),
+    );
     // Esa lectura decide si se ofrece un botón destructivo de duplicar: no puede ser floja.
     check(
       "9C: lo ya convertido se lee con `filterEstricto`, no con `filter`",
