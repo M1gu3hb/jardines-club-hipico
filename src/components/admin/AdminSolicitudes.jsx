@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback } from "react";
 import { base44 } from "@/api/base44Client";
 import { SOLICITUD_ESTATUS } from "@/lib/catalogos";
-import { Eye, X, User, Calendar, Building2, AlertTriangle, Loader2 } from "lucide-react";
+import { Eye, X, User, Calendar, Building2, AlertTriangle, Loader2, CalendarPlus, CheckCircle2 } from "lucide-react";
 import { EsqueletoFilas } from "@/components/ui/Estado";
 
 /**
@@ -56,7 +56,7 @@ function mensajeDeError(e, estatus) {
   return "No se pudo guardar el estatus. Reinténtalo, y si sigue fallando avisa a soporte.";
 }
 
-export default function AdminSolicitudes() {
+export default function AdminSolicitudes({ onConvertir = null }) {
   const [solicitudes, setSolicitudes] = useState([]);
   const [selected, setSelected] = useState(null);
   const [error, setError] = useState("");
@@ -65,6 +65,11 @@ export default function AdminSolicitudes() {
   // Tercer estado: mientras la primera lectura está en vuelo no se puede afirmar ni que hay
   // solicitudes ni que no las hay.
   const [cargando, setCargando] = useState(true);
+  // Qué solicitudes YA generaron un evento. Se lee de `eventos.solicitud_id` (`sec_25`), que
+  // es el único sitio donde consta: sin esto, el dueño podría convertir la misma solicitud
+  // tres veces sin enterarse — que es exactamente cómo salieron cuatro «Boda ortega».
+  const [eventosPorSolicitud, setEventosPorSolicitud] = useState({});
+  const [falloConvertidas, setFalloConvertidas] = useState(false);
 
   // `filterEstricto`, no `list`: con `list` un fallo de lectura devuelve `[]` y la pantalla
   // dice "0 solicitudes recibidas" — indistinguible de que no haya ninguna.
@@ -77,6 +82,38 @@ export default function AdminSolicitudes() {
     [],
   );
   useEffect(() => { load(); }, [load]);
+
+  // `filterEstricto` y no `filter`: si esta lectura falla y devuelve [], el panel diría que
+  // ninguna solicitud se ha convertido y ofrecería convertirlas otra vez.
+  //
+  // OJO CON LO QUE ESTE MAPA **NO** GARANTIZA. Es informativo, no un candado:
+  //
+  //  - `eventos_solicitud_id_idx` NO es único, así que la base no impide dos eventos de la
+  //    misma solicitud. Lo que lo impide es la comprobación de `AdminEventos.crear()`, que
+  //    relee antes de escribir. **Ahí** está el guardarraíl; aquí solo se pinta.
+  //  - Si esta lectura se cae, el mapa queda vacío y el botón vuelve a salir. Es aceptable
+  //    precisamente porque el guardarraíl no está aquí: al convertir, el alta para.
+  //
+  // Y se lee **una sola vez al montar**. Hoy sale fresco porque el padre desmonta la pestaña
+  // al cambiar de sección (`{active === "solicitudes" && …}` en `AdminDashboard`), así que
+  // volver a Solicitudes vuelve a montar este componente. Es correcto por un detalle de OTRO
+  // archivo: si algún día esa pestaña se deja montada, este mapa se quedará viejo — y lo que
+  // se verá es un aviso de "ya se convirtió" que falta, no uno de más.
+  const cargarConvertidas = useCallback(
+    () =>
+      base44.entities.Evento.filterEstricto(null, "-created_date")
+        .then((evs) => {
+          const mapa = {};
+          for (const ev of evs) if (ev.solicitudId) mapa[ev.solicitudId] = ev;
+          setEventosPorSolicitud(mapa);
+          setFalloConvertidas(false);
+        })
+        // Y se DICE. Tragarse el error dejaba el mapa vacío sin ninguna señal, así que una
+        // solicitud ya convertida se veía exactamente igual que una sin convertir.
+        .catch(() => { setEventosPorSolicitud({}); setFalloConvertidas(true); }),
+    [],
+  );
+  useEffect(() => { cargarConvertidas(); }, [cargarConvertidas]);
 
   const updateStatus = async (id, estatus) => {
     const previo = solicitudes.find((s) => s.id === id)?.estatus || "Nueva";
@@ -224,6 +261,45 @@ export default function AdminSolicitudes() {
                 <Row label="Actividades" value={(selected.actividadesExtras || []).join(", ") || "Ninguna"} />
                 <Row label="Comentarios" value={selected.comentarios || "Ninguno"} />
               </Group>
+
+              {/* CONVERTIR EN EVENTO.
+                  Si esta solicitud YA generó uno, no se ofrece convertirla otra vez: se dice
+                  cuál es. Desactivar el botón a secas sería opaco —el dueño no sabría si es un
+                  fallo—, así que se nombra el evento y se explica. Es el mismo criterio que el
+                  distintivo de homónimos: enseñar el dato que distingue, no esconder el botón. */}
+              <div className="border-t border-white/5 pt-5">
+                {falloConvertidas && !eventosPorSolicitud[selected.id] && (
+                  <p className="text-amber-300/85 text-xs mb-3 flex items-start gap-1.5">
+                    <AlertTriangle size={12} className="mt-0.5 flex-shrink-0" />
+                    No se pudo comprobar si esta solicitud ya se convirtió en evento. Puedes
+                    convertirla igual: si ya lo estaba, el alta lo detecta y para.
+                  </p>
+                )}
+                {eventosPorSolicitud[selected.id] ? (
+                  <div className="border border-green-400/25 bg-green-400/5 px-4 py-3 rounded space-y-1">
+                    <p className="text-green-300/90 text-sm flex items-center gap-2">
+                      <CheckCircle2 size={14} /> Esta solicitud ya se convirtió en evento
+                    </p>
+                    <p className="text-white/50 text-xs">
+                      El evento es «{eventosPorSolicitud[selected.id].nombreEvento}»
+                      {eventosPorSolicitud[selected.id].fechaEvento
+                        ? ` · ${eventosPorSolicitud[selected.id].fechaEvento}` : ""}.
+                      Búscalo en <strong className="text-white/70">Eventos</strong>. Si de verdad
+                      hacen falta dos eventos de esta solicitud, créalo desde ahí a mano.
+                    </p>
+                  </div>
+                ) : (
+                  <button
+                    onClick={() => { onConvertir?.(selected); setSelected(null); }}
+                    disabled={!onConvertir}
+                    title={onConvertir ? "Abre el alta de evento con estos datos ya puestos"
+                                       : "No disponible desde aquí"}
+                    className="flex items-center gap-2 bg-[#C9A84C] text-[#0a0a0a] px-5 py-2.5 text-sm font-medium hover:bg-[#d4b558] transition-all disabled:opacity-40"
+                  >
+                    <CalendarPlus size={14} /> Crear evento con estos datos
+                  </button>
+                )}
+              </div>
             </div>
           </div>
         </div>

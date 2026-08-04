@@ -45,6 +45,11 @@ const TABS = GRUPOS.flatMap((g) => g.tabs);
 export default function AdminDashboard({ onLogout }) {
   const [active, setActive] = useState("resumen");
   const [mobileMenu, setMobileMenu] = useState(false);
+  // La solicitud que se está convirtiendo en evento. Vive AQUÍ y no en un contexto global
+  // porque su vida es exactamente un salto entre dos pestañas: `AdminSolicitudes` la deja,
+  // `AdminEventos` la consume y la limpia. Así el prellenado no sobrevive a una recarga ni
+  // reaparece la próxima vez que se abra el alta.
+  const [traspaso, setTraspaso] = useState(null);
 
   return (
     <div className="min-h-screen bg-[#0a0a0a] flex">
@@ -99,7 +104,9 @@ export default function AdminDashboard({ onLogout }) {
         </div>
         <div className="p-6 md:p-8 max-w-4xl mx-auto">
           {active === "resumen" && <AdminInicio onIr={setActive} />}
-          {active === "eventos" && <AdminEventos />}
+          {active === "eventos" && (
+            <AdminEventos prefill={traspaso} onPrefillConsumido={() => setTraspaso(null)} />
+          )}
           {active === "operativo" && <AdminOperativo />}
           {active === "administradores" && <AdminAdministradores />}
           {active === "config" && <AdminConfig />}
@@ -110,7 +117,11 @@ export default function AdminDashboard({ onLogout }) {
           {active === "alimentos" && <AdminAlimentos />}
           {active === "galeria" && <AdminGaleria />}
           {active === "resenas" && <AdminResenas />}
-          {active === "solicitudes" && <AdminSolicitudes />}
+          {active === "solicitudes" && (
+            <AdminSolicitudes
+              onConvertir={(solicitud) => { setTraspaso(solicitud); setActive("eventos"); }}
+            />
+          )}
         </div>
       </div>
 

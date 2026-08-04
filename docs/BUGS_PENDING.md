@@ -20,7 +20,7 @@
 que depende de terceros. **J-08 y J-09** (bloque 7) quedan resueltos en código y pendientes de que
 el dueño los vea funcionar en pantalla.
 
-**J-12 es nuevo (C3)** y salió de cruzar la CSP desplegada contra lo que carga el bundle.
+**J-12 (C3) queda resuelto en 9D**: salió de cruzar la CSP desplegada contra lo que carga el bundle.
 
 **J-10 y J-11 son nuevos (8F) y los dos son de RLS.** Se anotan, no se arreglan: tocar una policy
 de la base compartida exige migración y el orden de despliegue de `docs/SEGURIDAD.md` §8.bis. En
@@ -143,7 +143,7 @@ los dos casos el **uso peligroso** ya está cerrado en código; lo que sigue abi
 - **Archivos:** `supabase/migrations/..._sec_09_*.sql`, `src/api/base44Client.js`.
 - **Prioridad:** media. **Estado:** abierto.
 
-### J-12 — El sitio público carga imágenes de Unsplash que la CSP bloquea
+### J-12 — El sitio público carga imágenes de Unsplash que la CSP bloquea *(resuelto en 9D)*
 - **Impacto:** bajo, pero **visible**. `img-src` de la CSP desplegada solo admite `'self'`,
   `data:`, `blob:` y el bucket de Supabase. `CtaCotizacion.jsx` pinta **siempre** un fondo con
   `url('https://images.unsplash.com/...')`, así que en producción ese fondo está bloqueado y no
@@ -158,7 +158,30 @@ los dos casos el **uso peligroso** ya está cerrado en código; lo que sigue abi
   tercero; peor).
 - **Archivos:** `src/components/{CtaCotizacion,GaleriaSection,SalonesSection,SalonOverlay}.jsx`,
   `vercel.json` (la CSP).
-- **Prioridad:** baja. **Estado:** abierto.
+- **Arreglo (9D):** las **catorce** referencias auto-hospedadas desde `public/media/img/` con
+  fotos reales del salón. El barrido encontró **cinco más** que el reporte no citaba: los
+  cinco salones de respaldo de `SalonesSection`, que en el camino degradado enseñaban la
+  imagen rota. **La CSP no se ensanchó** —el proyecto ya sacó imgur por esto mismo (D3)— y
+  hay un contrato que impide hacerlo después.
+- **Prioridad:** baja. **Estado:** **resuelto**, pendiente de verse desplegado.
+
+### J-13 — `eventos.solicitud_id` no es único: dos admins a la vez pueden duplicar la conversión
+- **Impacto:** bajo hoy (un solo administrador activo), pero es una carrera real.
+  `eventos_solicitud_id_idx` (`sec_25`) es un índice **no único**, así que la base no impide dos
+  eventos de la misma solicitud.
+- **Lo que sí lo impide (9E-2):** `AdminEventos.crear()` relee con `filterEstricto` si esa
+  solicitud ya generó un evento y para si lo hay. Cierra el camino del fallo de lectura de la
+  otra pantalla, que es el que se reprodujo.
+- **Lo que NO cierra:** es comprobar-y-luego-escribir, no una transacción. Dos admins
+  convirtiendo la misma solicitud a la vez podrían pasar los dos.
+- **Qué haría falta:** `sec_26` con
+  `create unique index eventos_solicitud_id_uniq on jardines.eventos (solicitud_id) where solicitud_id is not null`,
+  sustituyendo al índice no único. **Precondición obligatoria:** comprobar antes que no haya ya
+  duplicados, o el índice falla a mitad. Y el mensaje del 23505 hay que traducirlo en el alta,
+  o el dueño verá un error crudo de Postgres donde hoy ve una explicación.
+- **Por qué no se hizo:** el bloque 9 tenía una sola migración autorizada (`sec_25`).
+- **Archivos:** `supabase/migrations/`, `src/components/admin/eventos/AdminEventos.jsx`.
+- **Prioridad:** baja. **Estado:** abierto — el camino reproducible está cerrado, la carrera no.
 
 ### J-05 — El cliente no puede cambiar su contraseña desde el portal
 - **Impacto:** bajo. El primer acceso es por enlace de un solo uso y la contraseña se comparte

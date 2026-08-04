@@ -31,10 +31,12 @@ fondo salió con un P0 cada vez.
 | Deployment que lo subió | `dpl_A1Ex55zgGErxznJJYFCNcYhEC5r6` (READY, target `production`) |
 | URL | <https://jardines-club-hipico.vercel.app> |
 | Funciones serverless | **8** |
-| Migraciones aplicadas | `jardines_sec_01..24` (sin `sec_10`) |
-| Contratos | 206/206 · typecheck 59 (línea base) · lint 0 |
+| Migraciones aplicadas | `jardines_sec_01..25` (sin `sec_10`) |
+| Contratos | 259/259 · typecheck 59 (línea base) · lint 0 |
 
-**Bloques desplegados:** 1–7, y el 8 completo salvo 8A y 8D (ver §4).
+**Bloques desplegados:** 1–8 completos. **El bloque 9 está en `main` y pendiente de que
+Vercel lo despliegue**: hasta entonces, el formulario de alta sigue pidiendo 6 caracteres y
+no existe el botón de convertir solicitudes.
 
 **Verificado sin sesión tras el deploy:** las seis cabeceras de seguridad, `Cache-Control:
 no-store` en las ocho rutas `api/`, que cada función responde 405 al método incorrecto y 401 sin
@@ -45,37 +47,18 @@ secreto (el único JWT es la `anon`, que es pública) y que `comprobante` tiene 
 
 ## 3. Qué NO se ha hecho — lo importante
 
-### 3.1 · 8A nunca se mergeó, y su bug sigue vivo
+### 3.1 · 8A y 8D: cerrados en el bloque 9, pendientes de desplegar
 
-**Es el hueco funcional más grande que queda.** 8A arregla el falso negativo al crear eventos:
+- **8A** se mergeó en 9A (`5ccb032`). Cliente y servidor vuelven a validar lo mismo, importando
+  las reglas del mismo archivo. Los conflictos fueron **tres**, no nueve, y se resolvieron con
+  `main` de base. La autoauditoría encontró además un falso negativo residual del propio arreglo
+  de 8A y se cerró.
+- **8D** existe desde 9B (`sec_25`) y 9C: se puede convertir una solicitud en evento con los datos
+  puestos, y el rastro queda en `eventos.solicitud_id`.
 
-- el formulario valida `password.length < 6` y "usuario no vacío";
-- el servidor exige **8** caracteres y `/^[a-zA-Z0-9._-]{3,60}$/`.
-
-Una contraseña de 6 o 7 caracteres, o un usuario con espacio, acento o ñ, **pasa el formulario,
-crea el evento y muere al crear las credenciales** con un «Solicitud inválida» genérico. El
-evento queda a medias.
-
-Está resuelto en la rama `claude/jardines-bloque-8` (`a56e904`), con
-`api/_lib/reglas-credenciales.js` como único sitio donde viven las reglas. **Nunca se abrió PR.**
-La rama salió de antes del bloque 8 y toca los dos archivos que 8B/8C reescribieron
-(`AdminEventos.jsx`, `EventoDatos.jsx`), así que hay que **rebasarla sobre `main` y resolver el
-conflicto a mano**.
-
-> Este documento y `PROJECT_CONTEXT.md` afirmaban que 8A estaba en `main`. **Era falso**, y venía
-> arrastrándose de un resumen anterior sin que nadie lo comprobara. Se detectó al cerrar,
-> mirando `git`, no leyendo documentación.
-
-### 3.2 · 8D no está hecho
-
-La trazabilidad solicitud→evento («de qué solicitud salió este evento») **no se puede hacer sin
-una columna nueva**: `jardines.eventos` no tiene `solicitud_id` y `jardines.solicitudes` no tiene
-`evento_id`.
-
-**Recomendación:** migración aditiva `sec_25` con
-`solicitud_id uuid references jardines.solicitudes(id) on delete set null`.
-
-**Pendiente de decisión del dueño.** No se hizo porque el encargo prohibía migraciones sin aviso.
+> Este documento y `PROJECT_CONTEXT.md` llegaron a afirmar que 8A estaba en `main` cuando no lo
+> estaba. **Era falso**, y venía arrastrándose de un resumen anterior sin que nadie lo
+> comprobara. Se detectó mirando `git`, no leyendo documentación. Conviene recordarlo.
 
 ### 3.3 · J-10 y J-11: el permiso de RLS sigue abierto
 
@@ -123,8 +106,6 @@ Asumir lo contrario sería el mismo error que dar 8A por mergeado.
 
 | Id | Qué | Prioridad |
 |---|---|---|
-| **8A** | No mergeado: el formulario de alta valida distinto que el servidor y deja eventos a medias | **Alta** |
-| **8D** | Sin trazabilidad solicitud→evento; necesita `sec_25` | Media — decisión del dueño |
 | **J-10** | Las policies no restringen columnas; `auth_user_id` y `archivo_url` son escribibles desde el navegador. Uso cerrado, permiso no | **Media-alta** |
 | **J-11** | `eventos_del` permite borrar eventos saltándose el endpoint | Media |
 | **J-01** | `SITIO_URL` hardcodeada al dominio de Vercel: todos los correos enlazan ahí | Media |
@@ -134,7 +115,7 @@ Asumir lo contrario sería el mismo error que dar 8A por mergeado.
 | **J-07** | `operativo_activo` no se maneja desde el panel; hoy hay 0 eventos con él | Baja |
 | **J-04** | `og:url` y JSON-LD con dominio placeholder | Baja |
 | **J-05** | El cliente no puede cambiar su contraseña desde el portal | Baja |
-| **J-12** | El sitio público carga imágenes de Unsplash que la CSP bloquea | Baja |
+| **J-13** | `eventos.solicitud_id` no es único: dos admins a la vez podrían duplicar una conversión. El camino reproducible está cerrado en código; la carrera no | Baja |
 | **D-COD-2** | Los tokens de mesa, invitación y staff se guardan **en claro** | Decisión pendiente |
 
 **Riesgos residuales aceptados y documentados** (no son bugs): los tokens son credenciales

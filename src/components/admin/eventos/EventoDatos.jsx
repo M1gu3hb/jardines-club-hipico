@@ -1,10 +1,11 @@
 import { useState, useEffect } from "react";
 import { base44 } from "@/api/base44Client";
-import { Loader2, Check, KeyRound, Heart, StickyNote } from "lucide-react";
+import { Loader2, Check, KeyRound, Heart, StickyNote, Inbox, AlertTriangle } from "lucide-react";
 import { Field, Area, Toggle, ESTATUS } from "./_ui";
 import EventoEliminar from "./EventoEliminar";
+import { validarCredenciales, AYUDA_USUARIO, AYUDA_PASSWORD } from "../../../../api/_lib/reglas-credenciales.js";
 
-export default function EventoDatos({ evento, salones, onActualizado, onBorrado }) {
+export default function EventoDatos({ evento, salones, salonesFallaron = false, onActualizado, onBorrado }) {
   const [form, setForm] = useState({ ...evento });
   const [guardando, setGuardando] = useState(false);
   const [ok, setOk] = useState(false);
@@ -16,12 +17,41 @@ export default function EventoDatos({ evento, salones, onActualizado, onBorrado 
   const [credMsg, setCredMsg] = useState("");
   const [credBusy, setCredBusy] = useState(false);
 
+  // De qué solicitud salió este evento (`sec_25`). Se lee aparte porque el evento solo guarda
+  // el id: enseñar un uuid no le dice nada a nadie, y el folio sí.
+  //
+  // TRES estados, no uno. Antes era un solo `null` para "todavía no ha llegado" y para "la
+  // lectura se cayó", y con `filter` —que devuelve [] sin lanzar— la ficha se quedaba diciendo
+  // «salió de la solicitud (cargando…)» **para siempre**. J-02 en pequeño.
+  const [solicitudOrigen, setSolicitudOrigen] = useState(null);
+  const [origenEstado, setOrigenEstado] = useState("cargando"); // cargando | ok | fallo
+
   // Lo que el cliente armó en su portal (lectura: wishlist + notas).
   const [deseos, setDeseos] = useState([]);
   const [notasCliente, setNotasCliente] = useState([]);
   useEffect(() => {
-    base44.entities.EventoWishlist.filter({ eventoId: evento.id }, "-created_date").then(setDeseos);
-    base44.entities.EventoNota.filter({ eventoId: evento.id }, "-created_date").then(setNotasCliente);
+    if (!evento.solicitudId) { setSolicitudOrigen(null); setOrigenEstado("ok"); return; }
+    setOrigenEstado("cargando");
+    // `filterEstricto`: con `filter`, un fallo devuelve [] sin lanzar y el `.catch` no se
+    // dispara nunca, así que el fallo era indistinguible de "todavía no ha llegado".
+    base44.entities.SolicitudEvento.filterEstricto({ id: evento.solicitudId })
+      .then((r) => { setSolicitudOrigen(r[0] || null); setOrigenEstado("ok"); })
+      .catch(() => { setSolicitudOrigen(null); setOrigenEstado("fallo"); });
+  }, [evento.solicitudId]);
+
+  // La wishlist y las notas que el cliente escribió en su portal. Salieron del barrido de
+  // "¿y si esta lectura se cae?": con `filter` un fallo devuelve [] sin lanzar, la sección
+  // entera desaparece —solo se pinta si hay algo— y el dueño concluye que el cliente no ha
+  // pedido nada. Es lo mismo que J-02, en el sitio donde más se nota: es la única forma que
+  // tiene el dueño de saber qué quiere el cliente.
+  const [falloDeseos, setFalloDeseos] = useState(false);
+  useEffect(() => {
+    Promise.all([
+      base44.entities.EventoWishlist.filterEstricto({ eventoId: evento.id }, "-created_date"),
+      base44.entities.EventoNota.filterEstricto({ eventoId: evento.id }, "-created_date"),
+    ])
+      .then(([d, n]) => { setDeseos(d); setNotasCliente(n); setFalloDeseos(false); })
+      .catch(() => { setDeseos([]); setNotasCliente([]); setFalloDeseos(true); });
   }, [evento.id]);
 
   const guardar = async () => {
@@ -62,10 +92,14 @@ export default function EventoDatos({ evento, salones, onActualizado, onBorrado 
 
   const crearCredenciales = async () => {
     setCredMsg("");
-    if (!cred.usuario.trim() || cred.password.length < 6) {
-      setCredMsg("Usuario y contraseña (mín. 6) requeridos.");
-      return;
-    }
+    // MISMA validación que el servidor, del mismo archivo. Esta pantalla es la que se usa
+    // para terminar un evento que quedó sin credenciales, así que un rechazo tardío aquí
+    // es todavía más confuso que en el alta.
+    const v = validarCredenciales({
+      usuario: cred.usuario.trim(), password: cred.password,
+      nombre: form.clienteNombre || form.nombreEvento,
+    });
+    if (!v.ok) { setCredMsg(v.mensaje); return; }
     setCredBusy(true);
     try {
       const r = await base44.functions.crearUsuarioEvento({
@@ -105,6 +139,15 @@ export default function EventoDatos({ evento, salones, onActualizado, onBorrado 
       <div className="grid grid-cols-2 gap-3">
         <div>
           <label className="text-white/30 text-xs uppercase tracking-wider mb-1.5 block">Salón</label>
+          {/* Sin esto, una lectura caída deja el desplegable con una sola opción —«Sin asignar»—
+              y ninguna pista de por qué. El dueño concluiría que se borraron los salones. */}
+          {salonesFallaron && (
+            <p className="text-amber-300/85 text-xs mb-1.5 flex items-start gap-1.5">
+              <AlertTriangle size={12} className="mt-0.5 flex-shrink-0" />
+              No se pudo leer la lista de salones: aquí no sale ninguno. No es que se hayan
+              borrado. Vuelve a Eventos y recarga.
+            </p>
+          )}
           <select value={form.salonId || ""} onChange={(e) => set("salonId", e.target.value)}
             className="w-full bg-white/5 border border-white/10 text-white/70 text-sm px-4 py-3 outline-none focus:border-[#C9A84C]/40">
             <option value="" className="bg-[#111]">— Sin asignar —</option>
@@ -128,6 +171,34 @@ export default function EventoDatos({ evento, salones, onActualizado, onBorrado 
           <Field label="Teléfono" value={form.clienteTelefono} onChange={(v) => set("clienteTelefono", v)} />
         </div>
       </div>
+
+      {evento.solicitudId && (
+        <div className="border border-[#C9A84C]/20 bg-[#C9A84C]/5 px-4 py-2.5 rounded">
+          <p className="text-[#E6C870]/90 text-xs flex items-center gap-2">
+            <Inbox size={13} /> Este evento salió de una solicitud{" "}
+            {origenEstado === "ok" && solicitudOrigen && <strong>{solicitudOrigen.folio || "(sin folio)"}</strong>}
+            {origenEstado === "cargando" && <span className="text-white/35">(buscando cuál…)</span>}
+            {origenEstado === "ok" && solicitudOrigen?.nombreCompleto ? ` · ${solicitudOrigen.nombreCompleto}` : ""}
+          </p>
+          {origenEstado === "ok" && solicitudOrigen && (
+            <p className="text-white/35 text-xs mt-1">
+              Recibida el {solicitudOrigen.fechaEnvio || "—"}
+              {solicitudOrigen.estatus ? ` · la solicitud está en «${solicitudOrigen.estatus}»` : ""}
+            </p>
+          )}
+          {origenEstado === "ok" && !solicitudOrigen && (
+            <p className="text-white/35 text-xs mt-1">
+              La solicitud ya no existe: se borró después de crear el evento.
+            </p>
+          )}
+          {origenEstado === "fallo" && (
+            <p className="text-amber-300/85 text-xs mt-1 flex items-start gap-1.5">
+              <AlertTriangle size={12} className="mt-0.5 flex-shrink-0" />
+              No se pudo leer cuál. No es que no exista: la lectura falló. Recarga la página.
+            </p>
+          )}
+        </div>
+      )}
 
       <Area label="Notas internas" value={form.notas} onChange={(v) => set("notas", v)} />
 
@@ -161,6 +232,14 @@ export default function EventoDatos({ evento, salones, onActualizado, onBorrado 
       </div>
 
       {/* Lo que el cliente sueña (wishlist + notas de su portal) */}
+      {falloDeseos && (
+        <p className="text-amber-300/85 text-xs flex items-start gap-1.5 border-t border-white/5 pt-4">
+          <AlertTriangle size={12} className="mt-0.5 flex-shrink-0" />
+          No se pudo leer lo que el cliente pidió en su portal (lista de deseos y notas). No es
+          que no haya pedido nada: la lectura falló. Recarga la página.
+        </p>
+      )}
+
       {(deseos.length > 0 || notasCliente.length > 0) && (
         <div className="border-t border-white/5 pt-4 space-y-3">
           <p className="text-white/40 text-xs uppercase tracking-wider flex items-center gap-2">
@@ -200,6 +279,10 @@ export default function EventoDatos({ evento, salones, onActualizado, onBorrado 
               <Field label="Usuario" value={cred.usuario} onChange={(v) => setCred((c) => ({ ...c, usuario: v }))} />
               <Field label="Contraseña" value={cred.password} onChange={(v) => setCred((c) => ({ ...c, password: v }))} />
             </div>
+            <p className="text-white/25 text-[11px]">
+              <span className="text-white/35">Usuario:</span> {AYUDA_USUARIO}{" "}
+              <span className="text-white/35">· Contraseña:</span> {AYUDA_PASSWORD}
+            </p>
             <button onClick={crearCredenciales} disabled={credBusy}
               className="flex items-center gap-2 border border-[#C9A84C]/40 text-[#C9A84C] px-4 py-2 text-sm hover:bg-[#C9A84C]/10 transition-all disabled:opacity-50">
               {credBusy ? <Loader2 size={13} className="animate-spin" /> : <KeyRound size={13} />} Crear credenciales

@@ -15,11 +15,13 @@
 > usuarios de Auth y los diez puntos de `api/eliminar-evento.js`) y **C1** (la rama tautológica
 > del permiso).
 >
-> **8A NO está en `main`.** Se escribió en la rama `claude/jardines-bloque-8` (`a56e904`), nunca
-> se abrió PR y nunca se mergeó. Lo comprobé al cerrar: `AdminEventos.jsx` en producción sigue
-> pidiendo 6 caracteres de contraseña cuando el servidor exige 8. Ver §1 bis.
-> Batería: `lint` 0, `build` exit 0, `test:contratos` **206/206**, `typecheck` 59 (línea base).
-> Migraciones `sec_01..24`, Vero intacto. Lo único que impide declarar el proyecto cerrado es el §1.
+> **Bloque 9 en `main`, pendiente de deploy** — **9A** mergea por fin 8A (cliente y servidor
+> validan lo mismo), **9B** aplica `sec_25`, **9C** convierte una solicitud en evento con los
+> datos puestos, y **9D** cierra J-12. Hasta que Vercel despliegue, el formulario sigue pidiendo
+> 6 caracteres y no existe el botón de convertir.
+>
+> Batería: `lint` 0, `build` exit 0, `test:contratos` **259/259**, `typecheck` 59 (línea base).
+> Migraciones `sec_01..25`, Vero intacto. **`sec_26` recomendada y no aplicada** (J-13). Lo único que impide declarar el proyecto cerrado es el §1.
 
 ## Urgente — bloquea el cierre del proyecto
 
@@ -31,16 +33,15 @@
    ahora enseña el diálogo, **no** del nombre. No se borran con SQL suelto a propósito — hacerlo
    desde el panel es también la prueba de fuego de la maquinaria de 8B.
 
-1 bis. **Recuperar 8A, que nunca se mergeó.** Es el falso negativo al crear eventos: el
-   formulario valida `password.length < 6` y un usuario "no vacío", mientras el servidor exige 8
-   caracteres y `/^[a-zA-Z0-9._-]{3,60}$/`. Una contraseña de 6 o 7, o un usuario con espacio,
-   acento o ñ, **pasa el formulario, crea el evento y muere en el servidor con un «Solicitud
-   inválida»**: el evento queda a medias, sin credenciales. Está arreglado en
-   `claude/jardines-bloque-8` (`a56e904`) — con `api/_lib/reglas-credenciales.js` como único
-   sitio donde viven las reglas — pero esa rama salió de antes del bloque 8 y toca los dos
-   archivos que 8B/8C reescribieron (`AdminEventos.jsx`, `EventoDatos.jsx`), así que **hay que
-   rebasarla sobre `main` y resolver el conflicto a mano**. No se hizo aquí porque estaba fuera
-   del encargo de cierre. **Es el hueco funcional más grande que queda abierto.**
+0. quater. **Decidir `sec_26`: `unique` parcial sobre `eventos.solicitud_id` (J-13).**
+   `sec_25` puso un índice **no único**, así que la base no impide dos eventos de la misma
+   solicitud. El camino reproducible —el que se ejercitó— ya está cerrado en código: el alta
+   relee antes de escribir y para. Lo que queda abierto es la **carrera**: dos admins
+   convirtiendo a la vez. Recomendado:
+   `create unique index eventos_solicitud_id_uniq on jardines.eventos (solicitud_id) where solicitud_id is not null`,
+   **con precondición** de que no haya duplicados ya (o el índice falla a mitad) y traduciendo el
+   `23505` en el alta, o el dueño verá un error crudo de Postgres donde hoy ve una explicación.
+   **No se aplicó**: el bloque 9 tenía una sola migración autorizada.
 
 0. ter. **Decidir la migración de RLS por columnas (J-10 y J-11).** Son los dos hallazgos que
    8F anotó y no arregló, y salen de la misma causa: las policies de `jardines` conceden **la fila
@@ -49,12 +50,6 @@
    protegido en código; el **permiso** no. Haría falta un `sec_26` con `revoke update ... grant
    update (columnas)` y, para J-11, revocar `delete` sobre `jardines.eventos` **después** de que
    el endpoint esté desplegado y validado (§8.bis: aditivo primero, restrictivo al final).
-
-0. bis. **Decidir la migración de 8D.** La trazabilidad solicitud→evento **no se puede hacer sin
-   una columna nueva**: `eventos` no tiene `solicitud_id` y `solicitudes` no tiene `evento_id`.
-   Recomendado: `sec_25` aditiva con
-   `solicitud_id uuid references jardines.solicitudes(id) on delete set null`. Sin esa decisión
-   8D queda bloqueado — es la única fase del bloque 8 que no se pudo hacer.
 
 1. **Validación humana autenticada.** Es lo único que impide declarar CERRADO el blindaje de
    seguridad. El guion está escrito y es autónomo: **`docs/VALIDACION.md`**. Miguel debe confirmar

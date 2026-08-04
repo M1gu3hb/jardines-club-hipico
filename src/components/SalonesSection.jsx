@@ -3,14 +3,20 @@ import { motion } from "framer-motion";
 import { Users } from "lucide-react";
 import SalonOverlay from "./SalonOverlay";
 
-const placeholderImg = "https://images.unsplash.com/photo-1464366400600-7168b8af9bc3?w=800&q=80";
+// Auto-hospedada: `img-src` de la CSP no admite `images.unsplash.com`, así que la anterior
+// la bloqueaba el navegador y el salón sin foto salía roto en vez de con un placeholder.
+const placeholderImg = "/media/img/dGg8Xxh.jpg";
+
+// Los salones de respaldo, para cuando Supabase no devuelve nada. Sus fotos también son
+// propias: las de `images.unsplash.com` que había aquí las bloqueaba la CSP, así que el
+// camino degradado enseñaba cinco tarjetas con la imagen rota.
 
 const defaultSalones = [
-  { id: "cerrado", nombre: "Salón Cerrado", descripcion: "Elegante salón cubierto con iluminación regulable, climatización y acabados de lujo.", capacidad: "50 – 150 personas", imagenPrincipal: "https://images.unsplash.com/photo-1519225421980-715cb0215aed?w=800&q=80" },
-  { id: "encanto", nombre: "Salón Encanto", descripcion: "Espacio amplio con decoración cálida y romántica, perfecto para bodas y XV años.", capacidad: "80 – 200 personas", imagenPrincipal: "https://images.unsplash.com/photo-1478146896981-b80fe463b330?w=800&q=80" },
-  { id: "kiosco", nombre: "Kiosco", descripcion: "Espacio semiabierto con vista al jardín, ideal para cocktails y eventos al aire libre.", capacidad: "30 – 80 personas", imagenPrincipal: "https://images.unsplash.com/photo-1464366400600-7168b8af9bc3?w=800&q=80" },
-  { id: "jardines", nombre: "Jardines", descripcion: "Hermosos jardines naturales. El escenario perfecto para ceremonias al aire libre.", capacidad: "100 – 300 personas", imagenPrincipal: "https://images.unsplash.com/photo-1470509037663-253d2d33012c?w=800&q=80" },
-  { id: "pony", nombre: "Pony (Juegos)", descripcion: "Área recreativa con juegos infantiles. El favorito de los más pequeños.", capacidad: "20 – 60 niños", imagenPrincipal: "https://images.unsplash.com/photo-1558618666-fcd25c85cd64?w=800&q=80" },
+  { id: "cerrado", nombre: "Salón Cerrado", descripcion: "Elegante salón cubierto con iluminación regulable, climatización y acabados de lujo.", capacidad: "50 – 150 personas", imagenPrincipal: "/media/img/zQnchfi.jpeg" },
+  { id: "encanto", nombre: "Salón Encanto", descripcion: "Espacio amplio con decoración cálida y romántica, perfecto para bodas y XV años.", capacidad: "80 – 200 personas", imagenPrincipal: "/media/img/WsISC1j.png" },
+  { id: "kiosco", nombre: "Kiosco", descripcion: "Espacio semiabierto con vista al jardín, ideal para cocktails y eventos al aire libre.", capacidad: "30 – 80 personas", imagenPrincipal: "/media/img/9NiMw7K.png" },
+  { id: "jardines", nombre: "Jardines", descripcion: "Hermosos jardines naturales. El escenario perfecto para ceremonias al aire libre.", capacidad: "100 – 300 personas", imagenPrincipal: "/media/img/ltW3p5N.jpg" },
+  { id: "pony", nombre: "Pony (Juegos)", descripcion: "Área recreativa con juegos infantiles. El favorito de los más pequeños.", capacidad: "20 – 60 niños", imagenPrincipal: "/media/img/5uVcOay.jpg" },
 ];
 
 export default function SalonesSection({ salones, onSelectSalon }) {

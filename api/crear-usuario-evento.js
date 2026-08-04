@@ -10,6 +10,7 @@
 // Variables de entorno requeridas en Vercel:
 //   SUPABASE_URL           -> https://<proyecto>.supabase.co
 //   SUPABASE_SERVICE_ROLE  -> service_role key (SECRETA; solo en el servidor)
+import { validarCredenciales } from "./_lib/reglas-credenciales.js";
 import { plantillaOro, enviarCorreo, SITIO_URL } from "./_lib/correo.js";
 import {
   escHtml, clienteAdmin, leerBody, autorizarJardines, rateLimit,
@@ -47,12 +48,19 @@ export default async function handler(req, res) {
   if (!lectura.ok) return generico(res, lectura.status);
   const { usuario, password, eventoId, nombre } = lectura.body;
 
-  // Validación estricta de formato y longitud.
-  if (!usuario || !password || !eventoId) return generico(res, 400);
-  if (String(usuario).length > 60 || !/^[a-zA-Z0-9._-]{3,60}$/.test(String(usuario))) return generico(res, 400);
-  if (String(password).length < 8 || String(password).length > 200) return generico(res, 400);
-  if (nombre && String(nombre).length > 120) return generico(res, 400);
-  if (!/^[0-9a-f-]{36}$/i.test(String(eventoId))) return generico(res, 400);
+  // Validación estricta de formato y longitud. Las reglas viven en `_lib/reglas-credenciales.js`
+  // y las importa TAMBIÉN el formulario del panel: duplicarlas aquí es exactamente lo que hizo
+  // que divergieran (cliente ≥6, servidor ≥8) y que el dueño creara cuatro eventos creyendo
+  // que fallaba.
+  //
+  // El 400 dice QUÉ campo está mal. Antes los dos casos eran el mismo `generico(res, 400)`
+  // opaco. No se filtra nada sensible: quien llega aquí es un admin autenticado escribiendo
+  // su propio formulario.
+  if (!eventoId || !/^[0-9a-f-]{36}$/i.test(String(eventoId))) {
+    return res.status(400).json({ error: "Falta el evento o su identificador no es válido.", campo: "eventoId" });
+  }
+  const v = validarCredenciales({ usuario, password, nombre });
+  if (!v.ok) return res.status(400).json({ error: v.mensaje, campo: v.campo });
 
   if (!(await rateLimit(admin, "crear-usuario-evento", aut.user.id, 20, 3600))) {
     await auditar(admin, "crear_usuario_evento", "denegado", { detalle: { motivo: "rate_limit" } });
@@ -104,11 +112,29 @@ export default async function handler(req, res) {
     });
     if (createErr) {
       await idemCerrar(admin, "crear-usuario-evento", claveIdem, false);
-      const duplicado = /already been registered|already exists/i.test(createErr.message || "");
-      await auditar(admin, "crear_usuario_evento", "denegado",
-        { detalle: { motivo: duplicado ? "usuario_duplicado" : "alta_fallida" } });
-      // Genérico salvo el caso de duplicado, que el admin necesita distinguir.
-      res.status(409).json({ error: duplicado ? "Ese usuario ya existe" : "No se pudo crear el usuario" });
+      const msg = createErr.message || "";
+      const duplicado = /already been registered|already exists/i.test(msg);
+      // EL TERCER VALIDADOR. `validarCredenciales` la comparten cliente y servidor, pero GoTrue
+      // tiene su PROPIA política de contraseñas —longitud mínima, caracteres exigidos, rechazo
+      // de contraseñas filtradas—, y es configuración GLOBAL del proyecto de Supabase: la
+      // comparte Vero y puede cambiar sin que este código se entere. Si rechaza, decirlo con
+      // un "No se pudo crear el usuario" opaco es exactamente la forma del bug original, un
+      // piso más abajo: el formulario acepta y el alta muere sin explicar por qué.
+      const debil = /password|weak|pwned|leaked|caracteres/i.test(msg);
+      await auditar(admin, "crear_usuario_evento", "denegado", {
+        detalle: { motivo: duplicado ? "usuario_duplicado" : debil ? "password_rechazada_por_auth" : "alta_fallida" },
+      });
+      if (duplicado) {
+        res.status(409).json({ error: "Ese usuario ya existe", campo: "usuario" });
+      } else if (debil) {
+        res.status(400).json({
+          error: "La política de contraseñas del proyecto rechazó esta contraseña. " +
+                 "Prueba con una más larga y que mezcle letras, números y símbolos.",
+          campo: "password",
+        });
+      } else {
+        res.status(409).json({ error: "No se pudo crear el usuario" });
+      }
       return;
     }
 

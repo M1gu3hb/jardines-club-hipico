@@ -3,15 +3,21 @@ import { motion, AnimatePresence } from "framer-motion";
 import { Play } from "lucide-react";
 import MediaViewer, { isVideo } from "./MediaViewer";
 
+// Lo que se enseña si Supabase no devuelve galería. Son fotos REALES del salón, servidas
+// desde `public/media/`, no de un banco de imágenes: la CSP solo admite `img-src 'self'`
+// (+ data:, blob: y el bucket), así que las de `images.unsplash.com` que había aquí las
+// bloqueaba el navegador — el camino degradado enseñaba ocho huecos rotos. Y aunque la CSP
+// las dejara, poner fotos de stock de otro sitio en la galería de un salón es prometer algo
+// que no es. Ver D3, "independencia total", y J-12.
 const placeholders = [
-  { url: "https://images.unsplash.com/photo-1519225421980-715cb0215aed?w=800&q=80", titulo: "Evento 1" },
-  { url: "https://images.unsplash.com/photo-1478146896981-b80fe463b330?w=800&q=80", titulo: "Evento 2" },
-  { url: "https://images.unsplash.com/photo-1464366400600-7168b8af9bc3?w=800&q=80", titulo: "Evento 3" },
-  { url: "https://images.unsplash.com/photo-1470509037663-253d2d33012c?w=800&q=80", titulo: "Evento 4" },
-  { url: "https://images.unsplash.com/photo-1511795409834-ef04bbd61622?w=800&q=80", titulo: "Evento 5" },
-  { url: "https://images.unsplash.com/photo-1505236858219-8359eb29e329?w=800&q=80", titulo: "Evento 6" },
-  { url: "https://images.unsplash.com/photo-1530103862676-de8c9debad1d?w=800&q=80", titulo: "Evento 7" },
-  { url: "https://images.unsplash.com/photo-1501281668745-f7f57925c3b4?w=800&q=80", titulo: "Evento 8" },
+  { url: "/media/img/dGg8Xxh.jpg", titulo: "Jardines Club Hípico" },
+  { url: "/media/img/zQnchfi.jpeg", titulo: "Jardines Club Hípico" },
+  { url: "/media/img/WsISC1j.png", titulo: "Jardines Club Hípico" },
+  { url: "/media/img/9NiMw7K.png", titulo: "Jardines Club Hípico" },
+  { url: "/media/img/ltW3p5N.jpg", titulo: "Jardines Club Hípico" },
+  { url: "/media/img/5uVcOay.jpg", titulo: "Jardines Club Hípico" },
+  { url: "/media/img/9L0Fxvk.png", titulo: "Jardines Club Hípico" },
+  { url: "/media/img/mS6t6VN.jpg", titulo: "Jardines Club Hípico" },
 ];
 
 // Desktop span pattern (4 columns)

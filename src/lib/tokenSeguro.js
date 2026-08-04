@@ -12,6 +12,27 @@
  * años, y el sitio se sirve por HTTPS (WebCrypto exige contexto seguro).
  */
 
+/**
+ * UUID v4 de WebCrypto, para generar el id de una fila **antes** de escribirla.
+ *
+ * Existe por el falso negativo al crear eventos: el id se generaba dentro del shim, nuevo en
+ * cada clic, así que un reintento creaba OTRO evento en vez de chocar con el anterior — y la
+ * clave de idempotencia del alta de usuario, que es `${eventoId}:${usuario}`, nunca podía
+ * dispararse. Fijando el id al ABRIR el formulario, el segundo INSERT choca con la clave
+ * primaria y el reintento es idempotente por construcción.
+ *
+ * Sin fallback, por el mismo motivo que `tokenSeguro`: un id predecible aquí significaría
+ * colisiones entre altas distintas.
+ */
+export function nuevoId() {
+  if (typeof crypto === "undefined" || typeof crypto.randomUUID !== "function") {
+    throw new Error(
+      "Este navegador no permite crear el evento de forma segura. Actualízalo o usa otro.",
+    );
+  }
+  return crypto.randomUUID();
+}
+
 /** 256 bits de `crypto.getRandomValues`, en base64url. Lanza si no hay WebCrypto. */
 export function tokenSeguro() {
   if (typeof crypto === "undefined" || typeof crypto.getRandomValues !== "function") {

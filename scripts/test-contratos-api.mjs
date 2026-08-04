@@ -1334,6 +1334,452 @@ for (const ruta of [
   }
 }
 
+// ---------------------------------------------------------------- alta de evento (8A)
+// La causa raíz: el formulario validaba `password.length < 6` y el servidor `< 8`, y el
+// usuario ni siquiera se comprobaba en el cliente. Una contraseña de 6 pasaba el formulario,
+// moría en el servidor con un 400 opaco, y el evento quedaba creado sin credenciales.
+// Estos contratos existen para que NO PUEDAN volver a divergir.
+{
+  const reglas = leerCodigo("api/_lib/reglas-credenciales.js");
+  const api = leerCodigo("api/crear-usuario-evento.js");
+  const alta = leerCodigo("src/components/admin/eventos/AdminEventos.jsx");
+  const ficha = leerCodigo("src/components/admin/eventos/EventoDatos.jsx");
+
+  // Las reglas viven en UN archivo y lo importan los tres. No se comprueba que los números
+  // "coincidan" —eso volvería a ser dos copias— sino que no haya una segunda copia.
+  check(
+    "credenciales: el servidor usa las reglas compartidas",
+    /from "\.\/_lib\/reglas-credenciales\.js"/.test(api) && /validarCredenciales\(/.test(api),
+  );
+  for (const [nombre, s] of [["alta de evento", alta], ["ficha del evento", ficha]]) {
+    check(
+      `credenciales: ${nombre} usa las MISMAS reglas que el servidor`,
+      /reglas-credenciales\.js"/.test(s) && /validarCredenciales\(/.test(s),
+    );
+    // La regresión literal: una longitud mínima escrita a mano en el cliente.
+    check(
+      `credenciales: ${nombre} no vuelve a validar por su cuenta`,
+      !/password\.length < \d/.test(s) && !/length < 6/.test(s),
+    );
+  }
+  check(
+    "credenciales: las reglas no dependen del servidor (el navegador las importa)",
+    !/process\.env/.test(reglas) && !/require\(|from "node:/.test(reglas),
+  );
+  // H4 · EL TERCER VALIDADOR. Con una sola fuente, bajar `PASSWORD_MIN` mueve cliente y servidor
+  // a la vez — hasta ahí, correcto por diseño. Pero GoTrue tiene su propia política, es
+  // configuración GLOBAL del proyecto (la comparte Vero) y **no se puede leer desde aquí**. Si
+  // esta constante bajara por debajo del mínimo de Auth, el formulario aceptaría y el alta
+  // moriría en `createUser`: la misma forma del bug original.
+  //
+  // El número no se puede anclar al valor real, así que se ancla a un SUELO con el motivo
+  // escrito: 8 es lo que Supabase recomienda explícitamente y el defecto de GoTrue es 6, así
+  // que cualquier proyecto configurado por encima del defecto estará en 8 o más.
+  {
+    // El motivo vive en un COMENTARIO, así que aquí hace falta el archivo con comentarios.
+    const reglasConComentarios = leer("api/_lib/reglas-credenciales.js");
+    const min = Number((reglas.match(/export const PASSWORD_MIN = (\d+);/) || [])[1]);
+    check(
+      "credenciales: `PASSWORD_MIN` no baja del suelo de 8 (política de Auth, no legible desde aquí)",
+      Number.isFinite(min) && min >= 8,
+      `PASSWORD_MIN = ${min}`,
+    );
+    // Y el motivo tiene que estar escrito donde está el número, o el suelo se borra sin saber
+    // por qué existía.
+    check(
+      "credenciales: el suelo dice de dónde sale y que Auth es un validador aparte",
+      /GoTrue tiene su propia política/.test(reglasConComentarios) &&
+        /configuración\s+global\s+del\s*\n?\s*\*?\s*proyecto/i.test(reglasConComentarios) &&
+        /no se debe tocar/.test(reglasConComentarios),
+    );
+    // Y si Auth rechaza igualmente, el alta lo dice en vez de responder opaco.
+    check(
+      "credenciales: un rechazo de la política de Auth no se responde como «no se pudo»",
+      /password_rechazada_por_auth/.test(api) &&
+        /La política de contraseñas del proyecto rechazó/.test(api) &&
+        /campo: "password"/.test(api),
+    );
+  }
+
+  check(
+    "credenciales: el 400 dice QUÉ campo falló",
+    /status\(400\)\.json\(\{ error: v\.mensaje, campo: v\.campo \}\)/.test(api),
+  );
+
+  // El id del evento se fija UNA vez al abrir el formulario. Si vuelve a generarse dentro
+  // del shim en cada clic, el reintento crea otro evento y la clave de idempotencia
+  // `${eventoId}:${usuario}` nunca coincide — que es como salieron cuatro "Boda ortega".
+  {
+    const abrir = entre(alta, "const abrirCrear = ", "const crear = async");
+    check(
+      "alta: el id del evento se fija al ABRIR el formulario, no en cada clic",
+      /setEventoId\(nuevoId\(\)\)/.test(abrir),
+      abrir ? "" : "no se encontró abrirCrear",
+    );
+    const crear = entre(alta, "const crear = async", "if (abierto)");
+    check(
+      "alta: ese id es el que se escribe",
+      /Evento\.create\(\{\s*id: eventoId/.test(crear),
+      crear ? "" : "no se encontró crear()",
+    );
+    // Se afirma sobre el TRY, no sobre `crear()` entero: desde 9A el `catch` hace la misma
+    // relectura para detectar el reintento sobre un evento que ya existía, así que buscarla en
+    // toda la función dejaba pasar el borrado de la del camino feliz. Contrato vacuo, encontrado
+    // mutando — no leyendo.
+    const tryAlta = entre(crear, "let evento;", "} catch (e) {");
+    check(
+      "alta: se confirma releyendo antes de dar el alta por buena",
+      /Evento\.filterEstricto\(\{ id: eventoId \}\)/.test(tryAlta) && /!guardado \|\| !guardado\.usuario/.test(tryAlta),
+      tryAlta ? "" : "no se encontró el try de crear()",
+    );
+    // Si el evento quedó a medias, el formulario se CIERRA: dejarlo abierto con un aviso
+    // pequeño es lo que invitaba a pulsar "Crear evento" otra vez.
+    const iEvento = crear.indexOf("if (evento)");
+    check(
+      "alta: si el evento quedó a medias, el formulario se cierra",
+      iEvento >= 0 && /if \(evento\) \{[\s\S]{0,200}setCreando\(false\)/.test(crear),
+      iEvento < 0 ? "no se distingue el evento a medias" : "el formulario sigue abierto",
+    );
+  }
+  check(
+    "alta: la lista marca los eventos sin credenciales",
+    /!e\.usuario &&[\s\S]{0,300}Sin credenciales/.test(alta),
+  );
+
+  // 9A · el falso negativo que quedaba DESPUÉS de 8A. Con el id fijo, si el primer INSERT
+  // cuaja y se pierde la respuesta, el reintento choca con la clave primaria y `evento` sigue
+  // sin asignarse: el mensaje decía "No se pudo crear el evento" cuando sí se había creado.
+  // Se decide RELEYENDO la fila, nunca por el texto del error.
+  {
+    const cuerpo = entre(alta, "} catch (e) {", "} finally {");
+    const iRelee = cuerpo.indexOf("Evento.filterEstricto({ id: eventoId })");
+    const iRama = cuerpo.indexOf("if (yaExistia)");
+    const iNoSePudo = cuerpo.indexOf("No se pudo crear el evento");
+    check(
+      "alta: un reintento sobre un evento que YA existe no se anuncia como fallo",
+      iRelee > 0 && iRama > iRelee && iNoSePudo > iRama &&
+        /YA ESTABA CREADO/.test(cuerpo) && !/duplicate key|23505/.test(cuerpo),
+      `relee=${iRelee} rama=${iRama} noSePudo=${iNoSePudo}`,
+    );
+  }
+}
+
+// ---------------------------------------------------------------- sec_25 (9B)
+// La migración que añade `eventos.solicitud_id`. Se afirma que sigue siendo ADITIVA y
+// autoprotegida: es la única de este bloque y toca la base compartida con Vero.
+{
+  const sql = leer("supabase/migrations/20260804180000_jardines_sec_25_evento_solicitud_id.sql");
+  check(
+    "sec_25: es aditiva — no borra, no reescribe y no toca policies ni grants",
+    /add column solicitud_id uuid/.test(sql) &&
+      !/\bdrop\b/i.test(sql) && !/\bdelete from\b/i.test(sql) &&
+      !/\bcreate policy\b/i.test(sql) && !/\bgrant\b/i.test(sql) && !/\brevoke\b/i.test(sql),
+  );
+  // El candado de Vero, como contrato y no solo como comentario.
+  check(
+    "sec_25: no toca nada del schema `public` (Vero)",
+    !/\bpublic\.[a-z_]+/i.test(sql.replace(/--.*$/gm, "")),
+  );
+  check(
+    "sec_25: `on delete set null` — borrar la solicitud no se lleva el evento",
+    /references jardines\.solicitudes\(id\) on delete set null/.test(sql) &&
+      !/on delete cascade/i.test(sql),
+  );
+  // Las tres precondiciones y la poscondición: sin ellas, reaplicarla o correrla contra una
+  // base distinta haría daño en vez de negarse.
+  for (const [nombre, re] of [
+    ["la columna no existe ya", /column_name = 'solicitud_id'[\s\S]{0,300}raise notice/],
+    ["la PK de solicitudes es la esperada", /v_pk is distinct from 'id'[\s\S]{0,160}raise exception/],
+    ["el tipo de esa PK es uuid", /v_tipo is distinct from 'uuid'[\s\S]{0,160}raise exception/],
+    ["RLS está activo antes", /Precondicion fallida: RLS NO esta activo/],
+    ["RLS sigue activo después", /Poscondicion fallida: RLS quedo desactivado/],
+  ]) {
+    check(`sec_25: comprueba que ${nombre}`, re.test(sql));
+  }
+}
+
+// ---------------------------------------------------------------- solicitud -> evento (9C)
+// ¿DE QUIÉN ES ESTE DATO Y QUIÉN ME LO DIO? Lo escribió un desconocido en el formulario
+// público. Que esté en la base solo dice que pasó por `solicitud_crear`, no que sea bueno.
+// Estos contratos atan lo que NO puede copiarse tal cual.
+{
+  const mapeo = leerCodigo("src/lib/solicitudAEvento.js");
+  const alta = leerCodigo("src/components/admin/eventos/AdminEventos.jsx");
+  const sol = leerCodigo("src/components/admin/AdminSolicitudes.jsx");
+  const ficha = leerCodigo("src/components/admin/eventos/EventoDatos.jsx");
+
+  // 1) EL SALÓN. Es texto libre en la solicitud y un uuid en el evento. Solo casa exacto: un
+  // salón mal asignado es peor que uno sin asignar, y nadie lo notaría hasta el día del evento.
+  {
+    const cuerpo = entre(mapeo, "export function resolverSalon(", "\n}\n");
+    check(
+      "9C: el salón se resuelve por nombre exacto contra los salones reales, o se deja vacío",
+      /clave\(s\.nombre\) === t/.test(cuerpo) &&
+        /salonId: ""/.test(cuerpo) && /motivo: "no_casa"/.test(cuerpo) &&
+        !/includes\(t\)|startsWith|indexOf\(t\)/.test(cuerpo.replace("SALON_SIN_DEFINIR.includes(t)", "")),
+      cuerpo ? "" : "no se encontró resolverSalon",
+    );
+    // El id del salón NUNCA sale de la solicitud: solo de la lista de salones.
+    check(
+      "9C: el salonId sale de `salones`, nunca de la solicitud",
+      !/salonId: s\.|salonId: solicitud\.|salonId: .*salonSeleccionado/.test(mapeo),
+    );
+  }
+
+  // 2) LAS CREDENCIALES. No se derivan del correo ni del nombre: son credenciales, y
+  // derivarlas de datos públicos las haría adivinables desde fuera.
+  {
+    const cuerpo = entre(mapeo, "export function solicitudAEvento(", "\n}\n");
+    check(
+      "9C: usuario y contraseña salen VACÍOS del prellenado",
+      /usuario: "",\s*\n\s*password: "",/.test(cuerpo) &&
+        !/usuario: .*email|usuario: .*nombre|password: /.test(cuerpo.replace('password: "",', "")),
+      cuerpo ? "" : "no se encontró solicitudAEvento",
+    );
+  }
+
+  // 3) FECHA Y CORREO. Solo se proponen si son lo que dicen ser; si no, campo vacío y aviso.
+  check(
+    "9C: la fecha solo se copia si es una fecha de verdad",
+    /export function fechaValida/.test(mapeo) &&
+      /d\.toISOString\(\)\.slice\(0, 10\) !== s/.test(mapeo) &&
+      /fechaEvento: fecha/.test(mapeo),
+  );
+  check(
+    "9C: el correo solo se copia si tiene forma de correo",
+    /export function correoValido/.test(mapeo) && /clienteEmail: correo/.test(mapeo),
+  );
+
+  // 4) LOS TEXTOS LARGOS se recortan antes de escribirse. `comentarios` admite 2000 en la
+  // solicitud y `eventos.notas` no tiene tope: sin recortar, la nota interna se vuelve ilegible.
+  check(
+    "9C: todo lo que se copia pasa por `recorta`",
+    /const recorta = \(v, max\)/.test(mapeo) &&
+      /clienteNombre: recorta\(/.test(mapeo) && /tipoEvento: recorta\(/.test(mapeo) &&
+      /clienteTelefono: recorta\(/.test(mapeo),
+  );
+
+  // 5) EL NOMBRE DEL EVENTO nunca puede quedar vacío: con "" la confirmación del borrado se
+  // cumple sola (8F-2), así que un prellenado vacío reabriría ese agujero por la puerta de atrás.
+  {
+    const cuerpo = entre(mapeo, "export function nombrePropuesto(", "\n}\n");
+    check(
+      "9C: el nombre propuesto nunca es cadena vacía",
+      /return tipo \|\| cliente \|\| `Solicitud/.test(cuerpo),
+      cuerpo ? "" : "no se encontró nombrePropuesto",
+    );
+  }
+
+  // 6) EL ESTATUS de la solicitud sale del catálogo, nunca de una lista nueva: esa divergencia
+  // es la que rompió el guardado del estatus en el bloque 7.
+  check(
+    "9C: el estatus propuesto sale de SOLICITUD_ESTATUS",
+    /from "@\/lib\/catalogos"/.test(mapeo) &&
+      /SOLICITUD_ESTATUS\.filter\(/.test(mapeo) &&
+      !/\["Cotizada", ?"Cerrada"\]/.test(mapeo),
+  );
+  // Y se PROPONE: si el admin no elige, la solicitud se queda como estaba.
+  {
+    const crear = entre(alta, "const crear = async", "if (abierto)");
+    check(
+      "9C: el estatus de la solicitud solo cambia si el admin lo eligió",
+      /if \(origen\?\.id && cerrarSolicitud\)/.test(crear),
+      crear ? "" : "no se encontró crear()",
+    );
+    // Y si ese cambio falla, el evento NO se revierte: ya está bien creado.
+    check(
+      "9C: si el cambio de estatus falla, el evento no se deshace",
+      /catch \(e2\)[\s\S]{0,400}Cámbialo a mano desde Solicitudes/.test(crear),
+    );
+  }
+
+  // 7) LA TRAZABILIDAD. Sin `solicitud_id` escrito, la conversión queda huérfana y la misma
+  // solicitud se puede convertir tres veces sin que nada lo note.
+  {
+    const crear = entre(alta, "const crear = async", "if (abierto)");
+    check(
+      "9C: el alta escribe de qué solicitud salió",
+      /solicitudId: origen\?\.id \|\| null/.test(crear),
+      crear ? "" : "no se encontró crear()",
+    );
+    check(
+      "9C: la solicitud ya convertida no ofrece convertirse otra vez",
+      /eventosPorSolicitud\[selected\.id\] \?/.test(sol) &&
+        /ya se convirtió en evento/.test(sol),
+    );
+    // 9E-2 · EL GUARDARRAÍL DONDE SE ESCRIBE. El distintivo de arriba es informativo y
+    // desaparece justo cuando su lectura se cae — que es cuando vuelve a salir el botón. Lo que
+    // impide de verdad el segundo evento es esta comprobación, ANTES de crear la fila, y
+    // `eventos_solicitud_id_idx` no es único, así que la base tampoco lo impide.
+    {
+      const iGuarda = crear.indexOf("if (origen?.id) {");
+      const iLee = crear.indexOf("Evento.filterEstricto({ solicitudId: origen.id })");
+      const iCrea = crear.indexOf("Evento.create({");
+      check(
+        "9C: antes de crear se comprueba que esa solicitud no generó ya otro evento",
+        iGuarda >= 0 && iLee > iGuarda && iCrea > iLee &&
+          /ya generó el evento/.test(crear) && /ev\.id !== eventoId/.test(crear),
+        `guarda=${iGuarda} lee=${iLee} crea=${iCrea}`,
+      );
+      // Y esa lectura decide si se duplica un dato: no puede ser floja.
+      check(
+        "9C: esa comprobación usa `filterEstricto`, no `filter`",
+        !/Evento\.filter\(\{ solicitudId/.test(crear),
+      );
+    }
+    // El comentario de la otra pantalla NO puede volver a afirmar una garantía que no existe.
+    check(
+      "9C: no se afirma que la conversión sea idempotente por `solicitud_id`",
+      !/idempotente por `solicitud_id`/.test(leer("src/components/admin/AdminSolicitudes.jsx")),
+    );
+    // Esa lectura decide si se ofrece un botón destructivo de duplicar: no puede ser floja.
+    check(
+      "9C: lo ya convertido se lee con `filterEstricto`, no con `filter`",
+      /Evento\.filterEstricto\(null, "-created_date"\)/.test(sol) &&
+        !/Evento\.filter\(null/.test(sol),
+    );
+    // Del barrido de 9E: la wishlist y las notas del cliente también decidían con `filter`, y
+    // su sección solo se pinta si hay algo — así que un fallo la hacía desaparecer entera y el
+    // dueño concluía que el cliente no había pedido nada.
+    check(
+      "9C: lo que el cliente pidió en su portal se lee estricto y el fallo se dice",
+      /EventoWishlist\.filterEstricto/.test(ficha) && /EventoNota\.filterEstricto/.test(ficha) &&
+        /setFalloDeseos\(true\)/.test(ficha) && /No es\s*\n?\s*que no haya pedido nada/.test(ficha),
+    );
+    check(
+      "9C: la ficha del evento dice de qué solicitud salió",
+      /evento\.solicitudId &&/.test(ficha) && /salió de una solicitud/.test(ficha) &&
+        // Y con tres estados: "buscando", "esta es", y "no se pudo leer" — nunca el mismo
+        // valor para "todavía no ha llegado" y para "la lectura se cayó" (H3).
+        /origenEstado === "cargando"/.test(ficha) && /origenEstado === "fallo"/.test(ficha) &&
+        /SolicitudEvento\.filterEstricto/.test(ficha),
+    );
+  }
+
+  // 8) EL PRELLENADO ES EDITABLE y se ve que viene de fuera. Es lo que separa una ayuda de un
+  // automatismo: el admin tiene que poder corregir lo que escribió un desconocido.
+  check(
+    "9C: se avisa de que los datos los escribió el cliente y hay que revisarlos",
+    /lo escribió él, no tú/.test(alta) && /avisosPrefill\.map/.test(alta),
+  );
+  // EL PRELLENADO Y LA LISTA DE SALONES — reescrito en 9E-1.
+  //
+  // El contrato anterior afirmaba `if (!prefill || cargando) return;`. No era vacuo —mutarlo
+  // fallaba— pero certificaba **el guardarraíl equivocado**, que es peor: daba luz verde justo
+  // a la condición que falla. `cargando` es `false` cuando la lectura se CAE (`useCarga` llena
+  // `error` y deja `datos` en null), así que el prellenado pasaba con la lista vacía y la
+  // pantalla afirmaba que el salón del cliente "no coincide con ninguno de los registrados"
+  // sin haber mirado ninguno.
+  //
+  // Ahora se afirma sobre la señal correcta: que el prellenado no ocurre mientras los salones
+  // no se puedan DECIDIR, y que esa señal distingue los tres estados.
+  {
+    const efecto = entre(alta, "useEffect(() => {\n    if (!prefill) return;", "}, [prefill, salonesConocidos]);");
+    check(
+      "9C: el prellenado no ocurre con la lista de salones en un estado que no permite decidir",
+      /if \(salonesConocidos === null\) return;/.test(efecto) &&
+        !/cargando\) return;/.test(efecto),
+      efecto ? "" : "no se encontró el efecto del prellenado",
+    );
+    // Y la señal tiene que ser de TRES estados: `null` cuando no se sabe (ni cargando ni caído),
+    // la lista cuando sí. Si volviera a ser `datos?.sals || []`, el contrato de arriba pasaría
+    // sin que la propiedad se cumpliera.
+    check(
+      "9C: `salonesConocidos` distingue «no lo sé» de «no hay ninguno»",
+      /const salonesConocidos = errorCarga \? null : \(datos \? salones : null\);/.test(alta),
+    );
+    // Y el módulo puro tiene que tener ese tercer resultado, o la señal no serviría de nada.
+    check(
+      "9C: `resolverSalon` no afirma nada si no recibe la lista",
+      /if \(!Array\.isArray\(salones\)\) return \{ salonId: "", motivo: "lista_no_disponible" \};/.test(mapeo) &&
+        /puedeDecidirSalon: salon\.motivo !== "lista_no_disponible"/.test(mapeo),
+    );
+    // El aviso, con la lista caída, NO puede decir que no coincide.
+    {
+      const rama = entre(mapeo, 'if (salon.motivo === "lista_no_disponible")', 'else if (salon.motivo === "no_casa")');
+      check(
+        "9C: con la lista caída no se afirma que el salón no coincide",
+        /NO se ha comprobado/.test(rama) && !/no coincide con ninguno/.test(rama),
+        rama ? "" : "no se encontró la rama de lista no disponible",
+      );
+    }
+    // El traspaso NO se consume hasta que se aplica: si se perdiera, el dueño tendría que
+    // volver a Solicitudes sin saber que hace falta.
+    check(
+      "9C: el prellenado no se da por consumido si no se llegó a aplicar",
+      /abrirCrear\(prefill, salonesConocidos\);\s*\n\s*onPrefillConsumido\?\.\(\);/.test(alta),
+    );
+    // Y el dueño tiene salida: se le dice qué pasa y puede reintentar.
+    check(
+      "9C: con la lista caída y una conversión esperando, se explica y se ofrece reintentar",
+      /prefill && salonesConocidos === null &&/.test(alta) &&
+        /No se puede convertir ahora mismo/.test(alta) && /onClick=\{recargar\}/.test(alta),
+    );
+    // La ficha del evento tiene el mismo desplegable y el mismo riesgo.
+    check(
+      "9C: la ficha avisa si el desplegable de salón está vacío por un fallo de lectura",
+      /salonesFallaron && \(/.test(leerCodigo("src/components/admin/eventos/EventoDatos.jsx")) &&
+        /salonesFallaron=\{salonesConocidos === null && !cargando\}/.test(alta),
+    );
+  }
+}
+
+// ---------------------------------------------------------------- CSP e imágenes (9D)
+// J-12: `CtaCotizacion` pintaba SIEMPRE un fondo de `images.unsplash.com`, y la CSP desplegada
+// solo admite `'self'`, `data:`, `blob:` y el bucket en `img-src`. La franja que pide cotización
+// —la que genera el negocio— llevaba un fondo que el navegador bloquea. Otros cuatro
+// componentes tenían placeholders del mismo origen en el camino degradado.
+//
+// El arreglo NO es ensanchar la CSP: el proyecto ya sacó imgur por esto mismo (D3,
+// "independencia total"). Se auto-hospedan.
+{
+  // `leerCodigo` y no `leer`: las cabeceras explican de dónde venía el fallo y citan el
+  // dominio. Buscarlo con comentarios haría fallar el contrato por su propia documentación.
+  const publicos = [
+    "src/components/CtaCotizacion.jsx",
+    "src/components/GaleriaSection.jsx",
+    "src/components/SalonesSection.jsx",
+    "src/components/SalonOverlay.jsx",
+    "src/components/ServiciosAmenidades.jsx",
+    "src/components/Confianza.jsx",
+    "src/pages/Home.jsx",
+  ];
+  const HOSTS_DE_IMAGEN = /https:\/\/(images\.unsplash\.com|i\.imgur\.com|media\.base44\.com|[a-z0-9-]+\.cloudfront\.net|cdn\.[a-z0-9-]+\.[a-z]{2,})/;
+  const sucios = publicos.filter((f) => HOSTS_DE_IMAGEN.test(leerCodigo(f)));
+  check(
+    "9D: ningún componente público carga imágenes de un origen que la CSP bloquea",
+    sucios.length === 0,
+    sucios.join(", "),
+  );
+
+  // Y las que se usan en su lugar existen de verdad en `public/`. Un placeholder que apunta a
+  // un archivo que no está es el mismo hueco roto, solo que sin culpa de la CSP.
+  {
+    const faltan = [];
+    for (const f of publicos) {
+      // Comillas dobles Y simples: `CtaCotizacion` escribe `url('/media/...')` dentro de una
+      // cadena, así que mirar solo `"..."` dejaba fuera justo el archivo del hallazgo.
+      for (const m of leerCodigo(f).matchAll(/["'](\/media\/[A-Za-z0-9_./-]+)["']/g)) {
+        try { leer(`public${m[1]}`); } catch { faltan.push(`${f} -> ${m[1]}`); }
+      }
+    }
+    check("9D: los medios auto-hospedados que se citan existen en `public/`", faltan.length === 0, faltan.join(" · "));
+  }
+
+  // La CSP NO se ensancha para arreglarlo. Este es el contrato que impide "resolverlo" por el
+  // camino fácil dentro de seis meses.
+  {
+    const csp = leer("vercel.json");
+    const imgSrc = (csp.match(/img-src[^;\\"]*/) || [""])[0];
+    check(
+      "9D: `img-src` sigue sin admitir orígenes de terceros",
+      /img-src 'self' data: blob: https:\/\/[a-z0-9]+\.supabase\.co/.test(imgSrc) &&
+        !/unsplash|imgur|base44|cloudfront/.test(imgSrc),
+      imgSrc,
+    );
+  }
+}
+
 // ---------------------------------------------------------------- salida
 let fallan = 0;
 for (const c of casos) {
