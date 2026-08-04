@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback } from "react";
 import { base44 } from "@/api/base44Client";
 import { SOLICITUD_ESTATUS } from "@/lib/catalogos";
 import { Eye, X, User, Calendar, Building2, AlertTriangle, Loader2 } from "lucide-react";
+import { EsqueletoFilas } from "@/components/ui/Estado";
 
 /**
  * ESTATUS — la lista viene de la BASE, no al revés.
@@ -61,6 +62,9 @@ export default function AdminSolicitudes() {
   const [error, setError] = useState("");
   const [ok, setOk] = useState("");
   const [guardando, setGuardando] = useState("");
+  // Tercer estado: mientras la primera lectura está en vuelo no se puede afirmar ni que hay
+  // solicitudes ni que no las hay.
+  const [cargando, setCargando] = useState(true);
 
   // `filterEstricto`, no `list`: con `list` un fallo de lectura devuelve `[]` y la pantalla
   // dice "0 solicitudes recibidas" — indistinguible de que no haya ninguna.
@@ -68,7 +72,8 @@ export default function AdminSolicitudes() {
     () =>
       base44.entities.SolicitudEvento.filterEstricto(null, "-created_date")
         .then((r) => { setSolicitudes(r); return r; })
-        .catch(() => { setError("No se pudieron cargar las solicitudes. Recarga la página."); return null; }),
+        .catch(() => { setError("No se pudieron cargar las solicitudes. Recarga la página."); return null; })
+        .finally(() => setCargando(false)),
     [],
   );
   useEffect(() => { load(); }, [load]);
@@ -177,7 +182,8 @@ export default function AdminSolicitudes() {
                 })}
                 </tbody>
         </table>
-        {solicitudes.length === 0 && (
+        {cargando && <div className="p-4"><EsqueletoFilas filas={5} alto="h-12" /></div>}
+        {!cargando && solicitudes.length === 0 && (
           <p className="text-white/20 text-sm py-10 text-center">Aún no hay solicitudes.</p>
         )}
       </div>

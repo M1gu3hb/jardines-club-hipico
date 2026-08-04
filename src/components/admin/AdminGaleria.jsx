@@ -1,17 +1,20 @@
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { base44 } from "@/api/base44Client";
 import { Trash2, Loader2, Plus, Play, Link } from "lucide-react";
 import { isVideo } from "../MediaViewer";
+import { useCarga } from "@/lib/useCarga";
+import { Estado, EsqueletoTarjetas } from "@/components/ui/Estado";
 
 export default function AdminGaleria() {
-  const [galeria, setGaleria] = useState([]);
   const [uploading, setUploading] = useState(false);
   const [videoUrl, setVideoUrl] = useState("");
   const [videoTitulo, setVideoTitulo] = useState("");
   const [addingUrl, setAddingUrl] = useState(false);
 
-  const load = () => base44.entities.Galeria.list("-orden").then(setGaleria);
-  useEffect(() => { load(); }, []);
+  const { datos, cargando, error, recargar } = useCarga(
+    () => base44.entities.Galeria.listEstricto("-orden"), []);
+  const galeria = datos || [];
+  const load = recargar;
 
   const handleUpload = async (e) => {
     const files = Array.from(e.target.files);
@@ -89,6 +92,13 @@ export default function AdminGaleria() {
         </div>
       )}
 
+      <Estado
+        cargando={cargando} error={error} onReintentar={recargar}
+        vacio={!uploading && galeria.length === 0}
+        mensajeVacio="Aún no hay elementos en la galería."
+        mensajeError="No se pudo cargar la galería."
+        esqueleto={<EsqueletoTarjetas n={8} alto="aspect-square h-auto" columnas="grid-cols-2 md:grid-cols-3 lg:grid-cols-4" />}
+      >
       <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3">
         {galeria.map((item) => (
           <div key={item.id} className="group relative aspect-square">
@@ -110,12 +120,8 @@ export default function AdminGaleria() {
             <p className="text-white/30 text-xs mt-1 truncate">{item.titulo}</p>
           </div>
         ))}
-        {!uploading && galeria.length === 0 && (
-          <div className="col-span-full text-center py-16">
-            <p className="text-white/20 text-sm">Aún no hay elementos en la galería.</p>
-          </div>
-        )}
       </div>
+      </Estado>
     </div>
   );
 }

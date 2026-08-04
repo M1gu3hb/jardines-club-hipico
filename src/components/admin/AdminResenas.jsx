@@ -1,7 +1,9 @@
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { base44 } from "@/api/base44Client";
 import { Plus, Loader2, Trash2, Star, Eye, EyeOff, Check } from "lucide-react";
 import { Field, Area } from "@/components/admin/eventos/_ui";
+import { useCarga } from "@/lib/useCarga";
+import { Estado, EsqueletoFilas } from "@/components/ui/Estado";
 
 const VACIO = { autor: "", evento: "", estrellas: 5, texto: "" };
 
@@ -18,14 +20,15 @@ function Estrellas({ n = 5, onChange }) {
 }
 
 export default function AdminResenas() {
-  const [resenas, setResenas] = useState([]);
   const [form, setForm] = useState(VACIO);
   const [creando, setCreando] = useState(false);
   const [guardando, setGuardando] = useState(false);
   const set = (k, v) => setForm((f) => ({ ...f, [k]: v }));
 
-  const cargar = () => base44.entities.Resena.list("-created_date").then(setResenas);
-  useEffect(() => { cargar(); }, []);
+  const { datos, cargando, error, recargar } = useCarga(
+    () => base44.entities.Resena.listEstricto("-created_date"), []);
+  const resenas = datos || [];
+  const cargar = recargar;
 
   const crear = async () => {
     if (!form.texto.trim() || !form.autor.trim()) return;
@@ -87,6 +90,13 @@ export default function AdminResenas() {
         </div>
       )}
 
+      <Estado
+        cargando={cargando} error={error} onReintentar={recargar}
+        vacio={resenas.length === 0}
+        mensajeVacio="Aún no hay reseñas."
+        mensajeError="No se pudieron cargar las reseñas."
+        esqueleto={<EsqueletoFilas filas={3} alto="h-24" />}
+      >
       <div className="space-y-2">
         {resenas.map((r) => (
           <div key={r.id} className={`flex items-start gap-4 bg-[#111] border px-5 py-4 ${r.aprobada ? "border-white/5" : "border-[#C9A84C]/25"}`}>
@@ -109,8 +119,8 @@ export default function AdminResenas() {
             </div>
           </div>
         ))}
-        {resenas.length === 0 && <p className="text-white/20 text-sm py-8 text-center">Aún no hay reseñas.</p>}
       </div>
+      </Estado>
     </div>
   );
 }
