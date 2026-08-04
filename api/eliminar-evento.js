@@ -295,11 +295,29 @@ export default async function handler(req, res) {
         hecho,
       });
     }
+    // ...pero ACOTADAS AL PREFIJO DEL EVENTO. `documentos.archivo_url` es una columna que
+    // escribe el navegador: `documentos_ins` y `documentos_upd` son `is_admin()` sin restricción
+    // de columna ni de valor, igual que `eventos_upd`. Sin este filtro, una `archivo_url` con
+    // cualquier ruta haría que este borrado destruyera un objeto arbitrario del bucket
+    // `clientes` — los documentos de OTRO cliente. Es el mismo fallo que el uuid de Auth, un
+    // piso más abajo: el dato viene de fuera y no era mío. Lo que quede fuera del prefijo no se
+    // borra y se deja anotado; no se corta, porque no borrarlo es justamente lo correcto.
+    const prefijo = `${eventoId}/`;
+    const rutasDeTabla = (docs || []).map((d) => String(d.archivo_url || "").trim()).filter(Boolean);
+    const rutasAjenas = rutasDeTabla.filter((r) => !r.startsWith(prefijo));
     const rutas = [...new Set([
-      ...(objetos || []).filter((o) => o.name && o.id !== null).map((o) => `${eventoId}/${o.name}`),
-      ...(docs || []).map((d) => String(d.archivo_url || "").trim()).filter(Boolean),
+      ...(objetos || []).filter((o) => o.name && o.id !== null).map((o) => `${prefijo}${o.name}`),
+      ...rutasDeTabla.filter((r) => r.startsWith(prefijo)),
     ])];
     hecho.archivosPedidos = rutas.length;
+    hecho.rutasAjenasIgnoradas = rutasAjenas.length;
+    if (rutasAjenas.length) {
+      await auditar(admin, "eliminar_evento", "error", {
+        entidad: "eventos", entidadId: eventoId, eventoId,
+        detalle: { paso: "rutas_fuera_del_evento", incidente: "archivo_url_fuera_de_prefijo",
+                   rutas: rutasAjenas },
+      });
+    }
     if (rutas.length) {
       const { data: borrados, error: errDel } = await admin.storage.from(BUCKET).remove(rutas);
       // 200 con lista vacía = la policy denegó. "Sin error" no es "borró".

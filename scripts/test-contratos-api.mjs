@@ -1039,8 +1039,22 @@ for (const ruta of [
     check(
       "eliminar-evento: las rutas salen del listado Y de documentos.archivo_url",
       /from\("documentos"\)\.select\("archivo_url"\)/.test(api) &&
-        /new Set\(\[[\s\S]{0,400}d\.archivo_url/.test(api),
+        /const rutasDeTabla = \(docs \|\| \[\]\)[\s\S]{0,120}d\.archivo_url/.test(api),
     );
+    // `archivo_url` la escribe el navegador (`documentos_upd` es `is_admin()` sin restricción de
+    // columna). Sin acotar al prefijo, este borrado destruiría un objeto arbitrario del bucket
+    // `clientes` — los documentos de otro cliente. La unión de fuentes solo es segura acotada.
+    {
+      const iPrefijo = api.indexOf("const prefijo = `${eventoId}/`");
+      const iRutas = api.indexOf("const rutas = [...new Set([");
+      check(
+        "eliminar-evento: solo se borran rutas dentro de la carpeta del evento",
+        iPrefijo > 0 && iRutas > iPrefijo &&
+          /rutasDeTabla\.filter\(\(r\) => r\.startsWith\(prefijo\)\)/.test(api) &&
+          /archivo_url_fuera_de_prefijo/.test(api),
+        `prefijo=${iPrefijo} rutas=${iRutas}`,
+      );
+    }
     {
       // Una subcarpeta llega con `id: null`; mandarla a `remove` no borra nada y `n < pedidos`
       // dejaba el evento imposible de borrar con el mensaje "0 de 1 archivos".
