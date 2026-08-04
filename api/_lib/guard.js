@@ -259,6 +259,48 @@ export async function usuarioEsClienteDelEvento(admin, userId, eventoId) {
 }
 
 /**
+ * Margen para considerar que una cuenta "acaba de crearse". Una petición serverless entera cabe
+ * de sobra: el alta más larga (`crear-usuario-evento`) crea el usuario, asigna rol, actualiza el
+ * evento, aprovisiona el enlace y manda el correo, y la función tiene un tope muy por debajo de
+ * esto. Lo que queda fuera son las cuentas que ya existían, que es justo lo que hay que excluir.
+ */
+const VENTANA_RECIEN_CREADO_MS = 10 * 60 * 1000;
+
+/**
+ * ¿Esa cuenta se creó hace un momento?
+ *
+ * Es la comprobación real que sostiene el permiso `recien_creado_aqui`. No demuestra que el uuid
+ * venga de ESTA petición —eso es un contrato de llamador, verificado estáticamente—, pero sí
+ * descarta lo que importa: cualquier uuid leído de la base apunta a una cuenta vieja.
+ *
+ * Falla CERRADO. Si la lectura no se puede hacer no se borra: `compensarAlta` lo registra como
+ * `compensacion_incompleta`, que es un incidente que alguien mira, en vez de un hard delete a
+ * ciegas sobre la tabla que se comparte con Vero.
+ */
+export async function usuarioRecienCreado(admin, userId) {
+  let usuario;
+  try {
+    const { data, error } = await admin.auth.admin.getUserById(userId);
+    if (error) {
+      console.error("[guard] getUserById:", error.message);
+      return { ok: false, motivo: "lectura_de_auth_fallida" };
+    }
+    if (!data?.user) return { ok: false, motivo: "usuario_no_encontrado" };
+    usuario = data.user;
+  } catch (e) {
+    console.error("[guard] getUserById:", e.message);
+    return { ok: false, motivo: "lectura_de_auth_fallida" };
+  }
+
+  const creado = Date.parse(usuario.created_at || "");
+  if (!Number.isFinite(creado)) return { ok: false, motivo: "sin_fecha_de_alta" };
+  if (Date.now() - creado > VENTANA_RECIEN_CREADO_MS) {
+    return { ok: false, motivo: "la_cuenta_no_es_reciente" };
+  }
+  return { ok: true, motivo: "recien_creada" };
+}
+
+/**
  * Borra un usuario de Auth, CONFIRMA que se borró, y **nunca sin saber de quién es**.
  *
  * `admin.auth.admin.deleteUser()` resuelve con `{ error }` en vez de rechazar, así que un
@@ -273,12 +315,20 @@ export async function usuarioEsClienteDelEvento(admin, userId, eventoId) {
  * Dos permisos, y solo dos:
  *
  *   - `{ tipo: "cliente_de_evento", eventoId }` — comprueba `usuarioEsClienteDelEvento`.
- *   - `{ tipo: "recien_creado_aqui", creadoEnEstaPeticion }` — la compensación de un alta que
- *     falló a mitad. Es una excepción **estrecha**: solo vale si el uuid a borrar es idéntico al
- *     que esta misma petición acaba de crear. En ese instante el usuario todavía puede no tener
- *     perfil ni correo de portal (`crear-admin` acuña correos reales), así que la comprobación
- *     de cliente lo rechazaría y dejaría vivo un admin a medio crear con su aprovisionamiento
- *     pendiente — peor que el problema. No se puede usar con un uuid que venga de la base.
+ *   - `{ tipo: "recien_creado_aqui" }` — la compensación de un alta que falló a mitad. Comprueba
+ *     que la cuenta se haya creado **hace un momento** (`VENTANA_RECIEN_CREADO_MS`). En ese
+ *     instante el usuario todavía puede no tener perfil ni correo de portal (`crear-admin` acuña
+ *     correos reales), así que la comprobación de cliente lo rechazaría y dejaría vivo un admin a
+ *     medio crear con su aprovisionamiento pendiente — peor que el problema.
+ *
+ *     LO QUE ESTE PERMISO **NO** COMPRUEBA, y hay que saberlo: que el uuid sea el que ESTA
+ *     petición creó. Eso es un **contrato de llamador**, no una comprobación — los tres sitios
+ *     que llaman a `compensarAlta` pasan su `nuevoId`, que sale de `createUser` y nunca de una
+ *     lectura de la base. Lo vigila un contrato estático de `scripts/test-contratos-api.mjs`.
+ *     Antes había aquí un `if (permiso.creadoEnEstaPeticion !== userId)` que el único llamador
+ *     satisfacía pasando `userId` como las dos cosas: `userId !== userId`, siempre falso, no
+ *     rechazaba nunca nada. Aparentaba comprobar sin comprobar, que es peor que no tener el
+ *     candado porque invita a confiar. Se cambió por la ventana temporal, que sí mira algo real.
  *
  * Devuelve `{ ok, motivo }`: quien llama necesita el motivo para auditarlo.
  */
@@ -289,9 +339,8 @@ export async function borrarUsuario(admin, userId, permiso) {
     const veredicto = await usuarioEsClienteDelEvento(admin, userId, permiso.eventoId);
     if (!veredicto.ok) return veredicto;
   } else if (permiso?.tipo === "recien_creado_aqui") {
-    if (!permiso.creadoEnEstaPeticion || permiso.creadoEnEstaPeticion !== userId) {
-      return { ok: false, motivo: "no_es_el_usuario_creado_aqui" };
-    }
+    const veredicto = await usuarioRecienCreado(admin, userId);
+    if (!veredicto.ok) return veredicto;
   } else {
     console.error("[guard] borrarUsuario sin permiso declarado");
     return { ok: false, motivo: "permiso_no_declarado" };
@@ -318,10 +367,12 @@ export async function borrarUsuario(admin, userId, permiso) {
  * estado colgando que una persona tiene que revisar.
  */
 export async function compensarAlta(admin, { userId, correo, accion }) {
-  // La excepción estrecha: `userId` es siempre el que ESTA petición acaba de crear (los tres
-  // llamadores pasan su `nuevoId`), nunca un uuid leído de la base. Ver `borrarUsuario`.
+  // La excepción estrecha. `userId` tiene que ser el que ESTA petición acaba de crear: los tres
+  // llamadores pasan su `nuevoId`, que sale de `createUser` y nunca de una lectura de la base.
+  // Eso es un contrato de llamador —lo vigila un contrato estático—; lo que `borrarUsuario`
+  // comprueba de verdad es que la cuenta sea reciente. Ver su cabecera.
   const usuarioBorrado = userId
-    ? (await borrarUsuario(admin, userId, { tipo: "recien_creado_aqui", creadoEnEstaPeticion: userId })).ok
+    ? (await borrarUsuario(admin, userId, { tipo: "recien_creado_aqui" })).ok
     : true;
   let aproRevocado = true;
   if (correo) {

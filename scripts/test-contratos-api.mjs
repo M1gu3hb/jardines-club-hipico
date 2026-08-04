@@ -991,18 +991,63 @@ for (const ruta of [
     );
   }
 
-  // 4) La excepción de la compensación es estrecha: solo el uuid que ESA petición acaba de crear.
+  // 4) La excepción de la compensación. Tiene DOS mitades y hay que vigilar las dos por separado,
+  // porque una es una comprobación y la otra es un contrato de llamador.
+  //
+  // Aquí vivía un contrato que pasaba sin comprobar nada: afirmaba
+  // `permiso.creadoEnEstaPeticion !== userId`, y el único llamador pasaba `userId` como las dos
+  // cosas — `userId !== userId`, siempre falso, no rechazaba nunca. El contrato era cierto y la
+  // propiedad que decía vigilar no existía.
   {
     const cuerpo = entre(guard, "export async function borrarUsuario(", "\n}\n");
+    // (i) La mitad que SÍ es una comprobación: la cuenta tiene que ser reciente.
     check(
-      "borrarUsuario: la excepción de compensación exige que el uuid sea el creado en la petición",
-      /permiso\.creadoEnEstaPeticion !== userId/.test(cuerpo) &&
-        /no_es_el_usuario_creado_aqui/.test(cuerpo),
+      "borrarUsuario: la compensación solo borra cuentas recién creadas",
+      /usuarioRecienCreado\(admin, userId\)/.test(cuerpo) && !/creadoEnEstaPeticion/.test(cuerpo),
+      cuerpo ? "" : "no se encontró borrarUsuario",
+    );
+    const ventana = entre(guard, "export async function usuarioRecienCreado(", "\n}\n");
+    check(
+      "usuarioRecienCreado: mide contra `created_at` y falla cerrado",
+      /Date\.now\(\) - creado > VENTANA_RECIEN_CREADO_MS/.test(ventana) &&
+        /la_cuenta_no_es_reciente/.test(ventana) &&
+        /lectura_de_auth_fallida/.test(ventana) && /sin_fecha_de_alta/.test(ventana),
+      ventana ? "" : "no se encontró usuarioRecienCreado",
     );
     check(
       "compensarAlta: usa la excepción estrecha, no la de cliente",
-      /borrarUsuario\(admin, userId, \{ tipo: "recien_creado_aqui", creadoEnEstaPeticion: userId \}\)/.test(guard),
+      /borrarUsuario\(admin, userId, \{ tipo: "recien_creado_aqui" \}\)/.test(guard),
     );
+  }
+
+  // (ii) La mitad que es un CONTRATO DE LLAMADOR, y por eso se verifica aquí y no en ejecución:
+  // el uuid que se compensa tiene que salir de `createUser`, nunca de una lectura de la base. Si
+  // alguien pasara a `compensarAlta` un `auth_user_id` leído de `eventos`, la compensación se
+  // convertiría en el mismo agujero que 8F cerró.
+  {
+    for (const ruta of ["api/crear-admin.js", "api/crear-usuario-evento.js"]) {
+      const s = leerCodigo(ruta);
+      // La variable arranca en null y solo se le asigna el id que devuelve `createUser`.
+      const asignaciones = [...s.matchAll(/\bnuevoId\s*=\s*([^;]+);/g)].map((m) => m[1].trim());
+      const validas = asignaciones.length > 0 &&
+        asignaciones.every((v) => v === "null" || v === "created.user.id");
+      // Y lo que se compensa es esa variable, no otra cosa.
+      const compensaciones = [...s.matchAll(/compensarAlta\(admin,\s*\{([\s\S]*?)\}\)/g)]
+        .map((m) => m[1]).filter((c) => /userId\s*:/.test(c));
+      const compensanNuevoId = compensaciones.length > 0 &&
+        compensaciones.every((c) => /userId:\s*nuevoId\b/.test(c));
+      check(
+        `${ruta}: lo que se compensa es el id que devolvió createUser, no uno leído de la base`,
+        validas && compensanNuevoId,
+        `asignaciones=[${asignaciones.join(" | ")}] compensaciones=${compensaciones.length}`,
+      );
+    }
+    // Nadie más puede llamar a `compensarAlta`: un tercer llamador quedaría fuera del contrato de
+    // arriba y la propiedad dejaría de estar cubierta sin que nada fallara.
+    const rutas = ["api/eliminar-evento.js", "api/canjear-acceso.js", "api/notificar.js",
+                   "api/correo-cliente.js", "api/solicitud.js", "api/cron-recordatorios.js"];
+    const intrusos = rutas.filter((r) => /compensarAlta\(/.test(leerCodigo(r)));
+    check("compensarAlta: solo la llaman las dos rutas de alta", intrusos.length === 0, intrusos.join(", "));
   }
 
   // 5) El endpoint pasa el permiso de cliente, con SU eventoId.
