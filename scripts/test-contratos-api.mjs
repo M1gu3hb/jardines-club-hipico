@@ -1662,32 +1662,52 @@ for (const ruta of [
     "9C: se avisa de que los datos los escribió el cliente y hay que revisarlos",
     /lo escribió él, no tú/.test(alta) && /avisosPrefill\.map/.test(alta),
   );
-  // EL PRELLENADO Y LA LISTA DE SALONES — reescrito en 9E-1.
+  // EL PRELLENADO Y LA LISTA DE SALONES — reescrito en 9E-1, corregido en 9F-1 (G1).
   //
-  // El contrato anterior afirmaba `if (!prefill || cargando) return;`. No era vacuo —mutarlo
+  // El contrato original afirmaba `if (!prefill || cargando) return;`. No era vacuo —mutarlo
   // fallaba— pero certificaba **el guardarraíl equivocado**, que es peor: daba luz verde justo
   // a la condición que falla. `cargando` es `false` cuando la lectura se CAE (`useCarga` llena
   // `error` y deja `datos` en null), así que el prellenado pasaba con la lista vacía y la
   // pantalla afirmaba que el salón del cliente "no coincide con ninguno de los registrados"
   // sin haber mirado ninguno.
   //
-  // Ahora se afirma sobre la señal correcta: que el prellenado no ocurre mientras los salones
-  // no se puedan DECIDIR, y que esa señal distingue los tres estados.
+  // 9E-1 lo ató a `salonesConocidos = errorCarga ? null : (datos ? salones : null)`. Esa señal
+  // arreglaba la dirección peligrosa pero afirmaba algo falso en la otra: `useCarga` **conserva
+  // `datos` a propósito** cuando una recarga falla, así que "recarga caída + lista buena en
+  // memoria" es un estado alcanzable —guardar en la ficha de un evento y que la recarga que
+  // dispara `onActualizado` se caiga— y ahí `salonesConocidos` valía `null` mientras el
+  // desplegable pintaba los ocho salones. La pantalla decía "aquí no sale ninguno" con ocho
+  // delante.
+  //
+  // 9F-1 las separa en dos preguntas: ¿tengo lista? (`datos`) y ¿está al día? (`errorCarga`).
   {
-    const efecto = entre(alta, "useEffect(() => {\n    if (!prefill) return;", "}, [prefill, salonesConocidos]);");
+    const efecto = entre(alta, "useEffect(() => {\n    if (!prefill) return;", "}, [prefill, salonesDisponibles]);");
     check(
-      "9C: el prellenado no ocurre con la lista de salones en un estado que no permite decidir",
-      /if \(salonesConocidos === null\) return;/.test(efecto) &&
+      "9C: el prellenado no ocurre sin ninguna lista de salones con la que decidir",
+      /if \(salonesDisponibles === null\) return;/.test(efecto) &&
         !/cargando\) return;/.test(efecto),
       efecto ? "" : "no se encontró el efecto del prellenado",
     );
-    // Y la señal tiene que ser de TRES estados: `null` cuando no se sabe (ni cargando ni caído),
-    // la lista cuando sí. Si volviera a ser `datos?.sals || []`, el contrato de arriba pasaría
-    // sin que la propiedad se cumpliera.
+    // La señal tiene que ser de TRES estados: `null` cuando no hay ninguna lista, la lista
+    // cuando sí. Si volviera a ser `datos?.sals || []`, el contrato de arriba pasaría sin que la
+    // propiedad se cumpliera.
+    //
+    // Y **no puede depender de `errorCarga`**: eso es lo que reintroduciría G1 — negarle al
+    // dueño una conversión que sí podía terminar, y llamar "no legible" a una lista que tiene
+    // delante. Las dos mitades se afirman por separado.
     check(
-      "9C: `salonesConocidos` distingue «no lo sé» de «no hay ninguno»",
-      /const salonesConocidos = errorCarga \? null : \(datos \? salones : null\);/.test(alta),
+      "9C: `salonesDisponibles` distingue «no tengo ninguna» de «miré y no hay ninguno»",
+      /const salonesDisponibles = datos \? salones : null;/.test(alta),
     );
+    {
+      const def = entre(alta, "const salonesDisponibles =", "\n");
+      check(
+        "9F-1: tener lista y tenerla al día son señales distintas",
+        !/errorCarga/.test(def) &&
+          /const salonesDesactualizados = Boolean\(errorCarga && datos\);/.test(alta),
+        def ? `definición: ${def.trim()}` : "no se encontró la definición",
+      );
+    }
     // Y el módulo puro tiene que tener ese tercer resultado, o la señal no serviría de nada.
     check(
       "9C: `resolverSalon` no afirma nada si no recibe la lista",
@@ -1707,19 +1727,94 @@ for (const ruta of [
     // volver a Solicitudes sin saber que hace falta.
     check(
       "9C: el prellenado no se da por consumido si no se llegó a aplicar",
-      /abrirCrear\(prefill, salonesConocidos\);\s*\n\s*onPrefillConsumido\?\.\(\);/.test(alta),
+      /abrirCrear\(prefill, salonesDisponibles\);\s*\n\s*onPrefillConsumido\?\.\(\);/.test(alta),
     );
     // Y el dueño tiene salida: se le dice qué pasa y puede reintentar.
     check(
-      "9C: con la lista caída y una conversión esperando, se explica y se ofrece reintentar",
-      /prefill && salonesConocidos === null &&/.test(alta) &&
+      "9C: sin ninguna lista y con una conversión esperando, se explica y se ofrece reintentar",
+      /prefill && salonesDisponibles === null &&/.test(alta) &&
         /No se puede convertir ahora mismo/.test(alta) && /onClick=\{recargar\}/.test(alta),
     );
-    // La ficha del evento tiene el mismo desplegable y el mismo riesgo.
+    // La ficha del evento tiene el mismo desplegable y el mismo riesgo, y recibe LAS DOS
+    // señales: sin lista el control está muerto y hay que decirlo; con lista vieja se puede
+    // trabajar avisando.
     check(
-      "9C: la ficha avisa si el desplegable de salón está vacío por un fallo de lectura",
-      /salonesFallaron && \(/.test(leerCodigo("src/components/admin/eventos/EventoDatos.jsx")) &&
-        /salonesFallaron=\{salonesConocidos === null && !cargando\}/.test(alta),
+      "9C: la ficha recibe por separado «no hay lista» y «la lista puede estar vieja»",
+      /salonesIlegibles=\{salonesDisponibles === null && !cargando\}/.test(alta) &&
+        /salonesDesactualizados=\{salonesDesactualizados\}/.test(alta),
+    );
+  }
+
+  // ── G1 · EL AVISO NO PUEDE CONTRADECIR AL DESPLEGABLE ────────────────────────
+  //
+  // Esto NO se contrata sobre el texto. Que la frase "aquí no sale ninguno" esté escrita en el
+  // archivo no dice nada sobre cuándo se pinta: escrita estaba también cuando se pintaba con
+  // ocho salones a la vista. La propiedad es **cuál es su condición**, y tiene que ser la misma
+  // magnitud que llena el desplegable.
+  //
+  // Se deriva del propio render en vez de fijarla a mano: se lee de qué array salen los
+  // `<option>` y se exige que el aviso esté gobernado por la LONGITUD DE ESE MISMO array. Si
+  // alguien cambia el desplegable a otra fuente, el contrato lo sigue; si vuelve a colgar el
+  // aviso de un flag de error, falla.
+  {
+    /**
+     * @param {string} archivo  componente con el desplegable de salón
+     * @param {string} aviso    trozo del texto del aviso de "no sale ninguno"
+     */
+    const avisoAtadoAlDesplegable = (archivo, aviso) => {
+      // `leerCodigo`: los comentarios de estos dos archivos explican justamente la regresión y
+      // citan `salones.length`, así que con comentarios el contrato se aprobaría a sí mismo.
+      const bloque = entre(leerCodigo(archivo), ">Salón</label>", "</select>");
+      if (!bloque) return { ok: false, detalle: `${archivo}: no se encontró el bloque del salón` };
+
+      // 1) ¿De qué array salen las opciones?
+      const fuente = bloque.match(/\{\s*(\w+)\.map\(/);
+      if (!fuente) return { ok: false, detalle: `${archivo}: el desplegable no mapea ningún array` };
+      const arr = fuente[1];
+
+      // 2) La condición que gobierna el aviso: el `&& (` que lo abre, hacia atrás desde el texto.
+      const i = bloque.indexOf(aviso);
+      if (i < 0) return { ok: false, detalle: `${archivo}: no se encontró el aviso «${aviso}»` };
+      const antes = bloque.slice(0, i);
+      const j = antes.lastIndexOf("&& (");
+      const cond = j < 0 ? "" : antes.slice(antes.lastIndexOf("{", j), j);
+
+      // 3) Tiene que exigir que ese array esté VACÍO. Y sin `||`: un
+      //    `salones.length === 0 || salonesIlegibles` volvería a permitir pintarlo con opciones.
+      const ok = new RegExp(`${arr}\\.length\\s*===\\s*0`).test(cond) && !cond.includes("||");
+      return { ok, detalle: ok ? "" : `${archivo}: condición del aviso = «${cond.trim()}» (array del desplegable: ${arr})` };
+    };
+
+    for (const [archivo, aviso] of [
+      ["src/components/admin/eventos/AdminEventos.jsx", "aquí no sale ninguno"],
+      ["src/components/admin/eventos/EventoDatos.jsx", "aquí no sale ninguno"],
+    ]) {
+      const r = avisoAtadoAlDesplegable(archivo, aviso);
+      check(`9F-1: «no sale ninguno» no se puede pintar con el desplegable lleno (${archivo.split("/").pop()})`, r.ok, r.detalle);
+    }
+
+    // El recíproco, y no es simetría gratuita: el aviso de "puede estar desactualizada" habla de
+    // una lista que se está viendo. Pintado con el desplegable vacío serían dos avisos que se
+    // contradicen en el mismo hueco.
+    for (const archivo of [
+      "src/components/admin/eventos/AdminEventos.jsx",
+      "src/components/admin/eventos/EventoDatos.jsx",
+    ]) {
+      const bloque = entre(leerCodigo(archivo), ">Salón</label>", "</select>");
+      check(
+        `9F-1: «puede estar desactualizada» solo con opciones delante (${archivo.split("/").pop()})`,
+        /salonesDesactualizados && salones\.length > 0 && \(/.test(bloque) &&
+          /desactualizada/.test(bloque),
+        bloque ? "" : `${archivo}: no se encontró el bloque del salón`,
+      );
+    }
+
+    // Y el motivo sigue siendo distinto según el estado: "no se pudo leer" y "no hay ninguno"
+    // son afirmaciones diferentes sobre el mundo y no se pueden fundir en una.
+    check(
+      "9F-1: con el desplegable vacío se distingue «no se pudo leer» de «no hay ninguno»",
+      /salonesDisponibles === null\s*\n?\s*\? "No se pudo leer la lista de salones/.test(alta) &&
+        /: "No hay salones registrados todavía/.test(alta),
     );
   }
 }

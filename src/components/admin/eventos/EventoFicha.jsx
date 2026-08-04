@@ -21,7 +21,7 @@ const SUBTABS = [
   { id: "qr", label: "QR / Meseros", icon: QrCode },
 ];
 
-export default function EventoFicha({ evento, salones, salonesFallaron = false, onVolver, onActualizado, onBorrado }) {
+export default function EventoFicha({ evento, salones, salonesIlegibles = false, salonesDesactualizados = false, onVolver, onActualizado, onBorrado }) {
   const [tab, setTab] = useState("datos");
 
   return (
@@ -51,7 +51,7 @@ export default function EventoFicha({ evento, salones, salonesFallaron = false, 
         ))}
       </div>
 
-      {tab === "datos" && <EventoDatos evento={evento} salones={salones} salonesFallaron={salonesFallaron} onActualizado={onActualizado} onBorrado={onBorrado} />}
+      {tab === "datos" && <EventoDatos evento={evento} salones={salones} salonesIlegibles={salonesIlegibles} salonesDesactualizados={salonesDesactualizados} onActualizado={onActualizado} onBorrado={onBorrado} />}
       {tab === "documentos" && <EventoDocumentos eventoId={evento.id} />}
       {tab === "items" && <EventoItems eventoId={evento.id} />}
       {tab === "cronograma" && <EventoCronograma eventoId={evento.id} editable tipoEvento={evento.tipoEvento} />}

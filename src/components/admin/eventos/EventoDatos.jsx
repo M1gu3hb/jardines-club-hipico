@@ -5,7 +5,7 @@ import { Field, Area, Toggle, ESTATUS } from "./_ui";
 import EventoEliminar from "./EventoEliminar";
 import { validarCredenciales, AYUDA_USUARIO, AYUDA_PASSWORD } from "../../../../api/_lib/reglas-credenciales.js";
 
-export default function EventoDatos({ evento, salones, salonesFallaron = false, onActualizado, onBorrado }) {
+export default function EventoDatos({ evento, salones, salonesIlegibles = false, salonesDesactualizados = false, onActualizado, onBorrado }) {
   const [form, setForm] = useState({ ...evento });
   const [guardando, setGuardando] = useState(false);
   const [ok, setOk] = useState(false);
@@ -139,13 +139,21 @@ export default function EventoDatos({ evento, salones, salonesFallaron = false, 
       <div className="grid grid-cols-2 gap-3">
         <div>
           <label className="text-white/30 text-xs uppercase tracking-wider mb-1.5 block">Salón</label>
-          {/* Sin esto, una lectura caída deja el desplegable con una sola opción —«Sin asignar»—
-              y ninguna pista de por qué. El dueño concluiría que se borraron los salones. */}
-          {salonesFallaron && (
+          {/* La condición es LO QUE SE PINTA —`salones.length`—, no el flag de error: decir
+              "aquí no sale ninguno" mientras el desplegable enseña ocho es falso, y `useCarga`
+              conserva la lista anterior cuando una recarga falla, así que ese estado ocurre. */}
+          {salones.length === 0 && (
             <p className="text-amber-300/85 text-xs mb-1.5 flex items-start gap-1.5">
               <AlertTriangle size={12} className="mt-0.5 flex-shrink-0" />
-              No se pudo leer la lista de salones: aquí no sale ninguno. No es que se hayan
-              borrado. Vuelve a Eventos y recarga.
+              {salonesIlegibles
+                ? "No se pudo leer la lista de salones: aquí no sale ninguno. No es que se hayan borrado. Vuelve a Eventos y recarga."
+                : "No hay salones registrados todavía."}
+            </p>
+          )}
+          {salonesDesactualizados && salones.length > 0 && (
+            <p className="text-amber-300/70 text-xs mb-1.5 flex items-start gap-1.5">
+              <AlertTriangle size={12} className="mt-0.5 flex-shrink-0" />
+              Esta lista puede estar desactualizada: la última recarga falló.
             </p>
           )}
           <select value={form.salonId || ""} onChange={(e) => set("salonId", e.target.value)}
