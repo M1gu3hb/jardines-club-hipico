@@ -1427,6 +1427,40 @@ for (const ruta of [
         fallos.join(" · "),
       );
     }
+    // G4 · Y LA CAUSA NO SE AFIRMA DESDE UNA PALABRA SUELTA.
+    //
+    // `/password|weak|pwned|leaked|caracteres/i` clasificaba como "tu contraseña es débil"
+    // cualquier error de Auth que mencionara "password" por el motivo que fuera. El dueño se
+    // iba a probar contraseñas más largas mientras la causa real seguía intacta — el mismo
+    // error que este bloque persigue, afirmarle algo sin haberlo comprobado.
+    //
+    // La propiedad no es "qué frases hay" (eso cambiará cuando cambie GoTrue), sino que la
+    // clasificación NO cuelgue de una palabra suelta: código de error, o frases completas.
+    {
+      const bloque = entre(api, "if (createErr) {", "nuevoId = created.user.id;");
+      // La lista se localiza POR ESTRUCTURA, no por su nombre: se lee de la propia definición
+      // de `debil` sobre qué se hace el `.some(` y se recorta ese array. Fijar el nombre a mano
+      // hacía fallar el contrato por un simple renombrado —una mutación inocua que la primera
+      // versión de este contrato no superó—, y un contrato que castiga cambios inocuos acaba
+      // borrado por ruidoso.
+      const def = entre(bloque, "const debil =", ";");
+      const nombreLista = (def.match(/(\w+)\.some\(/) || [])[1];
+      const lista = nombreLista ? entre(bloque, `const ${nombreLista} = [`, "];") : "";
+      const literales = [...`${lista}\n${def}`.matchAll(/\/((?:[^/\\\n]|\\.)+)\/[a-z]*/g)].map((m) => m[1]);
+      const sueltos = literales.filter((r) => !/\s|\.\*/.test(r));
+      check(
+        "credenciales: el rechazo de Auth se clasifica por código o por frase, nunca por una palabra suelta",
+        /codigo === "weak_password"/.test(bloque) && literales.length > 0 && sueltos.length === 0,
+        sueltos.length ? `patrones que casan por una palabra suelta: ${sueltos.map((r) => `/${r}/`).join(", ")}` : "",
+      );
+      // Al estrechar la clasificación, más fallos caen en el "no se pudo" opaco. El código de
+      // Auth tiene que quedar auditado SIEMPRE o la causa se pierde del todo.
+      check(
+        "credenciales: el código de error de Auth queda auditado clasifique o no",
+        /const codigo = String\(createErr\.code \|\| ""\);/.test(bloque) &&
+          /codigo: codigo \|\| "\(sin código\)"/.test(entre(bloque, "await auditar(", "});")),
+      );
+    }
     check(
       "credenciales: el rechazo de Auth no se responde como «no se pudo» (texto)",
       /password_rechazada_por_auth/.test(api) &&
@@ -1776,6 +1810,37 @@ for (const ruta of [
       "9C: la ficha recibe por separado «no hay lista» y «la lista puede estar vieja»",
       /salonesIlegibles=\{salonesDisponibles === null && !cargando\}/.test(alta) &&
         /salonesDesactualizados=\{salonesDesactualizados\}/.test(alta),
+    );
+  }
+
+  // ── G3 · EL AVISO DE «NO SE PUDO COMPROBAR SI YA SE CONVIRTIÓ» ───────────────
+  //
+  // 9E-4 añadió `falloConvertidas` y **no lo contrató**: es lo único de aquel barrido que
+  // quedó sin red. La señal existe porque, si la lectura del mapa de convertidas se cae, el
+  // panel enseña "Crear evento con estos datos" para una solicitud que YA es un evento — que
+  // es exactamente cómo nacieron los tres duplicados de «Boda ortega».
+  //
+  // Se afirman las tres cosas que la hacen valer algo, no que la frase esté escrita:
+  {
+    const cuerpo = entre(sol, "const cargarConvertidas = useCallback(", "useEffect(() => { cargarConvertidas");
+    const fallos = [];
+    // 1) ALCANZABILIDAD. Con `filter` en vez de `filterEstricto`, una lectura caída resuelve
+    //    `[]` y el `.catch` es código muerto: la señal no se levanta nunca y el aviso, escrito
+    //    y todo, no se pinta jamás. Es la misma forma que G2 un piso más arriba.
+    if (!/base44\.entities\.Evento\.filterEstricto\(/.test(cuerpo)) fallos.push("el mapa no se lee con `filterEstricto`: el `.catch` sería código muerto");
+    // 2) El fallo levanta la señal Y vacía el mapa en el mismo sitio: media verdad sería peor
+    //    que ninguna (mapa viejo + "no se pudo comprobar").
+    if (!/\.catch\(\(\) => \{\s*setEventosPorSolicitud\(\{\}\);\s*setFalloConvertidas\(true\);\s*\}\)/.test(cuerpo)) fallos.push("el `.catch` no vacía el mapa y levanta la señal a la vez");
+    // 3) Y BAJA al recuperarse. Una señal que solo sube deja un aviso eterno que el dueño
+    //    aprende a ignorar — el mismo defecto que H3.
+    if (!/setFalloConvertidas\(false\);/.test(cuerpo)) fallos.push("la señal no vuelve a bajar cuando la lectura funciona");
+    check("9F-3: el fallo del mapa de convertidas se levanta, se baja y es alcanzable", fallos.length === 0, fallos.join(" · "));
+
+    // 4) Y no puede contradecir a lo que está pintado al lado: si de esta solicitud SÍ se sabe
+    //    que ya hay evento, decir "no se pudo comprobar" junto al recuadro verde es falso.
+    check(
+      "9F-3: «no se pudo comprobar» no se pinta junto al «ya se convirtió»",
+      /\{falloConvertidas && !eventosPorSolicitud\[selected\.id\] && \(/.test(sol),
     );
   }
 
