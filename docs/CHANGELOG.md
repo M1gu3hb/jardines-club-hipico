@@ -1,5 +1,107 @@
 # CHANGELOG.md
 
+## 2026-08-04 — Fase A: bloque 9 en producción, y 9F: los contratos que solo certificaban prosa
+
+> **Desplegado.** PR #10 mergeado como `1b0fb4f`; deployment `dpl_46GCBEcs83c7L5ksT6yZJxAH2fJ8`,
+> READY, target `production`, 8 funciones, bundle `assets/index-C_t9h3-r.js`. Es el despliegue
+> que apaga el bug que creaba eventos duplicados y el que sube el mínimo de contraseña a 8.
+>
+> Verificado sin sesión tras el deploy: 6/6 cabeceras, `no-store` en las ocho rutas `api/`, las
+> ocho funciones guardadas (405 al método incorrecto, 401 sin sesión; las dos públicas responden
+> 400 a cuerpo vacío), **0** apariciones de `images.unsplash.com`, `imgur`, `base44` y
+> `cloudfront` en el bundle, `img-src` sin terceros, `comprobante` **0**, ningún secreto, y
+> `PASSWORD_MIN = 8` presente en el bundle servido. Medios y rutas SPA, 200.
+
+### El foco del bloque: ¿este contrato comprueba que el código hace algo, o solo que la frase está escrita?
+
+La respuesta salió **cuatro veces «solo la frase»**, y una de ellas era un contrato escrito en
+el bloque anterior con el método de mutación ya aplicado. Es el mismo fallo de siempre con otra
+piel: no basta con que mutar el contrato lo haga fallar; hay que mutar **la regresión concreta
+que el contrato dice impedir**.
+
+### G1 — La señal decía «no legible» de una lista que estaba en pantalla
+
+`salonesConocidos = errorCarga ? null : (datos ? salones : null)` juntaba dos preguntas
+distintas: *¿tengo una lista con la que decidir?* y *¿está al día?*. `useCarga` **conserva
+`datos` a propósito** cuando una recarga falla, así que "recarga caída + lista buena en memoria"
+es alcanzable —guardar en la ficha de un evento y que se caiga la recarga de `onActualizado`— y
+ahí la pantalla decía *"no se pudo leer la lista de salones, así que aquí no sale ninguno"*
+**mientras el desplegable enseñaba los ocho**. La dirección era segura; la frase era falsa.
+
+Ahora son dos señales: `salonesDisponibles = datos ? salones : null` y
+`salonesDesactualizados = Boolean(errorCarga && datos)`. Con lista vieja **sí se puede trabajar
+y se deja** —son ocho filas que no cambian de un día para otro y el dueño corrige antes de
+guardar—, con un aviso propio de que puede estar desfasada. La conversión de solicitudes deja de
+bloquearse por una recarga caída.
+
+**Ejecutado, no razonado.** Renderizando `EventoDatos` con `react-dom/server` en los cuatro
+estados, contando opciones del desplegable y avisos pintados:
+
+| Estado | Opciones | Antes | Ahora |
+|---|---|---|---|
+| Todo bien | 8 | (nada) | (nada) |
+| Ninguna lista (1ª lectura caída) | 0 | "no se pudo leer… no sale ninguno" | igual |
+| **Lista buena + recarga caída** | **8** | **"no se pudo leer… no sale ninguno"** ← falso | "puede estar desactualizada" |
+| De verdad no hay salones | 0 | **(ningún aviso)** ← desplegable muerto y mudo | "no hay salones registrados todavía" |
+
+El cuarto caso no estaba en el hallazgo y salió del mismo experimento.
+
+**El contrato se afirma sobre la propiedad, no sobre el texto:** se lee del render de qué array
+salen los `<option>` y se exige que el aviso de "aquí no sale ninguno" esté gobernado por la
+longitud de **ese mismo** array, sin `||`. Si el desplegable cambia de fuente, el contrato lo
+sigue; si el aviso vuelve a colgar de un flag de error, falla.
+
+### G2 — Un contrato que sobrevivía a `const debil = false`
+
+El de H4 buscaba tres cadenas sueltas sobre el archivo entero. Con `const debil = false;`
+delante, la rama del rechazo de Auth queda muerta, el dueño vuelve a leer "No se pudo crear el
+usuario"… **y las tres cadenas siguen ahí**: comprobado, el archivo mutado las conserva las
+tres. Reescrito para afirmar **alcanzabilidad**: que `msg` sale de `createErr.message`, que la
+clasificación se calcula desde ese error, que es ella quien gobierna el 400 con su campo y su
+explicación, y que el motivo auditado sale de la misma decisión.
+
+### G3 — `setFalloConvertidas` era lo único de 9E-4 sin contrato
+
+Si la lectura del mapa de convertidas se cae, el panel vuelve a ofrecer "Crear evento con estos
+datos" para una solicitud que ya es un evento — **como nacieron los tres duplicados de «Boda
+ortega»**. Se contratan alcanzabilidad (con `filter` en vez de `filterEstricto` el `.catch` es
+código muerto y el aviso no se pinta jamás), que el fallo vacíe el mapa y levante la señal en el
+mismo sitio, que la señal **baje** al recuperarse, y que el aviso no se pinte junto al recuadro
+que lo contradice.
+
+### G4 — Afirmarle al dueño una causa que no se comprobó
+
+`/password|weak|pwned|leaked|caracteres/i` clasificaba como "tu contraseña es débil" **cualquier**
+error de Auth que mencionara "password": una configuración rota, un fallo interno, un mensaje
+nuevo de una versión futura de GoTrue. Se mandaba al dueño a probar contraseñas más largas
+mientras la causa real seguía intacta. Y `caracteres` no casaba nunca — GoTrue responde en inglés.
+
+Ahora se clasifica por el **código** de error (`weak_password`) o por **frases completas** de la
+política, nunca por una palabra suelta. Como al estrechar caen más fallos en el "no se pudo"
+opaco, el código de Auth **queda auditado siempre**: es un token corto de máquina, sin datos de
+nadie, y sin él la causa se perdería del todo.
+
+### El repaso de los 14 contratos de 9E — y el que estaba roto
+
+Mutando cada uno en vez de leerlo: **13 atrapan su regresión**. Uno no.
+
+`"9C: el prellenado no se da por consumido si no se llegó a aplicar"` afirmaba que
+`abrirCrear(...)` y `onPrefillConsumido?.()` estaban juntos y en ese orden — pero no que no
+hubiera **otra** llamada antes. Metiendo `onPrefillConsumido?.();` justo detrás de
+`if (!prefill) return;` —consumir el traspaso antes del guardarraíl, exactamente el bug que dice
+impedir— **la suite seguía en verde**. Ahora se afirma sobre el efecto entero y sobre el orden:
+una sola llamada, y después de aplicar.
+
+Aparte, **una mutación inocua tumbó un contrato mío recién escrito**: el de G4 localizaba la
+lista de frases por su nombre, así que un simple renombrado lo hacía fallar. Un contrato que
+castiga cambios inocuos acaba borrado por ruidoso. Se localiza por estructura.
+
+### Contratos
+
+**259 → 270.** Delta: +6 de G1, +1 de G2, +4 de G3/G4, y uno reescrito (el del traspaso) sin
+cambiar la cuenta. Validados mutando: **19 mutaciones destructivas** fallan exactamente su
+contrato; **3 inocuas** pasan — una de ellas solo después de arreglar el contrato que rompía.
+
 ## 2026-08-04 — 9E: lo que pasa cuando una lectura se cae, respondido en cinco sitios
 
 > Correcciones de la auditoría del bloque 9, **antes de mergear**. Los cuatro hallazgos son la

@@ -295,7 +295,7 @@ actividad del portal se borra (a mano y a los 7 días desde el cron), el resumen
 que entró de lo que se enfría, y el aviso de nueva solicitud pasa a la plantilla dorada.
 Contratos **99 → 127**. **Ninguna migración.** PR #6.
 
-**Bloque 8 (2026-08-04, desplegado en `b1dbf69`).** **8B** —
+**Bloque 8 (2026-08-04, desplegado en `b1dbf69`, hoy dentro de `1b0fb4f`).** **8B** —
 eliminar un evento: lo único irreversible del panel, con el orden archivos → huérfanas → fila →
 Auth y confirmación negativa en cada eslabón—, **8C** — cuatro eventos «Boda ortega» idénticos en
 producción, y la confirmación por nombre no distingue entre ellos: ahora el diálogo dice cuál se
@@ -333,9 +333,24 @@ no donde se escribe; la ficha se quedaba en «(cargando…)» para siempre; y na
 `PASSWORD_MIN` a la política de Auth, que es un tercer validador que no se puede leer desde aquí.
 Contratos **206 → 259**.
 
-Estado del código: **bloques 3–8 + 8F + C1 desplegados** (commit `b1dbf69`, 2026-08-04).
-El estado revisable completo está en **`docs/ESTADO.md`**.
-Batería: `lint` 0, `build` exit 0, `test:contratos` **259/259**, `typecheck` 59. Base en
-`sec_01..24`, Vero intacto. Estado formal: **`ESPERANDO_VALIDACION_HUMANA_AUTENTICADA`**
+**9F (2026-08-04), auditoría de los contratos de 9E.** La pregunta era «¿este contrato comprueba
+que el código hace algo, o solo que la frase está escrita?», y la respuesta salió **cuatro veces
+"solo la frase"**. **G1**: la señal de salones llamaba "no legible" a una lista que el desplegable
+estaba pintando, porque juntaba «¿tengo lista?» con «¿está al día?» — `useCarga` conserva `datos`
+cuando una recarga falla, así que ese estado ocurre; ahora son dos señales, con lista vieja se
+puede trabajar avisando, y el contrato se afirma sobre la propiedad (el aviso de "no sale ninguno"
+cuelga de la longitud del mismo array que llena el desplegable), no sobre el texto. **G2**: el
+contrato del rechazo de Auth sobrevivía a `const debil = false` —las tres cadenas que buscaba
+seguían escritas—, reescrito sobre alcanzabilidad. **G3**: `setFalloConvertidas` no tenía
+contrato. **G4**: `/password|weak|.../i` afirmaba "tu contraseña es débil" ante cualquier error de
+Auth que mencionara "password"; ahora se clasifica por código o por frase completa, y el código de
+Auth queda auditado siempre. Y del repaso de los 14 contratos de 9E, **uno no comprobaba lo que
+decía**: se podía consumir el traspaso antes del guardarraíl con la suite en verde.
+Contratos **259 → 270**.
+
+Estado del código: **bloques 3–9 + 9E desplegados** (commit `1b0fb4f`, PR #10, 2026-08-04);
+**9F escrito y sin desplegar**. El estado revisable completo está en **`docs/ESTADO.md`**.
+Batería: `lint` 0, `build` exit 0, `test:contratos` **270/270**, `typecheck` 59. Base en
+`sec_01..25`, Vero intacto. Estado formal: **`ESPERANDO_VALIDACION_HUMANA_AUTENTICADA`**
 (ver §8.F) — solo faltan los cinco flujos con credenciales reales, con el guion en
 `docs/VALIDACION.md`. Historial completo en `docs/CHANGELOG.md`.

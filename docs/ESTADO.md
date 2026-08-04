@@ -2,11 +2,13 @@
 
 > **2026-08-04** · <https://jardines-club-hipico.vercel.app>
 >
-> **El código que corre en producción es el commit `b1dbf69`** (PR #9), subido por el deployment
-> `dpl_A1Ex55zgGErxznJJYFCNcYhEC5r6`. Los commits posteriores de `main` son **solo
-> documentación** y no cambian una línea de código: el bundle servido sigue siendo
-> `index-dCLt0o9K.js`. Este documento se ancla al commit de **código** a propósito — si citara el
-> último deployment se quedaría obsoleto cada vez que se toca un `.md`.
+> **El código que corre en producción es el commit `1b0fb4f`** (PR #10), subido por el deployment
+> `dpl_46GCBEcs83c7L5ksT6yZJxAH2fJ8`; el bundle servido es `assets/index-C_t9h3-r.js`. Este
+> documento se ancla al commit de **código** a propósito — si citara el último deployment se
+> quedaría obsoleto cada vez que se toca un `.md`.
+>
+> **El bloque 9F NO está en producción**: está en la rama `claude/jardines-security-hardening-rkse8k`,
+> sin mergear. Lo de abajo describe lo desplegado, no lo escrito.
 >
 > Este documento existe para responder tres cosas de un vistazo: **qué está hecho**, **qué está en
 > producción** y **qué queda abierto**. Si algo de aquí contradice a otro documento, gana este.
@@ -27,29 +29,34 @@ fondo salió con un P0 cada vez.
 
 | | |
 |---|---|
-| Commit del código | `b1dbf69` |
-| Deployment que lo subió | `dpl_A1Ex55zgGErxznJJYFCNcYhEC5r6` (READY, target `production`) |
+| Commit del código | `1b0fb4f` |
+| Deployment que lo subió | `dpl_46GCBEcs83c7L5ksT6yZJxAH2fJ8` (READY, target `production`) |
 | URL | <https://jardines-club-hipico.vercel.app> |
 | Funciones serverless | **8** |
 | Migraciones aplicadas | `jardines_sec_01..25` (sin `sec_10`) |
-| Contratos | 259/259 · typecheck 59 (línea base) · lint 0 |
+| Contratos | 270/270 · typecheck 59 (línea base) · lint 0 |
 
-**Bloques desplegados:** 1–8 completos. **El bloque 9 está en `main` y pendiente de que
-Vercel lo despliegue**: hasta entonces, el formulario de alta sigue pidiendo 6 caracteres y
-no existe el botón de convertir solicitudes.
+**Bloques desplegados:** 1–9 completos, 9E incluido. Ya está arriba el arreglo que impedía crear
+dos eventos de la misma solicitud, el mínimo de contraseña unificado en 8, el botón de convertir
+una solicitud en evento y la retirada de las imágenes que la CSP bloqueaba.
+
+**El bloque 9F (G1–G4) está escrito y NO desplegado.** Es todo corrección de avisos y de
+contratos: no cambia ninguna operación de datos.
 
 **Verificado sin sesión tras el deploy:** las seis cabeceras de seguridad, `Cache-Control:
 no-store` en las ocho rutas `api/`, que cada función responde 405 al método incorrecto y 401 sin
 sesión, que las rutas por token no filtran si el token existe, que el bundle no lleva ningún
-secreto (el único JWT es la `anon`, que es pública) y que `comprobante` tiene **0** apariciones.
+secreto (el único JWT es la `anon`, que es pública), que `comprobante` tiene **0** apariciones,
+que no queda ni una referencia a `images.unsplash.com`, `imgur`, `base44` ni `cloudfront`, y que
+`PASSWORD_MIN = 8` está en el bundle servido.
 
 ---
 
 ## 3. Qué NO se ha hecho — lo importante
 
-### 3.1 · 8A y 8D: cerrados en el bloque 9, pendientes de desplegar
+### 3.1 · 8A y 8D: cerrados y desplegados
 
-- **8A** se mergeó en 9A (`5ccb032`). Cliente y servidor vuelven a validar lo mismo, importando
+- **8A** se mergeó en 9A (`5ccb032`) y está en producción desde `1b0fb4f`. Cliente y servidor vuelven a validar lo mismo, importando
   las reglas del mismo archivo. Los conflictos fueron **tres**, no nueve, y se resolvieron con
   `main` de base. La autoauditoría encontró además un falso negativo residual del propio arreglo
   de 8A y se cerró.
@@ -127,10 +134,12 @@ portadoras por diseño, `operativo_canales` es global y no por evento, y la CSP 
 ## 5. Qué hacer a continuación, por orden
 
 1. **El dueño sigue `docs/VALIDACION.md`**, empezando por la **Parte 0** (borrar los tres
-   duplicados de «Boda ortega»), que es la primera ejecución real del borrado.
-2. **Recuperar 8A**: rebasar `claude/jardines-bloque-8` sobre `main`, resolver el conflicto con
-   8B/8C, PR y deploy.
-3. **Decidir 8D** (`sec_25`) y **J-10/J-11** (RLS por columnas). Las dos son migraciones.
+   duplicados de «Boda ortega»), que es la primera ejecución real del borrado. Ya se puede: el
+   código que hace falta está en producción.
+2. **Mergear y desplegar 9F.** No es urgente —no toca datos— pero mientras no suba, el aviso de
+   "no sale ninguno" del desplegable de salones sigue pudiendo mentir en producción.
+3. **Decidir `sec_26`** (único parcial sobre `eventos.solicitud_id`, recomendada y sin aplicar) y
+   **J-10/J-11** (RLS por columnas). Las tres son migraciones.
 4. **Terminar la auditoría funcional.** Es lo único que puede decir cuánto falta de verdad.
 
 ---
@@ -139,6 +148,8 @@ portadoras por diseño, `operativo_canales` es global y no por evento, y la CSP 
 
 **Para mirar, sí. Para dar por bueno lo que no se ha revisado, no.**
 
-Lo revisado a fondo está arreglado y protegido por 206 contratos que se validan mutando la
-regresión real. Lo que se ha visto funcionar **con una persona delante** es casi nada: cero de los
+Lo revisado a fondo está arreglado y protegido por 270 contratos que se validan mutando la
+regresión real — con la advertencia que dejó 9F: **de los 14 que añadió el bloque anterior, uno
+no comprobaba lo que decía**, y solo se supo mutándolo. La cuenta de contratos mide trabajo, no
+cobertura. Lo que se ha visto funcionar **con una persona delante** es casi nada: cero de los
 cinco flujos, cero de las dos pantallas nuevas, y el borrado de eventos nunca ha corrido.

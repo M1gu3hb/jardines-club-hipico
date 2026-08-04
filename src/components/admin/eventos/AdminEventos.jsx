@@ -53,10 +53,24 @@ export default function AdminEventos({ prefill = null, onPrefillConsumido = null
   const set = (k, v) => setForm((f) => ({ ...f, [k]: v }));
   const salonNombre = (id) => salones.find((s) => s.id === id)?.nombre || "—";
 
-  // Los salones, en TRES estados y no en dos. `datos?.sals || []` da `[]` tanto cuando no han
-  // llegado como cuando la lectura se cayó, y `resolverSalon` sobre `[]` responde "no casa" para
-  // un salón que SÍ está registrado. `null` significa "no lo sé"; `[]`, "miré y no hay ninguno".
-  const salonesConocidos = errorCarga ? null : (datos ? salones : null);
+  // DOS PREGUNTAS DISTINTAS, y antes compartían una variable:
+  //
+  //   ¿tengo una lista con la que decidir?  → la responde `datos`
+  //   ¿está al día?                         → la responde `errorCarga`
+  //
+  // `useCarga` **conserva `datos` a propósito** cuando una recarga falla ("se sigue viendo lo
+  // último bueno en vez de parpadear a esqueleto"), así que `errorCarga` lleno + la lista buena
+  // en memoria es un estado alcanzable: basta abrir la ficha de un evento, guardar, y que la
+  // recarga que dispara `onActualizado` se caiga. Con la señal anterior —`errorCarga ? null :
+  // …`— eso decía "no legible" mientras el desplegable pintaba los ocho salones. La dirección
+  // era segura, pero la frase era falsa: se puede comprobar mirando lo que hay en pantalla.
+  //
+  // Con la lista vieja SÍ se puede trabajar, y se puede: los salones son ocho filas que no
+  // cambian de un día para otro, el dueño ve la asignación y la corrige antes de guardar, y
+  // negárselo sería quitarle un trabajo que podía terminar. Lo único que no vale es usarla sin
+  // decir que puede estar desactualizada.
+  const salonesDisponibles = datos ? salones : null;      // null = no tengo ninguna lista
+  const salonesDesactualizados = Boolean(errorCarga && datos); // la tengo, pero la recarga falló
 
   /**
    * El id se fija AQUÍ, una sola vez por formulario abierto — no en cada clic.
@@ -74,7 +88,7 @@ export default function AdminEventos({ prefill = null, onPrefillConsumido = null
    * una ruta nueva con `service_role` justo antes de la validación humana, y deja el
    * reintento seguro incluso si el fallo ocurre entre las escrituras 1 y 3.
    */
-  const abrirCrear = (desdeSolicitud = null, salonesDisponibles = salonesConocidos) => {
+  const abrirCrear = (desdeSolicitud = null, lista = salonesDisponibles) => {
     setError(""); setAviso(""); setCampoMal("");
     // El prellenado sale de `solicitudAEvento`, que es pura y NO copia lo que no puede
     // comprobar: el salón se resuelve por nombre contra los salones reales, la fecha solo si
@@ -82,7 +96,7 @@ export default function AdminEventos({ prefill = null, onPrefillConsumido = null
     // no se pudo trasladar sale como aviso, arriba del formulario, para que el admin lo vea
     // ANTES de guardar. Es una ayuda para no volver a teclear, no un automatismo.
     if (desdeSolicitud) {
-      const { form: prelleno, avisos } = solicitudAEvento(desdeSolicitud, salonesDisponibles);
+      const { form: prelleno, avisos } = solicitudAEvento(desdeSolicitud, lista);
       setForm({ ...FORM_VACIO, ...prelleno });
       setOrigen(desdeSolicitud);
       setAvisosPrefill(avisos);
@@ -114,13 +128,15 @@ export default function AdminEventos({ prefill = null, onPrefillConsumido = null
   // la única salida... salvo que el dueño no sabría que hace falta.
   useEffect(() => {
     if (!prefill) return;
-    if (salonesConocidos === null) return;   // ni cargando ni caído: hasta entonces, se espera
-    abrirCrear(prefill, salonesConocidos);
+    // Basta con TENER una lista. Que esté desactualizada no impide decidir: se avisa y el dueño
+    // corrige. Lo que no se puede es decidir sin ninguna.
+    if (salonesDisponibles === null) return;
+    abrirCrear(prefill, salonesDisponibles);
     onPrefillConsumido?.();
-    // Solo al llegar un prefill nuevo o al pasar a poder decidir; `abrirCrear` se recrea en
-    // cada render.
+    // Solo al llegar un prefill nuevo o al pasar a tener lista; `abrirCrear` se recrea en cada
+    // render.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [prefill, salonesConocidos]);
+  }, [prefill, salonesDisponibles]);
 
   const crear = async () => {
     setError(""); setAviso(""); setCampoMal("");
@@ -277,9 +293,10 @@ export default function AdminEventos({ prefill = null, onPrefillConsumido = null
       <EventoFicha
         evento={abierto}
         salones={salones}
-        // Mismo motivo que arriba: en la ficha, `salones` vacío por un fallo de lectura deja el
-        // desplegable de salón sin opciones y sin explicación — un control muerto.
-        salonesFallaron={salonesConocidos === null && !cargando}
+        // Los dos hechos por separado, como arriba: si no hay lista, el desplegable está muerto
+        // y hay que decirlo; si la hay pero la recarga falló, se puede usar avisando.
+        salonesIlegibles={salonesDisponibles === null && !cargando}
+        salonesDesactualizados={salonesDesactualizados}
         onVolver={() => { setAbierto(null); cargar(); }}
         onActualizado={(ev) => { setAbierto(ev); cargar(); }}
         onBorrado={() => { setAbierto(null); cargar(); }}
@@ -347,7 +364,7 @@ export default function AdminEventos({ prefill = null, onPrefillConsumido = null
           correcto aunque se diera cuenta, y la conversión le afirmaría que el que pidió el
           cliente no existe. Se dice qué pasa y se ofrece reintentar; el traspaso NO se pierde,
           se aplica solo en cuanto la lectura funcione. */}
-      {prefill && salonesConocidos === null && (
+      {prefill && salonesDisponibles === null && (
         <div className="border border-amber-400/40 bg-amber-400/5 px-4 py-3.5 mb-6 rounded space-y-2">
           <p className="text-amber-300 text-sm font-medium flex items-center gap-2">
             <AlertTriangle size={15} />
@@ -386,6 +403,22 @@ export default function AdminEventos({ prefill = null, onPrefillConsumido = null
                 Revísalos y corrige lo que haga falta antes de guardar</strong> — lo escribió él, no tú.
                 El usuario y la contraseña los pones tú: no se derivan de sus datos.
               </p>
+              {/* LÍMITE CONOCIDO de estos avisos, escrito aquí porque es aquí donde se leen.
+                  `solicitudAEvento` distingue tres motivos de salón —«no casa», «sin definir» y
+                  «no se pudo leer la lista»—, pero NO un cuarto: «la lista que miré puede estar
+                  desactualizada». Con una lista vieja diría «no coincide con ninguno de los
+                  registrados» de un salón creado después de la última lectura buena.
+
+                  Hoy eso NO es alcanzable, y el motivo está en otro archivo: `AdminDashboard`
+                  monta esta pestaña con `{active === "eventos" && …}`, así que un prellenado
+                  llega SIEMPRE sobre un montaje nuevo, con su primera lectura recién hecha —y si
+                  esa primera lectura falla, `salonesDisponibles` es `null` y el prellenado ni
+                  siquiera se aplica. El único otro llamador de `abrirCrear` es el botón «Nuevo
+                  evento», que pasa `desdeSolicitud = null` y no ejecuta este mapeo.
+
+                  Si algún día esa pestaña se deja montada —el mismo detalle que ya condiciona el
+                  mapa de convertidas en `AdminSolicitudes`—, este aviso pasa a poder mentir y
+                  hará falta el cuarto motivo. */}
               {avisosPrefill.length > 0 && (
                 <ul className="space-y-1 pt-1">
                   {avisosPrefill.map((a, i) => (
@@ -405,11 +438,23 @@ export default function AdminEventos({ prefill = null, onPrefillConsumido = null
             </div>
             <div>
               <label className="text-white/30 text-xs uppercase tracking-wider mb-1.5 block">Salón</label>
-              {salonesConocidos === null && !cargando && (
+              {/* La condición es LO QUE SE ESTÁ PINTANDO —`salones.length`—, no un flag de
+                  error: decir "aquí no sale ninguno" mientras el desplegable enseña ocho es
+                  falso, y para verlo no hace falta comprobar nada. El motivo sí depende del
+                  estado, y son motivos distintos. */}
+              {salones.length === 0 && !cargando && (
                 <p className="text-amber-300/85 text-xs mb-1.5 flex items-start gap-1.5">
                   <AlertTriangle size={12} className="mt-0.5 flex-shrink-0" />
-                  No se pudo leer la lista de salones, así que aquí no sale ninguno. Puedes crear el
-                  evento sin salón y asignarlo luego desde su ficha.
+                  {salonesDisponibles === null
+                    ? "No se pudo leer la lista de salones, así que aquí no sale ninguno. Puedes crear el evento sin salón y asignarlo luego desde su ficha."
+                    : "No hay salones registrados todavía. Puedes crear el evento sin salón y asignarlo luego desde su ficha."}
+                </p>
+              )}
+              {salonesDesactualizados && salones.length > 0 && (
+                <p className="text-amber-300/70 text-xs mb-1.5 flex items-start gap-1.5">
+                  <AlertTriangle size={12} className="mt-0.5 flex-shrink-0" />
+                  Esta lista puede estar desactualizada: la última recarga falló. Si falta un salón
+                  recién creado, recarga la página.
                 </p>
               )}
               <select value={form.salonId} onChange={(e) => set("salonId", e.target.value)}

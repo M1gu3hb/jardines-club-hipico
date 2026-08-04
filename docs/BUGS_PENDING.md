@@ -197,6 +197,14 @@ los dos casos el **uso peligroso** ya está cerrado en código; lo que sigue abi
   entra. Es el diseño del producto. Mitigado con 256 bits, expiración, revocación, rate limit y
   respuestas genéricas idénticas para inexistente / revocado / expirado. Que además se guarden
   **en claro** es una decisión pendiente, no cerrada: ver `docs/DECISIONS.md` D-COD-2.
+- **El desplegable de salones puede enseñar una lista vieja (9F/G1).** `useCarga` conserva los
+  últimos datos buenos cuando una recarga falla, y desde 9F eso ya no bloquea el alta ni la
+  conversión: se puede seguir trabajando con la lista anterior. Consecuencia asumida: un salón
+  creado o renombrado durante ese hueco no aparece, o aparece con el nombre viejo. Se avisa en
+  pantalla ("esta lista puede estar desactualizada: la última recarga falló") y el `salon_id` que
+  se guarda sale siempre de la lista, nunca del texto de la solicitud, así que lo peor que puede
+  pasar es asignar un salón que existe pero no era el que se quería — corregible desde la ficha.
+  La alternativa —bloquear— quitaba un trabajo que el dueño podía terminar.
 - **`operativo_canales` es global, no por evento.** Con dos eventos activos a la vez, el personal
   de ambos compartiría canal de radio. Hoy no ocurre.
 - **La CSP conserva `'unsafe-inline'`** en `script-src` y `style-src`: acota orígenes, pero **no**

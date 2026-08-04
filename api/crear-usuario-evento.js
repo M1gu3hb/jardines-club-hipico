@@ -113,16 +113,51 @@ export default async function handler(req, res) {
     if (createErr) {
       await idemCerrar(admin, "crear-usuario-evento", claveIdem, false);
       const msg = createErr.message || "";
-      const duplicado = /already been registered|already exists/i.test(msg);
+      // Token corto de máquina (`weak_password`, `email_exists`, `unexpected_failure`…). No
+      // lleva datos de nadie, así que se puede auditar tal cual.
+      const codigo = String(createErr.code || "");
+      // El duplicado se clasifica con el MISMO criterio que la contraseña débil (fase 0.b):
+      // el código primero. GoTrue declara `email_exists` y `user_already_exists` en su union de
+      // códigos (`@supabase/auth-js`, `lib/error-codes.d.ts`), así que para este caso SÍ hay un
+      // código claro y no hace falta adivinar desde el mensaje — que es justo lo que se acabó de
+      // quitar unas líneas más abajo. Las frases quedan de respaldo, completas y no de una
+      // palabra suelta, para una versión que no traiga `code`.
+      const FRASES_DUPLICADO = [/has already been registered/i, /user already exists/i];
+      const duplicado = codigo === "email_exists" || codigo === "user_already_exists" ||
+        FRASES_DUPLICADO.some((re) => re.test(msg));
       // EL TERCER VALIDADOR. `validarCredenciales` la comparten cliente y servidor, pero GoTrue
       // tiene su PROPIA política de contraseñas —longitud mínima, caracteres exigidos, rechazo
       // de contraseñas filtradas—, y es configuración GLOBAL del proyecto de Supabase: la
       // comparte Vero y puede cambiar sin que este código se entere. Si rechaza, decirlo con
       // un "No se pudo crear el usuario" opaco es exactamente la forma del bug original, un
       // piso más abajo: el formulario acepta y el alta muere sin explicar por qué.
-      const debil = /password|weak|pwned|leaked|caracteres/i.test(msg);
+      //
+      // PERO LA CAUSA NO SE AFIRMA DESDE UNA PALABRA SUELTA (G4). La versión anterior era
+      // `/password|weak|pwned|leaked|caracteres/i`: cualquier error de Auth que mencionara
+      // "password" por el motivo que fuera —una configuración rota, un fallo interno del
+      // servicio, un mensaje nuevo de una versión futura de GoTrue— salía clasificado como
+      // "tu contraseña es débil", y al dueño se le mandaba a probar con una más larga mientras
+      // la causa real seguía intacta. Es el mismo error que este bloque persigue: afirmarle
+      // algo al dueño sin haberlo comprobado. Y `caracteres` no casaba nunca: GoTrue responde
+      // en inglés.
+      //
+      // Ahora se clasifica por el CÓDIGO de error, que es lo que GoTrue emite para esto, y si
+      // no hay código, por frases completas de su política — nunca por una palabra suelta.
+      const FRASES_POLITICA = [
+        /password should be at least/i,
+        /password should contain/i,
+        /password is known to be weak/i,
+        /password .*(pwned|leaked|data breach)/i,
+      ];
+      const debil = codigo === "weak_password" || FRASES_POLITICA.some((re) => re.test(msg));
       await auditar(admin, "crear_usuario_evento", "denegado", {
-        detalle: { motivo: duplicado ? "usuario_duplicado" : debil ? "password_rechazada_por_auth" : "alta_fallida" },
+        // El código va SIEMPRE, clasifique o no. Es lo que queda para averiguar por qué falló
+        // un alta que aquí solo se puede responder como "no se pudo": sin él, al estrechar la
+        // clasificación la causa se perdería del todo.
+        detalle: {
+          motivo: duplicado ? "usuario_duplicado" : debil ? "password_rechazada_por_auth" : "alta_fallida",
+          codigo: codigo || "(sin código)",
+        },
       });
       if (duplicado) {
         res.status(409).json({ error: "Ese usuario ya existe", campo: "usuario" });

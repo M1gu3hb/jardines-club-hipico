@@ -13,7 +13,10 @@
 > | **Parte 2** | Los cinco flujos originales, con credenciales reales | Sí |
 > | Anexo | Las dos pantallas que nadie ha visto nunca | No |
 >
-> Desplegado el **2026-08-04** · commit `b1dbf69` · <https://jardines-club-hipico.vercel.app>
+> Desplegado el **2026-08-04** · commit `1b0fb4f` (PR #10) · <https://jardines-club-hipico.vercel.app>
+>
+> Este guion describe **lo que está en producción**. El bloque 9F no lo está todavía; no cambia
+> nada de lo que aquí se pide.
 
 ---
 

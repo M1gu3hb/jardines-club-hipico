@@ -1393,8 +1393,91 @@ for (const ruta of [
         /no se debe tocar/.test(reglasConComentarios),
     );
     // Y si Auth rechaza igualmente, el alta lo dice en vez de responder opaco.
+    //
+    // G2 · REESCRITO EN 9F-2. La versión anterior buscaba tres cadenas
+    // —`password_rechazada_por_auth`, el texto del mensaje y `campo: "password"`— sueltas sobre
+    // el archivo entero. Las tres seguirían presentes con `const debil = false;` delante: la
+    // rama quedaría muerta, el dueño volvería a leer "No se pudo crear el usuario" y el
+    // contrato pasaría igual, afirmando en su nombre una propiedad que ya no se cumple. Era un
+    // contrato sobre el TEXTO ESCRITO, no sobre el comportamiento.
+    //
+    // Lo que hay que afirmar es que la rama es ALCANZABLE: que la clasificación se calcula a
+    // partir del error real que devolvió Auth, y que es esa clasificación —no otra cosa— la que
+    // gobierna el 400 y el motivo auditado.
+    {
+      const bloque = entre(api, "if (createErr) {", "nuevoId = created.user.id;");
+      const def = entre(bloque, "const debil =", ";");
+      const rama = entre(bloque, "} else if (debil) {", "} else {");
+      const fallos = [];
+      // 1) El material de la decisión sale del error real, no de una constante ni del cuerpo
+      //    de la petición.
+      if (!/const msg = createErr\.message \|\| "";/.test(bloque)) fallos.push("`msg` no sale de `createErr.message`");
+      if (!/\bmsg\b|\bcreateErr\b/.test(def)) fallos.push(`\`debil\` no se calcula desde el error: «${def.trim()}»`);
+      // 2) Es `debil` quien gobierna el 400, y el 400 dice qué campo y por qué.
+      if (!rama) fallos.push("no hay una rama gobernada por `debil`");
+      if (!/res\.status\(400\)/.test(rama)) fallos.push("la rama de `debil` no responde 400");
+      if (!/campo: "password"/.test(rama)) fallos.push("el 400 no señala el campo `password`");
+      if (!/La política de contraseñas del proyecto rechazó/.test(rama)) fallos.push("el 400 no explica la causa");
+      // 3) Y el rastro auditado sale de la misma decisión: si se separaran, la auditoría diría
+      //    una cosa y la pantalla otra.
+      if (!/debil \? "password_rechazada_por_auth"/.test(bloque)) fallos.push("el motivo auditado no lo gobierna `debil`");
+      check(
+        "credenciales: la rama del rechazo de Auth es ALCANZABLE y gobierna el 400 (no solo está escrita)",
+        fallos.length === 0,
+        fallos.join(" · "),
+      );
+    }
+    // G4 · Y LA CAUSA NO SE AFIRMA DESDE UNA PALABRA SUELTA.
+    //
+    // `/password|weak|pwned|leaked|caracteres/i` clasificaba como "tu contraseña es débil"
+    // cualquier error de Auth que mencionara "password" por el motivo que fuera. El dueño se
+    // iba a probar contraseñas más largas mientras la causa real seguía intacta — el mismo
+    // error que este bloque persigue, afirmarle algo sin haberlo comprobado.
+    //
+    // La propiedad no es "qué frases hay" (eso cambiará cuando cambie GoTrue), sino que la
+    // clasificación NO cuelgue de una palabra suelta: código de error, o frases completas.
+    {
+      const bloque = entre(api, "if (createErr) {", "nuevoId = created.user.id;");
+      // La lista se localiza POR ESTRUCTURA, no por su nombre: se lee de la propia definición
+      // de `debil` sobre qué se hace el `.some(` y se recorta ese array. Fijar el nombre a mano
+      // hacía fallar el contrato por un simple renombrado —una mutación inocua que la primera
+      // versión de este contrato no superó—, y un contrato que castiga cambios inocuos acaba
+      // borrado por ruidoso.
+      //
+      // Se aplica a LAS DOS clasificaciones del bloque, no solo a la de la contraseña: en 0.b se
+      // encontró que `duplicado` seguía adivinando desde una subcadena justo encima de lo que
+      // G4 había arreglado. Una regla que solo cubre el caso que la motivó vuelve a fallar en el
+      // de al lado.
+      const sueltos = [];
+      let conCodigo = 0;
+      for (const señal of ["debil", "duplicado"]) {
+        const def = entre(bloque, `const ${señal} =`, ";");
+        const nombreLista = (def.match(/(\w+)\.some\(/) || [])[1];
+        const lista = nombreLista ? entre(bloque, `const ${nombreLista} = [`, "];") : "";
+        const literales = [...`${lista}\n${def}`.matchAll(/\/((?:[^/\\\n]|\\.)+)\/[a-z]*/g)].map((m) => m[1]);
+        // Que CONSULTE el código, no cómo lo compare: `codigo === "x"`, un `includes` sobre una
+        // lista o un `Set` son la misma propiedad. Exigir la forma es el defecto de N1 otra vez
+        // —lo cazó una mutación inocua con `["email_exists", …].includes(codigo)`—.
+        if (/\bcodigo\b/.test(def)) conCodigo++;
+        sueltos.push(...literales.filter((r) => !/\s|\.\*/.test(r)).map((r) => `${señal}: /${r}/`));
+      }
+      check(
+        "credenciales: los errores de Auth se clasifican por código o por frase, nunca por una palabra suelta",
+        conCodigo === 2 && sueltos.length === 0,
+        sueltos.length
+          ? `patrones que casan por una palabra suelta: ${sueltos.join(", ")}`
+          : conCodigo === 2 ? "" : `solo ${conCodigo}/2 clasificaciones miran el código de error`,
+      );
+      // Al estrechar la clasificación, más fallos caen en el "no se pudo" opaco. El código de
+      // Auth tiene que quedar auditado SIEMPRE o la causa se pierde del todo.
+      check(
+        "credenciales: el código de error de Auth queda auditado clasifique o no",
+        /const codigo = String\(createErr\.code \|\| ""\);/.test(bloque) &&
+          /codigo: codigo \|\| "\(sin código\)"/.test(entre(bloque, "await auditar(", "});")),
+      );
+    }
     check(
-      "credenciales: un rechazo de la política de Auth no se responde como «no se pudo»",
+      "credenciales: el rechazo de Auth no se responde como «no se pudo» (texto)",
       /password_rechazada_por_auth/.test(api) &&
         /La política de contraseñas del proyecto rechazó/.test(api) &&
         /campo: "password"/.test(api),
@@ -1662,32 +1745,52 @@ for (const ruta of [
     "9C: se avisa de que los datos los escribió el cliente y hay que revisarlos",
     /lo escribió él, no tú/.test(alta) && /avisosPrefill\.map/.test(alta),
   );
-  // EL PRELLENADO Y LA LISTA DE SALONES — reescrito en 9E-1.
+  // EL PRELLENADO Y LA LISTA DE SALONES — reescrito en 9E-1, corregido en 9F-1 (G1).
   //
-  // El contrato anterior afirmaba `if (!prefill || cargando) return;`. No era vacuo —mutarlo
+  // El contrato original afirmaba `if (!prefill || cargando) return;`. No era vacuo —mutarlo
   // fallaba— pero certificaba **el guardarraíl equivocado**, que es peor: daba luz verde justo
   // a la condición que falla. `cargando` es `false` cuando la lectura se CAE (`useCarga` llena
   // `error` y deja `datos` en null), así que el prellenado pasaba con la lista vacía y la
   // pantalla afirmaba que el salón del cliente "no coincide con ninguno de los registrados"
   // sin haber mirado ninguno.
   //
-  // Ahora se afirma sobre la señal correcta: que el prellenado no ocurre mientras los salones
-  // no se puedan DECIDIR, y que esa señal distingue los tres estados.
+  // 9E-1 lo ató a `salonesConocidos = errorCarga ? null : (datos ? salones : null)`. Esa señal
+  // arreglaba la dirección peligrosa pero afirmaba algo falso en la otra: `useCarga` **conserva
+  // `datos` a propósito** cuando una recarga falla, así que "recarga caída + lista buena en
+  // memoria" es un estado alcanzable —guardar en la ficha de un evento y que la recarga que
+  // dispara `onActualizado` se caiga— y ahí `salonesConocidos` valía `null` mientras el
+  // desplegable pintaba los ocho salones. La pantalla decía "aquí no sale ninguno" con ocho
+  // delante.
+  //
+  // 9F-1 las separa en dos preguntas: ¿tengo lista? (`datos`) y ¿está al día? (`errorCarga`).
   {
-    const efecto = entre(alta, "useEffect(() => {\n    if (!prefill) return;", "}, [prefill, salonesConocidos]);");
+    const efecto = entre(alta, "useEffect(() => {\n    if (!prefill) return;", "}, [prefill, salonesDisponibles]);");
     check(
-      "9C: el prellenado no ocurre con la lista de salones en un estado que no permite decidir",
-      /if \(salonesConocidos === null\) return;/.test(efecto) &&
+      "9C: el prellenado no ocurre sin ninguna lista de salones con la que decidir",
+      /if \(salonesDisponibles === null\) return;/.test(efecto) &&
         !/cargando\) return;/.test(efecto),
       efecto ? "" : "no se encontró el efecto del prellenado",
     );
-    // Y la señal tiene que ser de TRES estados: `null` cuando no se sabe (ni cargando ni caído),
-    // la lista cuando sí. Si volviera a ser `datos?.sals || []`, el contrato de arriba pasaría
-    // sin que la propiedad se cumpliera.
+    // La señal tiene que ser de TRES estados: `null` cuando no hay ninguna lista, la lista
+    // cuando sí. Si volviera a ser `datos?.sals || []`, el contrato de arriba pasaría sin que la
+    // propiedad se cumpliera.
+    //
+    // Y **no puede depender de `errorCarga`**: eso es lo que reintroduciría G1 — negarle al
+    // dueño una conversión que sí podía terminar, y llamar "no legible" a una lista que tiene
+    // delante. Las dos mitades se afirman por separado.
     check(
-      "9C: `salonesConocidos` distingue «no lo sé» de «no hay ninguno»",
-      /const salonesConocidos = errorCarga \? null : \(datos \? salones : null\);/.test(alta),
+      "9C: `salonesDisponibles` distingue «no tengo ninguna» de «miré y no hay ninguno»",
+      /const salonesDisponibles = datos \? salones : null;/.test(alta),
     );
+    {
+      const def = entre(alta, "const salonesDisponibles =", "\n");
+      check(
+        "9F-1: tener lista y tenerla al día son señales distintas",
+        !/errorCarga/.test(def) &&
+          /const salonesDesactualizados = Boolean\(errorCarga && datos\);/.test(alta),
+        def ? `definición: ${def.trim()}` : "no se encontró la definición",
+      );
+    }
     // Y el módulo puro tiene que tener ese tercer resultado, o la señal no serviría de nada.
     check(
       "9C: `resolverSalon` no afirma nada si no recibe la lista",
@@ -1705,21 +1808,155 @@ for (const ruta of [
     }
     // El traspaso NO se consume hasta que se aplica: si se perdiera, el dueño tendría que
     // volver a Solicitudes sin saber que hace falta.
-    check(
-      "9C: el prellenado no se da por consumido si no se llegó a aplicar",
-      /abrirCrear\(prefill, salonesConocidos\);\s*\n\s*onPrefillConsumido\?\.\(\);/.test(alta),
-    );
+    //
+    // CORREGIDO EN 9F-3, y es un caso de manual. La versión de 9E afirmaba
+    // `/abrirCrear\(…\);\s*\n\s*onPrefillConsumido\?\.\(\);/` sobre TODO el archivo: comprueba
+    // que esas dos líneas están juntas y en ese orden, pero no que no haya OTRA llamada antes.
+    // Metiendo `onPrefillConsumido?.();` justo detrás de `if (!prefill) return;` —o sea,
+    // consumiendo el traspaso antes del guardarraíl, que es exactamente el bug— el contrato
+    // seguía en verde. Comprobado mutando.
+    //
+    // Se afirma sobre el efecto entero y sobre el orden: **una sola** llamada, y después de
+    // aplicar.
+    {
+      const iAplica = efecto.indexOf("abrirCrear(prefill");
+      const consumos = [...efecto.matchAll(/onPrefillConsumido\?\.\(\)/g)].map((m) => m.index);
+      check(
+        "9C: el prellenado no se da por consumido si no se llegó a aplicar",
+        consumos.length === 1 && iAplica >= 0 && consumos[0] > iAplica,
+        `aplica en ${iAplica}, se consume en [${consumos.join(", ")}]`,
+      );
+    }
     // Y el dueño tiene salida: se le dice qué pasa y puede reintentar.
     check(
-      "9C: con la lista caída y una conversión esperando, se explica y se ofrece reintentar",
-      /prefill && salonesConocidos === null &&/.test(alta) &&
+      "9C: sin ninguna lista y con una conversión esperando, se explica y se ofrece reintentar",
+      /prefill && salonesDisponibles === null &&/.test(alta) &&
         /No se puede convertir ahora mismo/.test(alta) && /onClick=\{recargar\}/.test(alta),
     );
-    // La ficha del evento tiene el mismo desplegable y el mismo riesgo.
+    // La ficha del evento tiene el mismo desplegable y el mismo riesgo, y recibe LAS DOS
+    // señales: sin lista el control está muerto y hay que decirlo; con lista vieja se puede
+    // trabajar avisando.
     check(
-      "9C: la ficha avisa si el desplegable de salón está vacío por un fallo de lectura",
-      /salonesFallaron && \(/.test(leerCodigo("src/components/admin/eventos/EventoDatos.jsx")) &&
-        /salonesFallaron=\{salonesConocidos === null && !cargando\}/.test(alta),
+      "9C: la ficha recibe por separado «no hay lista» y «la lista puede estar vieja»",
+      /salonesIlegibles=\{salonesDisponibles === null && !cargando\}/.test(alta) &&
+        /salonesDesactualizados=\{salonesDesactualizados\}/.test(alta),
+    );
+  }
+
+  // ── G3 · EL AVISO DE «NO SE PUDO COMPROBAR SI YA SE CONVIRTIÓ» ───────────────
+  //
+  // 9E-4 añadió `falloConvertidas` y **no lo contrató**: es lo único de aquel barrido que
+  // quedó sin red. La señal existe porque, si la lectura del mapa de convertidas se cae, el
+  // panel enseña "Crear evento con estos datos" para una solicitud que YA es un evento — que
+  // es exactamente cómo nacieron los tres duplicados de «Boda ortega».
+  //
+  // Se afirman las tres cosas que la hacen valer algo, no que la frase esté escrita:
+  {
+    const cuerpo = entre(sol, "const cargarConvertidas = useCallback(", "useEffect(() => { cargarConvertidas");
+    const fallos = [];
+    // 1) ALCANZABILIDAD. Con `filter` en vez de `filterEstricto`, una lectura caída resuelve
+    //    `[]` y el `.catch` es código muerto: la señal no se levanta nunca y el aviso, escrito
+    //    y todo, no se pinta jamás. Es la misma forma que G2 un piso más arriba.
+    if (!/base44\.entities\.Evento\.filterEstricto\(/.test(cuerpo)) fallos.push("el mapa no se lee con `filterEstricto`: el `.catch` sería código muerto");
+    // 2) El fallo levanta la señal Y vacía el mapa en el mismo sitio: media verdad sería peor
+    //    que ninguna (mapa viejo + "no se pudo comprobar").
+    if (!/\.catch\(\(\) => \{\s*setEventosPorSolicitud\(\{\}\);\s*setFalloConvertidas\(true\);\s*\}\)/.test(cuerpo)) fallos.push("el `.catch` no vacía el mapa y levanta la señal a la vez");
+    // 3) Y BAJA al recuperarse. Una señal que solo sube deja un aviso eterno que el dueño
+    //    aprende a ignorar — el mismo defecto que H3.
+    if (!/setFalloConvertidas\(false\);/.test(cuerpo)) fallos.push("la señal no vuelve a bajar cuando la lectura funciona");
+    check("9F-3: el fallo del mapa de convertidas se levanta, se baja y es alcanzable", fallos.length === 0, fallos.join(" · "));
+
+    // 4) Y no puede contradecir a lo que está pintado al lado: si de esta solicitud SÍ se sabe
+    //    que ya hay evento, decir "no se pudo comprobar" junto al recuadro verde es falso.
+    check(
+      "9F-3: «no se pudo comprobar» no se pinta junto al «ya se convirtió»",
+      /\{falloConvertidas && !eventosPorSolicitud\[selected\.id\] && \(/.test(sol),
+    );
+  }
+
+  // ── G1 · EL AVISO NO PUEDE CONTRADECIR AL DESPLEGABLE ────────────────────────
+  //
+  // Esto NO se contrata sobre el texto. Que la frase "aquí no sale ninguno" esté escrita en el
+  // archivo no dice nada sobre cuándo se pinta: escrita estaba también cuando se pintaba con
+  // ocho salones a la vista. La propiedad es **cuál es su condición**, y tiene que ser la misma
+  // magnitud que llena el desplegable.
+  //
+  // Se deriva del propio render en vez de fijarla a mano: se lee de qué array salen los
+  // `<option>` y se exige que el aviso esté gobernado por la LONGITUD DE ESE MISMO array. Si
+  // alguien cambia el desplegable a otra fuente, el contrato lo sigue; si vuelve a colgar el
+  // aviso de un flag de error, falla.
+  {
+    /**
+     * @param {string} archivo  componente con el desplegable de salón
+     * @param {string} aviso    trozo del texto del aviso cuya condición se examina
+     * @param {"vacio"|"lleno"} exige  qué tiene que estar pasando para que se pueda pintar
+     */
+    const avisoAtadoAlDesplegable = (archivo, aviso, exige = "vacio") => {
+      // `leerCodigo`: los comentarios de estos dos archivos explican justamente la regresión y
+      // citan `salones.length`, así que con comentarios el contrato se aprobaría a sí mismo.
+      const bloque = entre(leerCodigo(archivo), ">Salón</label>", "</select>");
+      if (!bloque) return { ok: false, detalle: `${archivo}: no se encontró el bloque del salón` };
+
+      // 1) ¿De qué array salen las opciones?
+      const fuente = bloque.match(/\{\s*(\w+)\.map\(/);
+      if (!fuente) return { ok: false, detalle: `${archivo}: el desplegable no mapea ningún array` };
+      const arr = fuente[1];
+
+      // 2) La condición que gobierna el aviso: el `&& (` que lo abre, hacia atrás desde el texto.
+      const i = bloque.indexOf(aviso);
+      if (i < 0) return { ok: false, detalle: `${archivo}: no se encontró el aviso «${aviso}»` };
+      const antes = bloque.slice(0, i);
+      const j = antes.lastIndexOf("&& (");
+      const cond = j < 0 ? "" : antes.slice(antes.lastIndexOf("{", j), j);
+
+      // 3) Tiene que exigir que ese array esté VACÍO, y no poder ser cierta por otra vía.
+      //
+      //    CORREGIDO EN N1 (fase 0.a). La primera versión exigía el literal
+      //    `salones\.length\s*===\s*0`, así que `(salones || []).length === 0` —mismo
+      //    comportamiento y estrictamente más seguro— hacía FALLAR el contrato. Y no era
+      //    hipotético: en `EventoDatos` los otros dos props tienen valor por defecto y `salones`
+      //    no, así que la edición defensiva natural sobre ese archivo era justo la prohibida.
+      //    Un contrato que castiga un cambio inocuo acaba borrado por ruidoso, y con él se va
+      //    la propiedad.
+      //
+      //    Lo que importa no es cómo esté escrito, sino que (i) la condición dependa de la
+      //    LONGITUD del array del desplegable y (ii) no haya una disyunción que la haga cierta
+      //    con opciones delante. El `|| []` defensivo no es una disyunción de la guarda: es un
+      //    valor por defecto del propio array, así que se normaliza antes de mirar los `||`.
+      const limpio = cond.replace(new RegExp(`\\(\\s*${arr}\\s*\\|\\|\\s*\\[\\s*\\]\\s*\\)`, "g"), arr);
+      const dependeDeLaLongitud = exige === "vacio"
+        ? new RegExp(`(!\\s*${arr}\\??\\.length\\b)|(${arr}\\??\\.length\\s*(===?\\s*0|<\\s*1))`).test(limpio)
+        : new RegExp(`(${arr}\\??\\.length\\s*(>\\s*0|>=\\s*1|!==?\\s*0))|([^!\\w]${arr}\\??\\.length\\b\\s*&&)`).test(limpio);
+      const sinDisyuncion = !limpio.includes("||");
+      const ok = dependeDeLaLongitud && sinDisyuncion;
+      return {
+        ok,
+        detalle: ok ? "" : `${archivo}: condición del aviso = «${cond.trim()}»`
+          + ` (array del desplegable: ${arr}${dependeDeLaLongitud ? "" : `; no depende de que ${arr} esté ${exige}`}`
+          + `${sinDisyuncion ? "" : "; tiene una disyunción `||` que puede ser cierta en el estado contrario"})`,
+      };
+    };
+
+    // El aviso de "no sale ninguno" y el de "puede estar desactualizada" son la misma propiedad
+    // en las dos direcciones: cada uno habla de un estado del desplegable y no puede pintarse en
+    // el otro. El segundo NO es simetría gratuita — "esta lista puede estar desactualizada" con
+    // el desplegable vacío son dos avisos que se contradicen en el mismo hueco.
+    for (const [archivo, aviso, exige, etiqueta] of [
+      ["src/components/admin/eventos/AdminEventos.jsx", "aquí no sale ninguno", "vacio", "«no sale ninguno» no se pinta con el desplegable lleno"],
+      ["src/components/admin/eventos/EventoDatos.jsx", "aquí no sale ninguno", "vacio", "«no sale ninguno» no se pinta con el desplegable lleno"],
+      ["src/components/admin/eventos/AdminEventos.jsx", "puede estar desactualizada", "lleno", "«puede estar desactualizada» solo con opciones delante"],
+      ["src/components/admin/eventos/EventoDatos.jsx", "puede estar desactualizada", "lleno", "«puede estar desactualizada» solo con opciones delante"],
+    ]) {
+      const r = avisoAtadoAlDesplegable(archivo, aviso, exige);
+      check(`9F-1: ${etiqueta} (${archivo.split("/").pop()})`, r.ok, r.detalle);
+    }
+
+    // Y el motivo sigue siendo distinto según el estado: "no se pudo leer" y "no hay ninguno"
+    // son afirmaciones diferentes sobre el mundo y no se pueden fundir en una.
+    check(
+      "9F-1: con el desplegable vacío se distingue «no se pudo leer» de «no hay ninguno»",
+      /salonesDisponibles === null\s*\n?\s*\? "No se pudo leer la lista de salones/.test(alta) &&
+        /: "No hay salones registrados todavía/.test(alta),
     );
   }
 }
