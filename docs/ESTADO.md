@@ -2,15 +2,11 @@
 
 > **2026-08-04** · <https://jardines-club-hipico.vercel.app>
 >
-> | | |
-> |---|---|
-> | Último commit en producción | `88a5dbf` (solo documentación) |
-> | Último commit con **código** | `b1dbf69` — es el que corre |
-> | Deployment vivo | `dpl_4D5hFe4NLW336KHreDuDTR4u6sK1` (READY) |
-> | Deployment que subió el código | `dpl_A1Ex55zgGErxznJJYFCNcYhEC5r6` (READY) |
->
-> El bundle servido es `index-dCLt0o9K.js` en los dos: el despliegue de documentación no cambió
-> una sola línea de código.
+> **El código que corre en producción es el commit `b1dbf69`** (PR #9), subido por el deployment
+> `dpl_A1Ex55zgGErxznJJYFCNcYhEC5r6`. Los commits posteriores de `main` son **solo
+> documentación** y no cambian una línea de código: el bundle servido sigue siendo
+> `index-dCLt0o9K.js`. Este documento se ancla al commit de **código** a propósito — si citara el
+> último deployment se quedaría obsoleto cada vez que se toca un `.md`.
 >
 > Este documento existe para responder tres cosas de un vistazo: **qué está hecho**, **qué está en
 > producción** y **qué queda abierto**. Si algo de aquí contradice a otro documento, gana este.
@@ -32,7 +28,7 @@ fondo salió con un P0 cada vez.
 | | |
 |---|---|
 | Commit del código | `b1dbf69` |
-| Deployment vivo | `dpl_4D5hFe4NLW336KHreDuDTR4u6sK1` (READY, target `production`) |
+| Deployment que lo subió | `dpl_A1Ex55zgGErxznJJYFCNcYhEC5r6` (READY, target `production`) |
 | URL | <https://jardines-club-hipico.vercel.app> |
 | Funciones serverless | **8** |
 | Migraciones aplicadas | `jardines_sec_01..24` (sin `sec_10`) |
