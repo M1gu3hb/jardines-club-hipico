@@ -1387,10 +1387,15 @@ for (const ruta of [
       /Evento\.create\(\{\s*id: eventoId/.test(crear),
       crear ? "" : "no se encontró crear()",
     );
+    // Se afirma sobre el TRY, no sobre `crear()` entero: desde 9A el `catch` hace la misma
+    // relectura para detectar el reintento sobre un evento que ya existía, así que buscarla en
+    // toda la función dejaba pasar el borrado de la del camino feliz. Contrato vacuo, encontrado
+    // mutando — no leyendo.
+    const tryAlta = entre(crear, "let evento;", "} catch (e) {");
     check(
       "alta: se confirma releyendo antes de dar el alta por buena",
-      /Evento\.filterEstricto\(\{ id: eventoId \}\)/.test(crear),
-      crear ? "" : "no se encontró crear()",
+      /Evento\.filterEstricto\(\{ id: eventoId \}\)/.test(tryAlta) && /!guardado \|\| !guardado\.usuario/.test(tryAlta),
+      tryAlta ? "" : "no se encontró el try de crear()",
     );
     // Si el evento quedó a medias, el formulario se CIERRA: dejarlo abierto con un aviso
     // pequeño es lo que invitaba a pulsar "Crear evento" otra vez.
