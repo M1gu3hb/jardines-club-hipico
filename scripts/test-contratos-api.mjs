@@ -956,6 +956,109 @@ for (const ruta of [
   );
 }
 
+// ---------------------------------------------------------------- tres estados (8E)
+// "Todavía no ha llegado", "de verdad no hay nada" y "la lectura se cayó" se pintaban las tres
+// igual, porque el shim devuelve `[]` en las tres. Lo que sigue ata las piezas que impiden que
+// vuelvan a fundirse.
+{
+  const estado = leerCodigo("src/components/ui/Estado.jsx");
+  const hook = leerCodigo("src/lib/useCarga.js");
+
+  // EL ORDEN ES LA PROPIEDAD. Quien llama calcula `vacio` desde `datos || []`, así que cuando
+  // la lectura falla `vacio` TAMBIÉN es cierto. Si la rama de vacío se mirara antes que la de
+  // error, un fallo volvería a presentarse como "no hay nada" — el bug entero, de vuelta.
+  {
+    const cuerpo = entre(estado, "export function Estado({", "\n}\n");
+    const iCarga = cuerpo.indexOf("if (cargando)");
+    const iError = cuerpo.indexOf("if (error)");
+    const iVacio = cuerpo.indexOf("if (vacio)");
+    check(
+      "Estado: se mira cargando, luego error, y solo al final vacío",
+      iCarga >= 0 && iError > iCarga && iVacio > iError,
+      `cargando=${iCarga} error=${iError} vacio=${iVacio}`,
+    );
+  }
+  check(
+    "Estado: el fallo dice que NO está vacío y ofrece reintentar",
+    /No es que esté vacío/.test(estado) && /onReintentar &&/.test(estado),
+  );
+
+  // El efecto tiene que depender de `deps`, no de la función: `cargar` se recrea en cada render,
+  // así que depender de ella dispararía una lectura por render — un bucle contra la base.
+  {
+    const cb = entre(hook, "const fnRef = useRef(cargar);", "useEffect((");
+    check(
+      "useCarga: la lectura depende de las `deps`, no de la función que se recrea",
+      /useCallback\(\(\) => fnRef\.current\(\), deps\)/.test(cb),
+      cb.slice(0, 120),
+    );
+  }
+  {
+    // Reintentar NO borra lo último bueno: parpadear a esqueleto en cada recarga esconde datos
+    // que sí están.
+    const rec = entre(hook, "const recargar = useCallback(", "return {");
+    check(
+      "useCarga: reintentar limpia el error pero no los datos",
+      /setError\(null\)/.test(rec) && /setRefresco\(/.test(rec) && !/setDatos\(/.test(rec),
+      rec.slice(0, 140),
+    );
+  }
+  check(
+    "useCarga: una respuesta vieja no pisa a una nueva",
+    /mio !== turno\.current/.test(hook) && /\+\+turno\.current/.test(hook),
+  );
+
+  // AdminConfig y MesaReglas: aquí el fallo disfrazado de "aún no hay nada" no es cosmético.
+  // Ambos tienen una rama "no existe todavía" que construye un objeto SIN `id`, y guardar desde
+  // ahí CREA una fila nueva. Con la lectura floja, un fallo llevaba a esa rama y se acababa con
+  // dos filas de configuración (o dos de reglas) para lo que solo admite una.
+  for (const [archivo, ent, nombre, guarda] of [
+    ["src/components/admin/AdminConfig.jsx", "ConfigSitio", "AdminConfig", "if (!config)"],
+    ["src/components/mesas/MesaReglas.jsx", "EventoReglasMesas", "MesaReglas", "if (!reglas)"],
+  ]) {
+    const src = leerCodigo(archivo);
+    const cargarBloque = entre(src, "const cargar = () =>", "useEffect(");
+    check(
+      `${nombre}: la lectura que decide si crear fila nueva es estricta`,
+      /Estricto\(/.test(cargarBloque) &&
+        !new RegExp(`${ent}\\.(list|filter)\\(`).test(cargarBloque) &&
+        /\.catch\(\(e\) => setErrorCarga\(/.test(cargarBloque),
+      cargarBloque ? "" : "no se encontró el bloque `const cargar`",
+    );
+    // Y el fallo corta ANTES de que se pueda pintar el formulario en blanco.
+    const iError = src.indexOf("if (errorCarga)");
+    const iGuarda = src.indexOf(guarda);
+    check(
+      `${nombre}: con la lectura caída no se llega al formulario vacío`,
+      iError > 0 && iGuarda > iError,
+      `errorCarga=${iError} ${guarda}=${iGuarda}`,
+    );
+  }
+
+  // Las pantallas que se quedaban en "Cargando…": el apagado del flag tiene que ocurrir también
+  // cuando la lectura falla, o no hay forma de salir de ahí.
+  {
+    const editor = leerCodigo("src/components/mesas/MesaEditor.jsx");
+    const cargarEditor = entre(editor, "const cargar = useCallback(", "}, [eventoId]);");
+    check(
+      "MesaEditor: un fallo también apaga el estado de carga",
+      /finally \{\s*setCargando\(false\);/.test(cargarEditor) && /catch \(e\)/.test(cargarEditor),
+      cargarEditor ? "" : "no se encontró `const cargar`",
+    );
+    const meseros = leerCodigo("src/components/meseros/EventoMeseros.jsx");
+    const cargarMeseros = entre(meseros, "const cargar = useCallback(", "}, [eventoId]);");
+    check(
+      "EventoMeseros: un fallo también apaga el estado de carga",
+      cortaAntesDe(
+        cargarMeseros.replace("return;", "throw;"),
+        "catch (e)",
+        cargarMeseros.replace("return;", "throw;").indexOf("setMesas(ms)"),
+      ) && /setCargando\(false\);\s*(return|throw)/.test(cargarMeseros.replace("return;", "throw;")),
+      cargarMeseros ? "" : "no se encontró `const cargar`",
+    );
+  }
+}
+
 // ---------------------------------------------------------------- salida
 let fallan = 0;
 for (const c of casos) {
