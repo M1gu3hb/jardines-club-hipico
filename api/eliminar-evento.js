@@ -103,7 +103,8 @@ export default async function handler(req, res) {
 
   // La fila canónica. El nombre para confirmar sale de AQUÍ, nunca del navegador.
   const { data: ev, error: errEv } = await admin
-    .from("eventos").select("id, nombre_evento, usuario, auth_user_id").eq("id", eventoId).maybeSingle();
+    .from("eventos").select("id, nombre_evento, usuario, auth_user_id, created_at")
+    .eq("id", eventoId).maybeSingle();
   if (errEv) {
     console.error("[eliminar-evento] no se pudo leer el evento:", errEv.message);
     return generico(res, 500);
@@ -119,8 +120,25 @@ export default async function handler(req, res) {
     return generico(res, 500);
   }
   if (soloInventario) {
+    // HOMÓNIMOS. La confirmación es "escribe el nombre exacto", y ese nombre NO identifica la
+    // fila: en producción hay cuatro eventos llamados «Boda ortega» creados con 24 segundos de
+    // diferencia, con el MISMO cliente, la MISMA fecha, el MISMO salón y el MISMO creador — en
+    // la lista del panel se pintan idénticos. Tres son basura de un doble clic y el cuarto es
+    // el bueno, el único con cuenta de portal. Sin un discriminante, escribir el nombre correcto
+    // no impide borrar el evento equivocado: la confirmación pasaría igual.
+    // Se devuelven la hora de alta y cuántos comparten nombre para que la pantalla pueda decir
+    // CUÁL de ellos se está borrando.
+    const { count: homonimos, error: errHom } = await admin
+      .from("eventos").select("*", { count: "exact", head: true })
+      .eq("nombre_evento", ev.nombre_evento).neq("id", eventoId);
+    if (errHom) {
+      console.error("[eliminar-evento] homonimos:", errHom.message);
+      return generico(res, 500);
+    }
     return res.status(200).json({
       ok: true, nombreEvento: ev.nombre_evento, inventario: inv,
+      homonimos: homonimos || 0,
+      creadoEl: ev.created_at,
       // La UI NO puede deducirlo de `evento.usuario`: una fila puede tener `usuario` y no
       // tener `auth_user_id` (es justo el estado en que quedaron los tres duplicados de
       // "Boda ortega"), y entonces prometería borrar una cuenta que no existe.
@@ -216,8 +234,6 @@ export default async function handler(req, res) {
         { paso: "notificaciones" });
     }
 
-    // `operativo_ubicaciones` tiene PK compuesta (personal_id, evento_id) y NO tiene `id`:
-    // se borra por evento_id, no fila a fila.
     // `operativo_ubicaciones` tiene PK compuesta (personal_id, evento_id) y NO tiene `id`:
     // se borra por `evento_id` y se confirma con `personal_id`, no con `id`.
     const { data: ubicBorradas, error: errUbic } = await admin

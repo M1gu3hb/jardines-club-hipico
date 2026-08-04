@@ -13,13 +13,25 @@ import { Trash2, Loader2, AlertTriangle, X } from "lucide-react";
  *  - La confirmación es escribir el NOMBRE EXACTO. El servidor lo vuelve a comparar contra la
  *    fila: que el botón se habilite aquí no autoriza nada.
  *  - Se avisa de lo que NO se borra: la reseña del cliente sigue publicada, a propósito.
+ *  - Si hay OTROS eventos con el mismo nombre, se dice y se enseña el discriminante. Escribir
+ *    el nombre exacto no distingue entre homónimos: ese candado protege de borrar por accidente,
+ *    no de borrar el equivocado.
  *  - Si el borrado se interrumpe, se enseña EXACTAMENTE qué quedó hecho. Un "no se pudo" a
  *    secas, después de haber borrado los archivos, deja al dueño sin saber si reintentar.
  */
+const fechaLarga = (iso) => {
+  if (!iso) return "";
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return "";
+  return d.toLocaleString("es-MX", { dateStyle: "medium", timeStyle: "medium" });
+};
+
 export default function EventoEliminar({ evento, onBorrado }) {
   const [abierto, setAbierto] = useState(false);
   const [inv, setInv] = useState(null);
   const [cuenta, setCuenta] = useState(null);
+  const [homonimos, setHomonimos] = useState(0);
+  const [creadoEl, setCreadoEl] = useState("");
   const [cargando, setCargando] = useState(false);
   const [texto, setTexto] = useState("");
   const [borrando, setBorrando] = useState(false);
@@ -29,9 +41,13 @@ export default function EventoEliminar({ evento, onBorrado }) {
   useEffect(() => {
     if (!abierto) return;
     setCargando(true); setError(""); setInv(null); setCuenta(null); setParcial(""); setTexto("");
+    setHomonimos(0); setCreadoEl("");
     base44.functions
       .eliminarEvento({ eventoId: evento.id, soloInventario: true })
-      .then((r) => { setInv(r.inventario); setCuenta(r.cuentaCliente); })
+      .then((r) => {
+        setInv(r.inventario); setCuenta(r.cuentaCliente);
+        setHomonimos(r.homonimos || 0); setCreadoEl(r.creadoEl || "");
+      })
       .catch((e) => setError(e?.message || "No se pudo consultar qué contiene este evento."))
       .finally(() => setCargando(false));
   }, [abierto, evento.id]);
@@ -106,6 +122,23 @@ export default function EventoEliminar({ evento, onBorrado }) {
         <p className="text-white/40 text-xs flex items-center gap-2">
           <Loader2 size={12} className="animate-spin" /> Comprobando qué contiene este evento…
         </p>
+      )}
+
+      {inv && homonimos > 0 && (
+        <div className="border border-amber-400/40 bg-amber-400/5 px-3 py-2.5 rounded space-y-1">
+          <p className="text-amber-300 text-xs font-medium flex items-center gap-2">
+            <AlertTriangle size={13} /> Hay {homonimos} evento{homonimos > 1 ? "s más" : " más"} con
+            este mismo nombre
+          </p>
+          <p className="text-white/50 text-xs leading-relaxed">
+            Escribir el nombre no distingue entre ellos. Estás a punto de borrar concretamente{" "}
+            <strong className="text-white/75">el creado el {fechaLarga(creadoEl) || "—"}</strong>, que{" "}
+            {cuenta
+              ? <>tiene la cuenta de portal <strong className="text-white/75">«{cuenta}»</strong></>
+              : <strong className="text-white/75">no tiene cuenta de portal</strong>}
+            . Comprueba que es el que sobra antes de continuar.
+          </p>
+        </div>
       )}
 
       {inv && (

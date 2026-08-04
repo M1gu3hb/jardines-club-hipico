@@ -107,6 +107,26 @@ export default function AdminEventos() {
     );
   }
 
+  // NOMBRES REPETIDOS. Un doble clic en "Crear evento" deja filas gemelas: mismo nombre, mismo
+  // cliente, misma fecha, mismo salón, mismo creador. En la lista se pintan IDÉNTICAS, y como el
+  // borrado se confirma escribiendo el nombre, nada distingue la que sobra de la buena. Se marcan
+  // con lo único que las separa: la hora de alta y si tienen acceso de portal.
+  // Se cuenta sobre `eventos` (todos), no sobre `lista`: un filtro puede esconder a la gemela y
+  // entonces la marca desaparecería justo cuando más falta hace.
+  const vecesPorNombre = eventos.reduce((acc, e) => {
+    const k = (e.nombreEvento || "").trim().toLowerCase();
+    acc[k] = (acc[k] || 0) + 1;
+    return acc;
+  }, {});
+  const repetido = (e) => (vecesPorNombre[(e.nombreEvento || "").trim().toLowerCase()] || 0) > 1;
+  const altaCorta = (iso) => {
+    if (!iso) return "";
+    const d = new Date(iso);
+    return Number.isNaN(d.getTime())
+      ? ""
+      : d.toLocaleString("es-MX", { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit", second: "2-digit" });
+  };
+
   const lista = eventos
     .filter((e) => filtro === "Todos" || e.estatus === filtro)
     .filter((e) => {
@@ -204,12 +224,24 @@ export default function AdminEventos() {
               <Calendar size={16} className="text-[#C9A84C]/70" />
             </div>
             <div className="flex-1 min-w-0">
-              <p className="text-white/90 text-sm font-medium truncate">{e.nombreEvento}</p>
+              <p className="text-white/90 text-sm font-medium truncate flex items-center gap-2">
+                {e.nombreEvento}
+                {repetido(e) && (
+                  <span className="text-amber-300/80 bg-amber-400/10 border border-amber-400/25 text-[10px] px-1.5 py-0.5 rounded-full flex-shrink-0 font-normal">
+                    nombre repetido
+                  </span>
+                )}
+              </p>
               <div className="flex items-center gap-3 mt-1 text-white/35 text-xs">
                 <span>{e.fechaEvento || "sin fecha"}</span>
                 <span className="flex items-center gap-1 truncate"><User size={11} />{e.clienteNombre || e.usuario || "—"}</span>
                 <span className="truncate hidden sm:inline">{salonNombre(e.salonId)}</span>
                 {e.creadoPor && <span className="text-[#C9A84C]/50 truncate hidden md:inline">· creado por {e.creadoPor}</span>}
+                {repetido(e) && (
+                  <span className="text-amber-300/60 truncate">
+                    · alta {altaCorta(e.createdAt) || "—"} · {e.usuario ? `acceso «${e.usuario}»` : "sin acceso"}
+                  </span>
+                )}
               </div>
             </div>
             {e.portalActivo && <span className="flex items-center gap-1 text-green-400/70 text-xs flex-shrink-0"><DoorOpen size={12} /> Portal</span>}

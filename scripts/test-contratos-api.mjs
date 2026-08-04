@@ -884,6 +884,68 @@ for (const ruta of [
   );
 }
 
+// ---------------------------------------------------------------- homónimos (8C)
+// Medido en producción antes de escribir esto: cuatro eventos «Boda ortega» creados con 24
+// segundos de diferencia, con el MISMO cliente, fecha, salón y creador. En la lista se pintan
+// idénticos y el único distinto —el que tiene cuenta de portal— es el que hay que conservar.
+// La confirmación "escribe el nombre exacto" NO distingue entre ellos: protege del borrado por
+// accidente, no del borrado equivocado. Sin discriminante visible, 8C es una ruleta.
+{
+  const api = leerCodigo("api/eliminar-evento.js");
+  const ui = leerCodigo("src/components/admin/eventos/EventoEliminar.jsx");
+  const lista = leerCodigo("src/components/admin/eventos/AdminEventos.jsx");
+
+  // El recuento excluye la propia fila (si no, «1 más» sería siempre al menos 1) y se hace
+  // sobre el nombre de la FILA leída, no sobre lo que mande el navegador.
+  const bloque = entre(api, "const { count: homonimos", "return res.status(200).json({");
+  check(
+    "eliminar-evento: los homónimos se cuentan por nombre de la fila, excluyéndola",
+    /\.eq\("nombre_evento", ev\.nombre_evento\)\s*\.neq\("id", eventoId\)/.test(bloque) &&
+      /count: "exact", head: true/.test(bloque),
+    bloque.slice(0, 160),
+  );
+  // El error del recuento corta: un `homonimos` a 0 por fallo de lectura escondería el aviso
+  // justo en el caso que lo necesita.
+  {
+    const iErr = api.indexOf("if (errHom)");
+    const iCorte = iErr < 0 ? -1 : api.indexOf("generico(res, 500)", iErr);
+    const iResp = api.indexOf("homonimos: homonimos");
+    check(
+      "eliminar-evento: si el recuento de homónimos falla, no se responde inventario",
+      iErr > 0 && iCorte > iErr && iResp > iCorte,
+      `errHom=${iErr} corte=${iCorte} respuesta=${iResp}`,
+    );
+  }
+
+  // El aviso de la UI: se enseña SOLO cuando hay homónimos, y dice cuál es este.
+  const aviso = entre(ui, "{inv && homonimos > 0 && (", "{inv && (");
+  check(
+    "eliminar-evento: con homónimos, la UI dice la hora de alta y si tiene cuenta",
+    aviso.includes("fechaLarga(creadoEl)") &&
+      /cuenta[\s\S]{0,200}no tiene cuenta de portal/.test(aviso),
+    aviso ? "" : "no se encontró el bloque de aviso",
+  );
+  check(
+    "eliminar-evento: la UI no inventa el discriminante — viene del servidor",
+    /setHomonimos\(r\.homonimos \|\| 0\);\s*setCreadoEl\(r\.creadoEl \|\| ""\)/.test(ui) &&
+      !/evento\.createdAt/.test(ui),
+  );
+
+  // La lista: la marca se calcula sobre TODOS los eventos, no sobre los filtrados. Contarlo
+  // sobre `lista` haría desaparecer la marca en cuanto un filtro escondiera a la gemela — justo
+  // cuando más falta hace.
+  const recuento = entre(lista, "const vecesPorNombre =", "const repetido =");
+  check(
+    "eventos: los nombres repetidos se cuentan sobre todos los eventos, no sobre los filtrados",
+    /^const vecesPorNombre = eventos\s*\.reduce\(/.test(recuento.trim()) && !/\blista\b/.test(recuento),
+    recuento.slice(0, 120),
+  );
+  check(
+    "eventos: una fila con nombre repetido enseña alta y acceso para poder distinguirla",
+    /repetido\(e\) && \([\s\S]{0,400}altaCorta\(e\.createdAt\)[\s\S]{0,200}sin acceso/.test(lista),
+  );
+}
+
 // ---------------------------------------------------------------- salida
 let fallan = 0;
 for (const c of casos) {
