@@ -618,6 +618,79 @@ for (const ruta of [
   );
 }
 
+// ---------------------------------------------------------------- alta de evento (8A)
+// La causa raíz: el formulario validaba `password.length < 6` y el servidor `< 8`, y el
+// usuario ni siquiera se comprobaba en el cliente. Una contraseña de 6 pasaba el formulario,
+// moría en el servidor con un 400 opaco, y el evento quedaba creado sin credenciales.
+// Estos contratos existen para que NO PUEDAN volver a divergir.
+{
+  const reglas = leerCodigo("api/_lib/reglas-credenciales.js");
+  const api = leerCodigo("api/crear-usuario-evento.js");
+  const alta = leerCodigo("src/components/admin/eventos/AdminEventos.jsx");
+  const ficha = leerCodigo("src/components/admin/eventos/EventoDatos.jsx");
+
+  // Las reglas viven en UN archivo y lo importan los tres. No se comprueba que los números
+  // "coincidan" —eso volvería a ser dos copias— sino que no haya una segunda copia.
+  check(
+    "credenciales: el servidor usa las reglas compartidas",
+    /from "\.\/_lib\/reglas-credenciales\.js"/.test(api) && /validarCredenciales\(/.test(api),
+  );
+  for (const [nombre, s] of [["alta de evento", alta], ["ficha del evento", ficha]]) {
+    check(
+      `credenciales: ${nombre} usa las MISMAS reglas que el servidor`,
+      /reglas-credenciales\.js"/.test(s) && /validarCredenciales\(/.test(s),
+    );
+    // La regresión literal: una longitud mínima escrita a mano en el cliente.
+    check(
+      `credenciales: ${nombre} no vuelve a validar por su cuenta`,
+      !/password\.length < \d/.test(s) && !/length < 6/.test(s),
+    );
+  }
+  check(
+    "credenciales: las reglas no dependen del servidor (el navegador las importa)",
+    !/process\.env/.test(reglas) && !/require\(|from "node:/.test(reglas),
+  );
+  check(
+    "credenciales: el 400 dice QUÉ campo falló",
+    /status\(400\)\.json\(\{ error: v\.mensaje, campo: v\.campo \}\)/.test(api),
+  );
+
+  // El id del evento se fija UNA vez al abrir el formulario. Si vuelve a generarse dentro
+  // del shim en cada clic, el reintento crea otro evento y la clave de idempotencia
+  // `${eventoId}:${usuario}` nunca coincide — que es como salieron cuatro "Boda ortega".
+  {
+    const abrir = entre(alta, "const abrirCrear = ", "const crear = async");
+    check(
+      "alta: el id del evento se fija al ABRIR el formulario, no en cada clic",
+      /setEventoId\(nuevoId\(\)\)/.test(abrir),
+      abrir ? "" : "no se encontró abrirCrear",
+    );
+    const crear = entre(alta, "const crear = async", "if (abierto)");
+    check(
+      "alta: ese id es el que se escribe",
+      /Evento\.create\(\{\s*id: eventoId/.test(crear),
+      crear ? "" : "no se encontró crear()",
+    );
+    check(
+      "alta: se confirma releyendo antes de dar el alta por buena",
+      /Evento\.filterEstricto\(\{ id: eventoId \}\)/.test(crear),
+      crear ? "" : "no se encontró crear()",
+    );
+    // Si el evento quedó a medias, el formulario se CIERRA: dejarlo abierto con un aviso
+    // pequeño es lo que invitaba a pulsar "Crear evento" otra vez.
+    const iEvento = crear.indexOf("if (evento)");
+    check(
+      "alta: si el evento quedó a medias, el formulario se cierra",
+      iEvento >= 0 && /if \(evento\) \{[\s\S]{0,200}setCreando\(false\)/.test(crear),
+      iEvento < 0 ? "no se distingue el evento a medias" : "el formulario sigue abierto",
+    );
+  }
+  check(
+    "alta: la lista marca los eventos sin credenciales",
+    /!e\.usuario &&[\s\S]{0,300}Sin credenciales/.test(alta),
+  );
+}
+
 // ---------------------------------------------------------------- salida
 let fallan = 0;
 for (const c of casos) {
