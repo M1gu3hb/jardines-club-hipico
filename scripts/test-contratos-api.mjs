@@ -379,12 +379,22 @@ for (const ruta of [
 }
 {
   const s = leerCodigo("src/api/base44Client.js");
-  // Dentro del cuerpo de `filterEstricto`: el `throw` que importa es el suyo. Medido
-  // por distancia, el contrato se sostenía sobre el texto de un `console.error`.
+  // El `throw` que importa es el del cuerpo estricto, no uno cualquiera del archivo: medido
+  // por distancia, el contrato llegó a sostenerse sobre el texto de un `console.error`.
+  // Desde 8E ese cuerpo es compartido (`runQueryEstricto`), así que se afirman las dos mitades:
+  // que el cuerpo lanza, y que las dos lecturas estrictas son ese cuerpo y no otro.
+  const cEstricto = entre(s, "async function runQueryEstricto(", "\nfunction makeEntity(");
+  check(
+    "shim: la lectura estricta propaga el error en vez de devolver []",
+    /throw error/.test(cEstricto),
+    cEstricto ? "" : "no se encontró runQueryEstricto",
+  );
   const cFiltro = entre(s, "async filterEstricto(", "async get(");
   check(
-    "shim: filterEstricto propaga el error en vez de devolver []",
-    /throw error/.test(cFiltro),
+    "shim: filterEstricto y listEstricto usan ese cuerpo, no `runQuery`",
+    /async filterEstricto\(filter, sort\) \{ return runQueryEstricto\(/.test(cFiltro) &&
+      /async listEstricto\(sort\) \{ return runQueryEstricto\(/.test(cFiltro) &&
+      !/return runQuery\(/.test(cFiltro),
     cFiltro ? "" : "no se encontró filterEstricto",
   );
   check("shim: storage.remove distingue 'no borró nada'", /borrado: Array\.isArray\(data\)/.test(s));

@@ -1,18 +1,21 @@
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { base44 } from "@/api/base44Client";
 import { Plus, Loader2, Trash2 } from "lucide-react";
 import { Field, Area } from "./_ui";
+import { useCarga } from "@/lib/useCarga";
+import { Estado, EsqueletoFilas } from "@/components/ui/Estado";
 
 const VACIO = { descripcion: "", cantidad: "1", precio: "", notas: "" };
 
 export default function EventoItems({ eventoId }) {
-  const [items, setItems] = useState([]);
   const [form, setForm] = useState(VACIO);
   const [guardando, setGuardando] = useState(false);
   const set = (k, v) => setForm((f) => ({ ...f, [k]: v }));
 
-  const cargar = () => base44.entities.ItemContratado.filter({ eventoId }, "orden").then(setItems);
-  useEffect(() => { cargar(); }, [eventoId]);
+  const { datos, cargando, error, recargar } = useCarga(
+    () => base44.entities.ItemContratado.filterEstricto({ eventoId }, "orden"), [eventoId]);
+  const items = datos || [];
+  const cargar = recargar;
 
   const agregar = async () => {
     if (!form.descripcion.trim()) return;
@@ -52,6 +55,13 @@ export default function EventoItems({ eventoId }) {
         </button>
       </div>
 
+      <Estado
+        cargando={cargando} error={error} onReintentar={recargar}
+        vacio={items.length === 0}
+        mensajeVacio="Sin ítems contratados."
+        mensajeError="No se pudieron cargar los ítems contratados."
+        esqueleto={<EsqueletoFilas filas={3} alto="h-12" />}
+      >
       <div className="space-y-2">
         {items.map((it) => (
           <div key={it.id} className="flex items-center gap-3 bg-[#111] border border-white/5 px-4 py-3">
@@ -68,13 +78,13 @@ export default function EventoItems({ eventoId }) {
             <button onClick={() => borrar(it.id)} className="text-white/30 hover:text-red-400 transition-colors p-1.5"><Trash2 size={14} /></button>
           </div>
         ))}
-        {items.length === 0 && <p className="text-white/20 text-sm py-6 text-center">Sin ítems contratados.</p>}
-        {total > 0 && (
-          <div className="flex justify-end pt-2">
-            <span className="text-white/40 text-sm">Total estimado: <span className="text-[#C9A84C]">${total.toLocaleString("es-MX")}</span></span>
-          </div>
-        )}
       </div>
+      </Estado>
+      {total > 0 && (
+        <div className="flex justify-end pt-2">
+          <span className="text-white/40 text-sm">Total estimado: <span className="text-[#C9A84C]">${total.toLocaleString("es-MX")}</span></span>
+        </div>
+      )}
     </div>
   );
 }

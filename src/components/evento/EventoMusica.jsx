@@ -1,6 +1,8 @@
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { base44 } from "@/api/base44Client";
 import { Plus, Loader2, Trash2, Music2, Ban, Link2, ExternalLink } from "lucide-react";
+import { useCarga } from "@/lib/useCarga";
+import { Estado, EsqueletoFilas } from "@/components/ui/Estado";
 
 /**
  * Música del evento: canciones que SÍ poner (`tipo='poner'`) y que NO (`tipo='no_poner'`).
@@ -11,13 +13,14 @@ function esUrl(v) {
 }
 
 export default function EventoMusica({ eventoId, editable = false, alAgregar }) {
-  const [items, setItems] = useState([]);
   const [form, setForm] = useState({ tipo: "poner", cancion: "", artista: "", enlace: "" });
   const [guardando, setGuardando] = useState(false);
   const set = (k, v) => setForm((f) => ({ ...f, [k]: v }));
 
-  const cargar = () => base44.entities.Musica.filter({ eventoId }, "-created_date").then(setItems);
-  useEffect(() => { cargar(); }, [eventoId]);
+  const { datos, cargando, error, recargar } = useCarga(
+    () => base44.entities.Musica.filterEstricto({ eventoId }, "-created_date"), [eventoId]);
+  const items = datos || [];
+  const cargar = recargar;
 
   const agregar = async () => {
     if (!form.cancion.trim() && !form.enlace.trim()) return;
@@ -89,6 +92,11 @@ export default function EventoMusica({ eventoId, editable = false, alAgregar }) 
         </div>
       )}
 
+      <Estado
+        cargando={cargando} error={error} onReintentar={recargar}
+        mensajeError="No se pudo cargar tu música."
+        esqueleto={<EsqueletoFilas filas={4} alto="h-12" />}
+      >
       <div className="grid sm:grid-cols-2 gap-6">
         <div>
           <p className="text-[#C9A84C] text-xs uppercase tracking-wider mb-3 flex items-center gap-1.5"><Music2 size={13} /> Sí poner ({poner.length})</p>
@@ -105,6 +113,7 @@ export default function EventoMusica({ eventoId, editable = false, alAgregar }) 
           </div>
         </div>
       </div>
+      </Estado>
     </div>
   );
 }

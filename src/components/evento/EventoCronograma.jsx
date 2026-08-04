@@ -1,10 +1,12 @@
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { base44 } from "@/api/base44Client";
 import { motion } from "framer-motion";
 import { Plus, Loader2, Trash2, Clock, Sunrise, Sparkles } from "lucide-react";
 import { horaLegible } from "@/lib/fechas";
 import { sugerirMomentos, horaSugerida } from "@/lib/cronogramaSugerencias";
 import SelectorHora from "./SelectorHora";
+import { useCarga } from "@/lib/useCarga";
+import { Estado, EsqueletoFilas } from "@/components/ui/Estado";
 
 /**
  * Cronograma del evento como línea de tiempo. Reutilizable por admin (editable)
@@ -12,15 +14,16 @@ import SelectorHora from "./SelectorHora";
  * solo muestra.
  */
 export default function EventoCronograma({ eventoId, editable = false, tipoEvento = "" }) {
-  const [items, setItems] = useState([]);
   const [form, setForm] = useState({ hora: "18:00", titulo: "", descripcion: "" });
   const [guardando, setGuardando] = useState(false);
   const [abierto, setAbierto] = useState(false);
   const set = (k, v) => setForm((f) => ({ ...f, [k]: v }));
 
   const ordenar = (arr) => [...arr].sort((a, b) => (a.hora || "").localeCompare(b.hora || "") || (a.orden || 0) - (b.orden || 0));
-  const cargar = () => base44.entities.Cronograma.filter({ eventoId }, "orden").then((r) => setItems(ordenar(r)));
-  useEffect(() => { cargar(); }, [eventoId]);
+  const { datos, cargando, error, recargar } = useCarga(
+    () => base44.entities.Cronograma.filterEstricto({ eventoId }, "orden").then(ordenar), [eventoId]);
+  const items = datos || [];
+  const cargar = recargar;
 
   const agregar = async () => {
     if (!form.titulo.trim()) return;
@@ -125,7 +128,14 @@ export default function EventoCronograma({ eventoId, editable = false, tipoEvent
             </motion.div>
           ))}
         </div>
-        {items.length === 0 && (
+        {/* El cronograma vacío tiene su propia ilustración, así que aquí no se usa el
+            `mensajeVacio` de <Estado>: solo se toman sus otros dos estados. */}
+        {cargando && <EsqueletoFilas filas={3} alto="h-16" />}
+        {!cargando && error && (
+          <Estado error={error} onReintentar={recargar}
+            mensajeError="No se pudo cargar el cronograma." />
+        )}
+        {!cargando && !error && items.length === 0 && (
           <div className="text-center py-10">
             <Sunrise size={26} className="text-[#C9A84C]/30 mx-auto mb-3" />
             <p className="text-white/40 text-sm">Tu cronograma está en blanco.</p>

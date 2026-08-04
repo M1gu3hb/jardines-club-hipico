@@ -67,11 +67,13 @@ export function EsqueletoTexto({ lineas = 3 }) {
  * después de aplicar sus filtros, y son mensajes distintos.
  */
 export function Estado({
-  cargando, error, vacio, onReintentar,
+  // Con valores por defecto: hay pantallas que solo necesitan dos de los tres estados (el
+  // cronograma tiene su propia ilustración de vacío) y exigirles las cinco props no aporta nada.
+  cargando = false, error = null, vacio = false, onReintentar = null,
   esqueleto = <EsqueletoFilas />,
   mensajeVacio = "No hay nada todavía.",
   mensajeError = "No se pudo cargar esta sección.",
-  children,
+  children = null,
 }) {
   if (cargando) return esqueleto;
   if (error) {

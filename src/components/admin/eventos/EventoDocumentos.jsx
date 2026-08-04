@@ -2,6 +2,7 @@ import { useState, useEffect } from "react";
 import { base44 } from "@/api/base44Client";
 import { Upload, Loader2, Trash2, Download, FileText, Send, Check, AlertTriangle } from "lucide-react";
 import { DOCUMENTO_TIPOS, BUCKET_MIME, BUCKET_MAX_BYTES } from "@/lib/catalogos";
+import { EsqueletoFilas } from "@/components/ui/Estado";
 
 const BUCKET = "clientes";
 
@@ -31,7 +32,7 @@ function mensajeDeError(e, accion) {
 }
 
 export default function EventoDocumentos({ eventoId }) {
-  const [docs, setDocs] = useState([]);
+  const [docs, setDocs] = useState(null); // null = todavía no se sabe
   const [subiendo, setSubiendo] = useState(false);
   const [titulo, setTitulo] = useState("");
   const [tipo, setTipo] = useState("contrato");
@@ -65,7 +66,11 @@ export default function EventoDocumentos({ eventoId }) {
   const cargar = () =>
     base44.entities.Documento.filterEstricto({ eventoId }, "-created_date")
       .then(setDocs)
-      .catch(() => setError("No se pudieron cargar los documentos. Recarga la página."));
+      .catch(() => {
+        // Se deja `docs` como está: si la recarga tras subir un archivo falla, borrar la lista
+        // haría creer que se perdieron los documentos que sí están.
+        setError("No se pudieron cargar los documentos. Recarga la página.");
+      });
   useEffect(() => { cargar(); }, [eventoId]);
 
   const subir = async (e) => {
@@ -206,7 +211,8 @@ export default function EventoDocumentos({ eventoId }) {
       </div>
 
       <div className="space-y-2">
-        {docs.map((d) => (
+        {docs === null && !error && <EsqueletoFilas filas={2} alto="h-14" />}
+        {(docs || []).map((d) => (
           <div key={d.id} className="flex items-center gap-3 bg-[#111] border border-white/5 px-4 py-3">
             <FileText size={16} className="text-[#C9A84C]/60 flex-shrink-0" />
             <div className="flex-1 min-w-0">
@@ -232,7 +238,7 @@ export default function EventoDocumentos({ eventoId }) {
             </button>
           </div>
         ))}
-        {docs.length === 0 && <p className="text-white/20 text-sm py-6 text-center">Sin documentos.</p>}
+        {docs !== null && docs.length === 0 && <p className="text-white/20 text-sm py-6 text-center">Sin documentos.</p>}
       </div>
     </div>
   );

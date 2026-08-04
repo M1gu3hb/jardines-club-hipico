@@ -1,6 +1,8 @@
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { base44 } from "@/api/base44Client";
 import { FileText, Download, Loader2, FileSignature, ReceiptText } from "lucide-react";
+import { useCarga } from "@/lib/useCarga";
+import { Estado, EsqueletoFilas } from "@/components/ui/Estado";
 
 const BUCKET = "clientes";
 
@@ -13,15 +15,11 @@ const ICONO = {
 };
 
 export default function PortalDocumentos({ eventoId }) {
-  const [docs, setDocs] = useState([]);
-  const [cargando, setCargando] = useState(true);
   const [abriendo, setAbriendo] = useState(null);
 
-  useEffect(() => {
-    base44.entities.Documento.filter({ eventoId }, "-created_date")
-      .then(setDocs)
-      .finally(() => setCargando(false));
-  }, [eventoId]);
+  const { datos, cargando, error, recargar } = useCarga(
+    () => base44.entities.Documento.filterEstricto({ eventoId }, "-created_date"), [eventoId]);
+  const docs = datos || [];
 
   const abrir = async (doc) => {
     setAbriendo(doc.id);
@@ -33,10 +31,13 @@ export default function PortalDocumentos({ eventoId }) {
     }
   };
 
-  if (cargando) return <p className="text-white/25 text-sm py-10 text-center">Preparando tus documentos…</p>;
-
   return (
     <div className="max-w-xl mx-auto">
+      <Estado
+        cargando={cargando} error={error} onReintentar={recargar}
+        mensajeError="No pudimos cargar tus documentos."
+        esqueleto={<EsqueletoFilas filas={3} alto="h-20" />}
+      >
       <div className="space-y-3">
         {docs.map((d) => {
           const Icono = ICONO[d.tipo] || FileText;
@@ -66,6 +67,7 @@ export default function PortalDocumentos({ eventoId }) {
           </div>
         )}
       </div>
+      </Estado>
     </div>
   );
 }

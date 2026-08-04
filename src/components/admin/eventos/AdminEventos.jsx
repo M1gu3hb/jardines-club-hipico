@@ -1,10 +1,12 @@
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { base44 } from "@/api/base44Client";
 import { useAuth } from "@/api/authContext";
 import { Plus, Loader2, Check, Search, Calendar, User, DoorOpen } from "lucide-react";
 import { Field, ESTATUS, estatusColor } from "./_ui";
 import { MESA_FORMAS } from "@/lib/catalogos";
 import EventoFicha from "./EventoFicha";
+import { useCarga } from "@/lib/useCarga";
+import { Estado, EsqueletoFilas } from "@/components/ui/Estado";
 
 const FORM_VACIO = {
   nombreEvento: "", tipoEvento: "", fechaEvento: "", salonId: "",
@@ -14,8 +16,6 @@ const FORM_VACIO = {
 
 export default function AdminEventos() {
   const { perfil } = useAuth();
-  const [eventos, setEventos] = useState([]);
-  const [salones, setSalones] = useState([]);
   const [abierto, setAbierto] = useState(null); // evento seleccionado (ficha)
   const [creando, setCreando] = useState(false);
   const [form, setForm] = useState(FORM_VACIO);
@@ -25,15 +25,18 @@ export default function AdminEventos() {
   const [filtro, setFiltro] = useState("Todos");
   const [busqueda, setBusqueda] = useState("");
 
-  const cargar = async () => {
-    const [evs, sals] = await Promise.all([
-      base44.entities.Evento.list("-created_date"),
-      base44.entities.Salon.list("orden"),
-    ]);
-    setEventos(evs);
-    setSalones(sals);
-  };
-  useEffect(() => { cargar(); }, []);
+  // Las dos lecturas van juntas: la lista no se puede pintar sin los salones (cada fila
+  // enseña el suyo), así que comparten estado de carga y de error.
+  const { datos, cargando, error: errorCarga, recargar } = useCarga(
+    () => Promise.all([
+      base44.entities.Evento.listEstricto("-created_date"),
+      base44.entities.Salon.listEstricto("orden"),
+    ]).then(([evs, sals]) => ({ evs, sals })),
+    [],
+  );
+  const eventos = datos?.evs || [];
+  const salones = datos?.sals || [];
+  const cargar = recargar;
 
   const set = (k, v) => setForm((f) => ({ ...f, [k]: v }));
   const salonNombre = (id) => salones.find((s) => s.id === id)?.nombre || "—";
@@ -216,6 +219,13 @@ export default function AdminEventos() {
         ))}
       </div>
 
+      <Estado
+        cargando={cargando} error={errorCarga} onReintentar={recargar}
+        vacio={lista.length === 0}
+        mensajeVacio={eventos.length === 0 ? "Todavía no hay eventos. Crea el primero." : "No hay eventos que coincidan."}
+        mensajeError="No se pudieron cargar los eventos."
+        esqueleto={<EsqueletoFilas filas={4} alto="h-[74px]" />}
+      >
       <div className="space-y-2.5">
         {lista.map((e) => (
           <button key={e.id} onClick={() => setAbierto(e)}
@@ -248,8 +258,8 @@ export default function AdminEventos() {
             <span className={`text-xs px-2.5 py-1 rounded-full flex-shrink-0 ${estatusColor(e.estatus)}`}>{e.estatus || "Apartado"}</span>
           </button>
         ))}
-        {lista.length === 0 && <p className="text-white/20 text-sm py-8 text-center">No hay eventos que coincidan.</p>}
       </div>
+      </Estado>
     </div>
   );
 }

@@ -92,7 +92,7 @@ async function runQuery(table, { sort, filter } = {}) {
  * Aplica el orden por defecto de `CON_ORDEN` igual que `runQuery`, para que sea un reemplazo
  * directo y cambiar `list` por `listEstricto` no reordene nada por sorpresa.
  */
-async function runQueryEstricto(table, { sort, filter } = {}) {
+async function runQueryEstricto(table, { sort, filter }) {
   let q = supabase.from(table).select("*");
   if (filter) for (const k in filter) q = q.eq(toSnake(k), filter[k]);
   if (sort) { const { col, ascending } = sortColumn(sort); q = q.order(col, { ascending, nullsFirst: false }); }
@@ -125,7 +125,7 @@ function makeEntity(name) {
      * Con `list` los dos últimos son indistinguibles —ambos llegan como `[]`— y la pantalla
      * acaba diciendo "no hay nada todavía" cuando lo cierto es que la lectura se cayó.
      */
-    async listEstricto(sort) { return runQueryEstricto(table, { sort }); },
+    async listEstricto(sort) { return runQueryEstricto(table, { sort, filter: null }); },
     async get(id) { const { data } = await supabase.from(table).select("*").eq("id", id).maybeSingle(); return rowToObj(data); },
     async create(data) {
       // Las solicitudes del formulario público ya no se insertan directo: pasan por
