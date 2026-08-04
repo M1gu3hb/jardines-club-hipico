@@ -89,12 +89,45 @@ const cortaAntesDe = (cuerpo, cond, limite) => {
 {
   const front = leer("src/components/admin/eventos/EventoDocumentos.jsx");
   const api = leer("api/correo-cliente.js");
+  // SIN comentarios: la cabecera de la ruta cita el código viejo (`select("id, nombre, …")`,
+  // `"Tu cotización está lista"`) para explicar el fallo, y las afirmaciones negativas de
+  // abajo casaban con esa explicación en vez de con el código. Es justo el falso positivo
+  // que `leerCodigo` existe para evitar.
+  const apiCodigo = leerCodigo("api/correo-cliente.js");
   check("correo-cliente: el front envía `documentoId`", /documentoId:/.test(front));
   check(
     "correo-cliente: el front ya NO envía el nombre del documento",
     !/documento:\s*doc\.titulo/.test(front),
   );
   check("correo-cliente: la API exige rol admin", /rol:\s*"admin"/.test(api));
+  // LA RUTA NUNCA FUNCIONÓ: pedía `nombre` y la tabla tiene `titulo`. PostgREST devolvía
+  // 42703, el `error` se descartaba y `doc` quedaba en null, así que la guarda de pertenencia
+  // lo tomaba por documento ajeno y respondía 400 en TODOS los casos.
+  check(
+    "correo-cliente: lee las columnas que la tabla tiene de verdad",
+    /\.select\("id, titulo, tipo, evento_id"\)/.test(apiCodigo) && !/select\("[^"]*\bnombre\b/.test(apiCodigo),
+  );
+  check(
+    "correo-cliente: un fallo de lectura no se disfraza de «documento ajeno»",
+    /error: errDoc/.test(apiCodigo) && /if \(errDoc\)[\s\S]{0,300}lectura_fallida/.test(apiCodigo),
+  );
+  // El botón "Avisar" está en TODOS los documentos, así que el titular no puede dar por hecho
+  // que es una cotización.
+  //
+  // La negativa se afirma sobre la LLAMADA a `plantillaOro` y sobre el asunto, no sobre el
+  // archivo: "Tu cotización está lista" tiene que seguir existiendo dentro de `ENCABEZADOS`
+  // —es el caso de la cotización— y prohibirlo en todo el archivo hacía fallar código correcto.
+  {
+    const plantilla = entre(apiCodigo, "plantillaOro({", "});");
+    const envio = entre(apiCodigo, "await enviarCorreo({", "});");
+    check(
+      "correo-cliente: el titular se adapta al tipo real del documento",
+      /const ENCABEZADOS = \{/.test(apiCodigo) &&
+        /titulo: enc\.titulo/.test(plantilla) && !/titulo: "Tu cotización/.test(plantilla) &&
+        /\$\{enc\.asunto\}/.test(envio) && !/Ver mi cotización/.test(plantilla),
+      plantilla ? "" : "no se encontró la llamada a plantillaOro",
+    );
+  }
   check(
     "correo-cliente: la API comprueba que el documento sea del evento",
     /doc\.evento_id !== ev\.id/.test(api),
@@ -450,27 +483,29 @@ for (const ruta of [
 {
   const jsx = leerCodigo("src/components/admin/AdminSolicitudes.jsx");
   const sql = leer("supabase/migrations/20260801213853_jardines_sec_07_indices_storage_constraints.sql");
+  // La lista dejó de vivir en el componente: ahora está en el catálogo, que es el único sitio
+  // donde puede vivir una lista espejo de la base. El contrato la sigue hasta allí.
+  const catalogo = leerCodigo("src/lib/catalogos.js");
+  const listaSolicitud = (catalogo.match(/SOLICITUD_ESTATUS = \[([^\]]*)\]/) || ["", ""])[1];
 
-  // Se cruzan los DOS archivos: la lista del panel contra el CHECK de la migración. Afirmar
-  // solo sobre el panel dejaría pasar exactamente la divergencia que causó el fallo.
+  // Se cruzan los DOS archivos: la lista del catálogo contra el CHECK de la migración. Afirmar
+  // solo sobre uno de ellos dejaría pasar exactamente la divergencia que causó el fallo.
   {
     const restriccion = (sql.match(/solicitudes_estatus_valido[\s\S]*?check \(([\s\S]*?)\);/) || ["", ""])[1];
     const enBase = [...restriccion.matchAll(/'([^']+)'/g)].map((m) => m[1]).sort();
-    const lista = (jsx.match(/const ESTATUS = \[([^\]]*)\]/) || ["", ""])[1];
-    const enPanel = [...lista.matchAll(/"([^"]+)"/g)].map((m) => m[1]).sort();
+    const enPanel = [...listaSolicitud.matchAll(/"([^"]+)"/g)].map((m) => m[1]).sort();
     check(
-      "solicitudes: el panel ofrece EXACTAMENTE los estatus que admite el CHECK de sec_07",
+      "solicitudes: el catálogo ofrece EXACTAMENTE los estatus que admite el CHECK de sec_07",
       enBase.length > 0 && enPanel.length > 0 && enBase.join("|") === enPanel.join("|"),
-      `base=[${enBase.join(", ")}]  panel=[${enPanel.join(", ")}]`,
+      `base=[${enBase.join(", ")}]  catálogo=[${enPanel.join(", ")}]`,
     );
   }
 
   // Cada estatus ofrecido tiene color: si no, `STATUS_COLORS[…]` sale `undefined` y el
   // `className` del <select> queda sin borde ni fondo.
   {
-    const lista = (jsx.match(/const ESTATUS = \[([^\]]*)\]/) || ["", ""])[1];
     const colores = (jsx.match(/const STATUS_COLORS = \{([\s\S]*?)\n\};/) || ["", ""])[1];
-    const sinColor = [...lista.matchAll(/"([^"]+)"/g)].map((m) => m[1]).filter((e) => !colores.includes(`"${e}"`));
+    const sinColor = [...listaSolicitud.matchAll(/"([^"]+)"/g)].map((m) => m[1]).filter((e) => !colores.includes(`"${e}"`));
     check("solicitudes: todos los estatus ofrecidos tienen color", sinColor.length === 0, sinColor.join(", "));
   }
 
@@ -615,6 +650,132 @@ for (const ruta of [
     /auditar\(admin, "cron_limpieza_notificaciones", "ok"/.test(limpieza) &&
       /auditar\(admin, "cron_limpieza_notificaciones", "error"/.test(limpieza),
     limpieza ? "" : "no se encontró la limpieza",
+  );
+}
+
+// ---------------------------------------------------------------- catálogos (listas cerradas)
+// EL PATRÓN QUE YA COSTÓ DOS BUGS: una lista de opciones declarada dentro del componente que la
+// usa, que nadie cruza contra la restricción de la base.
+//   1. `AdminSolicitudes` ofrecía tres estatus que el CHECK no admitía  → bloque 7A
+//   2. `EventoDocumentos` ofrecía el tipo "comprobante", inexistente    → esta etapa
+//
+// Un contrato estático no puede consultar la base, pero SÍ puede impedir la vía por la que se
+// coló: que exista una segunda copia de la lista fuera del catálogo. Mientras solo haya una,
+// el cruce contra la base se hace en un sitio y se revisa en un sitio.
+{
+  const catalogo = leerCodigo("src/lib/catalogos.js");
+
+  // Cada catálogo declara de qué restricción es espejo. Sin esa referencia, el siguiente que
+  // lo lea no sabe contra qué cruzarlo — que es como se perdió la pista las dos veces.
+  for (const nombre of ["DOCUMENTO_TIPOS", "EVENTO_ESTATUS", "SOLICITUD_ESTATUS", "MESA_FORMAS", "MUSICA_TIPOS"]) {
+    const doc = leer("src/lib/catalogos.js");
+    const i = doc.indexOf(`export const ${nombre}`);
+    const cabecera = i < 0 ? "" : doc.slice(Math.max(0, i - 700), i);
+    check(
+      `catálogos: ${nombre} dice de qué restricción es espejo`,
+      i >= 0 && /(_check|_valido|allowed_mime_types|file_size_limit)/.test(cabecera),
+      i < 0 ? "no existe" : "su comentario no nombra la restricción",
+    );
+  }
+
+  // NINGÚN otro archivo puede declarar la misma lista. Se comprueba buscando el array literal
+  // completo de cada catálogo fuera de `catalogos.js`.
+  const archivos = [
+    "src/components/admin/eventos/EventoDocumentos.jsx",
+    "src/components/admin/eventos/AdminEventos.jsx",
+    "src/components/admin/eventos/EventoDatos.jsx",
+    "src/components/admin/eventos/_ui.jsx",
+    "src/components/admin/AdminSolicitudes.jsx",
+    "src/components/admin/SalonPlanoUpload.jsx",
+    "src/components/mesas/MesaEditor.jsx",
+    "src/components/mesas/MesaReglas.jsx",
+    "src/components/portal/PortalDocumentos.jsx",
+  ];
+  const catalogos = [...catalogo.matchAll(/export const ([A-Z_]+) = \[([^\]]*)\]/g)].map((m) => ({
+    nombre: m[1],
+    valores: [...m[2].matchAll(/"([^"]+)"/g)].map((v) => v[1]),
+  }));
+  const duplicados = [];
+  for (const ruta of archivos) {
+    const s = leerCodigo(ruta);
+    for (const { nombre, valores } of catalogos) {
+      if (valores.length < 2) continue;
+      // Un array literal que empiece por el primer valor y contenga el segundo = copia de la lista.
+      const re = new RegExp(`\\[\\s*"${valores[0]}"\\s*,[^\\]]*"${valores[1]}"`);
+      if (re.test(s)) duplicados.push(`${ruta} redeclara ${nombre}`);
+    }
+  }
+  check(
+    "catálogos: ningún componente declara su propia copia de una lista de la base",
+    duplicados.length === 0,
+    duplicados.join(" · "),
+  );
+
+  // El tipo "comprobante" no existe en `documentos_tipo_check`. No puede volver por ningún
+  // lado: ni el desplegable, ni un icono, ni un texto que se lo prometa al cliente.
+  for (const ruta of [
+    "src/components/admin/eventos/EventoDocumentos.jsx",
+    "src/components/portal/PortalDocumentos.jsx",
+    "src/components/portal/PortalShell.jsx",
+  ]) {
+    check(
+      `documentos: «comprobante» no vuelve a aparecer en ${ruta.split("/").pop()}`,
+      !/comprobante/i.test(leerCodigo(ruta)),
+    );
+  }
+
+  // El `accept` del selector de archivos sale del catálogo, no de un comodín. `image/*` incluye
+  // HEIC (lo que sale de un iPhone), GIF y SVG — ninguno admitido por el bucket `clientes`.
+  {
+    const s = leerCodigo("src/components/admin/eventos/EventoDocumentos.jsx");
+    check(
+      "documentos: el selector de archivos ofrece SOLO lo que admite el bucket",
+      /accept=\{BUCKET_MIME\[BUCKET\]\.join\(","\)\}/.test(s) && !/image\/\*/.test(s),
+    );
+  }
+}
+
+// ---------------------------------------------------------------- documentos: subir y borrar
+{
+  const s = leerCodigo("src/components/admin/eventos/EventoDocumentos.jsx");
+  const subir = entre(s, "const subir = async", "const descargar");
+  const borrar = entre(s, "const borrar = async", "return (");
+
+  // El archivo se sube ANTES de insertar la fila. Si la fila no cuaja y nadie limpia, queda un
+  // huérfano en un bucket privado — y con «comprobante» eso pasaba en cada intento.
+  check(
+    "documentos: si la fila no cuaja, el archivo subido se limpia",
+    /subidoPath = path/.test(subir) && /if \(subidoPath\)[\s\S]{0,200}storage\.remove/.test(subir),
+    subir ? "" : "no se encontró subir()",
+  );
+  check(
+    "documentos: la subida se confirma releyendo",
+    /filterEstricto[\s\S]{0,200}some\(\(d\) => d\.archivoUrl === path\)/.test(subir),
+    subir ? "" : "no se encontró subir()",
+  );
+  // ORDEN: primero la fila, y el archivo SOLO con confirmación negativa (criterio de 5A).
+  {
+    const iFila = borrar.indexOf("Documento.delete");
+    const iConf = borrar.indexOf("filterEstricto");
+    const iArchivo = borrar.indexOf("storage.remove");
+    check(
+      "documentos: al borrar, el archivo se toca DESPUÉS de confirmar que la fila se fue",
+      iFila >= 0 && iConf > iFila && iArchivo > iConf,
+      borrar ? `fila=${iFila} confirmación=${iConf} archivo=${iArchivo}` : "no se encontró borrar()",
+    );
+  }
+  check(
+    "documentos: el borrado del archivo ya no vive en un catch vacío",
+    !/catch \{\s*\/\*[^*]*\*\/\s*\}/.test(borrar) && /const \{ borrado \}/.test(borrar),
+    borrar ? "" : "no se encontró borrar()",
+  );
+  check(
+    "documentos: no se enseña el error crudo de Postgres",
+    /mensajeDeError\(/.test(s) && !/setError\("No se pudo subir: " \+/.test(s),
+  );
+  check(
+    "documentos: la carga no confunde 'vacío' con 'falló'",
+    /Documento\.filterEstricto\(\{ eventoId \}/.test(s) && !/Documento\.filter\(\{ eventoId \}/.test(s),
   );
 }
 

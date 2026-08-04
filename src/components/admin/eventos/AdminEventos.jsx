@@ -3,6 +3,7 @@ import { base44 } from "@/api/base44Client";
 import { useAuth } from "@/api/authContext";
 import { Plus, Loader2, Check, Search, Calendar, User, DoorOpen } from "lucide-react";
 import { Field, ESTATUS, estatusColor } from "./_ui";
+import { MESA_FORMAS } from "@/lib/catalogos";
 import EventoFicha from "./EventoFicha";
 
 const FORM_VACIO = {
@@ -66,7 +67,7 @@ export default function AdminEventos() {
       // 2) Reglas de mesas por defecto.
       await base44.entities.EventoReglasMesas.create({
         eventoId: evento.id,
-        formasPermitidas: ["redonda", "cuadrada"],
+        formasPermitidas: MESA_FORMAS,
         opcionesPersonas: [8, 10, 12],
         capacidadLibre: false,
         clientePuedeEditar: false,

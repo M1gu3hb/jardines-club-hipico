@@ -60,10 +60,29 @@ export default async function handler(req, res) {
   }
 
   // El nombre del documento sale de la BASE, y solo si pertenece a este evento.
-  let nombreDocumento = "tu cotización";
+  //
+  // ESTA RUTA NUNCA HABÍA FUNCIONADO. Pedía `select("id, nombre, evento_id")` y la tabla
+  // `documentos` no tiene columna `nombre` — tiene `titulo`. PostgREST responde
+  // `42703 column documentos.nombre does not exist`, y como el `error` se descartaba, `doc`
+  // quedaba en `null`, la guarda de abajo lo tomaba por documento ajeno y devolvía 400.
+  // Resultado: el botón "Avisar" del panel fallaba siempre, y encima dejaba en la auditoría
+  // un `documento_ajeno` que acusaba al admin de algo que no había hecho.
+  //
+  // Se lee `titulo` y `tipo`, y se comprueba el `error` en vez de tirarlo: un fallo de lectura
+  // no puede volver a disfrazarse de "no es tuyo".
+  let nombreDocumento = "tu documento";
+  let tipoDocumento = null;
   if (documentoId) {
-    const { data: doc } = await admin
-      .from("documentos").select("id, nombre, evento_id").eq("id", documentoId).maybeSingle();
+    const { data: doc, error: errDoc } = await admin
+      .from("documentos").select("id, titulo, tipo, evento_id").eq("id", documentoId).maybeSingle();
+    if (errDoc) {
+      console.error("[correo-cliente] no se pudo leer el documento:", errDoc.message);
+      await auditar(admin, "correo_cliente", "error", {
+        entidad: "documentos", entidadId: documentoId, eventoId: ev.id,
+        detalle: { motivo: "lectura_fallida" },
+      });
+      return generico(res, 500);
+    }
     if (!doc || doc.evento_id !== ev.id) {
       await auditar(admin, "correo_cliente", "denegado", {
         entidad: "documentos", entidadId: documentoId, eventoId: ev.id,
@@ -71,8 +90,17 @@ export default async function handler(req, res) {
       });
       return generico(res, 400);
     }
-    if (doc.nombre) nombreDocumento = String(doc.nombre).slice(0, 80);
+    if (doc.titulo) nombreDocumento = String(doc.titulo).slice(0, 80);
+    tipoDocumento = doc.tipo || null;
   }
+
+  // El titular se adapta al tipo REAL del documento. El botón "Avisar" está en todos, así que
+  // avisar de un contrato mandaba un correo titulado "Tu cotización está lista".
+  const ENCABEZADOS = {
+    cotizacion: { titulo: "Tu cotización está lista", asunto: "Tu cotización" },
+    contrato: { titulo: "Tu contrato está listo", asunto: "Tu contrato" },
+  };
+  const enc = ENCABEZADOS[tipoDocumento] || { titulo: "Tienes un documento nuevo", asunto: "Un documento nuevo" };
 
   // Idempotencia recuperable: no se duplica el aviso, pero un fallo se reintenta.
   const clave = `${ev.id}:${documentoId || "sin-doc"}`;
@@ -86,22 +114,22 @@ export default async function handler(req, res) {
     const nombreCliente = (ev.cliente_nombre || "").split(/\s+/)[0] || "Hola";
     const html = plantillaOro({
       pretitulo: "Tienes un documento nuevo",
-      titulo: "Tu cotización está lista",
+      titulo: enc.titulo,
       cuerpoHtml: `
         <p style="margin:0 0 14px 0;">${escHtml(nombreCliente)}, ¡buenas noticias! ✨</p>
         <p style="margin:0 0 14px 0;">Ya puedes revisar <strong style="color:#E6C870;">${escHtml(nombreDocumento)}</strong>
         para <strong style="color:#E6C870;">${escHtml(ev.nombre_evento)}</strong> en la sección <em>Documentos</em> de tu portal.</p>
         <p style="margin:0;">Entra con tu usuario y contraseña de siempre. Cualquier duda, respóndenos este correo y con gusto te acompañamos.</p>`,
-      ctaTexto: "Ver mi cotización",
+      ctaTexto: "Ver mi documento",
       ctaUrl: `${SITIO_URL}/portal`,
       notaPie: "Este documento es exclusivo para ti y tu evento.",
     });
 
     await enviarCorreo({
       to: ev.cliente_email,
-      subject: `📄 Tu cotización de "${ev.nombre_evento}" está lista — Jardines Club Hípico`,
+      subject: `📄 ${enc.asunto} de "${ev.nombre_evento}" — Jardines Club Hípico`,
       html,
-      texto: `Tu cotización está lista. Revísala en la sección Documentos de tu portal: ${SITIO_URL}/portal`,
+      texto: `${enc.titulo}. Revísalo en la sección Documentos de tu portal: ${SITIO_URL}/portal`,
       replyTo: process.env.MAIL_TO || process.env.GMAIL_USER,
     });
 
