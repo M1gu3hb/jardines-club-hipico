@@ -96,17 +96,72 @@ const confirmacionAtadaALaEscritura = (codigo, desde, hasta, escritura) => {
   //
   //    Pero "está bajo un `if`" no es la propiedad: `if (reglas.id) …update… else …create…` es
   //    un despacho, no un salto — las dos ramas escriben, y exigir lo contrario obligaría a
-  //    reescribir código correcto. Lo cazó este mismo helper la primera vez que corrió, sobre
-  //    `MesaReglas`. Lo que se exige es que **ninguna rama se salte la escritura**: si hay un
-  //    `if`, tiene que haber un `else` que también escriba.
-  const iniLinea = cuerpo.lastIndexOf("\n", i) + 1;
-  const antesEnLinea = cuerpo.slice(iniLinea, i).trim();
-  if (/\bif\s*\(|\?$|&&$/.test(antesEnLinea)) {
-    const tras = finSentencia < 0 ? cuerpo.length : finSentencia + 1;   // +1: después del `;`, no en él
-    const trasLaSentencia = cuerpo.slice(tras, tras + 400);
-    const rama = /^\s*else\b([^;]*;)/.exec(trasLaSentencia);
-    if (!rama || !/await\s+base44\./.test(rama[1])) {
-      fallos.push(`la escritura se puede saltar: está bajo «${antesEnLinea}» y la otra rama no escribe`);
+  //    reescribir código correcto. Lo que se exige es que **ninguna rama se salte la
+  //    escritura**: si hay un condicional, todas sus ramas tienen que escribir.
+  //
+  //    ⚠️ LA PRIMERA VERSIÓN MIRABA SOLO LA MISMA LÍNEA. Así que
+  //        if (activar) {
+  //          r = await base44.rpc(…);
+  //        }
+  //      —el P0 reinstaurado— pasaba en verde: el `if` no cabía en la línea de la escritura.
+  //      Es la tercera vez que un contrato mide la forma del texto creyendo medir la propiedad,
+  //      y por eso ahora se sigue el ANIDAMIENTO REAL de llaves, que es lo que decide si la
+  //      escritura se ejecuta o no.
+  {
+    const escribe = (t) => /await\s+base44\./.test(t);
+    /** Casa la llave abierta en `k`; devuelve el índice de su cierre. */
+    const cierre = (t, k) => {
+      let d = 0;
+      for (let x = k; x < t.length; x++) {
+        if (t[x] === "{") d++;
+        else if (t[x] === "}" && --d === 0) return x;
+      }
+      return t.length;
+    };
+    // Pila de bloques abiertos entre el `try {` y la escritura. Se arranca en el `try` para no
+    // contar la llave del propio cuerpo de la función.
+    const iTry = cuerpo.indexOf("try {");
+    const desdeAqui = iTry >= 0 ? iTry + 4 : 0;
+    const pila = [];
+    for (let k = desdeAqui; k < i; k++) {
+      if (cuerpo[k] === "{") pila.push(k);
+      else if (cuerpo[k] === "}") pila.pop();
+    }
+    // La cabecera del bloque más interno: desde el corte de sentencia anterior hasta su `{`.
+    for (const abre of pila) {
+      const corte = Math.max(cuerpo.lastIndexOf(";", abre), cuerpo.lastIndexOf("}", abre - 1), desdeAqui);
+      const cabecera = cuerpo.slice(corte + 1, abre).trim();
+      if (!/^(else\s+)?if\s*\(|^else\b|^(for|while|switch)\s*\(/.test(cabecera)) continue;   // try/catch/función: no condiciona
+      // Se reconstruye la cadena `if … else if … else` entera y se exige (a) que **termine en
+      // un `else`** —sin él hay un camino que no pasa por ninguna rama— y (b) que TODAS las
+      // ramas escriban. Un `for`/`while` nunca termina en `else`, así que cae por (a): su
+      // cuerpo puede ejecutarse cero veces.
+      let x = abre, ramas = 0, conEscritura = 0, terminaEnElse = false;
+      for (;;) {
+        const fin = cierre(cuerpo, x);
+        ramas++;
+        if (escribe(cuerpo.slice(x, fin))) conEscritura++;
+        const sig = /^\s*else\s*(\{|if\s*\([^)]*\)\s*\{)/.exec(cuerpo.slice(fin + 1, fin + 300));
+        if (!sig) break;
+        terminaEnElse = sig[1].startsWith("{");        // `else {` cierra la cadena; `else if` la sigue
+        x = fin + 1 + sig.index + sig[0].length - 1;   // el `{` es siempre el último carácter del match
+      }
+      if (!terminaEnElse || conEscritura !== ramas) {
+        fallos.push(
+          `la escritura se puede saltar: está bajo «${cabecera.slice(0, 60)}» y `
+          + (!terminaEnElse ? "la cadena no termina en `else`" : `solo ${conEscritura} de ${ramas} ramas escriben`),
+        );
+      }
+    }
+    // Y el caso sin llaves, en la misma línea: `if (activar) await …;`
+    const iniLinea = cuerpo.lastIndexOf("\n", i) + 1;
+    const antesEnLinea = cuerpo.slice(iniLinea, i).trim();
+    if (/\bif\s*\(|\?$|&&$/.test(antesEnLinea)) {
+      const tras = finSentencia < 0 ? cuerpo.length : finSentencia + 1;   // +1: después del `;`, no en él
+      const rama = /^\s*else\b([^;]*;)/.exec(cuerpo.slice(tras, tras + 400));
+      if (!rama || !escribe(rama[1])) {
+        fallos.push(`la escritura se puede saltar: está bajo «${antesEnLinea}» y la otra rama no escribe`);
+      }
     }
   }
 
@@ -2327,6 +2382,44 @@ for (const ruta of [
 {
   const migraciones = leerDir("supabase/migrations").filter((f) => f.endsWith(".sql"));
   const sqlTodo = migraciones.map((f) => leer(`supabase/migrations/${f}`)).join("\n");
+  const sqlCrudo = sqlTodo;
+
+  /**
+   * Rangos `[inicio, fin)` de los bloques `do $tag$ … $tag$`.
+   *
+   * Son scripts de UNA vez —precondiciones, ensayos, comprobaciones— y no dejan ningún llamador
+   * vivo. `usadaEnSql` los contaba como uso, así que un `perform jardines.fn(...)` dentro de un
+   * `do` de precondición —el estilo de casa— bastaba para que este contrato no disparase. Si el
+   * ensayo de `sec_26` se hubiera quedado en el archivo, la huérfana que lo motivó todo habría
+   * pasado desapercibida.
+   *
+   * Se escanea en vez de usar un `replace` global: los cuerpos de función también se abren con
+   * `$$`, así que un `replace` perezoso empareja el `$$` equivocado y se desincroniza. Probado:
+   * con `replace` el bloque de `sec_26` no se recortaba y la mutación seguía pasando.
+   */
+  const rangosDo = (() => {
+    // Se salta el cierre de TODA comilla-dólar, sea `do $$`, `as $$` o `format($f$…$f$)`. Ese es
+    // el detalle que arruinó las dos versiones anteriores: buscar solo `do $tag$` y avanzar deja
+    // el escáner **dentro** del siguiente cuerpo de función, y a partir de ahí todos los rangos
+    // salen corridos. Comprobado: el `perform` de prueba en `sec_26` salía como "fuera de
+    // do-block" con 19 bloques detectados.
+    const rangos = [];
+    let i = 0;
+    for (;;) {
+      const m = /\$\w*\$/.exec(sqlTodo.slice(i));
+      if (!m) break;
+      const abre = i + m.index;
+      const tag = m[0];
+      const cierra = sqlTodo.indexOf(tag, abre + tag.length);
+      if (cierra < 0) break;
+      // ¿La palabra justo antes de la comilla es `do`? Entonces es un script de una vez.
+      const antes = sqlTodo.slice(Math.max(0, abre - 40), abre).trimEnd();
+      if (/\bdo$/i.test(antes)) rangos.push([antes.lastIndexOf("do") + Math.max(0, abre - 40), cierra + tag.length]);
+      i = cierra + tag.length;
+    }
+    return rangos;
+  })();
+  const dentroDeDo = (i) => rangosDo.some(([a, b]) => i >= a && i < b);
   // Las funciones que las migraciones definen y **conceden a un rol del navegador**. Una
   // `security definer` sin `grant` a `anon`/`authenticated` es interna (la llaman otras
   // funciones o policies) y no tiene por qué aparecer en `src/`.
@@ -2337,13 +2430,19 @@ for (const ruta of [
   //   (2) en bucle: foreach f in array[...] loop execute format('grant execute … %s to anon…')
   // Para (2) se afirma sobre el ORDEN, no sobre la distancia: para cada bucle que concede a un
   // rol del navegador, se toman los nombres del `array[` inmediatamente anterior.
+  //
+  // OJO CON EL CORTE: los grants se leen del SQL **crudo** y las llamadas del **sin do-blocks**.
+  // No es asimetría gratuita: un `grant` dentro de un `do $$ … $$` —que es como los concede
+  // `sec_06`, en bucle sobre un array— sigue siendo un permiso permanente; una llamada dentro de
+  // ese mismo `do` es un script de una vez y no deja ningún llamador. Calcular las dos cosas
+  // sobre el texto recortado hacía desaparecer la mitad de los grants del proyecto.
   const expuestas = new Set(
-    [...sqlTodo.matchAll(/grant\s+execute\s+on\s+function\s+jardines\.(\w+)\s*\([^)]*\)\s*to\s+[^;]*\b(anon|authenticated)\b/gi)]
+    [...sqlCrudo.matchAll(/grant\s+execute\s+on\s+function\s+jardines\.(\w+)\s*\([^)]*\)\s*to\s+[^;]*\b(anon|authenticated)\b/gi)]
       .map((m) => m[1]),
   );
-  for (const m of sqlTodo.matchAll(/execute\s+format\(\s*'grant execute on function %s to ([^']*)'/gi)) {
+  for (const m of sqlCrudo.matchAll(/execute\s+format\(\s*'grant execute on function %s to ([^']*)'/gi)) {
     if (!/\b(anon|authenticated)\b/.test(m[1])) continue;          // service_role no es el navegador
-    const antes = sqlTodo.slice(0, m.index);
+    const antes = sqlCrudo.slice(0, m.index);
     const iArr = antes.lastIndexOf("array[");
     if (iArr < 0) continue;
     for (const f of antes.slice(iArr).matchAll(/'jardines\.(\w+)\s*\(/g)) expuestas.add(f[1]);
@@ -2370,10 +2469,30 @@ for (const ruta of [
       if (/\b(grant|revoke|drop|comment)\b/i.test(linea)) continue;        // nombra, no usa
       if (/create\s+(or\s+replace\s+)?function/i.test(linea)) continue;    // su definición
       if (/^\s*'jardines\./.test(linea)) continue;                         // elemento de un array de grants
+      if (dentroDeDo(m.index)) continue;                                   // script de una vez, no un llamador
       return true;
     }
     return false;
   };
+  // C.2 · LA FORMA QUE EVADE ESTE CONTRATO Y ADEMÁS CONCEDE DE MÁS.
+  // `grant execute on all functions in schema jardines to authenticated` no casa `on function
+  // jardines.x(...)`, así que pasaba en verde — y concede EXECUTE sobre **todas** las funciones
+  // del schema, incluidas las que `sec_17` mantuvo privadas a propósito. El contrato callaba en
+  // el caso peor y ladraba en el leve.
+  //
+  // Se PROHÍBE en vez de reconocerse. Reconocerla significaría dar por expuestas también las
+  // privadas y exigirles llamador, que es ruido; y el problema no es que el contrato no la vea:
+  // es que esa forma no debe usarse aquí. Los grants de este proyecto son por función, uno a uno.
+  {
+    const masivos = [...sqlCrudo.matchAll(/grant\s+execute\s+on\s+all\s+functions\s+in\s+schema\s+(\w+)\s+to\s+([^;]+)/gi)]
+      .filter((m) => /\b(anon|authenticated)\b/.test(m[2]));
+    check(
+      "C.2: ninguna migración concede EXECUTE en bloque sobre todo el schema",
+      masivos.length === 0,
+      masivos.map((m) => `grant … on all functions in schema ${m[1]} to ${m[2].trim()}`).join(" · "),
+    );
+  }
+
   // HUÉRFANAS CONOCIDAS. Al escribir este contrato salieron seis, todas anteriores a este
   // bloque y todas comprobadas: cero apariciones en `src/`, en `api/` y en el bundle construido.
   // Se listan con su motivo en vez de bajar el listón, para que el contrato pase hoy y **falle
@@ -2383,12 +2502,15 @@ for (const ruta of [
   // añade una entrada aquí en vez de enchufar la función, la deuda queda a la vista con nombre
   // y fecha en el `git blame`, que es exactamente lo que no pasó con `registrar_llegada_mesa`.
   const HUERFANAS_CONOCIDAS = {
-    registrar_llegada_mesa: "escribiría `mesas.ocupadas`, la fuente que el tablero de staff lee y nadie llena (fase B.1)",
+    registrar_llegada_mesa: "**concedida a `anon`**, invocable sin autenticarse. Escribiría `mesas.ocupadas`, la fuente que el tablero de staff lee y que nadie llena (fase B.1). Es la más urgente de las seis: las otras cinco exigen sesión",
     revocar_staff_token: "el panel solo rota el token, nunca lo revoca sin sustituto",
     confirmar_evento: "flujo de confirmación que nunca se construyó en la interfaz",
     auditoria_reciente: "la auditoría se consulta por SQL, no hay pantalla que la lea",
     operativo_ubicar: "la ubicación en vivo del operativo no llegó a tener pantalla",
     operativo_evento_activo: "idem: parte del operativo que quedó sin interfaz",
+    // Séptima, y la destapó C.3: su único "uso" estaba dentro de un `do $$` de `sec_23`, así
+    // que con los do-blocks contando como llamada quedaba oculta.
+    info_mesa_token: "**concedida a `anon`**. `sec_23` la conservó como «la vía viva y protegida» frente a `info_mesa_publica`, que sí retiró — pero la interfaz nunca llegó a usarla: el front va por `info_invitacion` y `progreso_mesas_staff`",
   };
   const huerfanas = [...expuestas]
     .filter((fn) => !new RegExp(`["'\`]${fn}["'\`]`).test(codigoCliente))
