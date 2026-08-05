@@ -3159,6 +3159,124 @@ for (const ruta of [
   check("3.3: una variable de entorno que falta se ve en la página, no solo en la consola", fallos.length === 0, fallos.join(" · "));
 }
 
+// ------------------------------------------- 4.1 · LOS MENSAJES DE LA PUERTA SON ALCANZABLES
+//
+// Las tres pantallas del día del evento clasificaban el error buscando la palabra «autorizado»
+// dentro del mensaje del servidor. Y el servidor, A PROPÓSITO, no la dice:
+// `jardines_private.error_generico()` levanta `'no disponible'` con errcode `42501` para no
+// revelarle a quien prueba tokens si acertó. Resultado medido: esas ramas eran INALCANZABLES, y al
+// mesero cuyo link renovaron —en la puerta, con invitados esperando— la pantalla le enseñaba la
+// cadena literal «no disponible».
+//
+// Se clasifica por CÓDIGO, que es lo que el servidor sí se compromete a mandar y lo que no cambia
+// al reescribir un texto.
+{
+  const fallos = [];
+  const mapa = leerCodigo("src/lib/erroresPuerta.js");
+  if (!/["']42501["']/.test(mapa)) fallos.push("`erroresPuerta` no clasifica por el código 42501");
+  // Y distingue el cupo de la invitación del aforo de la mesa, que `sec_27` separó en el servidor.
+  if (!/excede el aforo de la mesa/.test(mapa)) fallos.push("no distingue el aforo de la mesa");
+  if (!/excede el cupo/.test(mapa)) fallos.push("no distingue el cupo de la invitación");
+
+  // Ninguna pantalla de la puerta vuelve a clasificar por la palabra que el servidor no dice.
+  for (const f of ["src/components/meseros/StaffPage.jsx", "src/components/meseros/AccesoPage.jsx"]) {
+    const codigo = leerCodigo(f);
+    if (/autorizado/.test(codigo)) fallos.push(`${f} vuelve a clasificar por la palabra «autorizado», que el servidor no manda`);
+    if (!/mensajePuerta\(/.test(codigo)) fallos.push(`${f} no usa \`mensajePuerta\``);
+  }
+  check("4.1: los mensajes de la puerta se clasifican por código, no por una palabra que el servidor no dice", fallos.length === 0, fallos.join(" · "));
+
+  // Y la pantalla de error del tablero no es un callejón: la red del salón se cae y vuelve.
+  const staff = leerCodigo("src/components/meseros/StaffPage.jsx");
+  const pantallaError = entre(staff, "if (error) {", "\n  }");
+  check(
+    "4.1: la pantalla de error del tablero ofrece reintentar",
+    /onClick=\{\(\)\s*=>\s*\{[^}]*cargar\(\)/.test(pantallaError) || /onClick=\{cargar\}/.test(pantallaError),
+    "sin botón de reintento: un corte de red deja al mesero en un callejón",
+  );
+}
+
+// ------------------------------------------- 4.2 · «HOY» ES EL DEL SALÓN, NO EL DEL SERVIDOR
+//
+// `new Date().toISOString().slice(0, 10)` da el día en UTC, y la CDMX va seis horas por detrás:
+// de las 18:00 en adelante, hora local, «hoy» en UTC ya es MAÑANA. El panel calculaba así los
+// eventos próximos —el evento de esta noche desaparecía de la lista justo cuando se mira el panel
+// antes de él— y el cron comparaba así contra `fecha_evento`, que es una columna `date`: un día
+// natural del calendario de Xochimilco, no un instante.
+{
+  const culpables = [];
+  for (const f of leerDirRec("src").concat(leerDirRec("api"))) {
+    if (!/\.(jsx?|mjs)$/.test(f)) continue;
+    const codigo = leerCodigo(f);
+    // Un instante recortado a diez caracteres es una FECHA en UTC. Recortar a más (`slice(0, 13)`,
+    // el ISO completo) es un instante y no tiene este problema.
+    for (const m of codigo.matchAll(/toISOString\(\)\s*\.\s*slice\(\s*0\s*,\s*10\s*\)/g)) {
+      culpables.push(`${f}:${codigo.slice(0, m.index).split("\n").length}`);
+    }
+    if (/toISOString\(\)\s*\.\s*split\(\s*["']T["']\s*\)\s*\[\s*0\s*\]/.test(codigo)) culpables.push(`${f} (split T)`);
+  }
+  // `solicitudAEvento.js` lo usa para VALIDAR que una cadena es una fecha real (ida y vuelta),
+  // no para saber qué día es hoy: ahí el UTC de los dos lados se cancela.
+  const reales = culpables.filter((c) => !c.startsWith("src/lib/solicitudAEvento.js"));
+  check(
+    "4.2: nadie calcula «hoy» en UTC — el día del salón no es el del servidor",
+    reales.length === 0,
+    reales.join(" · "),
+  );
+
+  const fechas = leerCodigo("src/lib/fechas.js");
+  check(
+    "4.2: `hoyLocal()` compone la fecha a mano, sin pasar por UTC",
+    /export function hoyLocal/.test(fechas) && /getFullYear\(\)/.test(fechas) && !/hoyLocal[\s\S]{0,200}toISOString/.test(fechas),
+    "`hoyLocal` no existe o vuelve a pasar por `toISOString`",
+  );
+
+  const cron = leerCodigo("api/cron-recordatorios.js");
+  check(
+    "4.2: el cron resuelve el día en la zona del salón, no en la del servidor",
+    /America\/Mexico_City/.test(cron) && /Intl\.DateTimeFormat/.test(cron),
+    "el cron sigue calculando el día con la zona de Vercel (UTC)",
+  );
+}
+
+// ------------------------------------------- 4.3 · `sec_29` — EL LIBRO DE ENTRADAS (NO APLICADA)
+//
+// `accesos.invitacion_id` cae en CASCADE: borrar una invitación se lleva el registro de quién
+// entró de verdad por ella. `MesaEditor.borrar()` borra invitaciones, y reorganizar el salón se
+// hace A MITAD DEL EVENTO. Ensayado contra la base: con el estado de hoy, 1 acceso → 0 tras borrar
+// la invitación; con `sec_29`, 1 → 1 con el nombre del invitado intacto.
+//
+// La migración está escrita y ensayada, y **NO aplicada**: necesita el visto bueno del dueño.
+{
+  const sql = leer(migracion("sec_29"));
+  const fallos = [];
+  // Se recorta el `add constraint` que importa — «on delete set null» aparece también en el texto.
+  const fk = entre(sql, "add constraint accesos_invitacion_id_fkey", ";");
+  if (!fk) fallos.push("`sec_29` no rehace la FK de `accesos.invitacion_id`");
+  if (!/on delete set null/i.test(fk)) fallos.push("la FK de la invitación no queda en `set null`");
+  // Y el evento sí cae en cascada, que es lo que deja a `eliminar-evento` seguir borrando todo.
+  const fkEv = entre(sql, "add constraint accesos_evento_id_fkey", ";");
+  if (!/on delete cascade/i.test(fkEv)) fallos.push("`accesos.evento_id` no cae en cascada con el evento");
+  // La instantánea: un id que apunta a una fila borrada no dice nada.
+  for (const col of ["invitado_nombre", "mesa_nombre", "evento_id"]) {
+    if (!new RegExp(`add column if not exists ${col}\\b`).test(sql)) fallos.push(`\`sec_29\` no añade \`${col}\``);
+  }
+  // Los DOS escritores la llenan.
+  for (const fn of ["registrar_acceso", "registrar_acceso_staff"]) {
+    const cuerpo = entre(sql, `create or replace function jardines.${fn}(`, "end $$;");
+    if (!/insert into jardines\.accesos[\s\S]*invitado_nombre/.test(cuerpo)) fallos.push(`\`${fn}\` no guarda la instantánea`);
+  }
+  check("4.3: `sec_29` hace que el libro de entradas sobreviva al borrado de la invitación", fallos.length === 0, fallos.join(" · "));
+
+  // Y sigue declarada como PENDIENTE mientras no se aplique.
+  const ledger = leer("supabase/migrations/APLICADAS.txt");
+  check(
+    "4.3: `sec_29` figura como pendiente, no como aplicada",
+    /^#\s*PENDIENTE\s+\d{14}\s+jardines_sec_29/m.test(ledger),
+    "`sec_29` no está declarada como pendiente en el ledger",
+  );
+}
+
 // ---------------------------------------------------------------- salida
 let fallan = 0;
 for (const c of casos) {

@@ -2,6 +2,7 @@ import { useState, useEffect } from "react";
 import { useParams, Link } from "react-router-dom";
 import { base44 } from "@/api/base44Client";
 import { MapPin, Users, Check, Loader2, AlertTriangle, ArrowLeft, Minus, Plus } from "lucide-react";
+import { mensajePuerta } from "@/lib/erroresPuerta";
 
 /**
  * Vista de acceso al escanear el QR de un invitado: /acceso/<token>.
@@ -34,10 +35,7 @@ export default function AccesoPage() {
       const restante = Math.max(1, (data.max || 1) - (data.registradas || 0));
       setPersonas(Math.min(1, restante) || 1);
     } catch (e) {
-      const msg = /no autorizado|autorizado/i.test(e.message || "")
-        ? "Necesitas abrir primero el link de meseros, o entrar como administrador."
-        : (e.message || "No se pudo leer la invitación.");
-      setError(msg);
+      setError(mensajePuerta(e, "acceso"));
     } finally {
       setCargando(false);
     }
@@ -53,7 +51,7 @@ export default function AccesoPage() {
       setResultado(r);
       await cargar();
     } catch (e) {
-      setError(e.message?.includes("excede") ? "Excede el cupo disponible de esta mesa." : (e.message || "No se pudo registrar."));
+      setError(mensajePuerta(e, "acceso"));
     } finally {
       setRegistrando(false);
     }

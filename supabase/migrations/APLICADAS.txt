@@ -102,6 +102,10 @@
 
 # ── PENDIENTES: escritas, ensayadas y NO aplicadas ──────────────────────────
 # Están en el repo a propósito y NO deben figurar arriba hasta que el dueño las apruebe.
-# (Ninguna ahora mismo. `sec_26` y `sec_27` se aplicaron el 2026-08-05 con su visto bueno, y
-#  `sec_28` el mismo día bajo la autorización explícita del bucket `sitio`; los tres archivos se
-#  renombraron a la versión que registró la base, que es la regla de 1.1.)
+# `sec_26` y `sec_27` se aplicaron el 2026-08-05 con su visto bueno, y `sec_28` el mismo día bajo
+# la autorización explícita del bucket `sitio`; sus archivos se renombraron a la versión que
+# registró la base, que es la regla de 1.1.
+#
+# El prefijo de una PENDIENTE es provisional: al aplicarla hay que renombrar el archivo a la
+# versión que registre la base.
+# PENDIENTE 20260806000000  jardines_sec_29_accesos_sobreviven_a_la_invitacion

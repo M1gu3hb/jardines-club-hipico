@@ -70,9 +70,23 @@ export default async function handler(req, res) {
   // tiene su propia clave —una para el digest, una por evento para la reseña— y
   // se cierra como completada solo cuando ese correo concreto salió. Un fallo
   // parcial deja reintentable únicamente lo que falló.
-  const claveDia = hoy.toISOString().slice(0, 10);
-  const iso = (d) => d.toISOString().slice(0, 10);
-  const hoyStr = iso(hoy);
+  // EL DÍA, EN LA ZONA DEL SALÓN — no en la del servidor.
+  //
+  // Esto corre en Vercel, que va en UTC, y compara contra `eventos.fecha_evento`, que es una
+  // columna `date`: un día natural del calendario de Xochimilco, no un instante. Con
+  // `toISOString()` el corte del día caía a las 18:00 hora local (CDMX es UTC-6), así que el aviso
+  // de «tu evento es en 7 días» se mandaba con la ventana corrida: una ejecución de la tarde ya
+  // contaba desde mañana. El recordatorio de reseña, igual, un día antes de tiempo.
+  //
+  // `America/Mexico_City` ya no cambia de horario de verano (desde 2022), pero se resuelve con
+  // `Intl` de todas formas: si algún día vuelve, esto sigue dando el día correcto sin tocar nada.
+  const ZONA_SALON = "America/Mexico_City";
+  const fmtDia = new Intl.DateTimeFormat("en-CA", {
+    timeZone: ZONA_SALON, year: "numeric", month: "2-digit", day: "2-digit",
+  }); // "en-CA" produce exactamente "YYYY-MM-DD"
+  const iso = (d) => fmtDia.format(d);
+  const claveDia = iso(hoy);
+  const hoyStr = claveDia;
   const en7 = iso(new Date(hoy.getTime() + 7 * 86400000));
   const hace2 = iso(new Date(hoy.getTime() - 2 * 86400000));
   const hace10 = iso(new Date(hoy.getTime() - 10 * 86400000));

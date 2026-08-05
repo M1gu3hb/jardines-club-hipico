@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback } from "react";
 import { useParams } from "react-router-dom";
 import { base44 } from "@/api/base44Client";
 import { Loader2, AlertTriangle, RefreshCw, Users, QrCode, MapPin } from "lucide-react";
+import { mensajePuerta } from "@/lib/erroresPuerta";
 
 /**
  * StaffPage — vista de MESEROS por evento. Se abre con el link de staff
@@ -23,7 +24,9 @@ export default function StaffPage() {
       // Guardar el token para el registro por QR (mismo navegador).
       try { localStorage.setItem("jch_staff_token", token); } catch { /* sin storage */ }
     } catch (e) {
-      setError(e.message?.includes("autorizado") ? "Este link de meseros no es válido o fue renovado. Pídele al organizador el link actualizado." : (e.message || "No se pudo cargar."));
+      // Por CÓDIGO, no por frase: el servidor manda «no disponible» a propósito y la rama que
+      // buscaba «autorizado» era inalcanzable. Ver `src/lib/erroresPuerta.js`.
+      setError(mensajePuerta(e, "staff"));
     } finally {
       setCargando(false);
     }
@@ -37,7 +40,20 @@ export default function StaffPage() {
   if (error) {
     return (
       <div className="min-h-screen bg-[#0a0a0a] flex items-center justify-center px-4 text-center">
-        <div><AlertTriangle size={32} className="text-red-400/70 mx-auto mb-4" /><p className="text-white/70 max-w-xs">{error}</p></div>
+        <div>
+          <AlertTriangle size={32} className="text-red-400/70 mx-auto mb-4" />
+          <p className="text-white/70 max-w-xs">{error}</p>
+          {/* En la puerta, con invitados esperando, la pantalla de error no puede ser un
+              callejón: la red del salón se cae y vuelve, y el mesero no tiene por qué saber
+              que hay que arrastrar hacia abajo para recargar. */}
+          <button
+            type="button"
+            onClick={() => { setCargando(true); cargar(); }}
+            className="mt-6 inline-flex items-center gap-2 border border-[#C9A84C]/40 text-[#C9A84C] px-6 py-2.5 text-xs tracking-[0.2em] uppercase hover:bg-[#C9A84C]/10 transition-colors"
+          >
+            <RefreshCw size={13} /> Reintentar
+          </button>
+        </div>
       </div>
     );
   }
@@ -87,10 +103,11 @@ export default function StaffPage() {
             mayor —una fila por escaneo—, mientras que `ocupadas` es un contador desnormalizado
             que además el cliente puede escribir desde el navegador (ver fase E).
 
-            El arreglo es de servidor: `progreso_mesas_staff` tiene que sumar de ahí. Va en
-            `sec_27`, escrita y sin aplicar. Hasta entonces el contador es el viejo, así que se
-            dice — y el aviso desaparece solo cuando la función nueva esté puesta, porque cuelga
-            de un campo que solo ella devuelve. No hay que acordarse de quitarlo. */}
+            El arreglo es de servidor: `progreso_mesas_staff` suma de ahí desde `sec_27`, APLICADA
+            el 2026-08-05. El aviso de abajo se apaga SOLO —cuelga de `fuente`, un campo que solo
+            devuelve la función nueva—, así que hoy no se ve. Se deja puesto a propósito: es lo
+            que volvería a avisar si alguien restaurara la función vieja, y no hay que acordarse
+            de nada para que funcione en ninguna de las dos direcciones. */}
         {mesas.length > 0 && (
           <>
             {data.fuente !== "invitaciones" && (

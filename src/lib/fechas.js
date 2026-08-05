@@ -12,6 +12,23 @@ export function parseFechaLocal(fechaISO) {
   return new Date(y, m - 1, d);
 }
 
+/**
+ * HOY, en la zona horaria de quien mira — "YYYY-MM-DD".
+ *
+ * `new Date().toISOString().slice(0, 10)` da el día en **UTC**, y la CDMX va seis horas por
+ * detrás. De las 18:00 en adelante, hora local, «hoy» en UTC ya es MAÑANA. El panel del dueño
+ * calculaba así los eventos próximos: a partir de las seis de la tarde —justo cuando se mira el
+ * panel antes de un evento de noche— el evento de HOY desaparecía de «próximos», porque su fecha
+ * había quedado por detrás de un «hoy» que se había adelantado un día.
+ *
+ * Se compone a mano en vez de con `toISOString` porque es lo que compara contra `fecha_evento`,
+ * que es una columna `date` sin zona: un día natural, no un instante.
+ */
+export function hoyLocal(d = new Date()) {
+  const p = (n) => String(n).padStart(2, "0");
+  return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}`;
+}
+
 /** "2026-09-04" → "Viernes 4 de septiembre de 2026" */
 export function fechaLarga(fechaISO) {
   const f = parseFechaLocal(fechaISO);

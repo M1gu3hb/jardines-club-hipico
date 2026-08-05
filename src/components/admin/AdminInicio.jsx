@@ -6,7 +6,7 @@ import {
   Trash2, AlertTriangle, Loader2,
 } from "lucide-react";
 import { estatusColor } from "@/components/admin/eventos/_ui";
-import { fechaLarga, diasFaltantes, tiempoRelativo } from "@/lib/fechas";
+import { fechaLarga, diasFaltantes, tiempoRelativo, hoyLocal } from "@/lib/fechas";
 import { Estado, EsqueletoFilas } from "@/components/ui/Estado";
 
 /** Saludo según la hora (el dueño abre esto a cualquier hora del día del evento). */
@@ -127,7 +127,7 @@ export default function AdminInicio({ onIr }) {
       }
       if (!activo) return;
 
-      const hoyStr = new Date().toISOString().slice(0, 10);
+      const hoyStr = hoyLocal();
       const proximos = eventos
         .filter((e) => e.fechaEvento && e.fechaEvento >= hoyStr && e.estatus !== "Cancelado")
         .sort((a, b) => a.fechaEvento.localeCompare(b.fechaEvento));
@@ -184,7 +184,7 @@ export default function AdminInicio({ onIr }) {
     }
   };
 
-  const hoy = fechaLarga(new Date().toISOString().slice(0, 10));
+  const hoy = fechaLarga(hoyLocal());
 
   return (
     <div>
