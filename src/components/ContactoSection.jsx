@@ -1,15 +1,29 @@
 import { motion } from "framer-motion";
 import { Phone, Mail, MapPin } from "lucide-react";
+import { WHATSAPP, TELEFONO, CORREO, UBICACION, MAPA } from "@/config/negocio";
 
+// Los respaldos de esta sección INVENTABAN. Si `config_sitio` no llegaba, la sección de contacto
+// —la sección de contacto— pintaba:
+//
+//     "+52 55 0000 0000"                con su enlace `tel:5500000000`
+//     "contacto@jardinesclubhipico.mx"  un dominio que no es el del negocio
+//     "Ciudad de México"                por dirección
+//     "https://maps.google.com"         por mapa: el mapa de nadie
+//     "525548663656"                    por WhatsApp: un número que no es el suyo
+//
+// Ninguno de los cinco daba error: se veían como datos buenos. Alguien que llegara al sitio en el
+// momento malo se llevaba un teléfono equivocado creyendo que era el del salón. Ahora el respaldo
+// son los datos VERIFICADOS del negocio (`src/config/negocio.js`), y la base sigue mandando.
 export default function ContactoSection({ telefono, correo, ubicacionTexto, ubicacionLinkMapa, whatsappNumero }) {
-  const tel = telefono || "+52 55 0000 0000";
-  const whatsappNum = whatsappNumero || "525548663656";
-  const ubicacion = ubicacionTexto || "Ciudad de México";
-  const mapaUrl = ubicacionLinkMapa || "https://maps.google.com";
+  const tel = telefono || TELEFONO;
+  const whatsappNum = whatsappNumero || WHATSAPP;
+  const ubicacion = ubicacionTexto || UBICACION;
+  const mapaUrl = ubicacionLinkMapa || MAPA;
+  const email = correo || CORREO;
 
   const items = [
     { icon: Phone, label: "Teléfono", value: tel, action: `tel:${tel.replace(/\D/g, "")}`, actionLabel: "Llamar ahora" },
-    { icon: Mail, label: "Correo", value: correo || "contacto@jardinesclubhipico.mx", action: `mailto:${correo || "contacto@jardinesclubhipico.mx"}`, actionLabel: "Enviar correo" },
+    { icon: Mail, label: "Correo", value: email, action: `mailto:${email}`, actionLabel: "Enviar correo" },
     { icon: MapPin, label: "Ubicación", value: ubicacion, action: mapaUrl, actionLabel: "Ver mapa" },
   ];
 

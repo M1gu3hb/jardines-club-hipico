@@ -7,23 +7,33 @@ import SalonOverlay from "./SalonOverlay";
 // la bloqueaba el navegador y el salón sin foto salía roto en vez de con un placeholder.
 const placeholderImg = "/media/img/dGg8Xxh.jpg";
 
-// Los salones de respaldo, para cuando Supabase no devuelve nada. Sus fotos también son
-// propias: las de `images.unsplash.com` que había aquí las bloqueaba la CSP, así que el
-// camino degradado enseñaba cinco tarjetas con la imagen rota.
-
-const defaultSalones = [
-  { id: "cerrado", nombre: "Salón Cerrado", descripcion: "Elegante salón cubierto con iluminación regulable, climatización y acabados de lujo.", capacidad: "50 – 150 personas", imagenPrincipal: "/media/img/zQnchfi.jpeg" },
-  { id: "encanto", nombre: "Salón Encanto", descripcion: "Espacio amplio con decoración cálida y romántica, perfecto para bodas y XV años.", capacidad: "80 – 200 personas", imagenPrincipal: "/media/img/WsISC1j.png" },
-  { id: "kiosco", nombre: "Kiosco", descripcion: "Espacio semiabierto con vista al jardín, ideal para cocktails y eventos al aire libre.", capacidad: "30 – 80 personas", imagenPrincipal: "/media/img/9NiMw7K.png" },
-  { id: "jardines", nombre: "Jardines", descripcion: "Hermosos jardines naturales. El escenario perfecto para ceremonias al aire libre.", capacidad: "100 – 300 personas", imagenPrincipal: "/media/img/ltW3p5N.jpg" },
-  { id: "pony", nombre: "Pony (Juegos)", descripcion: "Área recreativa con juegos infantiles. El favorito de los más pequeños.", capacidad: "20 – 60 niños", imagenPrincipal: "/media/img/5uVcOay.jpg" },
-];
+// AQUÍ HABÍA CINCO SALONES DE RESPALDO. No eran una aproximación al salón: eran otro salón.
+// Contrastados con `jardines.salones` en producción el 2026-08-05, que tiene OCHO espacios:
+//
+//   respaldo inventado                    realidad
+//   ──────────────────────────────────    ─────────────────────────────────────────
+//   «Salón Cerrado»  50 – 150             no existe
+//   «Salón Encanto»  80 – 200             Salón Encanto, 200-300
+//   «Kiosco»         30 – 80              Quiosco, 30-50
+//   «Jardines»       100 – 300            Jardines, 400-600   ← la mitad de lo que es
+//   «Pony (Juegos)»  20 – 60 niños        Área Infantil Pony, 100-150
+//   —                                     Salón de los Espejos, 300-400   ← el más grande
+//   —                                     Espacio Nocturno (Eclipse), 80-120
+//   —                                     Capilla, 50-150
+//   —                                     Estancias (Bungalos)
+//
+// Es decir: el camino degradado escondía los cuatro espacios más distintivos —incluida la capilla,
+// que el propio JSON-LD anuncia— y le decía a quien planeara una boda de 500 personas que el
+// jardín llega a 300. Eso no es un sitio incompleto: es una reserva perdida por un dato falso.
+//
+// El respaldo se retira. Si la base no responde no se inventa un salón; se dice que la lista no
+// cargó y se deja abierta la vía de contacto, que es lo único cierto que se puede ofrecer.
 
 export default function SalonesSection({ salones, onSelectSalon }) {
   const [overlayOpen, setOverlayOpen] = useState(false);
   const [selectedSalon, setSelectedSalon] = useState(null);
 
-  const listado = (salones && salones.length > 0) ? salones : defaultSalones;
+  const listado = salones && salones.length > 0 ? salones : [];
 
   const openOverlay = (salon) => {
     setSelectedSalon(salon);
@@ -55,6 +65,25 @@ export default function SalonesSection({ salones, onSelectSalon }) {
               Cada espacio diseñado para crear momentos únicos e inolvidables
             </p>
           </motion.div>
+
+          {listado.length === 0 && (
+            <div className="skeu-card px-6 py-8 text-center max-w-lg mx-auto">
+              <p className="text-white/70 text-sm">
+                No pudimos cargar la lista de espacios en este momento.
+              </p>
+              <p className="text-white/40 text-xs mt-2 leading-relaxed">
+                Tenemos ocho espacios, de 30 a 600 personas. Escríbenos y te contamos cuál encaja
+                con tu evento.
+              </p>
+              <button
+                type="button"
+                onClick={() => onSelectSalon?.("")}
+                className="mt-5 inline-flex items-center gap-2 text-[#C9A84C]/80 hover:text-[#C9A84C] text-xs tracking-wider uppercase transition-colors"
+              >
+                Pedir cotización →
+              </button>
+            </div>
+          )}
 
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 md:gap-7">
             {listado.map((salon, i) => {

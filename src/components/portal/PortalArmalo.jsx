@@ -10,8 +10,9 @@ import { imagenDe } from "@/lib/media";
 import { notificarDueno, registrarActividad } from "@/lib/notificar";
 import Celebracion from "./Celebracion";
 import MediaCarrusel from "@/components/MediaCarrusel";
+import { WHATSAPP } from "@/config/negocio";
 
-const WHATSAPP_DEFAULT = "525548663656";
+const WHATSAPP_DEFAULT = WHATSAPP;
 
 /** Todos los medios (imágenes Y videos) de un ítem del catálogo. */
 function mediosDe(item) {

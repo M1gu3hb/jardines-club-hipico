@@ -3,6 +3,7 @@ import { X, ChevronRight, ChevronLeft, Check, Loader2 } from "lucide-react";
 import { base44 } from "@/api/base44Client";
 import { playSound } from "./soundSystem";
 import useLockBodyScroll from "../hooks/useLockBodyScroll";
+import { WHATSAPP } from "@/config/negocio";
 
 const TIPOS_EVENTO = ["Boda", "XV Años", "Cumpleaños", "Infantil", "Empresarial", "Otro"];
 
@@ -107,7 +108,7 @@ export default function FormularioModal({ open, onClose, preselectedSalon, whats
 
   const salonesDisponibles = salones.length > 0 ? salones.map(s => s.nombre) : [];
   const tipoEventoFinal = form.tipoEvento === "Otro" ? (form.tipoEventoOtro || "").trim() : form.tipoEvento;
-  const waNumero = whatsappNumero || "525548663656";
+  const waNumero = whatsappNumero || WHATSAPP;
 
   const puedeEnviar =
     !!form.nombreCompleto &&

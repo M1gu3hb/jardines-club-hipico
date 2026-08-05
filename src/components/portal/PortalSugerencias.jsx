@@ -4,6 +4,7 @@ import { Lightbulb, X, MessageCircle } from "lucide-react";
 import { base44 } from "@/api/base44Client";
 import { sugerirParaEvento } from "@/lib/sugerencias";
 import { poolSugerible } from "@/lib/catalogo";
+import { WHATSAPP } from "@/config/negocio";
 
 /**
  * PortalSugerencias — ideas inteligentes para el evento del cliente.
@@ -48,7 +49,7 @@ export default function PortalSugerencias({ evento }) {
   if (oculto || !sugerencias || sugerencias.length === 0) return null;
 
   const linkWhatsApp = (titulo) => {
-    const num = whatsapp || "525548663656";
+    const num = whatsapp || WHATSAPP;
     const msg = `Hola, estoy preparando "${evento.nombreEvento}" y me gustaría saber más sobre: ${titulo}`;
     return `https://wa.me/${num}?text=${encodeURIComponent(msg)}`;
   };

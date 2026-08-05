@@ -2841,6 +2841,91 @@ for (const ruta of [
   check("0: el avance de mesas sale de `invitaciones`, y el aviso provisional se apaga solo", fallos.length === 0, fallos.join(" · "));
 }
 
+// ------------------------------------------- 1.4 · UN SOLO NÚMERO, Y QUE SEA EL SUYO
+//
+// El JSON-LD de `index.html` publicaba `+525548663656`, que NO es el teléfono del negocio
+// (`config_sitio.telefono_contacto` = `+52 55 2311 8153`). Es HTML estático: no pasa por Supabase,
+// no lo corrige el panel Admin, y es lo que Google lee para la ficha del negocio. El mismo número
+// equivocado estaba a mano en cinco componentes como respaldo de WhatsApp.
+//
+// Se afirma la propiedad, no el texto: **ningún archivo de runtime escribe un número de teléfono
+// a mano**, y el que publica el JSON-LD es exactamente el del módulo. Un contrato que solo
+// prohibiera la cadena vieja no vería el siguiente número inventado.
+{
+  const negocio = leerCodigo("src/config/negocio.js");
+  const soloDigitos = (s) => (s || "").replace(/\D/g, "");
+  const wa = (negocio.match(/export const WHATSAPP\s*=\s*"(\d+)"/) || [])[1] || "";
+  const tel = (negocio.match(/export const TELEFONO\s*=\s*"([^"]+)"/) || [])[1] || "";
+
+  check("1.4: `src/config/negocio.js` declara WHATSAPP y TELEFONO", !!wa && !!tel, `wa=«${wa}» tel=«${tel}»`);
+  check(
+    "1.4: WHATSAPP y TELEFONO son el mismo número",
+    !!wa && soloDigitos(tel) === wa,
+    `wa=${wa} · tel=${soloDigitos(tel)}`,
+  );
+
+  // El JSON-LD estático tiene que publicar ese número y no otro.
+  {
+    const html = leer("index.html");
+    const publicado = (html.match(/"telephone"\s*:\s*"([^"]+)"/) || [])[1] || "";
+    check(
+      "1.4: el JSON-LD de `index.html` publica el teléfono del negocio",
+      !!publicado && soloDigitos(publicado) === wa,
+      `el JSON-LD dice «${publicado}» y el negocio es «${wa}»`,
+    );
+  }
+
+  // Y nadie más escribe un teléfono mexicano a mano. Se busca la FORMA (52 + 10 dígitos, o el
+  // `wa.me/` con dígitos pegados), no la cadena concreta que ya se corrigió.
+  {
+    const sospechosos = [];
+    for (const f of leerDirRec("src").concat(leerDirRec("api"))) {
+      if (!/\.(jsx?|mjs)$/.test(f) || f.endsWith("src/config/negocio.js")) continue;
+      // Sin comentarios: mencionar el número al explicarlo no cuenta. Y sin los `placeholder` de
+      // los formularios del panel: `placeholder="+52 55 0000 0000"` es una PISTA DE FORMATO dentro
+      // de un input vacío del Admin, no un dato que se le enseñe a nadie. Se recorta el atributo
+      // entero —no la cadena— para que un `href` o un `value` con el número siga cazándose.
+      const codigo = leerCodigo(f).replace(/placeholder=(\{?"[^"]*"\}?)/g, "placeholder={}");
+      for (const m of codigo.matchAll(/"(\+?52\s?\d[\d\s-]{8,})"|wa\.me\/(\d{10,})/g)) {
+        sospechosos.push(`${f}: ${m[1] || m[2]}`);
+      }
+    }
+    check(
+      "1.4: ningún componente escribe un teléfono a mano — todos salen de `negocio.js`",
+      sospechosos.length === 0,
+      sospechosos.join(" · "),
+    );
+  }
+}
+
+// ------------------------------------------- 1.5 · UN RESPALDO NO PUEDE INVENTAR EL SALÓN
+//
+// `SalonesSection` traía cinco salones de respaldo para cuando Supabase no devuelve nada. No eran
+// una aproximación: «Salón Cerrado» no existe, y a «Jardines» le ponían 100–300 personas cuando el
+// real va de 400 a 600. Escondía además los cuatro espacios más distintivos, capilla incluida.
+// Quien planeara una boda de 500 se iba creyendo que el sitio le queda chico.
+{
+  const salones = leerCodigo("src/components/SalonesSection.jsx");
+  const contacto = leerCodigo("src/components/ContactoSection.jsx");
+  const fallos = [];
+
+  // No hay una lista de salones escrita a mano en el componente. La forma que se prohíbe es el
+  // objeto con `nombre` Y `capacidad` literales, que es lo que hace que se vea como un dato bueno.
+  if (/nombre:\s*"[^"]+"[\s\S]{0,240}?capacidad:\s*"[^"]+"/.test(salones)) {
+    fallos.push("`SalonesSection` vuelve a traer salones inventados");
+  }
+  // Y con la lista vacía se dice que no cargó, en vez de no pintar nada en silencio.
+  if (!/listado\.length === 0/.test(salones)) fallos.push("con la lista vacía no se avisa de nada");
+
+  // Los respaldos de contacto salen del módulo verificado, no de literales.
+  for (const mentira of ["55 0000 0000", "contacto@jardinesclubhipico.mx", "https://maps.google.com", '"Ciudad de México"']) {
+    if (contacto.includes(mentira)) fallos.push(`\`ContactoSection\` sigue inventando «${mentira}»`);
+  }
+  if (!/from "@\/config\/negocio"/.test(contacto)) fallos.push("`ContactoSection` no usa `negocio.js`");
+
+  check("1.5: ningún respaldo inventa datos del negocio", fallos.length === 0, fallos.join(" · "));
+}
+
 // ---------------------------------------------------------------- salida
 let fallan = 0;
 for (const c of casos) {

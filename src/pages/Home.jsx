@@ -19,6 +19,7 @@ import ProximamenteModal from "../components/ProximamenteModal";
 import Confianza from "../components/Confianza";
 import ComoFunciona from "../components/ComoFunciona";
 import FaqSection from "../components/FaqSection";
+import { WHATSAPP } from "@/config/negocio";
 
 // Orden = orden real del <main> de abajo. `como-funciona` y `faq` existen en el
 // DOM desde hace tiempo pero faltaban aquí: eran dos secciones de conversión
@@ -161,7 +162,7 @@ export default function Home() {
           {/* Sticky WhatsApp button (móvil y escritorio) */}
           <div className="fixed bottom-5 right-5 z-50">
             <a
-              href={`https://wa.me/${config?.whatsappNumero || "525548663656"}?text=Hola,%20me%20gustar%C3%ADa%20cotizar%20un%20evento%20en%20Jardines%20Club%20H%C3%ADpico`}
+              href={`https://wa.me/${config?.whatsappNumero || WHATSAPP}?text=Hola,%20me%20gustar%C3%ADa%20cotizar%20un%20evento%20en%20Jardines%20Club%20H%C3%ADpico`}
               target="_blank"
               rel="noopener noreferrer"
               className="w-14 h-14 rounded-full bg-[#25D366] flex items-center justify-center shadow-2xl shadow-green-900/40"
