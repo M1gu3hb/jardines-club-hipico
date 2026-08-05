@@ -31,10 +31,9 @@
 -- LO QUE **NO** HACE
 --   - No toca `eventos_upd` ni ninguna otra policy: no amplía lo que el navegador puede
 --     escribir por su cuenta ni un milímetro.
---   - No genera el token: lo recibe. El token es la credencial pública de /invitacion/<token>
---     y lo produce `tokenSeguro()` con WebCrypto en el cliente. Aquí solo se valida su forma.
---     (Si algún día se decide generarlo en el servidor, es un cambio aparte y mayor: cambia
---     quién es la fuente del secreto.)
+--   - **Genera el token ella misma**, con `jardines_private.token_seguro()` (el mismo de
+--     `sec_04`). No lo recibe de fuera: así el cliente no puede elegir un token sin entropía y
+--     no hace falta validar una forma que ya se demostró que se puede escribir mal (T.1).
 --   - No toca **absolutamente nada de Vero Seguros**: ni el schema `public`, ni `auth.users`,
 --     ni el bucket `site-media`, ni configuración global de Auth.
 --
@@ -87,12 +86,30 @@ end $$;
 -- `search_path = ''` y nombres completamente calificados: regla del proyecto para toda función
 -- `security definer`. Sin esto, un `search_path` hostil en la sesión del llamador puede hacer
 -- que `eventos` resuelva a otra tabla y la función escriba donde no debe.
+-- EL TOKEN LO GENERA EL SERVIDOR (fase B.5). No es un detalle de estilo: resuelve tres cosas
+-- de una vez.
+--
+--   1. **La validación de forma desaparece**, y con ella la clase de bug de T.1: una regex que
+--      no casaba con el generador y habría rechazado el 100 % de los tokens. Si nadie de fuera
+--      aporta el token, no hay nada que validar.
+--   2. **Deja de elegirlo el cliente.** `^[A-Za-z0-9_-]{43,128}$` aceptaba `AAAA…A`: 43 letras
+--      A pasan la forma y no tienen entropía ninguna. Era autolesión —el token es la credencial
+--      de SU invitación— pero un guardarraíl que depende de que la víctima se porte bien no es
+--      un guardarraíl.
+--   3. **Hace posible la rotación**, que el `coalesce` de T.2 había dejado sin salida: si a un
+--      cliente se le filtra el enlace, hoy no hay forma de cambiarlo. Desactivar bloquea, pero
+--      reactivar revive el mismo enlace. Con el token del lado del servidor, rotar es un
+--      parámetro, no una operación nueva que haya que inventar.
+--
+-- La base ya tiene el generador —`jardines_private.token_seguro()`, el mismo que usa
+-- `rotar_staff_token` desde `sec_04`—, así que esto no añade criptografía: la reutiliza. Y el
+-- staff token ya tenía rotación y revocación; la invitación no. Esa asimetría no tenía motivo.
 create or replace function jardines.invitacion_guardar(
   p_evento_id   uuid,
-  p_token       text,
   p_activa      boolean,
   p_mensaje     text default null,
-  p_dress_code  text default null
+  p_dress_code  text default null,
+  p_rotar       boolean default false
 ) returns jsonb
 language plpgsql
 security definer
@@ -100,6 +117,8 @@ set search_path = ''
 as $$
 declare
   v_filas integer;
+  v_actual text;
+  v_token  text;
 begin
   -- 1) ¿Es SU evento? Fail-closed: `is_my_event` es la misma comprobación que gobierna todo el
   --    resto del portal.
@@ -121,31 +140,23 @@ begin
     return jsonb_build_object('ok', false, 'motivo', 'no_disponible');
   end if;
 
-  -- 2) FORMA DEL TOKEN. Es una credencial portadora, así que se acota para que esta RPC no
-  --    pueda usarse para meter en esa columna un token corto y adivinable, ni un texto de 10 KB.
-  --
-  --    ⚠️ LA PRIMERA VERSIÓN EXIGÍA HEXADECIMAL Y HABRÍA RECHAZADO EL 100 % DE LOS TOKENS.
-  --    `^[a-f0-9]{32,128}$` con un comentario que afirmaba "32 bytes en hex son 64 caracteres,
-  --    que es lo que produce `tokenSeguro()`". Las dos mitades eran falsas: `tokenSeguro()`
-  --    devuelve **base64url de 43 caracteres**, no hex de 64. Medido con la función real:
-  --    20 000 tokens generados, **0 pasaban**. Y el fallo habría parecido intermitente, porque
-  --    «Desactivar» no valida el token y sí habría funcionado.
-  --
-  --    Se arregla la VALIDACIÓN, no el generador, y no por comodidad:
-  --      · `tokenSeguro()` es el generador del navegador para todo el proyecto;
-  --      · y la propia base ya genera así sus tokens desde `sec_04`:
-  --          rtrim(translate(encode(gen_random_bytes(32),'base64'), '+/', '-_'), '=')
-  --        que es exactamente base64url de 43 caracteres.
-  --    Pedir hex aquí metería un segundo alfabeto de token en la misma base para el mismo tipo
-  --    de credencial — la divergencia entre dos fuentes que ya costó el bug de 8A (cliente ≥6,
-  --    servidor ≥8). No hay nada emitido que respetar: `count(invitacion_token)` = 0.
-  --
-  --    El suelo de 43 no es estético: 43 caracteres de base64url son los 256 bits que produce
-  --    `gen_random_bytes(32)`. Un token más corto sería menos entropía, que es lo único que
-  --    protege esta credencial.
-  if p_activa and (p_token is null or p_token !~ '^[A-Za-z0-9_-]{43,128}$') then
-    return jsonb_build_object('ok', false, 'motivo', 'token_invalido');
-  end if;
+  -- 2) EL TOKEN. Se lee el que ya hubiera y se decide con una sola regla:
+  --      · `p_rotar` -> uno nuevo, aunque ya hubiera (es la salida para un enlace filtrado);
+  --      · si no hay ninguno y se está activando -> uno nuevo;
+  --      · en cualquier otro caso -> el que ya estaba.
+  --    Nunca se borra: desactivar conserva el enlace para poder reactivarlo tal cual.
+  select e.invitacion_token into v_actual from jardines.eventos e where e.id = p_evento_id;
+  v_token := case
+               when p_rotar then jardines_private.token_seguro()
+               when v_actual is not null then v_actual
+               -- `and v_actual is null` es redundante por el orden del `case` — y va escrito a
+               -- propósito. Que una rama sea segura solo porque otra la precede es una propiedad
+               -- que no se ve leyendo la rama, y que se pierde el día que alguien reordene el
+               -- `case`. Lo cazó el contrato de T.2, que exige que cada generación esté
+               -- condicionada localmente.
+               when p_activa and v_actual is null then jardines_private.token_seguro()
+               else null
+             end;
 
   -- 3) LONGITUDES. Este texto lo escribe el cliente y acaba en una página pública. Se acota por
   --    el mismo motivo que `solicitudes_longitudes` acota el formulario público.
@@ -156,18 +167,15 @@ begin
   -- 4) La escritura, EXACTAMENTE cuatro columnas. Ninguna otra puede tocarse desde aquí, y esa
   --    es la razón de que esto sea una función y no una policy.
   update jardines.eventos
-     -- CONSERVA el token que ya hubiera. La primera versión era
+     -- El token sale de `v_token`, calculado arriba. La primera versión era
      --   `case when p_activa then p_token else invitacion_token end`
-     -- que al ACTIVAR sobrescribía siempre — justo lo contrario de lo que `PortalInvitacion`
-     -- promete y de lo que el cliente da por hecho. Con dos pestañas abiertas bastaba: la A
-     -- activa y reparte el enlace por WhatsApp; la B, que sigue con `invitacionToken` en null
-     -- porque `form` solo se inicializa al montar, guarda un cambio de mensaje y genera otro
-     -- token. Los enlaces ya repartidos quedaban muertos, sin aviso y sin forma de recuperarlos.
+     -- que al ACTIVAR sobrescribía siempre — lo contrario de lo que el portal promete. Con dos
+     -- pestañas bastaba: la A activa y reparte el enlace; la B, que sigue con el token en null
+     -- porque su formulario solo se inicializa al montar, guarda un cambio de mensaje y genera
+     -- otro. Los enlaces repartidos quedaban muertos, sin aviso.
      --
-     -- `coalesce` deja el token como lo que es: se emite UNA vez y no se rota por accidente.
-     -- Rotarlo a propósito sería una operación distinta y explícita, que hoy no existe.
-     -- El front se recompone solo, porque guarda el token que DEVUELVE esta función.
-     set invitacion_token      = coalesce(invitacion_token, case when p_activa then p_token end),
+     -- Ahora el token se emite una vez y **solo cambia si se pide expresamente** (`p_rotar`).
+     set invitacion_token      = v_token,
          invitacion_activa     = p_activa,
          invitacion_mensaje    = p_mensaje,
          invitacion_dress_code = p_dress_code
@@ -194,8 +202,8 @@ end $$;
 
 -- EXECUTE mínimo: `authenticated` y nadie más. Nunca `PUBLIC` — `anon` no tiene nada que hacer
 -- aquí, y `revoke from public` es explícito porque `create function` lo concede por defecto.
-revoke all on function jardines.invitacion_guardar(uuid, text, boolean, text, text) from public;
-grant execute on function jardines.invitacion_guardar(uuid, text, boolean, text, text) to authenticated;
+revoke all on function jardines.invitacion_guardar(uuid, boolean, text, text, boolean) from public;
+grant execute on function jardines.invitacion_guardar(uuid, boolean, text, text, boolean) to authenticated;
 
 -- ── POSCONDICIONES ──────────────────────────────────────────────────────────
 do $$

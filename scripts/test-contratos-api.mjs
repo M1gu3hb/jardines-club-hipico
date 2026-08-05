@@ -165,8 +165,27 @@ const confirmacionAtadaALaEscritura = (codigo, desde, hasta, escritura) => {
     }
   }
 
-  // 3) Hay un `catch` que la cubre. Estricto sin `catch` no es un arreglo: es un botón girando.
-  const iCatch = cuerpo.indexOf("} catch", i);
+  // 3) Hay un `catch` que LA CUBRE. Estricto sin `catch` no es un arreglo: es un botón girando.
+  //
+  //    Y tiene que ser el `catch` que la envuelve, no el primero que aparezca detrás. Con un
+  //    `try/catch` interno entre la escritura y la confirmación —el de `revocar_staff_token` en
+  //    `EventoDatos`, por ejemplo— `indexOf("} catch")` cae en el interno y todo lo que viene
+  //    después queda "fuera del try" para el contrato, aunque no lo esté. Es el mismo defecto
+  //    que C.1: mirar posiciones de texto en vez de estructura. Se busca por balance de llaves.
+  const cierraBloque = (t, k) => {
+    let d = 0;
+    for (let x = k; x < t.length; x++) {
+      if (t[x] === "{") d++;
+      else if (t[x] === "}" && --d === 0) return x;
+    }
+    return -1;
+  };
+  let iCatch = -1;
+  for (let k = 0; k < i; k++) {
+    if (!cuerpo.startsWith("try {", k)) continue;
+    const fin = cierraBloque(cuerpo, k + 4);            // la llave de `try {`
+    if (fin > i && /^\s*catch\b/.test(cuerpo.slice(fin + 1, fin + 20))) iCatch = fin;   // el `try` más externo que la envuelve vale
+  }
   if (iCatch < 0) return { ok: false, detalle: [...fallos, "la escritura no está dentro de un `try/catch`"].join(" · ") };
 
   // 4) El éxito se marca DESPUÉS de la escritura y ANTES del catch — y el nombre del estado se
@@ -2268,7 +2287,7 @@ for (const ruta of [
   {
     const r = confirmacionAtadaALaEscritura(
       leerCodigo("src/components/portal/PortalInvitacion.jsx"),
-      "const guardar = async (activar) => {", "\n  };", /await\s+base44\.rpc\(/,
+      "const guardar = async (", "\n  };", /await\s+base44\.rpc\(/,
     );
     check(
       "A.2 (P0): la invitación del cliente no puede volver a decir «Guardado ✓» sin haber guardado",
@@ -2357,10 +2376,15 @@ for (const ruta of [
     }
     // Y NINGÚN grant puede alcanzar a `anon`: esta RPC escribe.
     if (/grant\s+execute[^;]*\banon\b/i.test(sql)) fallos.push("concede EXECUTE a `anon`");
-    // La forma del token se valida — SIN fijar el alfabeto aquí. Esa mitad la comprueba T.1
-    // ejecutando el generador real contra esta misma regex, que es lo único que distingue una
-    // validación correcta de una que rechaza el 100 % de los tokens.
-    if (!/p_token\s+is\s+null\s+or\s+p_token\s*!~\s*'\^/.test(sql)) fallos.push("no valida la forma del token");
+    // EL TOKEN NO VIENE DE FUERA (B.5). Antes esto exigía que se validara su forma; ahora la
+    // propiedad es más fuerte y hace innecesaria aquella: si la función no recibe ningún token,
+    // no hay forma que validar mal —que fue exactamente el fallo de T.1— ni token que el cliente
+    // pueda elegir sin entropía.
+    {
+      const firma = entre(sql, "create or replace function jardines.invitacion_guardar(", ") returns");
+      if (/\bp_token\b/.test(firma)) fallos.push("la función sigue recibiendo el token de fuera");
+      if (!/jardines_private\.token_seguro\(\)/.test(sql)) fallos.push("el token no lo genera el servidor");
+    }
   }
   check("A.2: `sec_26` acota la escritura del cliente a sus cuatro columnas y no toca nada más", fallos.length === 0, fallos.join(" · "));
 }
@@ -2447,9 +2471,13 @@ for (const ruta of [
     if (iArr < 0) continue;
     for (const f of antes.slice(iArr).matchAll(/'jardines\.(\w+)\s*\(/g)) expuestas.add(f[1]);
   }
+  // `leerCodigo`, NO `leer`: una mención en un comentario no es una llamada. Con el archivo
+  // comentado, escribir «su único escritor, `registrar_llegada_mesa`, no tiene llamador» dentro
+  // de un comentario hacía que el contrato diera esa función por invocada — y por documentar el
+  // problema, además. Lo cazó al escribir el aviso de B.1.
   const codigoCliente = [...leerDirRec("src"), ...leerDirRec("api")]
     .filter((f) => /\.(js|jsx|mjs)$/.test(f))
-    .map((f) => leer(f)).join("\n");
+    .map((f) => leerCodigo(f)).join("\n");
 
   // "Nadie la invoca" no es "el JavaScript no la invoca". Media docena de estas funciones
   // —`is_admin`, `is_my_event`, `client_can_edit`, `mis_canales`…— están concedidas a
@@ -2503,7 +2531,8 @@ for (const ruta of [
   // y fecha en el `git blame`, que es exactamente lo que no pasó con `registrar_llegada_mesa`.
   const HUERFANAS_CONOCIDAS = {
     registrar_llegada_mesa: "**concedida a `anon`**, invocable sin autenticarse. Escribiría `mesas.ocupadas`, la fuente que el tablero de staff lee y que nadie llena (fase B.1). Es la más urgente de las seis: las otras cinco exigen sesión",
-    revocar_staff_token: "el panel solo rota el token, nunca lo revoca sin sustituto",
+    // `revocar_staff_token` SALIÓ de esta lista en B.4: cancelar un evento lo revoca, que es
+    // exactamente su caso de uso. El contrato de entradas caducadas lo exigió al commitear.
     confirmar_evento: "flujo de confirmación que nunca se construyó en la interfaz",
     auditoria_reciente: "la auditoría se consulta por SQL, no hay pantalla que la lea",
     operativo_ubicar: "la ubicación en vivo del operativo no llegó a tener pantalla",
@@ -2557,52 +2586,61 @@ for (const ruta of [
 // contrato que se limitara a comparar dos textos habría dado por buenas las dos versiones.
 {
   const sql = leer("supabase/migrations/20260805120000_jardines_sec_26_invitacion_cliente.sql");
-  const patron = (/p_token\s*!~\s*'([^']+)'/.exec(sql) || [])[1];
-  if (!patron) {
-    check("T.1: la validación del token de `sec_26` acepta lo que genera `tokenSeguro()`", false,
-      "no se encontró la validación del token en sec_26");
-  } else {
-    // `tokenSeguro` es puro y sin imports: se ejecuta tal cual. `btoa` y `crypto` son globales
-    // en Node 18+, igual que en el navegador.
-    const { tokenSeguro } = await import("../src/lib/tokenSeguro.js");
-    const re = new RegExp(patron);
-    const muestras = Array.from({ length: 2000 }, () => tokenSeguro());
-    const rechazados = muestras.filter((t) => !re.test(t));
-    check(
-      "T.1: la validación del token de `sec_26` acepta lo que genera `tokenSeguro()`",
-      rechazados.length === 0,
-      rechazados.length
-        ? `${rechazados.length}/${muestras.length} tokens reales rechazados por /${patron}/ (ej.: ${rechazados[0]}, ${rechazados[0].length} caracteres)`
-        : "",
-    );
-    // Y al revés: la validación tiene que seguir rechazando lo que no vale. Sin esto, "que
-    // acepte los reales" se cumpliría con `^.*$`.
-    const basura = ["", "corto", "a".repeat(42), "tiene espacios aqui", "con/barra+y+mas", "x".repeat(200)];
-    const colados = basura.filter((t) => re.test(t));
-    check(
-      "T.1: y sigue rechazando tokens cortos o de alfabeto equivocado",
-      colados.length === 0,
-      colados.length ? `deja pasar: ${colados.map((t) => `«${t.slice(0, 20)}»`).join(", ")}` : "",
-    );
+
+  // T.1 · REESCRITO EN B.5, y el cambio de propiedad es el interesante.
+  //
+  // La versión anterior ejecutaba `tokenSeguro()` de verdad contra la regex de la migración y
+  // exigía que pasaran los 2000 — porque la regex pedía hexadecimal y el generador produce
+  // base64url, así que habría rechazado el 100 % de los tokens. Ese contrato era correcto y
+  // atrapaba el bug.
+  //
+  // B.5 lo deja sin objeto: si el token lo emite el servidor, **no hay nada que validar**. La
+  // propiedad que sustituye a aquella es más fuerte, porque elimina la clase entera en vez de
+  // comprobar que esta vez casa: ningún token entra desde fuera, así que no puede haber una
+  // regex mal escrita ni un cliente eligiendo `AAAA…A`.
+  {
+    const firma = entre(sql, "create or replace function jardines.invitacion_guardar(", ") returns");
+    const inv = leerCodigo("src/components/portal/PortalInvitacion.jsx");
+    const fallos = [];
+    if (/\bp_token\b/.test(firma)) fallos.push("la firma sigue aceptando un token de fuera");
+    if (!/jardines_private\.token_seguro\(\)/.test(sql)) fallos.push("el servidor no genera el token");
+    if (/p_token\s*:/.test(inv)) fallos.push("el front sigue mandando un token");
+    if (/tokenSeguro\s*\(/.test(inv)) fallos.push("el front sigue generando un token para la invitación");
+    check("T.1: el token de la invitación lo emite el servidor; nadie lo aporta desde fuera", fallos.length === 0, fallos.join(" · "));
   }
 
   // T.2 · El token se EMITE una vez. La primera versión lo sobrescribía en cada activación, así
   // que dos pestañas bastaban para dejar muertos los enlaces ya repartidos — justo lo contrario
   // de lo que el comentario del front prometía.
   {
-    const asig = /invitacion_token\s*=\s*([^,\n]+)/.exec(sql.replace(/^\s*--.*$/gm, ""));
-    const conserva = asig && /coalesce\s*\(\s*invitacion_token\b/.test(asig[1]);
+    // La propiedad, tras B.5: un token ya emitido **solo puede cambiar si se pide expresamente**.
+    // Se comprueba sobre el `case` que lo calcula: toda rama que genere uno nuevo tiene que estar
+    // condicionada a `p_rotar` o a que no hubiera ninguno. Una rama que generase sin condición
+    // sería la sobrescritura de T.2 otra vez, con otro nombre.
+    const limpio = sql.replace(/^\s*--.*$/gm, "");
+    // El nombre de la variable se DERIVA de la asignación, no se fija: renombrar `v_token` es un
+    // refactor y tumbaba este contrato. Van cuatro veces que el mismo defecto reaparece en un
+    // contrato nuevo — por eso la regla está escrita en `docs/PROMPTS.md` §9.
+    const nombreVar = (/invitacion_token\s*=\s*(\w+)\b/.exec(limpio) || [])[1] || "v_token";
+    const calculo = entre(limpio, `${nombreVar} := case`, "end;");
+    const ramas = calculo.split(/\bwhen\b/).slice(1);
+    const malas = ramas.filter((r) => /token_seguro\(\)/.test(r) && !/p_rotar|is\s+null/.test(r.split(/\bthen\b/)[0]));
+    const asignaDesdeElCalculo = new RegExp(`invitacion_token\\s*=\\s*${nombreVar}\\b`).test(limpio);
     check(
-      "T.2: `sec_26` conserva el token ya emitido en vez de sobrescribirlo",
-      Boolean(conserva),
-      asig ? `asignación: «${asig[1].trim()}»` : "no se encontró la asignación de `invitacion_token`",
+      "T.2: un token ya emitido solo cambia si se pide rotarlo",
+      malas.length === 0 && ramas.length > 0 && asignaDesdeElCalculo,
+      !ramas.length ? "no se encontró el cálculo del token"
+        : malas.length ? `ramas que generan token sin condición: ${malas.map((r) => `«when ${r.split("then")[0].trim()}»`).join(", ")}`
+        : asignaDesdeElCalculo ? "" : "`invitacion_token` no se asigna desde el token calculado",
     );
     // Y el front y el SQL tienen que decir lo mismo: el comentario que prometía la conservación
     // fue lo que hizo que nadie mirara si el SQL la hacía.
     const inv = leer("src/components/portal/PortalInvitacion.jsx");
+    // Y el front no puede tener un token propio con el que rellenar el hueco: si lo tuviera,
+    // volvería a poder repartir uno distinto del que la base guardó.
     check(
-      "T.2: el front guarda el token que DEVUELVE la base, no el que mandó",
-      /invitacionToken:\s*r\.token\s*\|\|\s*token/.test(inv),
+      "T.2: el token del front sale SOLO de la respuesta de la base",
+      /invitacionToken:\s*r\.token\s*\|\|\s*null/.test(inv) && !/tokenSeguro\s*\(/.test(inv),
     );
   }
 

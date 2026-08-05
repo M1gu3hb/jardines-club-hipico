@@ -12,6 +12,21 @@ const staffUrl = (token) => `${window.location.origin}/staff/${token}`;
 // Token de invitación: 256 bits de WebCrypto, sin fallback. Ver src/lib/tokenSeguro.js.
 const nuevoTokenInvitacion = tokenSeguro;
 
+/**
+ * CUPO POR DEFECTO: lo que QUEDA en la mesa, no su capacidad entera.
+ *
+ * El valor por defecto era `mesaCap(mesaId)` —la capacidad completa— con la etiqueta
+ * «(def. capacidad)», y eso empuja al error en el caso más normal que hay: Mesa 3, capacidad 10,
+ * «1 por mesa» crea la invitación A con cupo 10; dos días después la novia pide un QR aparte
+ * para los abuelos, el admin deja el campo vacío, y la invitación B sale **también con cupo 10**.
+ * El día del evento se escanean las dos hasta el tope: 20 personas en una mesa de 10.
+ *
+ * Nada en la base lo impide —no hay ningún constraint que cruce `invitaciones` con
+ * `mesas.capacidad`, y `registrar_acceso_staff` solo mira `inv.max_personas`—, así que este
+ * valor por defecto era el único freno y empujaba en la dirección contraria.
+ */
+
+
 export default function EventoMeseros({ eventoId }) {
   const [mesas, setMesas] = useState([]);
   const [invitaciones, setInvitaciones] = useState([]);
@@ -75,6 +90,10 @@ export default function EventoMeseros({ eventoId }) {
 
   const mesaNombre = (id) => mesas.find((m) => m.id === id)?.nombre || "Sin mesa";
   const mesaCap = (id) => mesas.find((m) => m.id === id)?.capacidad || 1;
+  /** Lo que queda de la mesa: capacidad menos lo ya comprometido por sus otras invitaciones. */
+  const cupoComprometido = (id) =>
+    invitaciones.filter((i) => i.mesaId === id).reduce((a, i) => a + (Number(i.maxPersonas) || 0), 0);
+  const cupoLibre = (id) => Math.max(0, mesaCap(id) - cupoComprometido(id));
 
   const generar = async () => {
     if (!mesaId) return;
@@ -83,7 +102,7 @@ export default function EventoMeseros({ eventoId }) {
       eventoId, mesaId,
       nombreInvitado: nombre.trim() || null,
       token: nuevoTokenInvitacion(),
-      maxPersonas: maxPersonas ? Number(maxPersonas) : mesaCap(mesaId),
+      maxPersonas: maxPersonas ? Number(maxPersonas) : cupoLibre(mesaId),
       personasRegistradas: 0,
       estatus: "pendiente",
     });
@@ -202,7 +221,7 @@ export default function EventoMeseros({ eventoId }) {
           </select>
           <input value={nombre} onChange={(e) => setNombre(e.target.value)} placeholder="Nombre del invitado (opcional)"
             className="bg-white/5 border border-white/10 text-white/70 text-sm px-3 py-2.5 outline-none focus:border-[#C9A84C]/40" />
-          <input type="number" min="1" value={maxPersonas} onChange={(e) => setMaxPersonas(e.target.value)} placeholder="Cupo (def. capacidad)"
+          <input type="number" min="1" value={maxPersonas} onChange={(e) => setMaxPersonas(e.target.value)} placeholder={mesaId ? `Cupo (quedan ${cupoLibre(mesaId)})` : "Cupo"}
             className="bg-white/5 border border-white/10 text-white/70 text-sm px-3 py-2.5 outline-none focus:border-[#C9A84C]/40" />
         </div>
         <div className="flex flex-wrap gap-2">

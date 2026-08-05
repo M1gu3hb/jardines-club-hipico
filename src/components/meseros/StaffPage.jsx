@@ -71,22 +71,64 @@ export default function StaffPage() {
           </button>
         </div>
 
+        {/* EL CONTADOR PODÍA MENTIR, Y EN EL PEOR SITIO (B.1).
+            `registrar_acceso_staff` —el único camino de registro que existe— escribe
+            `invitaciones.personas_registradas`. Este tablero leía `mesas.ocupadas`, que **no la
+            escribe nadie**: su único escritor, `registrar_llegada_mesa`, lleva meses sin
+            llamador. Rosa escanea 40 QR, registra 95 personas, cada pantalla le dice
+            «Registradas 8/8 ✓», y el tablero de la puerta sigue en 0/120 con las 15 mesas en
+            0/8. Y el admin, en la misma hora, ve el número real porque su pantalla lo suma de la
+            otra tabla.
+
+            LA FUENTE ÚNICA ES `invitaciones.personas_registradas` (respaldada por `accesos`,
+            que guarda una fila por escaneo). Se elige esa y no `mesas.ocupadas` por tres motivos:
+            es la que el único camino de escritura real ya llena; es la que el panel del dueño ya
+            suma, así que las dos pantallas coinciden sin tocar la suya; y `accesos` es el libro
+            mayor —una fila por escaneo—, mientras que `ocupadas` es un contador desnormalizado
+            que además el cliente puede escribir desde el navegador (ver fase E).
+
+            El arreglo es de servidor: `progreso_mesas_staff` tiene que sumar de ahí. Va en
+            `sec_27`, escrita y sin aplicar. Hasta entonces el contador es el viejo, así que se
+            dice — y el aviso desaparece solo cuando la función nueva esté puesta, porque cuelga
+            de un campo que solo ella devuelve. No hay que acordarse de quitarlo. */}
         {mesas.length > 0 && (
-          <div className="skeu-card px-5 py-4 mb-4 flex items-center justify-between">
-            <span className="text-white/50 text-sm">Total en el evento</span>
-            <span className="text-[#E6C870] text-lg font-light tabular-nums">{data.totalReg}/{data.totalCap}</span>
-          </div>
+          <>
+            {data.fuente !== "invitaciones" && (
+              <div className="skeu-card border-amber-400/30 px-5 py-3.5 mb-3">
+                <p className="text-amber-300/90 text-sm">
+                  Este avance <strong>puede no reflejar lo que ya registraste</strong>.
+                </p>
+                <p className="text-white/50 text-xs mt-1">
+                  Los registros de cada QR sí se están guardando —lo que ves al escanear es
+                  correcto—, pero este resumen todavía lee de otro sitio. Guíate por la pantalla
+                  de cada invitación.
+                </p>
+              </div>
+            )}
+            <div className="skeu-card px-5 py-4 mb-4 flex items-center justify-between">
+              <span className="text-white/50 text-sm">Total en el evento</span>
+              <span className="text-[#E6C870] text-lg font-light tabular-nums">{data.totalReg}/{data.totalCap}</span>
+            </div>
+          </>
         )}
 
         <div className="space-y-2.5">
           {mesas.map((m) => {
+            // `Math.min(100, …)` hacía que 20/10 se pintara IDÉNTICO a 10/10, así que la única
+            // señal de que una mesa está sobrevendida quedaba invisible justo donde hay que
+            // verla: en la puerta. Ahora la barra se satura pero el exceso se dice aparte y en
+            // rojo — si no se puede enseñar, no hay forma de descubrirlo.
             const pct = m.capacidad ? Math.min(100, (m.registradas / m.capacidad) * 100) : 0;
+            const excedida = m.capacidad > 0 && m.registradas > m.capacidad;
             const lleno = m.registradas >= m.capacidad;
             return (
               <div key={m.id} className="skeu-card px-4 py-3.5">
                 <div className="flex items-center justify-between mb-2">
                   <span className="text-white/85 text-sm flex items-center gap-1.5"><MapPin size={13} className="text-[#C9A84C]/60" /> {m.nombre}</span>
-                  <span className={`text-sm tabular-nums ${lleno ? "text-green-400/80" : "text-[#E6C870]"}`}>{m.registradas}/{m.capacidad}</span>
+                  <span className={`text-sm tabular-nums ${excedida ? "text-red-400" : lleno ? "text-green-400/80" : "text-[#E6C870]"}`}>
+                    {m.registradas}/{m.capacidad}
+                    {excedida && <span className="ml-1.5 text-red-400 text-xs">· {m.registradas - m.capacidad} de más</span>}
+                  </span>
                 </div>
                 <div className="h-1.5 rounded-full bg-white/5 overflow-hidden">
                   <div className="h-full rounded-full" style={{ width: `${pct}%`, background: lleno ? "rgba(74,222,128,0.7)" : "linear-gradient(90deg,#A88532,#E6C870)" }} />

@@ -65,6 +65,38 @@ export default function EventoDatos({ evento, salones, salonesIlegibles = false,
     }
     setErrorNombre("");
     setErrorGuardar("");
+
+    // ═══ CANCELAR APAGA LAS COSAS (B.4) ═══
+    //
+    // `estatus = 'Cancelado'` no tocaba nada más: el portal seguía abierto, la invitación
+    // digital seguía aceptando confirmaciones, el QR de staff seguía validando en la puerta y el
+    // operativo seguía activo. Dos días después, el cron le escribía a la pareja que canceló su
+    // boda: «⭐ ¿Cómo estuvo tu boda? … esperamos que haya sido inolvidable».
+    //
+    // QUÉ IMPLICA CANCELAR, decidido aquí y escrito: se apaga **todo lo que da acceso** —portal,
+    // invitación, operativo— y se **revoca el token de staff**, que es lo único que se puede
+    // usar desde fuera sin sesión. NO se borra nada: ni las confirmaciones, ni los invitados, ni
+    // el enlace de la invitación. Cancelar es cerrar las puertas, no vaciar la casa.
+    //
+    // Y NO es reversible solo: volver a poner el evento en «Confirmado» no vuelve a encender
+    // nada, porque no se puede saber qué estaba encendido antes. Por eso se avisa ANTES, con la
+    // lista de lo que se apaga, en vez de descubrirlo después.
+    const cancelando = form.estatus === "Cancelado" && evento.estatus !== "Cancelado";
+    if (cancelando) {
+      const ok = confirm(
+        "Vas a marcar este evento como CANCELADO.\n\n" +
+        "Se apagará el acceso de todos:\n" +
+        "· el portal del cliente\n" +
+        "· su invitación digital (deja de aceptar confirmaciones)\n" +
+        "· el operativo\n" +
+        "· y se revocará el QR de meseros, que es el único que funciona sin sesión.\n\n" +
+        "No se borra nada: las confirmaciones, los invitados y el enlace se conservan.\n" +
+        "Pero volver a activarlo hay que hacerlo a mano, uno por uno.\n\n" +
+        "¿Cancelar el evento?",
+      );
+      if (!ok) return;
+    }
+
     setGuardando(true);
     const patch = {
       nombreEvento: form.nombreEvento.trim(),
@@ -85,6 +117,10 @@ export default function EventoDatos({ evento, salones, salonesIlegibles = false,
       // reponía el valor que ya venía de la base. Un anticipo capturado por error
       // quedaba marcado para siempre. Ahora borrar el monto lo revierte.
       anticipoPagado: Number(form.anticipoMonto) > 0,
+      // Lo que apaga la cancelación. Va en el MISMO patch que el estatus: si fueran dos
+      // escrituras, un fallo entre ellas dejaría el evento cancelado con el portal abierto, que
+      // es peor que el estado de partida porque además parece resuelto.
+      ...(cancelando ? { portalActivo: false, invitacionActiva: false, operativoActivo: false } : {}),
     };
     // `updateEstricto`: es el guardado principal del panel y **afirma** «Guardado.». Con
     // `update`, una escritura que RLS dejara en cero filas devuelve el propio `patch`, así que
@@ -96,6 +132,24 @@ export default function EventoDatos({ evento, salones, salonesIlegibles = false,
     // bloque lo estén — no se puede arreglar una mitad y dejar la otra.
     try {
       const actualizado = await base44.entities.Evento.updateEstricto(evento.id, patch);
+      // El token de staff no es una columna que se pueda apagar desde aquí: está hasheado
+      // (`staff_token_hash`, desde `sec_20`) y se revoca por su RPC, que ya existía y **no tenía
+      // un solo llamador** — era una de las siete huérfanas de J-16. Cancelar es exactamente su
+      // caso de uso.
+      //
+      // Si la revocación falla, se dice: el evento queda cancelado pero el QR sigue vivo, y eso
+      // el dueño tiene que saberlo para revocarlo a mano desde la pestaña de meseros.
+      if (cancelando) {
+        try {
+          await base44.rpc("revocar_staff_token", { p_evento: evento.id });
+        } catch (e) {
+          console.error("[EventoDatos] revocar_staff_token", e?.message);
+          setErrorGuardar(
+            "El evento quedó cancelado, pero NO se pudo revocar el QR de meseros: sigue " +
+            "funcionando. Revócalo a mano desde la pestaña «QR / Meseros».",
+          );
+        }
+      }
       setOk(true);
       onActualizado?.({ ...evento, ...patch, ...actualizado });
     } catch (e) {

@@ -1,7 +1,6 @@
 import { useState, useEffect, useCallback } from "react";
 import { base44 } from "@/api/base44Client";
-import { tokenSeguro } from "@/lib/tokenSeguro";
-import { Loader2, Check, Share2, Copy, ExternalLink, Users, Shirt, MessageSquare, Sparkles } from "lucide-react";
+import { Loader2, Check, Share2, Copy, ExternalLink, Users, Shirt, MessageSquare, Sparkles, RefreshCw } from "lucide-react";
 
 const invitacionUrl = (token) => `${window.location.origin}/invitacion/${token}`;
 
@@ -12,7 +11,6 @@ const invitacionUrl = (token) => `${window.location.origin}/invitacion/${token}`
  */
 const MOTIVOS = {
   no_disponible: "No se encontró esta invitación, o no es de tu evento. Recarga la página.",
-  token_invalido: "No se pudo generar el enlace de tu invitación. Recarga la página e inténtalo otra vez.",
   demasiado_largo: "El mensaje o el código de vestimenta son demasiado largos. Acórtalos e inténtalo otra vez.",
   // Solo alcanzable si el evento se borra mientras se guarda (ver `sec_26`, `get diagnostics`).
   sin_efecto: "Este evento ya no está disponible. Recarga la página.",
@@ -55,7 +53,7 @@ export default function PortalInvitacion({ evento }) {
   }, [evento.id]);
   useEffect(() => { cargarRsvps(); }, [cargarRsvps]);
 
-  const guardar = async (activar) => {
+  const guardar = async (activar, rotar = false) => {
     setGuardando(true);
     // `setOk(false)` al empezar y el ✓ excluye el error: sin esto, un guardado bueno seguido de
     // uno fallido deja «Guardado ✓» y el mensaje de error juntos. Hoy es inalcanzable —nunca
@@ -64,11 +62,17 @@ export default function PortalInvitacion({ evento }) {
     setOk(false);
     setError("");
     try {
-      // El token ES la credencial de /invitacion/<token>: se genera con WebCrypto
-      // y sin fallback. Ver src/lib/tokenSeguro.js.
-      const token = form.invitacionToken || tokenSeguro();
+      // EL TOKEN YA NO SE GENERA AQUÍ (fase B.5). Lo emite `sec_26` con
+      // `jardines_private.token_seguro()`, el mismo generador que usa el token de staff desde
+      // `sec_04`. Tres motivos, y el tercero es el que faltaba:
+      //   · no hay forma que validar, así que no puede volver a pasar lo de T.1 —una regex que
+      //     no casaba con el generador y habría rechazado el 100 % de los tokens—;
+      //   · el cliente ya no elige su propio token (43 letras «A» pasaban la validación de
+      //     forma y no tienen entropía ninguna);
+      //   · y **se puede rotar**. El `coalesce` de T.2 arregló las dos pestañas pero cerró la
+      //     única salida que había si a alguien se le filtra el enlace: desactivar bloquea,
+      //     pero reactivar revivía el mismo enlace. Ahora rotar es un parámetro.
       const patch = {
-        invitacionToken: token,
         invitacionActiva: activar !== undefined ? activar : !!form.invitacionActiva,
         invitacionMensaje: form.invitacionMensaje || null,
         invitacionDressCode: form.invitacionDressCode || null,
@@ -96,17 +100,19 @@ export default function PortalInvitacion({ evento }) {
       // solo sirve para volver a confundir la causa, que es el error que este bloque persigue.
       const r = await base44.rpc("invitacion_guardar", {
         p_evento_id: evento.id,
-        p_token: token,
         p_activa: patch.invitacionActiva,
         p_mensaje: patch.invitacionMensaje,
         p_dress_code: patch.invitacionDressCode,
+        p_rotar: rotar,
       });
       if (!r?.ok) throw motivoRpc(r?.motivo);
       // El token que vale es el que DEVUELVE la base, no el que se mandó. `sec_26` conserva con
       // `coalesce` el token que ya hubiera, así que si otra pestaña activó primero, esta se
       // recompone sola con el bueno en vez de repartir uno distinto. Sin ese `coalesce` —como
       // estaba— dos pestañas bastaban para dejar muertos los enlaces ya repartidos.
-      setForm((f) => ({ ...f, ...patch, invitacionToken: r.token || token }));
+      // El token SIEMPRE sale de la respuesta: el navegador ya no tiene ninguno propio con el
+      // que rellenar el hueco, que es justo lo que impide repartir dos enlaces distintos.
+      setForm((f) => ({ ...f, ...patch, invitacionToken: r.token || null }));
       setOk(true);
     } catch (e) {
       // Tres causas distintas, tres mensajes distintos. "Intenta de nuevo" ante algo que no
@@ -186,6 +192,25 @@ export default function PortalInvitacion({ evento }) {
             <a href={invitacionUrl(form.invitacionToken)} target="_blank" rel="noopener noreferrer" className="flex items-center gap-2 border border-white/10 text-white/50 px-4 py-2 text-sm rounded-full hover:text-white/80 transition-all">
               <ExternalLink size={14} /> Ver invitación
             </a>
+            {/* ROTAR. Es la salida para un enlace filtrado —lo reenvían a un grupo equivocado, lo
+                publican— y hasta ahora no existía ninguna: desactivar bloquea, pero reactivar
+                revivía el mismo enlace. Con confirmación, porque rompe a propósito lo ya
+                repartido: eso es exactamente lo que hace y hay que decirlo antes, no después. */}
+            <button
+              onClick={() => {
+                if (!confirm(
+                  "Se generará un enlace NUEVO para tu invitación.\n\n" +
+                  "Los enlaces que ya hayas compartido dejarán de funcionar y tendrás que volver " +
+                  "a mandar el nuevo a tus invitados. Las confirmaciones que ya recibiste se conservan.\n\n" +
+                  "¿Generar un enlace nuevo?",
+                )) return;
+                guardar(true, true);
+              }}
+              disabled={guardando}
+              className="flex items-center gap-2 border border-white/10 text-white/50 px-4 py-2 text-sm rounded-full hover:text-white/80 transition-all disabled:opacity-50"
+            >
+              <RefreshCw size={14} /> Generar enlace nuevo
+            </button>
             <button onClick={() => guardar(false)} className="text-white/30 hover:text-white/60 px-3 py-2 text-xs ml-auto">Desactivar</button>
           </div>
         </div>
