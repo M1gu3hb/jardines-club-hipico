@@ -200,9 +200,19 @@ begin
   return jsonb_build_object('ok', true, 'token', (select invitacion_token from jardines.eventos where id = p_evento_id));
 end $$;
 
--- EXECUTE mínimo: `authenticated` y nadie más. Nunca `PUBLIC` — `anon` no tiene nada que hacer
--- aquí, y `revoke from public` es explícito porque `create function` lo concede por defecto.
+-- EXECUTE mínimo: `authenticated` y nadie más.
+--
+-- ⚠️ `revoke … from public` NO BASTA EN ESTE SCHEMA, y esto es un P0 heredado (1.3): el DEFAULT
+--    ACL de `jardines` concede `anon=X` a toda función nueva —comprobado en producción:
+--      f: {anon=X/postgres, authenticated=X/postgres, service_role=X/postgres}
+--    Ese privilegio se otorga a `anon` **directamente**, no vía `PUBLIC`, así que revocar a
+--    `public` lo deja intacto. Sin la línea de abajo, esta función nacería ejecutable por
+--    cualquier anónimo el día que se apruebe — y escribe.
+--
+--    `sec_27` corrige el default ACL de raíz. Este `revoke` explícito se queda igualmente: una
+--    migración no debe depender de que otra se haya aplicado antes para no abrir un agujero.
 revoke all on function jardines.invitacion_guardar(uuid, boolean, text, text, boolean) from public;
+revoke all on function jardines.invitacion_guardar(uuid, boolean, text, text, boolean) from anon;
 grant execute on function jardines.invitacion_guardar(uuid, boolean, text, text, boolean) to authenticated;
 
 -- ── POSCONDICIONES ──────────────────────────────────────────────────────────
@@ -230,11 +240,14 @@ begin
     raise exception 'Poscondicion fallida: invitacion_guardar no tiene search_path fijado.';
   end if;
 
+  -- PUBLIC **y anon**: el default ACL de `jardines` concede a `anon` directamente, así que
+  -- comprobar solo PUBLIC dejaba pasar exactamente el caso que importa.
   select count(*) into v_publico
   from information_schema.routine_privileges
-  where routine_schema = 'jardines' and routine_name = 'invitacion_guardar' and grantee = 'PUBLIC';
+  where routine_schema = 'jardines' and routine_name = 'invitacion_guardar'
+    and grantee in ('PUBLIC', 'anon');
   if v_publico > 0 then
-    raise exception 'Poscondicion fallida: invitacion_guardar es ejecutable por PUBLIC.';
+    raise exception 'Poscondicion fallida: invitacion_guardar es ejecutable por PUBLIC o por anon.';
   end if;
 
   -- Y que nada de esto haya tocado RLS **ni las policies** de `eventos`.

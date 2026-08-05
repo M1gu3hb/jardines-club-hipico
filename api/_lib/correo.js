@@ -5,8 +5,15 @@ import nodemailer from "nodemailer";
 export const SITIO_URL = "https://jardines-club-hipico.vercel.app";
 const LOGO_URL = `${SITIO_URL}/media/img/aMxWuH8.png`;
 
-const esc = (s) =>
-  String(s || "").replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
+// ⚠️ HABÍA DOS ESCAPADORES Y EL DÉBIL ERA EL DE LA PLANTILLA COMPARTIDA.
+//
+// Este `esc` local no escapaba `'`, y es el que envuelve todo lo que va dentro de `plantillaOro`
+// —el nombre del cliente, el del evento, el texto libre—. En un atributo HTML delimitado por
+// comillas simples, o dentro de un `on*=`, una comilla sin escapar cierra el atributo. El de
+// `guard.js` sí lo escapa, así que el proyecto tenía la versión buena a un import de distancia.
+//
+// Una sola fuente. `guard.js` no importa este archivo, así que no hay ciclo.
+import { escHtml as esc } from "./guard.js";
 
 /**
  * Plantilla dorada de Jardines Club Hípico (tablas + estilos inline, email-safe).

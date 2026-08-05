@@ -17,6 +17,18 @@ import { readFileSync, readdirSync } from "node:fs";
 
 const leer = (p) => readFileSync(new URL(`../${p}`, import.meta.url), "utf8");
 const leerDir = (p) => readdirSync(new URL(`../${p}`, import.meta.url));
+/**
+ * Ruta de una migración por su `sec_NN`, **no por su prefijo de fecha**.
+ *
+ * Los prefijos cambian: en la fase 1 hubo que renombrar dieciséis archivos para alinearlos con
+ * el ledger de la base, y cuatro contratos que citaban la ruta a pelo se rompieron de golpe. El
+ * número de migración sí es estable, así que se busca por él.
+ */
+const migracion = (sec) => {
+  const f = leerDir("supabase/migrations").find((x) => x.includes(`_${sec}_`) && x.endsWith(".sql"));
+  if (!f) throw new Error(`no se encontró la migración ${sec}`);
+  return `supabase/migrations/${f}`;
+};
 /** Lista recursiva de archivos bajo `p`, con rutas relativas a la raíz del repo. */
 const leerDirRec = (p) =>
   readdirSync(new URL(`../${p}`, import.meta.url), { withFileTypes: true })
@@ -655,7 +667,7 @@ for (const ruta of [
 // `updateStatus` no capturaba nada, el desplegable volvía solo y el dueño no veía por qué.
 {
   const jsx = leerCodigo("src/components/admin/AdminSolicitudes.jsx");
-  const sql = leer("supabase/migrations/20260801213853_jardines_sec_07_indices_storage_constraints.sql");
+  const sql = leer(migracion("sec_07"));
   // La lista dejó de vivir en el componente: ahora está en el catálogo, que es el único sitio
   // donde puede vivir una lista espejo de la base. El contrato la sigue hasta allí.
   const catalogo = leerCodigo("src/lib/catalogos.js");
@@ -1729,7 +1741,7 @@ for (const ruta of [
 // La migración que añade `eventos.solicitud_id`. Se afirma que sigue siendo ADITIVA y
 // autoprotegida: es la única de este bloque y toca la base compartida con Vero.
 {
-  const sql = leer("supabase/migrations/20260804180000_jardines_sec_25_evento_solicitud_id.sql");
+  const sql = leer(migracion("sec_25"));
   check(
     "sec_25: es aditiva — no borra, no reescribe y no toca policies ni grants",
     /add column solicitud_id uuid/.test(sql) &&
@@ -2330,7 +2342,7 @@ for (const ruta of [
 // dueño, así que aquí solo se contrata que el archivo, si existe, cumpla las reglas del
 // proyecto para una `security definer` — no que esté aplicada.
 {
-  const ruta = "supabase/migrations/20260805120000_jardines_sec_26_invitacion_cliente.sql";
+  const ruta = migracion("sec_26");
   let sql = "";
   // Sin comentarios SQL: las cabeceras de esta migración explican qué NO hace y nombran
   // `drop policy` para decir que no lo usa. Con comentarios, el contrato fallaría por su propia
@@ -2585,7 +2597,7 @@ for (const ruta of [
 // validación **real** extraída del SQL. Es la única manera de que no vuelva a pasar: cualquier
 // contrato que se limitara a comparar dos textos habría dado por buenas las dos versiones.
 {
-  const sql = leer("supabase/migrations/20260805120000_jardines_sec_26_invitacion_cliente.sql");
+  const sql = leer(migracion("sec_26"));
 
   // T.1 · REESCRITO EN B.5, y el cambio de propiedad es el interesante.
   //
@@ -2661,6 +2673,127 @@ for (const ruta of [
        sinRama.length ? `mensajes sin motivo en la función: ${sinRama.join(", ")}` : ""].filter(Boolean).join(" · "),
     );
   }
+}
+
+// ------------------------------------------- 1.2 · EL ESCAPADOR, EJECUTADO
+//
+// Doce contratos comprobaban «esta ruta importa `escHtml`» y **ninguno comprobaba qué hace**.
+// Medido: sustituyendo el cuerpo por `String(s ?? "")` —es decir, dejando todo el correo
+// inyectable— la batería seguía dando **285/285**. Doce contratos verdes sobre una función
+// neutralizada.
+//
+// Se ejecuta, como en T.1 con `tokenSeguro`. Es la única forma de que un contrato sobre una
+// transformación signifique algo: comparar su texto solo comprueba que alguien escribió algo.
+{
+  const { escHtml } = await import("../api/_lib/guard.js");
+  const casos = [
+    ["&", "&amp;"],
+    ["<", "&lt;"],
+    [">", "&gt;"],
+    ['"', "&quot;"],
+    ["'", "&#39;"],
+    ["<script>alert(1)</script>", "&lt;script&gt;alert(1)&lt;/script&gt;"],
+    ["a & b", "a &amp; b"],
+    // El `&` primero, o `&lt;` se convertiría en `&amp;lt;`.
+    ["<&>", "&lt;&amp;&gt;"],
+    [null, ""],
+    [undefined, ""],
+  ];
+  const malos = casos.filter(([entrada, esperado]) => escHtml(entrada) !== esperado)
+    .map(([entrada, esperado]) => `«${String(entrada)}» -> «${escHtml(entrada)}», se esperaba «${esperado}»`);
+  check("1.2: `escHtml` escapa de verdad los cinco caracteres (ejecutado)", malos.length === 0, malos.join(" · "));
+
+  // Y NO hay un segundo escapador más débil. Había uno: el de `correo.js`, que no escapaba `'`
+  // y era justo el que envolvía todo lo que entra en la plantilla compartida.
+  {
+    const correo = leerCodigo("api/_lib/correo.js");
+    const propio = /const\s+esc\s*=\s*\(/.test(correo);
+    check(
+      "1.2: la plantilla de correo usa el escapador bueno, no uno propio",
+      !propio && /import\s*\{[^}]*escHtml[^}]*\}\s*from\s*"\.\/guard\.js"/.test(correo),
+      propio ? "`correo.js` vuelve a definir su propio `esc`" : "",
+    );
+  }
+}
+
+// ------------------------------------------- 1.1 · EL LEDGER DE MIGRACIONES
+//
+// `supabase db push` compara el prefijo del archivo con la versión registrada. Dieciséis de los
+// veinticinco archivos tenían prefijos inventados, así que el comando de despliegue estándar
+// habría reejecutado desde `sec_11`: `sec_13` reabre `grant insert … to anon` sobre la tabla de
+// leads, y `sec_20` aborta al leer una columna que él mismo borró — dejando el INSERT abierto y
+// `sec_21`, que es la que lo retira, sin ejecutar.
+//
+// El contrato compara los nombres de archivo contra la copia del ledger que vive en el repo.
+{
+  const ledger = leer("supabase/migrations/APLICADAS.txt");
+  const aplicadas = new Set(
+    ledger.split("\n").filter((l) => /^\d{14}\s/.test(l)).map((l) => l.slice(0, 14)),
+  );
+  const pendientes = new Set(
+    [...ledger.matchAll(/^#\s*PENDIENTE\s+(\d{14})/gm)].map((m) => m[1]),
+  );
+  const archivos = leerDir("supabase/migrations").filter((f) => f.endsWith(".sql"));
+  const huerfanos = archivos
+    .map((f) => ({ f, pre: f.slice(0, 14) }))
+    .filter(({ pre }) => !aplicadas.has(pre) && !pendientes.has(pre));
+  check(
+    "1.1: ningún archivo de migración tiene un prefijo que la base no conozca",
+    huerfanos.length === 0,
+    huerfanos.length
+      ? `\`db push\` los reejecutaría: ${huerfanos.map((h) => h.f).join(", ")}`
+      : "",
+  );
+  // Y las pendientes tienen que seguir siendo pendientes: si alguien mueve `sec_26` a la lista
+  // de aplicadas sin aplicarla, este contrato ya no protegería nada.
+  check(
+    "1.1: `sec_26` y `sec_27` siguen declaradas como NO aplicadas",
+    pendientes.size >= 2 && ![...pendientes].some((p) => aplicadas.has(p)),
+    `pendientes: ${[...pendientes].join(", ") || "ninguna"}`,
+  );
+}
+
+// ------------------------------------------- 1.3 · CADA FUNCIÓN NUEVA, REVOCADA A MANO
+//
+// El DEFAULT ACL de `jardines` concede `anon=X` a toda función nueva, y —comprobado ensayando—
+// PostgreSQL concede además EXECUTE a PUBLIC por defecto del motor, que `ALTER DEFAULT
+// PRIVILEGES` **no quita** en esta base. Así que la única mitigación que de verdad funciona es
+// la convención: cada migración revoca explícitamente lo que crea. Esto la hace cumplir.
+{
+  // SOLO LAS QUE TODAVÍA SE PUEDEN ARREGLAR. Las 24 migraciones ya aplicadas crean 22 funciones
+  // sin revocar a mano, y no se pueden tocar: la regla del proyecto es forward-only y reescribir
+  // una migración aplicada es exactamente lo que no se hace. Además están cubiertas: `sec_11` y
+  // `sec_17` hicieron barridos posteriores, y el estado vivo está comprobado —solo 8 funciones de
+  // `jardines` son ejecutables por `anon` hoy, y las 8 son las rutas por token que deben serlo.
+  //
+  // La convención se hace cumplir de aquí en adelante, que es donde puede evitar el agujero.
+  const ledger = leer("supabase/migrations/APLICADAS.txt");
+  const yaAplicadas = new Set(
+    ledger.split("\n").filter((l) => /^\d{14}\s/.test(l)).map((l) => l.slice(0, 14)),
+  );
+  const archivos = leerDir("supabase/migrations")
+    .filter((f) => f.endsWith(".sql") && !yaAplicadas.has(f.slice(0, 14)));
+  const fallos = [];
+  for (const f of archivos) {
+    const sql = leer(`supabase/migrations/${f}`).replace(/^\s*--.*$/gm, "");
+    for (const m of sql.matchAll(/create\s+(or\s+replace\s+)?function\s+jardines\.(\w+)\s*\(/gi)) {
+      const fn = m[2];
+      const revocaPublic = new RegExp(`revoke[^;]*on function jardines\\.${fn}\\b[^;]*from[^;]*\\bpublic\\b`, "i").test(sql);
+      const revocaAnon = new RegExp(`revoke[^;]*on function jardines\\.${fn}\\b[^;]*from[^;]*\\banon\\b`, "i").test(sql);
+      // Las que SÍ deben ser públicas (rutas por token) se conceden a `anon` a propósito.
+      const concedeAnon = new RegExp(`grant execute on function jardines\\.${fn}\\b[^;]*to[^;]*\\banon\\b`, "i").test(sql)
+        || new RegExp(`'jardines\\.${fn}\\s*\\(`).test(sql);
+      if (concedeAnon) continue;
+      // Las funciones de usar y tirar de una poscondición se crean y se borran en el acto.
+      if (new RegExp(`drop function jardines\\.${fn}\\b`, "i").test(sql)) continue;
+      if (!revocaPublic || !revocaAnon) fallos.push(`${f}: ${fn} (public:${revocaPublic ? "ok" : "NO"} anon:${revocaAnon ? "ok" : "NO"})`);
+    }
+  }
+  check(
+    "1.3: toda función de una migración NO aplicada se revoca de `public` y de `anon`",
+    fallos.length === 0,
+    fallos.join(" · "),
+  );
 }
 
 // ---------------------------------------------------------------- salida
