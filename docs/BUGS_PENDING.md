@@ -54,14 +54,15 @@ una causa falsa.
 - La alternativa sigue abierta: mover la activación al panel. Si se elige esa, `sec_26` **sobra
   entera** — `is_my_event` es solo `auth_user_id = auth.uid()` y no cubre a un admin.
 
-### J-16 — Seis RPC concedidas al navegador que nadie invoca
+### J-16 — Siete RPC concedidas al navegador que nadie invoca
 
 Salieron del contrato que ata migración y llamador. Todas comprobadas con cero apariciones en
 `src/`, en `api/` y en el bundle construido:
 
 | Función | Por qué importa |
 |---|---|
-| `registrar_llegada_mesa` | escribiría `mesas.ocupadas`, la fuente que el tablero de meseros lee y **nadie llena** |
+| `registrar_llegada_mesa` | **concedida a `anon`**: invocable sin autenticarse. Escribiría `mesas.ocupadas`, la fuente que el tablero de meseros lee y **nadie llena**. La más urgente de las siete |
+| `info_mesa_token` | **concedida a `anon`**. `sec_23` la conservó como «la vía viva y protegida» frente a `info_mesa_publica`, que sí retiró — pero la interfaz nunca llegó a usarla |
 | `revocar_staff_token` | el panel solo rota el token, nunca lo revoca sin sustituto |
 | `confirmar_evento` | flujo de confirmación que nunca se construyó en la interfaz |
 | `auditoria_reciente` | la auditoría se consulta por SQL; no hay pantalla que la lea |
@@ -69,6 +70,10 @@ Salieron del contrato que ata migración y llamador. Todas comprobadas con cero 
 
 Están en una lista explícita del contrato, con su motivo, para que **cualquier huérfana nueva**
 haga fallar la suite. La lista solo puede encoger.
+
+`info_mesa_token` apareció al arreglar C.3: su único «uso» era un `to_regprocedure` dentro de un
+bloque `do $$`, que el contrato contaba como llamada. Las dos concedidas a `anon` son las que
+importan primero: se pueden invocar sin sesión.
 
 ### J-15 — Las escrituras que RLS deja en cero filas siguen reportando éxito *(mitad cerrada)*
 
