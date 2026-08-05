@@ -1,7 +1,8 @@
 import { useState, useEffect } from "react";
 import { base44 } from "@/api/base44Client";
-import { Save, Upload, Loader2 } from "lucide-react";
+import { Save, Upload, Loader2, AlertTriangle } from "lucide-react";
 import { Estado, EsqueletoTexto } from "@/components/ui/Estado";
+import { SITIO_IMAGENES } from "@/lib/catalogos";
 
 export default function AdminConfig() {
   const [config, setConfig] = useState(null);
@@ -16,6 +17,7 @@ export default function AdminConfig() {
   // que devuelva Postgres, así que el contacto del salón podía desaparecer sin que nadie
   // borrara nada. Por eso se lee estricto y el fallo no se disfraza de "aún no hay config".
   const [errorCarga, setErrorCarga] = useState(null);
+  const [errorGuardar, setErrorGuardar] = useState("");
 
   const cargar = () =>
     base44.entities.ConfigSitio.listEstricto()
@@ -25,7 +27,9 @@ export default function AdminConfig() {
         else setConfig({
           logoUrl: "", telefonoContacto: "", correoAdmin: "",
           ubicacionTexto: "", ubicacionLinkMapa: "",
-          textoNoIncluye: "", textoServicios: "", textoAmenidades: "",
+          // Sin `textoServicios`/`textoAmenidades`: no son columnas de `config_sitio`, y
+          // llevarlas aquí haría fallar el `create` de la primera fila entera.
+          textoNoIncluye: "",
         });
       })
       .catch((e) => setErrorCarga(e || new Error("Falló la lectura")));
@@ -36,32 +40,53 @@ export default function AdminConfig() {
   const handleLogoUpload = async (e) => {
     const file = e.target.files[0];
     if (!file) return;
+    setErrorGuardar("");
     setUploadingLogo(true);
-    const { file_url } = await base44.integrations.Core.UploadFile({ file });
-    set("logoUrl", file_url);
-    setUploadingLogo(false);
+    try {
+      const { file_url } = await base44.integrations.Core.UploadFile({ file });
+      set("logoUrl", file_url);
+    } catch (err) {
+      setErrorGuardar(`No se pudo subir la imagen: ${err?.message || "error desconocido"}`);
+    } finally {
+      setUploadingLogo(false);
+    }
   };
 
   const handleProxUpload = async (e) => {
     const file = e.target.files[0];
     if (!file) return;
+    setErrorGuardar("");
     setUploadingProx(true);
-    const { file_url } = await base44.integrations.Core.UploadFile({ file });
-    set("proximamenteImagenUrl", file_url);
-    setUploadingProx(false);
+    try {
+      const { file_url } = await base44.integrations.Core.UploadFile({ file });
+      set("proximamenteImagenUrl", file_url);
+    } catch (err) {
+      setErrorGuardar(`No se pudo subir la imagen: ${err?.message || "error desconocido"}`);
+    } finally {
+      setUploadingProx(false);
+    }
   };
 
+  // El «Guardado ✓» va atado a que la escritura CUAJE. Sin el `catch`, un fallo de la base se
+  // llevaba por delante el `setSaving(false)` y el botón se quedaba en «Guardando…» para siempre,
+  // sin decir qué pasó. Y con `updateEstricto`, cero filas tocadas ya no se disfraza de éxito.
   const handleSave = async () => {
+    setErrorGuardar("");
     setSaving(true);
-    if (configId) {
-      await base44.entities.ConfigSitio.update(configId, config);
-    } else {
-      const c = await base44.entities.ConfigSitio.create(config);
-      setConfigId(c.id);
+    try {
+      if (configId) {
+        await base44.entities.ConfigSitio.updateEstricto(configId, config);
+      } else {
+        const c = await base44.entities.ConfigSitio.create(config);
+        setConfigId(c.id);
+      }
+      setSaved(true);
+      setTimeout(() => setSaved(false), 2500);
+    } catch (e) {
+      setErrorGuardar(e?.message || "No se pudo guardar. Reinténtalo.");
+    } finally {
+      setSaving(false);
     }
-    setSaving(false);
-    setSaved(true);
-    setTimeout(() => setSaved(false), 2500);
   };
 
   if (errorCarga) {
@@ -91,7 +116,7 @@ export default function AdminConfig() {
             <label className="cursor-pointer inline-flex items-center gap-2 border border-[#C9A84C]/30 text-[#C9A84C]/70 hover:text-[#C9A84C] hover:border-[#C9A84C]/60 px-5 py-2.5 text-sm transition-all">
               {uploadingLogo ? <Loader2 size={14} className="animate-spin" /> : <Upload size={14} />}
               {uploadingLogo ? "Subiendo..." : "Subir logo"}
-              <input type="file" accept="image/*" className="hidden" onChange={handleLogoUpload} />
+              <input type="file" accept={SITIO_IMAGENES.join(",")} className="hidden" onChange={handleLogoUpload} />
             </label>
           </div>
         </Section>
@@ -157,7 +182,7 @@ export default function AdminConfig() {
             <label className="cursor-pointer inline-flex items-center gap-2 border border-[#C9A84C]/30 text-[#C9A84C]/70 hover:text-[#C9A84C] hover:border-[#C9A84C]/60 px-5 py-2.5 text-sm transition-all">
               {uploadingProx ? <Loader2 size={14} className="animate-spin" /> : <Upload size={14} />}
               {uploadingProx ? "Subiendo..." : "Subir imagen del anuncio"}
-              <input type="file" accept="image/*" className="hidden" onChange={handleProxUpload} />
+              <input type="file" accept={SITIO_IMAGENES.join(",")} className="hidden" onChange={handleProxUpload} />
             </label>
           </div>
         </Section>
@@ -173,27 +198,34 @@ export default function AdminConfig() {
           />
         </Section>
 
-        {/* Servicios */}
-        <Section title="Servicios (uno por línea)">
-          <textarea
-            value={config.textoServicios || ""}
-            onChange={(e) => set("textoServicios", e.target.value)}
-            rows={6}
-            className="w-full bg-white/5 border border-white/10 text-white/70 text-sm px-4 py-3 outline-none focus:border-[#C9A84C]/40 resize-none"
-            placeholder="Atención personalizada&#10;Estacionamiento&#10;..."
-          />
+        {/* AQUÍ HABÍA DOS CAJAS: «Servicios (uno por línea)» y «Amenidades (una por línea)».
+            Escribían en `config.textoServicios` / `config.textoAmenidades`, y esas columnas NO
+            EXISTEN en `jardines.config_sitio`. Comprobado contra producción:
+
+              GET config_sitio?select=texto_servicios  ->  400  42703  column does not exist
+              GET config_sitio?select=texto_amenidades ->  400  42703  column does not exist
+
+            No eran cajas que «no hacían nada»: envenenaban el guardado ENTERO de esta pantalla.
+            El shim manda el objeto tal cual, PostgREST rechaza la petición completa por la columna
+            desconocida, y `handleSave` no tenía `catch` — así que el botón se quedaba en
+            «Guardando…» para siempre y NADA se guardaba. El dueño corregía el teléfono, de paso
+            escribía un servicio, pulsaba Guardar, y perdía las dos cosas sin un solo mensaje.
+
+            Los servicios y las amenidades del sitio salen de las tablas `servicios` y
+            `amenidades` (14 y 15 filas activas hoy), que se editan en sus propias pantallas del
+            panel. Esas son las buenas. */}
+        <Section title="Servicios y amenidades">
+          <p className="text-white/40 text-sm leading-relaxed">
+            Se editan en sus propias pantallas del panel —<strong className="text-white/60">Servicios</strong>{" "}
+            y <strong className="text-white/60">Amenidades</strong>—, una entrada por elemento.
+          </p>
         </Section>
 
-        {/* Amenidades */}
-        <Section title="Amenidades (una por línea)">
-          <textarea
-            value={config.textoAmenidades || ""}
-            onChange={(e) => set("textoAmenidades", e.target.value)}
-            rows={6}
-            className="w-full bg-white/5 border border-white/10 text-white/70 text-sm px-4 py-3 outline-none focus:border-[#C9A84C]/40 resize-none"
-            placeholder="Jardines naturales&#10;Iluminación regulable&#10;..."
-          />
-        </Section>
+        {errorGuardar && (
+          <p className="text-red-400/90 text-xs border border-red-400/20 bg-red-400/5 px-3 py-2 rounded flex items-start gap-2">
+            <AlertTriangle size={13} className="mt-0.5 flex-shrink-0" />{errorGuardar}
+          </p>
+        )}
 
         <button
           onClick={handleSave}
@@ -201,7 +233,7 @@ export default function AdminConfig() {
           className="flex items-center gap-2 bg-[#C9A84C] text-[#0a0a0a] px-8 py-3 text-sm font-medium tracking-wide hover:bg-[#d4b558] transition-all disabled:opacity-60"
         >
           {saving ? <Loader2 size={14} className="animate-spin" /> : <Save size={14} />}
-          {saved ? "¡Guardado!" : "Guardar cambios"}
+          {saved && !errorGuardar ? "¡Guardado!" : "Guardar cambios"}
         </button>
       </div>
     </div>

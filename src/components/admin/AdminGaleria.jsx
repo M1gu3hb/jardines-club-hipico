@@ -1,15 +1,33 @@
 import { useState } from "react";
 import { base44 } from "@/api/base44Client";
-import { Trash2, Loader2, Plus, Play, Link } from "lucide-react";
+import { Trash2, Loader2, Plus, Play, Link, AlertTriangle } from "lucide-react";
 import { isVideo } from "../MediaViewer";
 import { useCarga } from "@/lib/useCarga";
 import { Estado, EsqueletoTarjetas } from "@/components/ui/Estado";
+import { BUCKET_MIME } from "@/lib/catalogos";
+
+/**
+ * El siguiente `orden` de la galería.
+ *
+ * ANTES ERA `Date.now()`. `jardines.galeria.orden` es `integer` (int4, máximo 2 147 483 647) y
+ * `Date.now()` va por 1.75×10¹², ochocientas veces por encima. Comprobado ejecutándolo contra la
+ * base: `22003 integer out of range`. **Ninguna subida a la galería ha funcionado nunca** desde
+ * que el sitio pasó a Supabase; las 69 filas que hay son las del seed, con orden 1…69.
+ *
+ * Y como `handleUpload` no tenía `catch`, el `throw` se llevaba por delante el
+ * `setUploading(false)` de la línea siguiente: spinner eterno, ni un mensaje.
+ *
+ * La lista se pide por `-orden`, así que lo nuevo va arriba con el máximo + 1.
+ */
+const siguienteOrden = (galeria) =>
+  galeria.reduce((max, g) => Math.max(max, Number(g.orden) || 0), 0) + 1;
 
 export default function AdminGaleria() {
   const [uploading, setUploading] = useState(false);
   const [videoUrl, setVideoUrl] = useState("");
   const [videoTitulo, setVideoTitulo] = useState("");
   const [addingUrl, setAddingUrl] = useState(false);
+  const [errorAccion, setErrorAccion] = useState("");
 
   const { datos, cargando, error, recargar } = useCarga(
     () => base44.entities.Galeria.listEstricto("-orden"), []);
@@ -19,27 +37,48 @@ export default function AdminGaleria() {
   const handleUpload = async (e) => {
     const files = Array.from(e.target.files);
     if (!files.length) return;
+    setErrorAccion("");
     setUploading(true);
-    for (const file of files) {
-      const { file_url } = await base44.integrations.Core.UploadFile({ file });
-      await base44.entities.Galeria.create({ imagenUrl: file_url, titulo: file.name.split(".")[0], orden: Date.now() });
+    let orden = siguienteOrden(galeria);
+    try {
+      for (const file of files) {
+        const { file_url } = await base44.integrations.Core.UploadFile({ file });
+        await base44.entities.Galeria.create({ imagenUrl: file_url, titulo: file.name.split(".")[0], orden });
+        orden += 1;
+      }
+    } catch (err) {
+      setErrorAccion(`No se pudo subir: ${err?.message || "error desconocido"}`);
+    } finally {
+      // En `finally`: si algo falla a la mitad, el spinner se apaga igual y lo que SÍ subió se ve.
+      setUploading(false);
+      load();
     }
-    setUploading(false);
-    load();
   };
 
   const handleAddUrl = async () => {
     if (!videoUrl.trim()) return;
-    await base44.entities.Galeria.create({ imagenUrl: videoUrl.trim(), titulo: videoTitulo || "Elemento", orden: Date.now() });
-    setVideoUrl("");
-    setVideoTitulo("");
-    setAddingUrl(false);
+    setErrorAccion("");
+    try {
+      await base44.entities.Galeria.create({
+        imagenUrl: videoUrl.trim(), titulo: videoTitulo || "Elemento", orden: siguienteOrden(galeria),
+      });
+      setVideoUrl("");
+      setVideoTitulo("");
+      setAddingUrl(false);
+    } catch (err) {
+      setErrorAccion(`No se pudo agregar: ${err?.message || "error desconocido"}`);
+    }
     load();
   };
 
   const handleDelete = async (id) => {
     if (!confirm("¿Eliminar este elemento?")) return;
-    await base44.entities.Galeria.delete(id);
+    setErrorAccion("");
+    try {
+      await base44.entities.Galeria.deleteEstricto(id);
+    } catch (err) {
+      setErrorAccion(`No se pudo eliminar: ${err?.message || "error desconocido"}`);
+    }
     load();
   };
 
@@ -60,10 +99,19 @@ export default function AdminGaleria() {
           <label className="flex items-center gap-2 bg-[#C9A84C] text-[#0a0a0a] px-5 py-2.5 text-sm font-medium hover:bg-[#d4b558] transition-all cursor-pointer">
             {uploading ? <Loader2 size={14} className="animate-spin" /> : <Plus size={14} />}
             Subir fotos
-            <input type="file" accept="image/*,video/*" multiple className="hidden" onChange={handleUpload} />
+            {/* `accept` derivado del bucket, no escrito a mano. Decía `image/*,video/*`, e
+                `image/*` incluye HEIC —lo que sale de un iPhone—, SVG y BMP, que `sitio` no
+                admite: el selector dejaba elegir justo lo que Storage iba a rechazar. */}
+            <input type="file" accept={BUCKET_MIME.sitio.join(",")} multiple className="hidden" onChange={handleUpload} />
           </label>
         </div>
       </div>
+
+      {errorAccion && (
+        <p className="text-red-400/90 text-xs border border-red-400/20 bg-red-400/5 px-3 py-2 rounded flex items-start gap-2 mb-4">
+          <AlertTriangle size={13} className="mt-0.5 flex-shrink-0" />{errorAccion}
+        </p>
+      )}
 
       {addingUrl && (
         <div className="bg-[#111] border border-[#C9A84C]/20 p-4 mb-4 space-y-3">

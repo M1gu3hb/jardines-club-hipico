@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { base44 } from "@/api/base44Client";
-import { Plus, Trash2, FileText, Loader2 } from "lucide-react";
+import { Plus, Trash2, FileText, Loader2, AlertTriangle } from "lucide-react";
 import { useCarga } from "@/lib/useCarga";
 import { Estado, EsqueletoFilas } from "@/components/ui/Estado";
 
@@ -10,6 +10,7 @@ export default function AdminAlimentos() {
   const [form, setForm] = useState({ ...empty });
   const [editing, setEditing] = useState(null);
   const [uploading, setUploading] = useState(false);
+  const [errorAccion, setErrorAccion] = useState("");
 
   const { datos, cargando, error, recargar } = useCarga(
     () => base44.entities.AlimentoMenu.listEstricto("orden"), []);
@@ -21,10 +22,18 @@ export default function AdminAlimentos() {
   const handlePdf = async (e) => {
     const file = e.target.files[0];
     if (!file) return;
+    setErrorAccion("");
     setUploading(true);
-    const { file_url } = await base44.integrations.Core.UploadFile({ file });
-    set("pdfUrl", file_url);
-    setUploading(false);
+    try {
+      const { file_url } = await base44.integrations.Core.UploadFile({ file });
+      set("pdfUrl", file_url);
+    } catch (err) {
+      // Antes no había `catch`, y el bucket `sitio` rechazaba TODO PDF por MIME (lo arregló
+      // `sec_28`). El `setUploading(false)` nunca corría: spinner eterno y ni un mensaje.
+      setErrorAccion(`No se pudo subir el PDF: ${err?.message || "error desconocido"}`);
+    } finally {
+      setUploading(false);
+    }
   };
 
   const save = async () => {
@@ -52,6 +61,12 @@ export default function AdminAlimentos() {
   return (
     <div>
       <h2 className="text-white/80 text-xl font-light mb-6">Alimentos / Menús</h2>
+
+      {errorAccion && (
+        <p className="text-red-400/90 text-xs border border-red-400/20 bg-red-400/5 px-3 py-2 rounded flex items-start gap-2 mb-4">
+          <AlertTriangle size={13} className="mt-0.5 flex-shrink-0" />{errorAccion}
+        </p>
+      )}
 
       {/* Form */}
       <div className="bg-[#111] border border-white/5 p-6 mb-6 space-y-4">
@@ -87,7 +102,7 @@ export default function AdminAlimentos() {
             <label className="cursor-pointer bg-white/5 border border-white/10 hover:border-white/20 text-white/50 text-sm px-4 py-2.5 transition-all flex items-center gap-2">
               {uploading ? <Loader2 size={14} className="animate-spin" /> : <Plus size={14} />}
               {uploading ? "Subiendo..." : "Subir PDF"}
-              <input type="file" accept=".pdf" className="hidden" onChange={handlePdf} disabled={uploading} />
+              <input type="file" accept="application/pdf" className="hidden" onChange={handlePdf} disabled={uploading} />
             </label>
             {form.pdfUrl && <span className="text-green-400/60 text-xs">✓ PDF cargado</span>}
           </div>

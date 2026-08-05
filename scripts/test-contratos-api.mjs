@@ -39,10 +39,77 @@ const leerDirRec = (p) =>
  * describen el código ANTERIOR ("antes decía `if (secret) {`…") y eso dispara
  * falsos positivos al buscar patrones prohibidos.
  */
-const leerCodigo = (p) =>
-  leer(p)
-    .replace(/\/\*[\s\S]*?\*\//g, "")
-    .replace(/^\s*\/\/.*$/gm, "");
+/**
+ * OJO — esto NO puede hacerse con `.replace(/\/\*[\s\S]*?\*\//g, "")`.
+ *
+ * Así estaba, y tenía un agujero que ciega contratos en silencio: la cadena `"image/*"` —la que
+ * escriben los `accept` de los `input type="file"`— CONTIENE `/*`. El regex la tomaba por el
+ * comienzo de un comentario de bloque y se comía todo hasta el siguiente `*​/` del archivo, o
+ * hasta el final si no había ninguno. Descubierto al escribir el contrato 2.3: el propio archivo
+ * que declara `BUCKET_MIME` quedaba truncado justo antes de la entrada que el contrato buscaba, y
+ * el contrato reportaba que faltaba algo que sí estaba. Un contrato que mira un archivo mutilado
+ * afirma sobre otro archivo.
+ *
+ * Se recorre el texto de una pasada distinguiendo CUATRO cosas, porque con menos de cuatro se
+ * rompe — medido, no supuesto:
+ *
+ *   1. cadenas `'` `"` `` ` ``  — dentro de una cadena, `/*` y `//` son texto;
+ *   2. comentarios de bloque y de línea, que es lo que hay que quitar;
+ *   3. **expresiones regulares literales**, que es la trampa de vuelta: `api/_lib/guard.js`
+ *      contiene `.replace(/"/g, "&quot;")` y `.replace(/'/g, "&#39;")` en `escHtml`. Una versión
+ *      que solo mirara comillas tomaba ese `"` por el principio de una cadena y a partir de ahí
+ *      dejaba de quitar comentarios en TODO el resto del archivo — 9 700 caracteres de `guard.js`
+ *      con sus comentarios dentro. Un contrato que busca un símbolo «sin contar comentarios»
+ *      volvería a contarlos, que es exactamente el fallo que ya se corrigió una vez;
+ *   4. escapes `\`, dentro de cadenas y dentro de regex.
+ *
+ * Para saber si un `/` abre un regex o es una división se mira el último carácter significativo:
+ * tras un valor (`)`, `]`, identificador, número) un `/` divide; tras `( , = : [ ! & | ? { } ; ~ +
+ * - * % < > ^` o al principio, abre un regex. Es la heurística estándar y basta para este repo.
+ */
+const leerCodigo = (p) => {
+  const s = leer(p);
+  let out = "";
+  let i = 0;
+  let ultimoSignificativo = ""; // último carácter no-blanco que SÍ se emitió
+  const abreRegex = () => ultimoSignificativo === "" || "(,=:[!&|?{};~+-*%<>^".includes(ultimoSignificativo);
+  const emitir = (t) => { out += t; const s2 = t.trimEnd(); if (s2) ultimoSignificativo = s2.slice(-1); };
+  while (i < s.length) {
+    const c = s[i];
+    const d = s[i + 1];
+
+    if (c === '"' || c === "'" || c === "`") {          // 1) cadena
+      let j = i + 1;
+      while (j < s.length && s[j] !== c) j += s[j] === "\\" ? 2 : 1;
+      emitir(s.slice(i, Math.min(j + 1, s.length)));
+      i = j + 1; continue;
+    }
+    if (c === "/" && d === "*") {                        // 2a) comentario de bloque
+      const fin = s.indexOf("*/", i + 2);
+      i = fin < 0 ? s.length : fin + 2; continue;
+    }
+    if (c === "/" && d === "/") {                        // 2b) comentario de línea
+      const fin = s.indexOf("\n", i + 2);
+      i = fin < 0 ? s.length : fin; continue;            // se conserva el salto de línea
+    }
+    if (c === "/" && abreRegex()) {                      // 3) expresión regular literal
+      let j = i + 1, clase = false;
+      while (j < s.length) {
+        const e = s[j];
+        if (e === "\\") { j += 2; continue; }
+        if (e === "[") clase = true;
+        else if (e === "]") clase = false;
+        else if (e === "/" && !clase) break;
+        else if (e === "\n") break;                      // no era un regex; se corta y ya
+        j += 1;
+      }
+      emitir(s.slice(i, Math.min(j + 1, s.length)));
+      i = j + 1; continue;
+    }
+    emitir(c); i += 1;                                   // 4) código normal
+  }
+  return out;
+};
 const casos = [];
 const check = (nombre, ok, detalle = "") => casos.push({ nombre, ok, detalle });
 
@@ -2924,6 +2991,96 @@ for (const ruta of [
   if (!/from "@\/config\/negocio"/.test(contacto)) fallos.push("`ContactoSection` no usa `negocio.js`");
 
   check("1.5: ningún respaldo inventa datos del negocio", fallos.length === 0, fallos.join(" · "));
+}
+
+// ------------------------------------------- 2.1 · `orden` CABE EN UN `integer`
+//
+// `AdminGaleria` escribía `orden: Date.now()`. `jardines.galeria.orden` es `integer` (máximo
+// 2 147 483 647) y `Date.now()` va por 1.75×10¹². Comprobado ejecutándolo contra la base:
+// `22003 integer out of range`. NINGUNA subida a la galería funcionó nunca; las 69 filas que hay
+// son las del seed. Y sin `catch`, el `throw` se llevaba el `setUploading(false)`: spinner eterno.
+//
+// Diez tablas de `jardines` tienen `orden integer`. El contrato es sobre la FORMA —un reloj no
+// cabe en un `int4`— y mira todo `src/`, no solo la galería.
+{
+  const culpables = [];
+  for (const f of leerDirRec("src")) {
+    if (!/\.jsx?$/.test(f)) continue;
+    const codigo = leerCodigo(f);
+    // `orden` (o `p_orden`, `orden:`) asignado desde un reloj, en cualquier espaciado.
+    if (/\borden\s*[:=]\s*Date\.now\(\)/.test(codigo)) culpables.push(f);
+  }
+  check(
+    "2.1: nadie usa el reloj como `orden` — no cabe en el `integer` de la columna",
+    culpables.length === 0,
+    culpables.join(" · "),
+  );
+
+  // Y la galería calcula el siguiente a partir de lo que ya hay.
+  const gal = leerCodigo("src/components/admin/AdminGaleria.jsx");
+  check(
+    "2.1: `AdminGaleria` deriva el `orden` del máximo que ya existe",
+    /Math\.max\([\s\S]{0,80}\bg\.orden\b/.test(gal) && /siguienteOrden\(/.test(gal),
+    "no se ve el cálculo de `siguienteOrden` a partir de `orden`",
+  );
+}
+
+// ------------------------------------------- 2.2 · EL PANEL NO ESCRIBE COLUMNAS QUE NO EXISTEN
+//
+// `AdminConfig` tenía dos cajas que escribían `textoServicios` y `textoAmenidades`. Esas columnas
+// NO EXISTEN en `jardines.config_sitio` — comprobado contra producción, `42703 column does not
+// exist` en las dos. No eran cajas inertes: el shim manda el objeto tal cual, PostgREST rechaza la
+// petición ENTERA por la columna desconocida y `handleSave` no tenía `catch`, así que el botón se
+// quedaba en «Guardando…» y no se guardaba nada — ni el teléfono que el dueño acababa de corregir.
+{
+  const cfg = leerCodigo("src/components/admin/AdminConfig.jsx");
+  const fallos = [];
+  for (const muerta of ["textoServicios", "textoAmenidades"]) {
+    if (new RegExp(`\\b${muerta}\\b`).test(cfg)) fallos.push(`\`AdminConfig\` vuelve a escribir \`${muerta}\`, que no es columna`);
+  }
+  // Y el guardado atrapa el fallo en vez de dejar el botón colgado.
+  const guardar = entre(cfg, "const handleSave", "\n  };");
+  if (!/catch\s*\(/.test(guardar)) fallos.push("`handleSave` no atrapa el fallo");
+  if (!/finally\s*\{[\s\S]*?setSaving\(false\)/.test(guardar)) fallos.push("`setSaving(false)` no está en un `finally`: un fallo deja el botón colgado");
+  check("2.2: el panel no escribe columnas que no existen, y el guardado no se cuelga", fallos.length === 0, fallos.join(" · "));
+}
+
+// ------------------------------------------- 2.3 · EL `accept` NO PROMETE MÁS QUE EL BUCKET
+//
+// Storage rechaza lo que no esté en `allowed_mime_types`. Un `accept="image/*"` incluye HEIC —lo
+// que sale de un iPhone—, SVG y BMP, que el bucket `sitio` NO admite: el selector de archivos
+// dejaba elegir justo lo que Storage iba a tirar. Y `AdminAlimentos` decía `accept=".pdf"` contra
+// un bucket que no admitía PDF en absoluto (lo arregló `sec_28`).
+{
+  const fallos = [];
+  // `BUCKET_MIME.sitio` existe y es el espejo del bucket.
+  const cat = leerCodigo("src/lib/catalogos.js");
+  const bloqueSitio = entre(cat, "sitio: [", "]");
+  if (!bloqueSitio) fallos.push("`BUCKET_MIME` no tiene entrada para `sitio`");
+  if (!/application\/pdf/.test(bloqueSitio)) fallos.push("`BUCKET_MIME.sitio` no incluye `application/pdf` (lo añadió `sec_28`)");
+
+  // Ningún `accept` con comodín: `image/*` y `video/*` prometen más de lo que el bucket admite.
+  for (const f of leerDirRec("src")) {
+    if (!/\.jsx$/.test(f)) continue;
+    const codigo = leerCodigo(f);
+    for (const m of codigo.matchAll(/accept="([^"]*\*[^"]*)"/g)) fallos.push(`${f}: accept="${m[1]}"`);
+  }
+  check("2.3: ningún `accept` promete tipos que el bucket va a rechazar", fallos.length === 0, fallos.join(" · "));
+
+  // Y `sec_28` es la que amplía `sitio` — sin tocar el bucket de Vero.
+  const sql = leer(migracion("sec_28"));
+  // Se recorta la SENTENCIA `update`, no se busca por todo el archivo: `where id = 'sitio'`
+  // aparece también en la precondición y en la poscondición, así que quitarlo del `update` —el
+  // único sitio donde protege algo— dejaba el contrato en verde. Medido mutando.
+  const upd = entre(sql, "update storage.buckets", ";");
+  const fallos2 = [];
+  if (!upd) fallos2.push("`sec_28` no tiene un `update storage.buckets`");
+  if (!/where\s+id\s*=\s*'sitio'/.test(upd)) fallos2.push("el `update` de `sec_28` no está acotado al bucket `sitio`");
+  if (/site-media/.test(upd)) fallos2.push("el `update` de `sec_28` toca el bucket de Vero");
+  if (!/array_append\(allowed_mime_types,\s*'application\/pdf'\)/.test(upd)) fallos2.push("el `update` de `sec_28` no añade `application/pdf`");
+  // Y la migración comprueba, después, que el bucket de Vero salió como entró.
+  if (!/site-media/.test(sql)) fallos2.push("`sec_28` no comprueba que el bucket de Vero no cambia");
+  check("2.3: `sec_28` amplía `sitio` y deja intacto `site-media` (Vero)", fallos2.length === 0, fallos2.join(" · "));
 }
 
 // ---------------------------------------------------------------- salida

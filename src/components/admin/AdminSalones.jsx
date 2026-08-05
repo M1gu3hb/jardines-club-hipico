@@ -4,6 +4,7 @@ import { Plus, Pencil, Trash2, Loader2, Upload, X, Check, ChevronUp, ChevronDown
 import SalonPlanoUpload from "./SalonPlanoUpload";
 import { useCarga } from "@/lib/useCarga";
 import { Estado, EsqueletoFilas } from "@/components/ui/Estado";
+import { SITIO_IMAGENES } from "@/lib/catalogos";
 
 export default function AdminSalones() {
   const [editing, setEditing] = useState(null);
@@ -150,7 +151,7 @@ export default function AdminSalones() {
                 {form.imagenPrincipal && <img src={form.imagenPrincipal} className="w-20 h-20 object-cover" alt="" />}
                 <label className="cursor-pointer border border-dashed border-white/20 hover:border-[#C9A84C]/40 w-20 h-20 flex items-center justify-center transition-all">
                   {uploadingPrincipal ? <Loader2 size={16} className="text-white/30 animate-spin" /> : <Upload size={16} className="text-white/30" />}
-                  <input type="file" accept="image/*" className="hidden" onChange={handleImgPrincipal} />
+                  <input type="file" accept={SITIO_IMAGENES.join(",")} className="hidden" onChange={handleImgPrincipal} />
                 </label>
               </div>
             </div>
@@ -169,7 +170,7 @@ export default function AdminSalones() {
                 ))}
                 <label className="w-20 h-20 border border-dashed border-white/20 hover:border-[#C9A84C]/40 flex items-center justify-center cursor-pointer transition-all">
                   {uploadingImg ? <Loader2 size={16} className="text-white/30 animate-spin" /> : <Upload size={16} className="text-white/30" />}
-                  <input type="file" accept="image/*" className="hidden" onChange={handleImgUpload} />
+                  <input type="file" accept={SITIO_IMAGENES.join(",")} className="hidden" onChange={handleImgUpload} />
                 </label>
               </div>
             </div>

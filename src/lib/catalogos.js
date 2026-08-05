@@ -85,10 +85,24 @@ export const MUSICA_TIPOS = ["poner", "no_poner"];
 export const BUCKET_MIME = {
   clientes: ["application/pdf", "image/jpeg", "image/png", "image/webp", "image/avif"],
   planos: ["image/jpeg", "image/png", "image/webp", "image/avif"],
+  // `sitio` es el bucket público del CMS: es a donde va TODO lo que sube el panel Admin
+  // (`integrations.Core.UploadFile`). Faltaba aquí, y por eso cuatro pantallas del panel decían
+  // `accept="image/*"` o `accept=".pdf"` sin que nadie las contrastara con lo que el bucket
+  // admite. `image/*` incluye HEIC —lo que sale de un iPhone— y SVG: el dueño elegía la foto del
+  // logo desde el móvil y Storage la rechazaba. `application/pdf` lo añadió `sec_28`.
+  sitio: [
+    "image/jpeg", "image/png", "image/webp", "image/avif", "image/gif",
+    "video/mp4", "video/webm", "video/quicktime",
+    "application/pdf",
+  ],
 };
+
+/** Solo imágenes de `sitio` — para los inputs que no deben aceptar vídeo ni PDF (logo, salones). */
+export const SITIO_IMAGENES = BUCKET_MIME.sitio.filter((m) => m.startsWith("image/"));
 
 /** Tamaño máximo por bucket, en bytes. Espejo de `storage.buckets.file_size_limit`. */
 export const BUCKET_MAX_BYTES = {
   clientes: 20 * 1024 * 1024,
   planos: 10 * 1024 * 1024,
+  sitio: 50 * 1024 * 1024,
 };

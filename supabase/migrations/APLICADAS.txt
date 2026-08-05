@@ -98,8 +98,10 @@
 
 20260805042714  jardines_sec_26_invitacion_cliente
 20260805043150  jardines_sec_27_permisos_por_columna_y_defaults
+20260805045400  jardines_sec_28_bucket_sitio_admite_pdf
 
 # ── PENDIENTES: escritas, ensayadas y NO aplicadas ──────────────────────────
 # Están en el repo a propósito y NO deben figurar arriba hasta que el dueño las apruebe.
-# (Ninguna ahora mismo. `sec_26` y `sec_27` se aplicaron el 2026-08-05 con su visto bueno;
-#  sus archivos se renombraron a la versión que registró la base, que es la regla de 1.1.)
+# (Ninguna ahora mismo. `sec_26` y `sec_27` se aplicaron el 2026-08-05 con su visto bueno, y
+#  `sec_28` el mismo día bajo la autorización explícita del bucket `sitio`; los tres archivos se
+#  renombraron a la versión que registró la base, que es la regla de 1.1.)
