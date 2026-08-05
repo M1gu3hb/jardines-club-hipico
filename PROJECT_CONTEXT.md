@@ -350,7 +350,7 @@ Contratos **259 → 270**.
 
 Estado del código: **bloques 3–9 + 9E desplegados** (commit `1b0fb4f`, PR #10, 2026-08-04);
 **9F escrito y sin desplegar**. El estado revisable completo está en **`docs/ESTADO.md`**.
-Batería: `lint` 0, `build` exit 0, `test:contratos` **270/270**, `typecheck` 59. Base en
+Batería: `lint` 0, `build` exit 0, `test:contratos` **278/278**, `typecheck` 59. Base en
 `sec_01..25`, Vero intacto. Estado formal: **`ESPERANDO_VALIDACION_HUMANA_AUTENTICADA`**
 (ver §8.F) — solo faltan los cinco flujos con credenciales reales, con el guion en
 `docs/VALIDACION.md`. Historial completo en `docs/CHANGELOG.md`.

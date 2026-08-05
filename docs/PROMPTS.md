@@ -125,7 +125,7 @@ Reglas clave:
 - Nunca pongas secretos, tokens, service_role, JWT, contraseñas ni datos personales en commits,
   logs, documentación o salida de pruebas.
 
-Antes de subir: `npm run lint` (0), `npm run build` (exit 0), `npm run test:contratos` (270/270)
+Antes de subir: `npm run lint` (0), `npm run build` (exit 0), `npm run test:contratos` (278/278)
 y `npm run typecheck` (59 = línea base, no debe subir). Si tocaste SQL, corre además
 supabase/tests/seguridad.sql.
 
@@ -201,7 +201,22 @@ Los cuatro casos reales, para que se reconozca el patrón:
 | `/abrirCrear\(…\);\s*\n\s*onPrefillConsumido\?\.\(\);/` | el traspaso no se consume si no se aplicó | comprueba que esas dos líneas están juntas y en ese orden, **no que no haya otra llamada antes**. Metiendo el consumo detrás del `return` del guardarraíl, la suite seguía verde |
 | tres cadenas sueltas del mensaje de error de Auth | el rechazo de contraseña se explica | con `const debil = false;` la rama queda muerta y **las tres cadenas siguen escritas** |
 
-La lección común: **adyacencia no es exclusividad, y presencia no es alcanzabilidad.** Si el
+**Y una tercera forma, medida en el bloque de cierre: la posición del texto no es la
+estructura.** Tres contratos dieron luz verde a la regresión exacta que decían impedir, los tres
+por mirar dónde caía una cadena en vez de qué la envuelve:
+
+| Contrato | Lo que dejaba pasar |
+|---|---|
+| «el ✓ va después de la escritura» | `.catch(() => {})` pegado al `await` — no contiene `"} catch"`, así que los tres índices seguían en orden |
+| el mismo, ya corregido | `if (activar) { … }` **con llaves**: solo se miraba la misma línea |
+| «hay un `catch` que la cubre» | un `try/catch` **interno** entre la escritura y el ✓: `indexOf("} catch")` caía en el de dentro |
+
+Los tres se arreglan igual: **seguir el anidamiento real de llaves**, no buscar posiciones. Y un
+cuarto de la misma familia: `codigoCliente` se leía **con comentarios**, así que nombrar una
+función en un comentario la daba por invocada — documentar el problema lo ocultaba.
+
+La lección común: **adyacencia no es exclusividad, presencia no es alcanzabilidad, y posición no
+es estructura.** Si el
 contrato habla de una rama, hay que afirmar que la rama se puede alcanzar: que su condición se
 calcula desde datos reales y que es ella quien gobierna la respuesta.
 
@@ -226,7 +241,9 @@ calcula desde datos reales y que es ella quien gobierna la respuesta.
    también cuando se pintaba con ocho salones delante— sino leyendo del render de qué array salen
    las opciones y exigiendo que el aviso cuelgue de la longitud de **ese** array. Así el contrato
    sigue al código si cambia de fuente.
-7. **No lo ates a un nombre local.** Un contrato que falla porque alguien renombró una variable
+7. **No lo ates a un nombre local.** *(Ha reaparecido cuatro veces en contratos nuevos: el
+   ayudante del shim, la lista de frases de Auth, las señales `debil`/`duplicado`, y la variable
+   del token de `sec_26`. Las cuatro las cazó una mutación inocua, ninguna una lectura.)* Un contrato que falla porque alguien renombró una variable
    es ruido, y el ruido acaba en `git rm`. Localiza por estructura (de qué se hace el `.some(`,
    qué array mapea el `<select>`), no por identificador literal. Pasó en 9F con un contrato
    recién escrito, y lo cazó la mutación inocua.

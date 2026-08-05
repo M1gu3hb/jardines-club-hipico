@@ -30,6 +30,61 @@ los dos casos el **uso peligroso** ya está cerrado en código; lo que sigue abi
 
 ## Abiertos
 
+### J-14 — La invitación digital del cliente no puede guardarse *(P0; mitigado en fase A, no resuelto)*
+
+`PortalInvitacion` es el **único** escritor de `invitacion_token`, `invitacion_activa`,
+`invitacion_mensaje` e `invitacion_dress_code` en todo el repo, y solo se monta para el rol
+`cliente`. `eventos_upd` es `using (jardines.is_admin()) with check (jardines.is_admin())`, así
+que ese UPDATE **nunca ha tocado una fila**: `select count(invitacion_token) from
+jardines.eventos` = **0**, verificado contra producción.
+
+Duró meses porque fallaba en silencio por partida doble: el shim daba por bueno un UPDATE de
+cero filas (J-02 del lado de la escritura, cerrado en fase A con `updateEstricto`), y el panel
+le decía al dueño «El cliente aún no activó su invitación digital», atribuyéndole al cliente
+una causa falsa.
+
+- **Mitigado**: la pantalla ya no miente ni ofrece compartir un enlace muerto, y el panel dice
+  lo que de verdad pasa.
+- **No resuelto**: la función sigue sin poder funcionar. Exige **las dos cosas**: `sec_26`
+  aplicada **y** que la pantalla la llame. La primera versión de este arreglo escribió la
+  migración y **no enchufó nada**, así que aplicar `sec_26` sola habría dado exactamente el
+  mismo error de permisos y habría hecho descartar la vía correcta. Hoy `PortalInvitacion` ya
+  llama a `jardines.invitacion_guardar` y falla con un mensaje propio («todavía no está
+  habilitada») mientras la migración no se aplique.
+- La alternativa sigue abierta: mover la activación al panel. Si se elige esa, `sec_26` **sobra
+  entera** — `is_my_event` es solo `auth_user_id = auth.uid()` y no cubre a un admin.
+
+### J-16 — Siete RPC concedidas al navegador que nadie invoca
+
+Salieron del contrato que ata migración y llamador. Todas comprobadas con cero apariciones en
+`src/`, en `api/` y en el bundle construido:
+
+| Función | Por qué importa |
+|---|---|
+| `registrar_llegada_mesa` | **concedida a `anon`**: invocable sin autenticarse. Escribiría `mesas.ocupadas`, la fuente que el tablero de meseros lee y **nadie llena**. La más urgente de las siete |
+| `info_mesa_token` | **concedida a `anon`**. `sec_23` la conservó como «la vía viva y protegida» frente a `info_mesa_publica`, que sí retiró — pero la interfaz nunca llegó a usarla |
+| `revocar_staff_token` | el panel solo rota el token, nunca lo revoca sin sustituto |
+| `confirmar_evento` | flujo de confirmación que nunca se construyó en la interfaz |
+| `auditoria_reciente` | la auditoría se consulta por SQL; no hay pantalla que la lea |
+| `operativo_ubicar`, `operativo_evento_activo` | parte del operativo que quedó sin interfaz |
+
+Están en una lista explícita del contrato, con su motivo, para que **cualquier huérfana nueva**
+haga fallar la suite. La lista solo puede encoger.
+
+`info_mesa_token` apareció al arreglar C.3: su único «uso» era un `to_regprocedure` dentro de un
+bloque `do $$`, que el contrato contaba como llamada. Las dos concedidas a `anon` son las que
+importan primero: se pueden invocar sin sesión.
+
+### J-15 — Las escrituras que RLS deja en cero filas siguen reportando éxito *(mitad cerrada)*
+
+`update()` y `delete()` del shim devuelven éxito cuando la base no tocó ninguna fila —
+comprobado ejecutando: UPDATE y DELETE denegados por RLS no dan error, `INSERT` sí (42501).
+
+Existen `updateEstricto`/`deleteEstricto` y están migradas las escrituras que **deciden** algo.
+Las demás siguen usando la variante muda. Cerrar la clase entera exige que **toda** escritura
+tenga `catch` primero: hoy diez componentes escriben sin ninguno, y hacer que `update` lance
+cambiaría el engaño por una pantalla muerta. Ver `docs/DECISIONS.md`.
+
 ### J-01 — `SITIO_URL` está hardcodeada al dominio de Vercel
 - **Impacto:** medio. **Todos** los correos transaccionales (alta de cliente, primer acceso,
   aviso de cotización, notificaciones al admin, recordatorios del cron) enlazan a

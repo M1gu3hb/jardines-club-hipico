@@ -144,7 +144,10 @@ scroll, D8). `hooks/useBackButtonClose.js`, `hooks/use-mobile.jsx`.
 
 ## `supabase/`
 
-- `migrations/*.sql` — 23 migraciones forward-only `jardines_sec_01..24`. **No reescribir las
+- `migrations/20260805120000_jardines_sec_26_invitacion_cliente.sql` — **ESCRITA Y NO
+  APLICADA.** RPC `jardines.invitacion_guardar` para que el cliente pueda activar su invitación
+  digital (J-14). Es una decisión de producto del dueño; ensayada en un bloque revertido.
+- `migrations/*.sql` — 24 migraciones forward-only `jardines_sec_01..25` aplicadas. **No reescribir las
   aplicadas.**
 - `tests/seguridad.sql` — suite en `BEGIN/ROLLBACK`, datos sintéticos con prefijo `sint-`.
   Desde `sec_23` prueba las RPC **vigentes** (`api_idem_*`, `canjear_acceso_*`), no las retiradas.

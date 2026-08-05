@@ -2,13 +2,14 @@
 
 > **2026-08-04** · <https://jardines-club-hipico.vercel.app>
 >
-> **El código que corre en producción es el commit `1b0fb4f`** (PR #10), subido por el deployment
-> `dpl_46GCBEcs83c7L5ksT6yZJxAH2fJ8`; el bundle servido es `assets/index-C_t9h3-r.js`. Este
+> **El código que corre en producción es el commit `ee19d7a`** (PR #11), subido por el deployment
+> `dpl_9c5WPM3Xh3rUjEQzMSKQf8pREJmX`; el bundle servido es `assets/index-DVu0CBUL.js`. Este
 > documento se ancla al commit de **código** a propósito — si citara el último deployment se
 > quedaría obsoleto cada vez que se toca un `.md`.
 >
-> **El bloque 9F NO está en producción**: está en la rama `claude/jardines-security-hardening-rkse8k`,
-> sin mergear. Lo de abajo describe lo desplegado, no lo escrito.
+> **9F ya está en producción.** Lo que NO lo está es la **fase A del bloque de cierre**
+> (rama `claude/jardines-security-hardening-rkse8k`): `updateEstricto` y el arreglo del P0 de la
+> invitación. Lo de abajo describe lo desplegado, no lo escrito.
 >
 > Este documento existe para responder tres cosas de un vistazo: **qué está hecho**, **qué está en
 > producción** y **qué queda abierto**. Si algo de aquí contradice a otro documento, gana este.
@@ -29,19 +30,35 @@ fondo salió con un P0 cada vez.
 
 | | |
 |---|---|
-| Commit del código | `1b0fb4f` |
-| Deployment que lo subió | `dpl_46GCBEcs83c7L5ksT6yZJxAH2fJ8` (READY, target `production`) |
+| Commit del código | `ee19d7a` |
+| Deployment que lo subió | `dpl_9c5WPM3Xh3rUjEQzMSKQf8pREJmX` (READY, target `production`) |
 | URL | <https://jardines-club-hipico.vercel.app> |
 | Funciones serverless | **8** |
 | Migraciones aplicadas | `jardines_sec_01..25` (sin `sec_10`) |
-| Contratos | 270/270 · typecheck 59 (línea base) · lint 0 |
+| Contratos | 278/278 · typecheck 59 (línea base) · lint 0 |
 
 **Bloques desplegados:** 1–9 completos, 9E incluido. Ya está arriba el arreglo que impedía crear
 dos eventos de la misma solicitud, el mínimo de contraseña unificado en 8, el botón de convertir
 una solicitud en evento y la retirada de las imágenes que la CSP bloqueaba.
 
-**El bloque 9F (G1–G4) está escrito y NO desplegado.** Es todo corrección de avisos y de
-contratos: no cambia ninguna operación de datos.
+**Los tres duplicados de «Boda ortega» están borrados** — la primera ejecución real de
+`api/eliminar-evento.js` con `service_role`, y salió limpia: 0 huérfanos en las 14 tablas que
+cuelgan de `eventos`, 0 objetos huérfanos en el bucket, 0 perfiles sin usuario, el admin de Vero
+intacto, y los 2 usuarios de portal vivos casan con los 2 eventos que quedan.
+
+**La FASE A del bloque de cierre está escrita y NO desplegada**, y con ella el arreglo del P0 de
+la invitación. Mientras no suba, el cliente sigue viendo «Guardado ✓» sin haber guardado nada.
+
+### 2.bis · Tres funciones que no han funcionado NUNCA
+
+Salieron de la auditoría de las siete zonas. Las tres fallan en silencio, y esa es la razón de
+que lleven meses así:
+
+| Función | Por qué |
+|---|---|
+| **La invitación digital del cliente** | `eventos_upd` exige `is_admin()`; el portal es rol `cliente`. `count(invitacion_token)` = **0**. Corregido en fase A para que deje de mentir; que llegue a funcionar exige `sec_26`, sin aplicar |
+| **Subir a la galería** | `orden: Date.now()` desborda un `integer` (×800). Las 69 filas de `galeria` tienen `orden` 1–69: la semilla. Ninguna se subió nunca desde el panel. **Sin arreglar** (fase B) |
+| **El PDF del menú** | el bucket `sitio` no admite `application/pdf`. **Sin arreglar** (fase B) |
 
 **Verificado sin sesión tras el deploy:** las seis cabeceras de seguridad, `Cache-Control:
 no-store` en las ocho rutas `api/`, que cada función responde 405 al método incorrecto y 401 sin
@@ -133,14 +150,14 @@ portadoras por diseño, `operativo_canales` es global y no por evento, y la CSP 
 
 ## 5. Qué hacer a continuación, por orden
 
-1. **El dueño sigue `docs/VALIDACION.md`**, empezando por la **Parte 0** (borrar los tres
-   duplicados de «Boda ortega»), que es la primera ejecución real del borrado. Ya se puede: el
-   código que hace falta está en producción.
-2. **Mergear y desplegar 9F.** No es urgente —no toca datos— pero mientras no suba, el aviso de
-   "no sale ninguno" del desplegable de salones sigue pudiendo mentir en producción.
-3. **Decidir `sec_26`** (único parcial sobre `eventos.solicitud_id`, recomendada y sin aplicar) y
-   **J-10/J-11** (RLS por columnas). Las tres son migraciones.
-4. **Terminar la auditoría funcional.** Es lo único que puede decir cuánto falta de verdad.
+1. **Terminar el bloque de cierre.** Están hechas las fases 0 y A; quedan **B a H** (galería y
+   PDF del menú, teléfono equivocado incluido en Google, vistas por token, cron y correos,
+   formulario público, los P3, y el despliegue final).
+2. **Decidir de quién es la invitación digital**: del cliente (aplicar `sec_26`) o del dueño
+   (mover la pantalla al panel). Hasta entonces la función no existe para nadie.
+3. **Decidir `sec_27`** (único parcial sobre `eventos.solicitud_id`, J-13) y **J-10/J-11** (RLS
+   por columnas). Las tres son migraciones.
+4. **Terminar la auditoría funcional.** Ya cubrió las siete zonas y salieron 19 hallazgos.
 
 ---
 

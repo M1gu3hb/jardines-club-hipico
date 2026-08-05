@@ -172,7 +172,7 @@ export default function PortalShell({ evento, onRefresh }) {
                     ? "Acomoda tus mesas e invitados a tu gusto: toca una mesa para editarla o arrástrala por el plano."
                     : "Así va quedando la distribución de tu salón. Tu coordinador la ajusta contigo."}
                 />
-                <MesaEditor eventoId={evento.id} salonId={evento.salonId} reglas={reglas} editable={!!reglas?.clientePuedeEditar} />
+                <MesaEditor eventoId={evento.id} salonId={evento.salonId} reglas={reglas} editable={!!reglas?.clientePuedeEditar} esCliente />
               </div>
             )}
             {seccion === "invitacion" && (

@@ -13,9 +13,26 @@
  * Son comprobaciones estáticas sobre el código, sin red y sin credenciales, así
  * que corren en CI sin tocar Supabase ni enviar correos.
  */
-import { readFileSync } from "node:fs";
+import { readFileSync, readdirSync } from "node:fs";
 
 const leer = (p) => readFileSync(new URL(`../${p}`, import.meta.url), "utf8");
+const leerDir = (p) => readdirSync(new URL(`../${p}`, import.meta.url));
+/**
+ * Ruta de una migración por su `sec_NN`, **no por su prefijo de fecha**.
+ *
+ * Los prefijos cambian: en la fase 1 hubo que renombrar dieciséis archivos para alinearlos con
+ * el ledger de la base, y cuatro contratos que citaban la ruta a pelo se rompieron de golpe. El
+ * número de migración sí es estable, así que se busca por él.
+ */
+const migracion = (sec) => {
+  const f = leerDir("supabase/migrations").find((x) => x.includes(`_${sec}_`) && x.endsWith(".sql"));
+  if (!f) throw new Error(`no se encontró la migración ${sec}`);
+  return `supabase/migrations/${f}`;
+};
+/** Lista recursiva de archivos bajo `p`, con rutas relativas a la raíz del repo. */
+const leerDirRec = (p) =>
+  readdirSync(new URL(`../${p}`, import.meta.url), { withFileTypes: true })
+    .flatMap((d) => (d.isDirectory() ? leerDirRec(`${p}/${d.name}`) : [`${p}/${d.name}`]));
 
 /**
  * Igual que `leer`, pero sin comentarios. Necesario porque las cabeceras
@@ -52,6 +69,164 @@ const entre = (s, desde, hasta) => {
  * Se afirma sobre el ORDEN, no sobre la distancia en caracteres: "el texto X está
  * a menos de 400 caracteres de Y" no dice nada sobre si uno gobierna al otro.
  */
+/**
+ * ¿La confirmación de éxito está atada a que la escritura haya CUAJADO?
+ *
+ * Nace de una vacuidad medida: el contrato anterior comparaba el orden de tres `indexOf`
+ * —escritura, `setOk(true)`, `} catch`—, y
+ *
+ *     await base44.entities.Evento.updateEstricto(id, patch).catch(() => {});
+ *
+ * lo dejaba en verde: el `.catch` no contiene la cadena `"} catch"`, así que los tres índices
+ * seguían en orden mientras el «Guardado ✓» volvía a mentir. Lo mismo con `if (activar) await …`.
+ *
+ * Aquí se afirman propiedades, y los identificadores se **derivan del propio código** en vez de
+ * fijarse: qué setter marca el éxito y qué setter marca el error salen de lo que hay escrito, no
+ * de exigir `setOk` y `error` literales.
+ *
+ * @param {string} codigo   el archivo entero, sin comentarios
+ * @param {string} desde    ancla de la función que guarda
+ * @param {string} hasta    fin de esa función
+ * @param {RegExp} escritura  cómo se reconoce la escritura (`await base44.rpc(`, `.updateEstricto(`…)
+ */
+const confirmacionAtadaALaEscritura = (codigo, desde, hasta, escritura) => {
+  const cuerpo = entre(codigo, desde, hasta);
+  if (!cuerpo) return { ok: false, detalle: "no se encontró la función que guarda" };
+  const m = new RegExp(escritura.source, escritura.flags.replace("g", "")).exec(cuerpo);
+  if (!m) return { ok: false, detalle: "no se encontró la escritura" };
+  const i = m.index;
+  const fallos = [];
+
+  // 1) La escritura NO está silenciada. Un `.catch(` pegado al `await` se traga el fallo y deja
+  //    todo lo de abajo corriendo como si hubiera ido bien.
+  const finSentencia = cuerpo.indexOf(";", i);
+  const sentencia = cuerpo.slice(i, finSentencia < 0 ? cuerpo.length : finSentencia);
+  if (/\.catch\s*\(/.test(sentencia)) fallos.push("la escritura lleva un `.catch(` pegado: se traga el fallo");
+
+  // 2) Y NO se puede SALTAR. `if (activar) await …` deja el «Guardado ✓» pintándose también
+  //    cuando la escritura ni se intentó.
+  //
+  //    Pero "está bajo un `if`" no es la propiedad: `if (reglas.id) …update… else …create…` es
+  //    un despacho, no un salto — las dos ramas escriben, y exigir lo contrario obligaría a
+  //    reescribir código correcto. Lo que se exige es que **ninguna rama se salte la
+  //    escritura**: si hay un condicional, todas sus ramas tienen que escribir.
+  //
+  //    ⚠️ LA PRIMERA VERSIÓN MIRABA SOLO LA MISMA LÍNEA. Así que
+  //        if (activar) {
+  //          r = await base44.rpc(…);
+  //        }
+  //      —el P0 reinstaurado— pasaba en verde: el `if` no cabía en la línea de la escritura.
+  //      Es la tercera vez que un contrato mide la forma del texto creyendo medir la propiedad,
+  //      y por eso ahora se sigue el ANIDAMIENTO REAL de llaves, que es lo que decide si la
+  //      escritura se ejecuta o no.
+  {
+    const escribe = (t) => /await\s+base44\./.test(t);
+    /** Casa la llave abierta en `k`; devuelve el índice de su cierre. */
+    const cierre = (t, k) => {
+      let d = 0;
+      for (let x = k; x < t.length; x++) {
+        if (t[x] === "{") d++;
+        else if (t[x] === "}" && --d === 0) return x;
+      }
+      return t.length;
+    };
+    // Pila de bloques abiertos entre el `try {` y la escritura. Se arranca en el `try` para no
+    // contar la llave del propio cuerpo de la función.
+    const iTry = cuerpo.indexOf("try {");
+    const desdeAqui = iTry >= 0 ? iTry + 4 : 0;
+    const pila = [];
+    for (let k = desdeAqui; k < i; k++) {
+      if (cuerpo[k] === "{") pila.push(k);
+      else if (cuerpo[k] === "}") pila.pop();
+    }
+    // La cabecera del bloque más interno: desde el corte de sentencia anterior hasta su `{`.
+    for (const abre of pila) {
+      const corte = Math.max(cuerpo.lastIndexOf(";", abre), cuerpo.lastIndexOf("}", abre - 1), desdeAqui);
+      const cabecera = cuerpo.slice(corte + 1, abre).trim();
+      if (!/^(else\s+)?if\s*\(|^else\b|^(for|while|switch)\s*\(/.test(cabecera)) continue;   // try/catch/función: no condiciona
+      // Se reconstruye la cadena `if … else if … else` entera y se exige (a) que **termine en
+      // un `else`** —sin él hay un camino que no pasa por ninguna rama— y (b) que TODAS las
+      // ramas escriban. Un `for`/`while` nunca termina en `else`, así que cae por (a): su
+      // cuerpo puede ejecutarse cero veces.
+      let x = abre, ramas = 0, conEscritura = 0, terminaEnElse = false;
+      for (;;) {
+        const fin = cierre(cuerpo, x);
+        ramas++;
+        if (escribe(cuerpo.slice(x, fin))) conEscritura++;
+        const sig = /^\s*else\s*(\{|if\s*\([^)]*\)\s*\{)/.exec(cuerpo.slice(fin + 1, fin + 300));
+        if (!sig) break;
+        terminaEnElse = sig[1].startsWith("{");        // `else {` cierra la cadena; `else if` la sigue
+        x = fin + 1 + sig.index + sig[0].length - 1;   // el `{` es siempre el último carácter del match
+      }
+      if (!terminaEnElse || conEscritura !== ramas) {
+        fallos.push(
+          `la escritura se puede saltar: está bajo «${cabecera.slice(0, 60)}» y `
+          + (!terminaEnElse ? "la cadena no termina en `else`" : `solo ${conEscritura} de ${ramas} ramas escriben`),
+        );
+      }
+    }
+    // Y el caso sin llaves, en la misma línea: `if (activar) await …;`
+    const iniLinea = cuerpo.lastIndexOf("\n", i) + 1;
+    const antesEnLinea = cuerpo.slice(iniLinea, i).trim();
+    if (/\bif\s*\(|\?$|&&$/.test(antesEnLinea)) {
+      const tras = finSentencia < 0 ? cuerpo.length : finSentencia + 1;   // +1: después del `;`, no en él
+      const rama = /^\s*else\b([^;]*;)/.exec(cuerpo.slice(tras, tras + 400));
+      if (!rama || !escribe(rama[1])) {
+        fallos.push(`la escritura se puede saltar: está bajo «${antesEnLinea}» y la otra rama no escribe`);
+      }
+    }
+  }
+
+  // 3) Hay un `catch` que LA CUBRE. Estricto sin `catch` no es un arreglo: es un botón girando.
+  //
+  //    Y tiene que ser el `catch` que la envuelve, no el primero que aparezca detrás. Con un
+  //    `try/catch` interno entre la escritura y la confirmación —el de `revocar_staff_token` en
+  //    `EventoDatos`, por ejemplo— `indexOf("} catch")` cae en el interno y todo lo que viene
+  //    después queda "fuera del try" para el contrato, aunque no lo esté. Es el mismo defecto
+  //    que C.1: mirar posiciones de texto en vez de estructura. Se busca por balance de llaves.
+  const cierraBloque = (t, k) => {
+    let d = 0;
+    for (let x = k; x < t.length; x++) {
+      if (t[x] === "{") d++;
+      else if (t[x] === "}" && --d === 0) return x;
+    }
+    return -1;
+  };
+  let iCatch = -1;
+  for (let k = 0; k < i; k++) {
+    if (!cuerpo.startsWith("try {", k)) continue;
+    const fin = cierraBloque(cuerpo, k + 4);            // la llave de `try {`
+    if (fin > i && /^\s*catch\b/.test(cuerpo.slice(fin + 1, fin + 20))) iCatch = fin;   // el `try` más externo que la envuelve vale
+  }
+  if (iCatch < 0) return { ok: false, detalle: [...fallos, "la escritura no está dentro de un `try/catch`"].join(" · ") };
+
+  // 4) El éxito se marca DESPUÉS de la escritura y ANTES del catch — y el nombre del estado se
+  //    lee de ahí, no se exige.
+  const entreMedias = cuerpo.slice(i, iCatch);
+  const setter = /set([A-Z]\w*)\(\s*true\s*\)/.exec(entreMedias);
+  if (!setter) return { ok: false, detalle: [...fallos, "nada marca el éxito entre la escritura y el catch"].join(" · ") };
+  const estadoOk = setter[1][0].toLowerCase() + setter[1].slice(1);
+
+  // 5) Ese mismo estado no puede marcarse en ningún otro sitio de la función: un `setOk(true)`
+  //    antes de escribir haría cierto lo de arriba y falso lo que ve el usuario.
+  const veces = [...cuerpo.matchAll(new RegExp(`set${setter[1]}\\(\\s*true\\s*\\)`, "g"))].length;
+  if (veces !== 1) fallos.push(`el éxito se marca ${veces} veces en la misma función`);
+
+  // 6) Y el cartel del render cuelga de ESE estado, excluyendo el estado de error que llena el
+  //    catch. Los dos nombres salen del código.
+  const cuerpoCatch = cuerpo.slice(iCatch, (cuerpo.indexOf("} finally", iCatch) + 1) || cuerpo.length);
+  const setterError = /set([A-Z]\w*)\(/.exec(cuerpoCatch);
+  const estadoError = setterError ? setterError[1][0].toLowerCase() + setterError[1].slice(1) : null;
+  const render = codigo.slice(codigo.indexOf("return (", codigo.indexOf(desde)));
+  const cartel = new RegExp(`\\{\\s*${estadoOk}\\s*&&([^}]*)`).exec(render);
+  if (!cartel) fallos.push(`el render no pinta nada colgado de \`${estadoOk}\``);
+  else if (estadoError && !new RegExp(`!\\s*${estadoError}\\b`).test(cartel[1])) {
+    fallos.push(`el cartel de éxito no excluye \`${estadoError}\`: se pueden pintar los dos a la vez`);
+  }
+
+  return { ok: fallos.length === 0, detalle: fallos.join(" · ") };
+};
+
 const cortaAntesDe = (cuerpo, cond, limite) => {
   const i = cuerpo.indexOf(cond);
   if (i < 0) return false;
@@ -492,7 +667,7 @@ for (const ruta of [
 // `updateStatus` no capturaba nada, el desplegable volvía solo y el dueño no veía por qué.
 {
   const jsx = leerCodigo("src/components/admin/AdminSolicitudes.jsx");
-  const sql = leer("supabase/migrations/20260801213853_jardines_sec_07_indices_storage_constraints.sql");
+  const sql = leer(migracion("sec_07"));
   // La lista dejó de vivir en el componente: ahora está en el catálogo, que es el único sitio
   // donde puede vivir una lista espejo de la base. El contrato la sigue hasta allí.
   const catalogo = leerCodigo("src/lib/catalogos.js");
@@ -1376,22 +1551,19 @@ for (const ruta of [
   // escrito: 8 es lo que Supabase recomienda explícitamente y el defecto de GoTrue es 6, así
   // que cualquier proyecto configurado por encima del defecto estará en 8 o más.
   {
-    // El motivo vive en un COMENTARIO, así que aquí hace falta el archivo con comentarios.
-    const reglasConComentarios = leer("api/_lib/reglas-credenciales.js");
     const min = Number((reglas.match(/export const PASSWORD_MIN = (\d+);/) || [])[1]);
     check(
       "credenciales: `PASSWORD_MIN` no baja del suelo de 8 (política de Auth, no legible desde aquí)",
       Number.isFinite(min) && min >= 8,
       `PASSWORD_MIN = ${min}`,
     );
-    // Y el motivo tiene que estar escrito donde está el número, o el suelo se borra sin saber
-    // por qué existía.
-    check(
-      "credenciales: el suelo dice de dónde sale y que Auth es un validador aparte",
-      /GoTrue tiene su propia política/.test(reglasConComentarios) &&
-        /configuración\s+global\s+del\s*\n?\s*\*?\s*proyecto/i.test(reglasConComentarios) &&
-        /no se debe tocar/.test(reglasConComentarios),
-    );
+    // RETIRADO EN A-ter: este contrato afirmaba que tres frases estuvieran escritas en el
+    // comentario que acompaña al número. No protegía nada —el suelo lo protege el contrato de
+    // arriba, que sí mira el valor— y rompía la suite si alguien reescribía la explicación en
+    // sinónimos, sin tocar una línea ejecutable. Es decir, fallaba las dos direcciones a la vez:
+    // vacuo hacia el bug y ruidoso hacia el refactor.
+    //
+    // Un contrato sobre prosa no es un contrato. Ver `docs/DECISIONS.md` D-COD-20.
     // Y si Auth rechaza igualmente, el alta lo dice en vez de responder opaco.
     //
     // G2 · REESCRITO EN 9F-2. La versión anterior buscaba tres cadenas
@@ -1406,21 +1578,25 @@ for (const ruta of [
     // gobierna el 400 y el motivo auditado.
     {
       const bloque = entre(api, "if (createErr) {", "nuevoId = created.user.id;");
-      const def = entre(bloque, "const debil =", ";");
-      const rama = entre(bloque, "} else if (debil) {", "} else {");
+      // El nombre de la señal se DERIVA de la rama que responde 400, no se fija: renombrar
+      // `debil` es un refactor y tumbaba este contrato entero (seis fallos de golpe).
+      const señal = (/else\s+if\s*\((\w+)\)\s*\{\s*\n?\s*res\.status\(400\)/.exec(bloque) || [])[1];
+      const def = señal ? entre(bloque, `const ${señal} =`, ";") : "";
+      const rama = señal ? entre(bloque, `} else if (${señal}) {`, "} else {") : "";
       const fallos = [];
+      if (!señal) fallos.push("ninguna rama `else if (…)` responde 400: la clasificación no gobierna nada");
       // 1) El material de la decisión sale del error real, no de una constante ni del cuerpo
       //    de la petición.
       if (!/const msg = createErr\.message \|\| "";/.test(bloque)) fallos.push("`msg` no sale de `createErr.message`");
-      if (!/\bmsg\b|\bcreateErr\b/.test(def)) fallos.push(`\`debil\` no se calcula desde el error: «${def.trim()}»`);
+      if (señal && !/\bmsg\b|\bcreateErr\b/.test(def)) fallos.push(`\`${señal}\` no se calcula desde el error: «${def.trim()}»`);
       // 2) Es `debil` quien gobierna el 400, y el 400 dice qué campo y por qué.
-      if (!rama) fallos.push("no hay una rama gobernada por `debil`");
-      if (!/res\.status\(400\)/.test(rama)) fallos.push("la rama de `debil` no responde 400");
+      if (señal && !rama) fallos.push(`no hay una rama gobernada por \`${señal}\``);
+      if (señal && !/res\.status\(400\)/.test(rama)) fallos.push(`la rama de \`${señal}\` no responde 400`);
       if (!/campo: "password"/.test(rama)) fallos.push("el 400 no señala el campo `password`");
       if (!/La política de contraseñas del proyecto rechazó/.test(rama)) fallos.push("el 400 no explica la causa");
       // 3) Y el rastro auditado sale de la misma decisión: si se separaran, la auditoría diría
       //    una cosa y la pantalla otra.
-      if (!/debil \? "password_rechazada_por_auth"/.test(bloque)) fallos.push("el motivo auditado no lo gobierna `debil`");
+      if (señal && !new RegExp(`${señal}\\s*\\?\\s*"password_rechazada_por_auth"`).test(bloque)) fallos.push(`el motivo auditado no lo gobierna \`${señal}\``);
       check(
         "credenciales: la rama del rechazo de Auth es ALCANZABLE y gobierna el 400 (no solo está escrita)",
         fallos.length === 0,
@@ -1448,25 +1624,39 @@ for (const ruta of [
       // encontró que `duplicado` seguía adivinando desde una subcadena justo encima de lo que
       // G4 había arreglado. Una regla que solo cubre el caso que la motivó vuelve a fallar en el
       // de al lado.
+      // Los nombres NO se fijan: se DERIVAN de la cadena `if (X) … else if (Y) …` que decide la
+      // respuesta. Renombrar `debil` a `esDebil` es un refactor, y tumbaba dos contratos.
+      const señales = [...new Set([
+        (/if\s*\((\w+)\)\s*\{\s*\n?\s*res\.status\(409\)/.exec(bloque) || [])[1],
+        (/else\s+if\s*\((\w+)\)\s*\{\s*\n?\s*res\.status\(400\)/.exec(bloque) || [])[1],
+      ].filter(Boolean))];
       const sueltos = [];
       let conCodigo = 0;
-      for (const señal of ["debil", "duplicado"]) {
+      for (const señal of señales) {
         const def = entre(bloque, `const ${señal} =`, ";");
         const nombreLista = (def.match(/(\w+)\.some\(/) || [])[1];
         const lista = nombreLista ? entre(bloque, `const ${nombreLista} = [`, "];") : "";
-        const literales = [...`${lista}\n${def}`.matchAll(/\/((?:[^/\\\n]|\\.)+)\/[a-z]*/g)].map((m) => m[1]);
+        const fuente = `${lista}\n${def}`;
+        // Literales de regex **y** de comparación por cadena. La versión anterior solo auditaba
+        // regex, así que `msg.toLowerCase().includes("password")` volvía a colar exactamente la
+        // palabra suelta que la regla prohíbe, por la puerta de al lado.
+        const literales = [
+          ...[...fuente.matchAll(/\/((?:[^/\\\n]|\\.)+)\/[a-z]*/g)].map((m) => m[1]),
+          ...[...fuente.matchAll(/\.(?:includes|startsWith|endsWith|indexOf|search|match)\(\s*["'`]([^"'`]+)["'`]/g)].map((m) => m[1]),
+        ];
         // Que CONSULTE el código, no cómo lo compare: `codigo === "x"`, un `includes` sobre una
         // lista o un `Set` son la misma propiedad. Exigir la forma es el defecto de N1 otra vez
         // —lo cazó una mutación inocua con `["email_exists", …].includes(codigo)`—.
         if (/\bcodigo\b/.test(def)) conCodigo++;
-        sueltos.push(...literales.filter((r) => !/\s|\.\*/.test(r)).map((r) => `${señal}: /${r}/`));
+        sueltos.push(...literales.filter((r) => !/\s|\.\*/.test(r)).map((r) => `${señal}: «${r}»`));
       }
+      if (señales.length !== 2) sueltos.push(`no se identificaron las dos clasificaciones del if/else (encontradas: ${señales.join(", ") || "ninguna"})`);
       check(
         "credenciales: los errores de Auth se clasifican por código o por frase, nunca por una palabra suelta",
-        conCodigo === 2 && sueltos.length === 0,
+        conCodigo === señales.length && señales.length === 2 && sueltos.length === 0,
         sueltos.length
           ? `patrones que casan por una palabra suelta: ${sueltos.join(", ")}`
-          : conCodigo === 2 ? "" : `solo ${conCodigo}/2 clasificaciones miran el código de error`,
+          : `solo ${conCodigo}/${señales.length || 2} clasificaciones miran el código de error`,
       );
       // Al estrechar la clasificación, más fallos caen en el "no se pudo" opaco. El código de
       // Auth tiene que quedar auditado SIEMPRE o la causa se pierde del todo.
@@ -1551,7 +1741,7 @@ for (const ruta of [
 // La migración que añade `eventos.solicitud_id`. Se afirma que sigue siendo ADITIVA y
 // autoprotegida: es la única de este bloque y toca la base compartida con Vero.
 {
-  const sql = leer("supabase/migrations/20260804180000_jardines_sec_25_evento_solicitud_id.sql");
+  const sql = leer(migracion("sec_25"));
   check(
     "sec_25: es aditiva — no borra, no reescribe y no toca policies ni grants",
     /add column solicitud_id uuid/.test(sql) &&
@@ -1903,11 +2093,18 @@ for (const ruta of [
       const arr = fuente[1];
 
       // 2) La condición que gobierna el aviso: el `&& (` que lo abre, hacia atrás desde el texto.
-      const i = bloque.indexOf(aviso);
-      if (i < 0) return { ok: false, detalle: `${archivo}: no se encontró el aviso «${aviso}»` };
-      const antes = bloque.slice(0, i);
-      const j = antes.lastIndexOf("&& (");
-      const cond = j < 0 ? "" : antes.slice(antes.lastIndexOf("{", j), j);
+      //
+      //    TODAS las apariciones, no `indexOf`. Con la primera bastaba para que una **segunda**
+      //    copia del aviso, mal guardada y colocada DETRÁS de la buena, pasara en verde: el
+      //    contrato certificaba la copia correcta y no miraba la otra. Es la misma puerta que
+      //    "recorta el primer `update`" en `sec_26`, y por ella entraban cinco de los quince.
+      const apariciones = [...bloque.matchAll(new RegExp(aviso.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"), "g"))].map((m) => m.index);
+      if (!apariciones.length) return { ok: false, detalle: `${archivo}: no se encontró el aviso «${aviso}»` };
+      const condiciones = apariciones.map((i) => {
+        const antes = bloque.slice(0, i);
+        const j = antes.lastIndexOf("&& (");
+        return j < 0 ? "" : antes.slice(antes.lastIndexOf("{", j), j);
+      });
 
       // 3) Tiene que exigir que ese array esté VACÍO, y no poder ser cierta por otra vía.
       //
@@ -1923,17 +2120,18 @@ for (const ruta of [
       //    LONGITUD del array del desplegable y (ii) no haya una disyunción que la haga cierta
       //    con opciones delante. El `|| []` defensivo no es una disyunción de la guarda: es un
       //    valor por defecto del propio array, así que se normaliza antes de mirar los `||`.
-      const limpio = cond.replace(new RegExp(`\\(\\s*${arr}\\s*\\|\\|\\s*\\[\\s*\\]\\s*\\)`, "g"), arr);
-      const dependeDeLaLongitud = exige === "vacio"
-        ? new RegExp(`(!\\s*${arr}\\??\\.length\\b)|(${arr}\\??\\.length\\s*(===?\\s*0|<\\s*1))`).test(limpio)
-        : new RegExp(`(${arr}\\??\\.length\\s*(>\\s*0|>=\\s*1|!==?\\s*0))|([^!\\w]${arr}\\??\\.length\\b\\s*&&)`).test(limpio);
-      const sinDisyuncion = !limpio.includes("||");
-      const ok = dependeDeLaLongitud && sinDisyuncion;
+      const malas = condiciones.filter((cond) => {
+        const limpio = cond.replace(new RegExp(`\\(\\s*${arr}\\s*\\|\\|\\s*\\[\\s*\\]\\s*\\)`, "g"), arr);
+        const dependeDeLaLongitud = exige === "vacio"
+          ? new RegExp(`(!\\s*${arr}\\??\\.length\\b)|(${arr}\\??\\.length\\s*(===?\\s*0|<\\s*1))`).test(limpio)
+          : new RegExp(`(${arr}\\??\\.length\\s*(>\\s*0|>=\\s*1|!==?\\s*0))|([^!\\w]${arr}\\??\\.length\\b\\s*&&)`).test(limpio);
+        return !(dependeDeLaLongitud && !limpio.includes("||"));
+      });
       return {
-        ok,
-        detalle: ok ? "" : `${archivo}: condición del aviso = «${cond.trim()}»`
-          + ` (array del desplegable: ${arr}${dependeDeLaLongitud ? "" : `; no depende de que ${arr} esté ${exige}`}`
-          + `${sinDisyuncion ? "" : "; tiene una disyunción `||` que puede ser cierta en el estado contrario"})`,
+        ok: malas.length === 0,
+        detalle: malas.length === 0 ? ""
+          : `${archivo}: ${malas.length} de ${condiciones.length} apariciones del aviso no exigen que `
+            + `${arr} esté ${exige}, o tienen una disyunción: ${malas.map((c) => `«${c.trim()}»`).join(" / ")}`,
       };
     };
 
@@ -2015,6 +2213,587 @@ for (const ruta of [
       imgSrc,
     );
   }
+}
+
+// ------------------------------------------- FASE A · la escritura que fabricaba el éxito
+//
+// EL HECHO, comprobado EJECUTANDO contra la base (en un bloque revertido):
+//
+//     UPDATE denegado por RLS  ->  sin error, 0 filas   (silencioso)
+//     DELETE denegado por RLS  ->  sin error, 0 filas   (silencioso)
+//     INSERT denegado por RLS  ->  ERROR 42501          (ruidoso)
+//
+// De esa asimetría sale todo: `create` no necesita variante estricta y `update`/`delete` sí.
+// El shim devolvía el propio `patch` cuando el UPDATE tocaba cero filas, así que el llamador
+// leía la fila "guardada" que él mismo había escrito. Es el gemelo de J-02 del lado de la
+// escritura, y de ahí salió el P0 del portal.
+{
+  const shim = leerCodigo("src/api/base44Client.js");
+
+  // 1) Las variantes estrictas existen y **lanzan** cuando no se tocó ninguna fila. No basta
+  //    con que estén escritas: sin el `if (!data) throw` son un alias de `update`.
+  {
+    const upd = entre(shim, "async updateEstricto(", "\n    },");
+    const del = entre(shim, "async deleteEstricto(", "\n    },");
+    // NADA DE FORMAS. Ni el nombre del ayudante que construye el error —renombrar una función
+    // interna es un refactor—, ni la forma exacta de la guarda: `if (!data)`, `if (data === null)`
+    // y `if ((data || []).length === 0)` son la misma propiedad, y las tres reescrituras rompían
+    // la versión anterior. Se DERIVA el nombre de la variable del propio destructuring y se
+    // afirma que hay un `throw` que depende de ella.
+    const fallos = [];
+    const lanzaSiVacio = (cuerpo, quien) => {
+      const nombre = (/const \{\s*data(?::\s*(\w+))?\s*,/.exec(cuerpo) || [])[1] || "data";
+      if (!new RegExp(`\\b${nombre}\\b`).test(cuerpo)) return `\`${quien}\` no usa el resultado de la escritura`;
+      // Cualquier condición que mencione esa variable y corte con un `throw`. Se recorre cada
+      // `throw` hacia atrás en vez de casar un `if (...)` con un regex: `[^)]*` no atraviesa
+      // paréntesis anidados, así que `if ((data || []).length === 0) throw` —una reescritura
+      // equivalente y más defensiva— lo hacía fallar. Lo cazó la mutación inocua.
+      const guarda = [...cuerpo.matchAll(/\bthrow\b/g)].some((t) => {
+        const atras = cuerpo.slice(Math.max(0, t.index - 200), t.index);
+        const iIf = atras.lastIndexOf("if");
+        return iIf >= 0 && new RegExp(`\\b${nombre}\\b`).test(atras.slice(iIf));
+      });
+      if (!guarda) return `\`${quien}\` no lanza cuando la escritura no tocó nada`;
+      return "";
+    };
+    for (const [cuerpo, quien] of [[upd, "updateEstricto"], [del, "deleteEstricto"]]) {
+      const f = lanzaSiVacio(cuerpo, quien);
+      if (f) fallos.push(f);
+    }
+    // Y `updateEstricto` devuelve lo que dijo la BASE, no el parche que le pasaron: si volviera a
+    // `{ id, ...patch }` lanzaría igual y seguiría fabricando la fila.
+    {
+      const param = (/async updateEstricto\(\s*\w+\s*,\s*(\w+)\s*\)/.exec(upd) || [])[1];
+      if (param && new RegExp(`\\.\\.\\.\\s*${param}\\b`).test(upd)) fallos.push("`updateEstricto` sigue devolviendo el parche");
+    }
+    // `deleteEstricto` tiene que PEDIR las filas borradas; sin `.select()` no hay nada que contar.
+    if (!/\.select\(\)/.test(del)) fallos.push("`deleteEstricto` no pide las filas borradas, así que no puede contarlas");
+    check("A.1: `updateEstricto`/`deleteEstricto` lanzan cuando la escritura no tocó nada", fallos.length === 0, fallos.join(" · "));
+  }
+
+  // 2) El error es DISTINGUIBLE de un fallo de red. Sin `code`, una pantalla no puede decir
+  //    "no tienes permiso" en vez de "reintenta", y mandar a reintentar algo que nunca va a
+  //    funcionar es la forma de mentira que este bloque persigue.
+  check(
+    "A.1: el fallo de escritura llega con un código propio y un mensaje legible",
+    // `shim` está sin comentarios A PROPÓSITO en las dos mitades: con el archivo comentado,
+    // mover el mensaje a un comentario dejaba el contrato en verde y al usuario sin texto.
+    /code = "escritura_sin_efecto"/.test(shim) && /El cambio no se guardó/.test(shim),
+  );
+
+  // 3) `update` y `delete` NO se han vuelto estrictos. Es deliberado y hay que poder verlo: hoy
+  //    diez componentes escriben sin un solo `catch`, así que hacerlos lanzar cambiaría el
+  //    engaño silencioso por una pantalla muerta, justo antes de la validación del dueño.
+  // Antes esto exigía además que el comentario dijera "FABRICA EL ÉXITO". Un contrato sobre
+  // prosa no protege nada —la advertencia se puede reescribir en sinónimos sin tocar una línea
+  // ejecutable, y entonces rompe la suite sin que nada haya cambiado— así que se queda solo la
+  // mitad ejecutable. Ver la decisión sobre contratos-de-comentario en `docs/DECISIONS.md`.
+  check(
+    "A.1: `update` sigue siendo el no estricto (deliberado: ver D-COD-18)",
+    /return rowToObj\(data\) \|\| \{ id, \.\.\.patch \};/.test(shim),
+  );
+
+  // 4) EL P0. `PortalInvitacion` es el único escritor de la invitación en todo el repo y solo se
+  //    monta para el rol `cliente`, cuyo UPDATE sobre `eventos` no toca ninguna fila. Tiene que
+  //    escribir estricto **y** traducir ese caso a algo que no sea "intenta de nuevo".
+  {
+    const r = confirmacionAtadaALaEscritura(
+      leerCodigo("src/components/portal/PortalInvitacion.jsx"),
+      "const guardar = async (", "\n  };", /await\s+base44\.rpc\(/,
+    );
+    check(
+      "A.2 (P0): la invitación del cliente no puede volver a decir «Guardado ✓» sin haber guardado",
+      r.ok, r.detalle,
+    );
+  }
+
+  // 5) Y el panel deja de atribuirle al cliente una causa falsa. Esa frase es la que tapó el P0
+  //    durante meses: el dueño leía una explicación plausible y no volvía a mirar.
+  {
+    // NO se contrata la frase. Prohibir un texto no impide reescribir la misma atribución falsa
+    // con otras palabras, y exigir otro texto rompe con un sinónimo: las dos direcciones malas
+    // a la vez. Lo que se afirma es que el aviso **deriva del hecho comprobable**: hay token o
+    // no lo hay. `invitacion_token` solo lo escribe esta función, así que su ausencia es prueba
+    // de que nunca cuajó — y su presencia, de que sí, que es lo que impide volver a decir
+    // «nunca se guardó» de una invitación que el cliente activó y luego apagó.
+    const rsvps = leerCodigo("src/components/admin/eventos/EventoRsvps.jsx");
+    const bloque = entre(rsvps, "{!evento.invitacionActiva && (", "\n      )}");
+    check(
+      "A.2: el aviso de la invitación deriva de si hay token, no de una suposición",
+      /evento\.invitacionToken\s*\?/.test(bloque) && bloque.split("invitacionToken").length > 1,
+      bloque ? "" : "no se encontró el bloque del aviso",
+    );
+  }
+
+  // 6) Las dos pantallas del panel que afirmaban «Guardado.» sin mirar. La propiedad es la
+  //    misma que en el P0 y se afirma igual: la confirmación va DESPUÉS de la escritura y
+  //    DENTRO del `try`. Y el `catch` es obligatorio: estricto sin `catch` es un botón girando.
+  for (const [archivo, ancla, fin, escritura] of [
+    ["src/components/admin/eventos/EventoDatos.jsx", "const guardar = async () => {", "\n  };", /Evento\.updateEstricto\(/],
+    ["src/components/mesas/MesaReglas.jsx", "const guardar = async () => {", "\n  };", /EventoReglasMesas\.updateEstricto\(/],
+  ]) {
+    const r = confirmacionAtadaALaEscritura(leerCodigo(archivo), ancla, fin, escritura);
+    check(`A.3: «Guardado.» solo si la base lo confirmó (${archivo.split("/").pop()})`, r.ok, r.detalle);
+  }
+}
+
+// ------------------------------------------- sec_26, escrita y NO aplicada
+// La RPC que permitiría que el cliente active su invitación. Es una decisión de producto del
+// dueño, así que aquí solo se contrata que el archivo, si existe, cumpla las reglas del
+// proyecto para una `security definer` — no que esté aplicada.
+{
+  const ruta = migracion("sec_26");
+  let sql = "";
+  // Sin comentarios SQL: las cabeceras de esta migración explican qué NO hace y nombran
+  // `drop policy` para decir que no lo usa. Con comentarios, el contrato fallaría por su propia
+  // documentación — el mismo tropiezo que ya obligó a `leerCodigo` en el resto de la suite.
+  try { sql = leer(ruta).replace(/^\s*--.*$/gm, ""); } catch { sql = ""; }
+  const fallos = [];
+  if (!sql) fallos.push("no existe el archivo de sec_26");
+  else {
+    if (!/set search_path = ''/.test(sql)) fallos.push("la función no fija `search_path`");
+    if (!/revoke all on function jardines\.invitacion_guardar/.test(sql)) fallos.push("no revoca EXECUTE a PUBLIC");
+    if (!/grant execute on function jardines\.invitacion_guardar[^;]*to authenticated/.test(sql)) fallos.push("no concede EXECUTE a `authenticated`");
+    if (!/jardines\.is_my_event\(p_evento_id\)/.test(sql)) fallos.push("no comprueba que el evento sea del llamador");
+    // No puede tocar policies ni el schema de Vero, ni siquiera de paso.
+    if (/create policy|alter policy|drop policy/i.test(sql)) fallos.push("toca policies");
+    if (/\bpublic\.[a-z_]+/i.test(sql.replace(/--.*$/gm, "").replace(/from public|to public/gi, ""))) fallos.push("referencia el schema `public` (candado de Vero)");
+    // Y las cuatro columnas de la invitación, NI UNA MÁS.
+    //
+    // La primera versión de esto contaba solo columnas `invitacion_*`, así que una quinta
+    // asignación a **otra** columna era invisible. Lo cazó la mutación: colar
+    // `auth_user_id = auth.uid()` en el SET dejaba la suite en verde — y `auth_user_id` es
+    // exactamente la columna que provocó el P0 del bloque 8. El contrato tiene que mirar
+    // TODAS las asignaciones y exigir que todas sean de la invitación, no contar las que ya
+    // sabe que le gustan.
+    // TODAS las sentencias de escritura, no la primera. `entre()` recortaba el primer `update` y
+    // miraba solo ese, así que un SEGUNDO `update … set auth_user_id = …` detrás del bueno
+    // pasaba en verde. "Recorta el primero" es la misma puerta que `indexOf`.
+    const escrituras = [...sql.matchAll(/\b(update|insert\s+into|delete\s+from)\s+([a-z_]+\.[a-z_]+)/gi)];
+    const fuera = escrituras.filter((m) => m[2].toLowerCase() !== "jardines.eventos");
+    if (fuera.length) fallos.push(`escribe en tablas que no son jardines.eventos: ${[...new Set(fuera.map((m) => m[2]))].join(", ")}`);
+    if (escrituras.length !== 1) fallos.push(`hay ${escrituras.length} sentencias de escritura, se esperaba 1`);
+    for (const m of escrituras) {
+      const upd = sql.slice(m.index, sql.indexOf(";", m.index));
+      const columnas = [...upd.matchAll(/(?:^|,)\s*(?:set\s+)?([a-z_]+)\s*=/gm)].map((c) => c[1]);
+      const ajenas = columnas.filter((c) => !c.startsWith("invitacion_"));
+      if (ajenas.length) fallos.push(`una escritura toca columnas que no son de la invitación: ${ajenas.join(", ")}`);
+      else if (columnas.length !== 4) fallos.push(`una escritura toca ${columnas.length} columnas, no 4: ${columnas.join(", ")}`);
+    }
+    // La guarda de propiedad es una DISYUNCIÓN: `p_evento_id is null OR not is_my_event(...)`.
+    // Cambiar ese `or` por `and` la vuelve inofensiva —solo cortaría con el id nulo— y la
+    // versión anterior, que buscaba `is_my_event(p_evento_id)` suelto, lo dejaba pasar.
+    if (!/if\s+p_evento_id\s+is\s+null\s+or\s+not\s+jardines\.is_my_event\(p_evento_id\)\s+then/.test(sql)) {
+      fallos.push("la guarda de propiedad no corta con «id nulo O no es tuyo»");
+    }
+    // Y NINGÚN grant puede alcanzar a `anon`: esta RPC escribe.
+    if (/grant\s+execute[^;]*\banon\b/i.test(sql)) fallos.push("concede EXECUTE a `anon`");
+    // EL TOKEN NO VIENE DE FUERA (B.5). Antes esto exigía que se validara su forma; ahora la
+    // propiedad es más fuerte y hace innecesaria aquella: si la función no recibe ningún token,
+    // no hay forma que validar mal —que fue exactamente el fallo de T.1— ni token que el cliente
+    // pueda elegir sin entropía.
+    {
+      const firma = entre(sql, "create or replace function jardines.invitacion_guardar(", ") returns");
+      if (/\bp_token\b/.test(firma)) fallos.push("la función sigue recibiendo el token de fuera");
+      if (!/jardines_private\.token_seguro\(\)/.test(sql)) fallos.push("el token no lo genera el servidor");
+    }
+  }
+  check("A.2: `sec_26` acota la escritura del cliente a sus cuatro columnas y no toca nada más", fallos.length === 0, fallos.join(" · "));
+}
+
+// ------------------------------------------- A-bis · UNA PIEZA QUE NADIE INVOCA
+//
+// El hallazgo que invalidó el resultado de la fase A: `sec_26` estaba bien escrita, bien
+// ensayada y **sin un solo llamador**. `grep -rn invitacion_guardar src/ api/` daba 0, y sus
+// dos únicas apariciones fuera de la migración eran contratos verdes comprobando los
+// `grant`/`revoke` de una función que ningún código invoca.
+//
+// La consecuencia no era cosmética: el dueño aprueba la migración, se aplica, se prueba el
+// portal, sale el MISMO error de permisos, y se concluye que la vía RPC no sirve. La conclusión
+// sería falsa y cerraría el camino correcto.
+//
+// Esta comprobación es genérica a propósito: no mira `invitacion_guardar`, mira **toda** función
+// que cualquier migración cree en `jardines` y exige que alguien la llame. Un contrato que solo
+// cubriera el caso que lo motivó volvería a fallar en el siguiente.
+{
+  const migraciones = leerDir("supabase/migrations").filter((f) => f.endsWith(".sql"));
+  const sqlTodo = migraciones.map((f) => leer(`supabase/migrations/${f}`)).join("\n");
+  const sqlCrudo = sqlTodo;
+
+  /**
+   * Rangos `[inicio, fin)` de los bloques `do $tag$ … $tag$`.
+   *
+   * Son scripts de UNA vez —precondiciones, ensayos, comprobaciones— y no dejan ningún llamador
+   * vivo. `usadaEnSql` los contaba como uso, así que un `perform jardines.fn(...)` dentro de un
+   * `do` de precondición —el estilo de casa— bastaba para que este contrato no disparase. Si el
+   * ensayo de `sec_26` se hubiera quedado en el archivo, la huérfana que lo motivó todo habría
+   * pasado desapercibida.
+   *
+   * Se escanea en vez de usar un `replace` global: los cuerpos de función también se abren con
+   * `$$`, así que un `replace` perezoso empareja el `$$` equivocado y se desincroniza. Probado:
+   * con `replace` el bloque de `sec_26` no se recortaba y la mutación seguía pasando.
+   */
+  const rangosDo = (() => {
+    // Se salta el cierre de TODA comilla-dólar, sea `do $$`, `as $$` o `format($f$…$f$)`. Ese es
+    // el detalle que arruinó las dos versiones anteriores: buscar solo `do $tag$` y avanzar deja
+    // el escáner **dentro** del siguiente cuerpo de función, y a partir de ahí todos los rangos
+    // salen corridos. Comprobado: el `perform` de prueba en `sec_26` salía como "fuera de
+    // do-block" con 19 bloques detectados.
+    const rangos = [];
+    let i = 0;
+    for (;;) {
+      const m = /\$\w*\$/.exec(sqlTodo.slice(i));
+      if (!m) break;
+      const abre = i + m.index;
+      const tag = m[0];
+      const cierra = sqlTodo.indexOf(tag, abre + tag.length);
+      if (cierra < 0) break;
+      // ¿La palabra justo antes de la comilla es `do`? Entonces es un script de una vez.
+      const antes = sqlTodo.slice(Math.max(0, abre - 40), abre).trimEnd();
+      if (/\bdo$/i.test(antes)) rangos.push([antes.lastIndexOf("do") + Math.max(0, abre - 40), cierra + tag.length]);
+      i = cierra + tag.length;
+    }
+    return rangos;
+  })();
+  const dentroDeDo = (i) => rangosDo.some(([a, b]) => i >= a && i < b);
+  // Las funciones que las migraciones definen y **conceden a un rol del navegador**. Una
+  // `security definer` sin `grant` a `anon`/`authenticated` es interna (la llaman otras
+  // funciones o policies) y no tiene por qué aparecer en `src/`.
+  //
+  // Hay DOS formas de conceder en este repo, y mirar solo una dejaría fuera justo el ejemplo
+  // que motivó todo esto (`registrar_llegada_mesa`, sin llamador desde hace meses):
+  //   (1) literal:  grant execute on function jardines.x(...) to authenticated;
+  //   (2) en bucle: foreach f in array[...] loop execute format('grant execute … %s to anon…')
+  // Para (2) se afirma sobre el ORDEN, no sobre la distancia: para cada bucle que concede a un
+  // rol del navegador, se toman los nombres del `array[` inmediatamente anterior.
+  //
+  // OJO CON EL CORTE: los grants se leen del SQL **crudo** y las llamadas del **sin do-blocks**.
+  // No es asimetría gratuita: un `grant` dentro de un `do $$ … $$` —que es como los concede
+  // `sec_06`, en bucle sobre un array— sigue siendo un permiso permanente; una llamada dentro de
+  // ese mismo `do` es un script de una vez y no deja ningún llamador. Calcular las dos cosas
+  // sobre el texto recortado hacía desaparecer la mitad de los grants del proyecto.
+  const expuestas = new Set(
+    [...sqlCrudo.matchAll(/grant\s+execute\s+on\s+function\s+jardines\.(\w+)\s*\([^)]*\)\s*to\s+[^;]*\b(anon|authenticated)\b/gi)]
+      .map((m) => m[1]),
+  );
+  for (const m of sqlCrudo.matchAll(/execute\s+format\(\s*'grant execute on function %s to ([^']*)'/gi)) {
+    if (!/\b(anon|authenticated)\b/.test(m[1])) continue;          // service_role no es el navegador
+    const antes = sqlCrudo.slice(0, m.index);
+    const iArr = antes.lastIndexOf("array[");
+    if (iArr < 0) continue;
+    for (const f of antes.slice(iArr).matchAll(/'jardines\.(\w+)\s*\(/g)) expuestas.add(f[1]);
+  }
+  // `leerCodigo`, NO `leer`: una mención en un comentario no es una llamada. Con el archivo
+  // comentado, escribir «su único escritor, `registrar_llegada_mesa`, no tiene llamador» dentro
+  // de un comentario hacía que el contrato diera esa función por invocada — y por documentar el
+  // problema, además. Lo cazó al escribir el aviso de B.1.
+  const codigoCliente = [...leerDirRec("src"), ...leerDirRec("api")]
+    .filter((f) => /\.(js|jsx|mjs)$/.test(f))
+    .map((f) => leerCodigo(f)).join("\n");
+
+  // "Nadie la invoca" no es "el JavaScript no la invoca". Media docena de estas funciones
+  // —`is_admin`, `is_my_event`, `client_can_edit`, `mis_canales`…— están concedidas a
+  // `authenticated` justamente porque **las policies las ejecutan como el usuario que llama**,
+  // y jamás se tocan desde el navegador. Contarlas como huérfanas sería el contrato ruidoso de
+  // siempre: mucho falso positivo y, en dos semanas, un `git rm`.
+  //
+  // La propiedad de verdad es «alguien la invoca»: el cliente, una policy, o otra función. Se
+  // buscan usos como llamada —`jardines.nombre(`— descartando su propia definición y las líneas
+  // de grant/revoke/drop, que nombran la función sin usarla.
+  const usadaEnSql = (fn) => {
+    const re = new RegExp(`jardines\\.${fn}\\s*\\(`, "g");
+    for (const m of sqlTodo.matchAll(re)) {
+      const lineaIni = sqlTodo.lastIndexOf("\n", m.index) + 1;
+      const linea = sqlTodo.slice(lineaIni, sqlTodo.indexOf("\n", m.index));
+      if (/^\s*--/.test(linea)) continue;                                  // comentario
+      if (/\b(grant|revoke|drop|comment)\b/i.test(linea)) continue;        // nombra, no usa
+      if (/create\s+(or\s+replace\s+)?function/i.test(linea)) continue;    // su definición
+      if (/^\s*'jardines\./.test(linea)) continue;                         // elemento de un array de grants
+      if (dentroDeDo(m.index)) continue;                                   // script de una vez, no un llamador
+      return true;
+    }
+    return false;
+  };
+  // C.2 · LA FORMA QUE EVADE ESTE CONTRATO Y ADEMÁS CONCEDE DE MÁS.
+  // `grant execute on all functions in schema jardines to authenticated` no casa `on function
+  // jardines.x(...)`, así que pasaba en verde — y concede EXECUTE sobre **todas** las funciones
+  // del schema, incluidas las que `sec_17` mantuvo privadas a propósito. El contrato callaba en
+  // el caso peor y ladraba en el leve.
+  //
+  // Se PROHÍBE en vez de reconocerse. Reconocerla significaría dar por expuestas también las
+  // privadas y exigirles llamador, que es ruido; y el problema no es que el contrato no la vea:
+  // es que esa forma no debe usarse aquí. Los grants de este proyecto son por función, uno a uno.
+  {
+    const masivos = [...sqlCrudo.matchAll(/grant\s+execute\s+on\s+all\s+functions\s+in\s+schema\s+(\w+)\s+to\s+([^;]+)/gi)]
+      .filter((m) => /\b(anon|authenticated)\b/.test(m[2]));
+    check(
+      "C.2: ninguna migración concede EXECUTE en bloque sobre todo el schema",
+      masivos.length === 0,
+      masivos.map((m) => `grant … on all functions in schema ${m[1]} to ${m[2].trim()}`).join(" · "),
+    );
+  }
+
+  // HUÉRFANAS CONOCIDAS. Al escribir este contrato salieron seis, todas anteriores a este
+  // bloque y todas comprobadas: cero apariciones en `src/`, en `api/` y en el bundle construido.
+  // Se listan con su motivo en vez de bajar el listón, para que el contrato pase hoy y **falle
+  // con cualquier huérfana nueva** — que es lo que habría atrapado `invitacion_guardar`.
+  //
+  // La lista solo puede encoger. Está anotada como J-16 en `docs/BUGS_PENDING.md`; si alguien
+  // añade una entrada aquí en vez de enchufar la función, la deuda queda a la vista con nombre
+  // y fecha en el `git blame`, que es exactamente lo que no pasó con `registrar_llegada_mesa`.
+  const HUERFANAS_CONOCIDAS = {
+    registrar_llegada_mesa: "**concedida a `anon`**, invocable sin autenticarse. Escribiría `mesas.ocupadas`, la fuente que el tablero de staff lee y que nadie llena (fase B.1). Es la más urgente de las seis: las otras cinco exigen sesión",
+    // `revocar_staff_token` SALIÓ de esta lista en B.4: cancelar un evento lo revoca, que es
+    // exactamente su caso de uso. El contrato de entradas caducadas lo exigió al commitear.
+    confirmar_evento: "flujo de confirmación que nunca se construyó en la interfaz",
+    auditoria_reciente: "la auditoría se consulta por SQL, no hay pantalla que la lea",
+    operativo_ubicar: "la ubicación en vivo del operativo no llegó a tener pantalla",
+    operativo_evento_activo: "idem: parte del operativo que quedó sin interfaz",
+    // Séptima, y la destapó C.3: su único "uso" estaba dentro de un `do $$` de `sec_23`, así
+    // que con los do-blocks contando como llamada quedaba oculta.
+    info_mesa_token: "**concedida a `anon`**. `sec_23` la conservó como «la vía viva y protegida» frente a `info_mesa_publica`, que sí retiró — pero la interfaz nunca llegó a usarla: el front va por `info_invitacion` y `progreso_mesas_staff`",
+  };
+  const huerfanas = [...expuestas]
+    .filter((fn) => !new RegExp(`["'\`]${fn}["'\`]`).test(codigoCliente))
+    .filter((fn) => !usadaEnSql(fn));
+  const nuevas = huerfanas.filter((fn) => !(fn in HUERFANAS_CONOCIDAS));
+  check(
+    "A-bis: ninguna RPC concedida al navegador se queda sin llamador (salvo las huérfanas ya anotadas)",
+    nuevas.length === 0,
+    nuevas.length ? `concedidas al navegador y sin llamador: ${nuevas.join(", ")}` : "",
+  );
+  // Y la lista no puede quedarse con entradas muertas: una huérfana que ya se enchufó tiene que
+  // salir de aquí, o la próxima vez que se desenchufe nadie se enterará.
+  const yaNoHuerfanas = Object.keys(HUERFANAS_CONOCIDAS).filter((fn) => !huerfanas.includes(fn));
+  check(
+    "A-bis: la lista de huérfanas conocidas no tiene entradas caducadas",
+    yaNoHuerfanas.length === 0,
+    yaNoHuerfanas.length ? `ya tienen llamador (o dejaron de existir); quítalas de la lista: ${yaNoHuerfanas.join(", ")}` : "",
+  );
+
+  // Y el lado concreto: la pantalla del P0 tiene que ir por la RPC, no por la tabla. Con
+  // `entities.Evento` seguiría tocando cero filas por muy estricta que fuera la variante.
+  {
+    const inv = leerCodigo("src/components/portal/PortalInvitacion.jsx");
+    const fallos = [];
+    if (!/base44\.rpc\(\s*["']invitacion_guardar["']/.test(inv)) fallos.push("no llama a la RPC");
+    if (/entities\.Evento\.(update|updateEstricto)\(/.test(inv)) fallos.push("sigue escribiendo por `entities.Evento`, que pasa por `eventos_upd`");
+    // Hoy la RPC no existe en la base: eso tiene que ser un mensaje propio, no "no tienes
+    // permiso" ni un reventón.
+    if (!/PGRST202/.test(inv)) fallos.push("no distingue «la función todavía no existe» de un fallo de permisos");
+    check("A-bis: la invitación del cliente va por `sec_26` y no por la tabla", fallos.length === 0, fallos.join(" · "));
+  }
+}
+
+// ------------------------------------------- FASE T · el token que la migración rechazaba
+//
+// `sec_26` validaba `^[a-f0-9]{32,128}$` y `tokenSeguro()` produce **base64url de 43
+// caracteres**. El día que el dueño aprobara la migración, cada clic en «Crear y activar
+// invitación» habría devuelto `token_invalido` — el 100 % — y el cliente habría leído «No se
+// pudo generar el enlace… inténtalo otra vez», que es exactamente la mentira que este bloque
+// existe para matar. Y habría parecido intermitente, porque «Desactivar» no valida el token.
+//
+// ESTE CONTRATO NO MIRA LA FORMA DE LA REGEX. Ejecuta el generador **real** contra la
+// validación **real** extraída del SQL. Es la única manera de que no vuelva a pasar: cualquier
+// contrato que se limitara a comparar dos textos habría dado por buenas las dos versiones.
+{
+  const sql = leer(migracion("sec_26"));
+
+  // T.1 · REESCRITO EN B.5, y el cambio de propiedad es el interesante.
+  //
+  // La versión anterior ejecutaba `tokenSeguro()` de verdad contra la regex de la migración y
+  // exigía que pasaran los 2000 — porque la regex pedía hexadecimal y el generador produce
+  // base64url, así que habría rechazado el 100 % de los tokens. Ese contrato era correcto y
+  // atrapaba el bug.
+  //
+  // B.5 lo deja sin objeto: si el token lo emite el servidor, **no hay nada que validar**. La
+  // propiedad que sustituye a aquella es más fuerte, porque elimina la clase entera en vez de
+  // comprobar que esta vez casa: ningún token entra desde fuera, así que no puede haber una
+  // regex mal escrita ni un cliente eligiendo `AAAA…A`.
+  {
+    const firma = entre(sql, "create or replace function jardines.invitacion_guardar(", ") returns");
+    const inv = leerCodigo("src/components/portal/PortalInvitacion.jsx");
+    const fallos = [];
+    if (/\bp_token\b/.test(firma)) fallos.push("la firma sigue aceptando un token de fuera");
+    if (!/jardines_private\.token_seguro\(\)/.test(sql)) fallos.push("el servidor no genera el token");
+    if (/p_token\s*:/.test(inv)) fallos.push("el front sigue mandando un token");
+    if (/tokenSeguro\s*\(/.test(inv)) fallos.push("el front sigue generando un token para la invitación");
+    check("T.1: el token de la invitación lo emite el servidor; nadie lo aporta desde fuera", fallos.length === 0, fallos.join(" · "));
+  }
+
+  // T.2 · El token se EMITE una vez. La primera versión lo sobrescribía en cada activación, así
+  // que dos pestañas bastaban para dejar muertos los enlaces ya repartidos — justo lo contrario
+  // de lo que el comentario del front prometía.
+  {
+    // La propiedad, tras B.5: un token ya emitido **solo puede cambiar si se pide expresamente**.
+    // Se comprueba sobre el `case` que lo calcula: toda rama que genere uno nuevo tiene que estar
+    // condicionada a `p_rotar` o a que no hubiera ninguno. Una rama que generase sin condición
+    // sería la sobrescritura de T.2 otra vez, con otro nombre.
+    const limpio = sql.replace(/^\s*--.*$/gm, "");
+    // El nombre de la variable se DERIVA de la asignación, no se fija: renombrar `v_token` es un
+    // refactor y tumbaba este contrato. Van cuatro veces que el mismo defecto reaparece en un
+    // contrato nuevo — por eso la regla está escrita en `docs/PROMPTS.md` §9.
+    const nombreVar = (/invitacion_token\s*=\s*(\w+)\b/.exec(limpio) || [])[1] || "v_token";
+    const calculo = entre(limpio, `${nombreVar} := case`, "end;");
+    const ramas = calculo.split(/\bwhen\b/).slice(1);
+    const malas = ramas.filter((r) => /token_seguro\(\)/.test(r) && !/p_rotar|is\s+null/.test(r.split(/\bthen\b/)[0]));
+    const asignaDesdeElCalculo = new RegExp(`invitacion_token\\s*=\\s*${nombreVar}\\b`).test(limpio);
+    check(
+      "T.2: un token ya emitido solo cambia si se pide rotarlo",
+      malas.length === 0 && ramas.length > 0 && asignaDesdeElCalculo,
+      !ramas.length ? "no se encontró el cálculo del token"
+        : malas.length ? `ramas que generan token sin condición: ${malas.map((r) => `«when ${r.split("then")[0].trim()}»`).join(", ")}`
+        : asignaDesdeElCalculo ? "" : "`invitacion_token` no se asigna desde el token calculado",
+    );
+    // Y el front y el SQL tienen que decir lo mismo: el comentario que prometía la conservación
+    // fue lo que hizo que nadie mirara si el SQL la hacía.
+    const inv = leer("src/components/portal/PortalInvitacion.jsx");
+    // Y el front no puede tener un token propio con el que rellenar el hueco: si lo tuviera,
+    // volvería a poder repartir uno distinto del que la base guardó.
+    check(
+      "T.2: el token del front sale SOLO de la respuesta de la base",
+      /invitacionToken:\s*r\.token\s*\|\|\s*null/.test(inv) && !/tokenSeguro\s*\(/.test(inv),
+    );
+  }
+
+  // T.3 · Cada `motivo` que la función puede devolver tiene mensaje en el front, y cada mensaje
+  // del front corresponde a un motivo que la función puede devolver. Una rama sin mensaje deja
+  // al cliente con un texto genérico; un mensaje sin rama es decoración.
+  {
+    const motivosSql = new Set([...sql.matchAll(/'motivo',\s*'(\w+)'/g)].map((m) => m[1]));
+    const inv = leerCodigo("src/components/portal/PortalInvitacion.jsx");
+    const bloqueMotivos = entre(inv, "const MOTIVOS = {", "};");
+    const motivosFront = new Set([...bloqueMotivos.matchAll(/^\s*(\w+):/gm)].map((m) => m[1]));
+    const sinMensaje = [...motivosSql].filter((m) => !motivosFront.has(m));
+    const sinRama = [...motivosFront].filter((m) => !motivosSql.has(m));
+    check(
+      "T.3: cada motivo de `sec_26` tiene mensaje, y cada mensaje tiene su motivo",
+      sinMensaje.length === 0 && sinRama.length === 0,
+      [sinMensaje.length ? `motivos sin mensaje: ${sinMensaje.join(", ")}` : "",
+       sinRama.length ? `mensajes sin motivo en la función: ${sinRama.join(", ")}` : ""].filter(Boolean).join(" · "),
+    );
+  }
+}
+
+// ------------------------------------------- 1.2 · EL ESCAPADOR, EJECUTADO
+//
+// Doce contratos comprobaban «esta ruta importa `escHtml`» y **ninguno comprobaba qué hace**.
+// Medido: sustituyendo el cuerpo por `String(s ?? "")` —es decir, dejando todo el correo
+// inyectable— la batería seguía dando **285/285**. Doce contratos verdes sobre una función
+// neutralizada.
+//
+// Se ejecuta, como en T.1 con `tokenSeguro`. Es la única forma de que un contrato sobre una
+// transformación signifique algo: comparar su texto solo comprueba que alguien escribió algo.
+{
+  const { escHtml } = await import("../api/_lib/guard.js");
+  const casos = [
+    ["&", "&amp;"],
+    ["<", "&lt;"],
+    [">", "&gt;"],
+    ['"', "&quot;"],
+    ["'", "&#39;"],
+    ["<script>alert(1)</script>", "&lt;script&gt;alert(1)&lt;/script&gt;"],
+    ["a & b", "a &amp; b"],
+    // El `&` primero, o `&lt;` se convertiría en `&amp;lt;`.
+    ["<&>", "&lt;&amp;&gt;"],
+    [null, ""],
+    [undefined, ""],
+  ];
+  const malos = casos.filter(([entrada, esperado]) => escHtml(entrada) !== esperado)
+    .map(([entrada, esperado]) => `«${String(entrada)}» -> «${escHtml(entrada)}», se esperaba «${esperado}»`);
+  check("1.2: `escHtml` escapa de verdad los cinco caracteres (ejecutado)", malos.length === 0, malos.join(" · "));
+
+  // Y NO hay un segundo escapador más débil. Había uno: el de `correo.js`, que no escapaba `'`
+  // y era justo el que envolvía todo lo que entra en la plantilla compartida.
+  {
+    const correo = leerCodigo("api/_lib/correo.js");
+    const propio = /const\s+esc\s*=\s*\(/.test(correo);
+    check(
+      "1.2: la plantilla de correo usa el escapador bueno, no uno propio",
+      !propio && /import\s*\{[^}]*escHtml[^}]*\}\s*from\s*"\.\/guard\.js"/.test(correo),
+      propio ? "`correo.js` vuelve a definir su propio `esc`" : "",
+    );
+  }
+}
+
+// ------------------------------------------- 1.1 · EL LEDGER DE MIGRACIONES
+//
+// `supabase db push` compara el prefijo del archivo con la versión registrada. Dieciséis de los
+// veinticinco archivos tenían prefijos inventados, así que el comando de despliegue estándar
+// habría reejecutado desde `sec_11`: `sec_13` reabre `grant insert … to anon` sobre la tabla de
+// leads, y `sec_20` aborta al leer una columna que él mismo borró — dejando el INSERT abierto y
+// `sec_21`, que es la que lo retira, sin ejecutar.
+//
+// El contrato compara los nombres de archivo contra la copia del ledger que vive en el repo.
+{
+  const ledger = leer("supabase/migrations/APLICADAS.txt");
+  const aplicadas = new Set(
+    ledger.split("\n").filter((l) => /^\d{14}\s/.test(l)).map((l) => l.slice(0, 14)),
+  );
+  const pendientes = new Set(
+    [...ledger.matchAll(/^#\s*PENDIENTE\s+(\d{14})/gm)].map((m) => m[1]),
+  );
+  const archivos = leerDir("supabase/migrations").filter((f) => f.endsWith(".sql"));
+  const huerfanos = archivos
+    .map((f) => ({ f, pre: f.slice(0, 14) }))
+    .filter(({ pre }) => !aplicadas.has(pre) && !pendientes.has(pre));
+  check(
+    "1.1: ningún archivo de migración tiene un prefijo que la base no conozca",
+    huerfanos.length === 0,
+    huerfanos.length
+      ? `\`db push\` los reejecutaría: ${huerfanos.map((h) => h.f).join(", ")}`
+      : "",
+  );
+  // Y las pendientes tienen que seguir siendo pendientes: si alguien mueve `sec_26` a la lista
+  // de aplicadas sin aplicarla, este contrato ya no protegería nada.
+  check(
+    "1.1: `sec_26` y `sec_27` siguen declaradas como NO aplicadas",
+    pendientes.size >= 2 && ![...pendientes].some((p) => aplicadas.has(p)),
+    `pendientes: ${[...pendientes].join(", ") || "ninguna"}`,
+  );
+}
+
+// ------------------------------------------- 1.3 · CADA FUNCIÓN NUEVA, REVOCADA A MANO
+//
+// El DEFAULT ACL de `jardines` concede `anon=X` a toda función nueva, y —comprobado ensayando—
+// PostgreSQL concede además EXECUTE a PUBLIC por defecto del motor, que `ALTER DEFAULT
+// PRIVILEGES` **no quita** en esta base. Así que la única mitigación que de verdad funciona es
+// la convención: cada migración revoca explícitamente lo que crea. Esto la hace cumplir.
+{
+  // SOLO LAS QUE TODAVÍA SE PUEDEN ARREGLAR. Las 24 migraciones ya aplicadas crean 22 funciones
+  // sin revocar a mano, y no se pueden tocar: la regla del proyecto es forward-only y reescribir
+  // una migración aplicada es exactamente lo que no se hace. Además están cubiertas: `sec_11` y
+  // `sec_17` hicieron barridos posteriores, y el estado vivo está comprobado —solo 8 funciones de
+  // `jardines` son ejecutables por `anon` hoy, y las 8 son las rutas por token que deben serlo.
+  //
+  // La convención se hace cumplir de aquí en adelante, que es donde puede evitar el agujero.
+  const ledger = leer("supabase/migrations/APLICADAS.txt");
+  const yaAplicadas = new Set(
+    ledger.split("\n").filter((l) => /^\d{14}\s/.test(l)).map((l) => l.slice(0, 14)),
+  );
+  const archivos = leerDir("supabase/migrations")
+    .filter((f) => f.endsWith(".sql") && !yaAplicadas.has(f.slice(0, 14)));
+  const fallos = [];
+  for (const f of archivos) {
+    const sql = leer(`supabase/migrations/${f}`).replace(/^\s*--.*$/gm, "");
+    for (const m of sql.matchAll(/create\s+(or\s+replace\s+)?function\s+jardines\.(\w+)\s*\(/gi)) {
+      const fn = m[2];
+      const revocaPublic = new RegExp(`revoke[^;]*on function jardines\\.${fn}\\b[^;]*from[^;]*\\bpublic\\b`, "i").test(sql);
+      const revocaAnon = new RegExp(`revoke[^;]*on function jardines\\.${fn}\\b[^;]*from[^;]*\\banon\\b`, "i").test(sql);
+      // Las que SÍ deben ser públicas (rutas por token) se conceden a `anon` a propósito.
+      const concedeAnon = new RegExp(`grant execute on function jardines\\.${fn}\\b[^;]*to[^;]*\\banon\\b`, "i").test(sql)
+        || new RegExp(`'jardines\\.${fn}\\s*\\(`).test(sql);
+      if (concedeAnon) continue;
+      // Las funciones de usar y tirar de una poscondición se crean y se borran en el acto.
+      if (new RegExp(`drop function jardines\\.${fn}\\b`, "i").test(sql)) continue;
+      if (!revocaPublic || !revocaAnon) fallos.push(`${f}: ${fn} (public:${revocaPublic ? "ok" : "NO"} anon:${revocaAnon ? "ok" : "NO"})`);
+    }
+  }
+  check(
+    "1.3: toda función de una migración NO aplicada se revoca de `public` y de `anon`",
+    fallos.length === 0,
+    fallos.join(" · "),
+  );
 }
 
 // ---------------------------------------------------------------- salida

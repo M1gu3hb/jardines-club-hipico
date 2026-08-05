@@ -1,0 +1,102 @@
+# Lo que la base dice que se ha aplicado — y por qué este archivo existe
+#
+# `supabase db push` compara el PREFIJO del nombre de archivo con
+# `supabase_migrations.schema_migrations.version`. Cualquier archivo cuyo prefijo no esté ahí lo
+# considera PENDIENTE y lo ejecuta.
+#
+# Durante meses 16 de los 25 archivos tuvieron prefijos redondos inventados (…220000, …221000)
+# que no correspondían a ninguna versión registrada. Consecuencia, comprobada leyendo el
+# contenido de las migraciones implicadas:
+#
+#   `supabase db push` habría reejecutado sec_11 … sec_25 en orden de archivo:
+#     · sec_13:75  →  `grant insert on jardines.solicitudes to anon` + `solicitudes_anon_ins`
+#                     — reabre el alta pública sobre la tabla de leads;
+#     · sec_20:9   →  lee `staff_token`, columna que ese mismo archivo borra en :79 y que hoy NO
+#                     existe  →  el push ABORTA ahí;
+#     · sec_21     →  que es justamente la que retira ese INSERT, NO llega a ejecutarse.
+#
+#   Resultado: `anon` con INSERT sobre `solicitudes` y las migraciones 21-25 sin reaplicar, a
+#   partir del comando de despliegue estándar.
+#
+# ARREGLO: se renombraron los 16 archivos a su versión registrada (`git mv`, sin tocar una sola
+# línea de SQL). El ledger es la fuente de verdad de qué corrió; el nombre del archivo solo tiene
+# que coincidir con él. Renombrar NO es reescribir una migración aplicada — su contenido es
+# idéntico— y las versiones registradas conservan el orden sec_01 … sec_25.
+#
+# Este archivo es la copia del ledger que el contrato `1.1` compara contra los nombres de
+# archivo, para que la divergencia no pueda volver en silencio. Si aplicas una migración nueva,
+# añade aquí su versión.
+#
+# ─────────────────────────────────────────────────────────────────────────────
+# ⚠️ ESTE PROYECTO NO SE PUEDE RECONSTRUIR DESDE CERO. Las 19 migraciones que CREARON la base
+#    —`jardines_01_schema_expose` … `jardines_11_staff_invitacion_rsvp` y `operativo_01` …
+#    `operativo_09`— están en el ledger y **no existen como archivo en este repositorio**. Un
+#    `db push` contra una base vacía fallaría en `sec_01`, que ya da por hechas las tablas.
+#    Recuperarlas exige volcar el esquema de producción, y ese volcado incluiría el schema
+#    `public` de Vero Seguros, así que no es una operación que se pueda hacer sin su visto bueno.
+#    Está anotado como deuda; no se resuelve aquí.
+# ─────────────────────────────────────────────────────────────────────────────
+
+# ── Fundacionales (en el ledger, SIN archivo en este repo) ──────────────────
+20260705231107  jardines_01_schema_expose
+20260705231200  jardines_02_tables
+20260705231333  jardines_03_rls
+20260705231431  jardines_04_triggers_rpc_storage
+20260705232307  jardines_05_solicitudes_insert_publico
+20260706002414  jardines_06_resena_moderacion
+20260706020618  jardines_08_wishlist_notas_notificaciones
+20260706042458  jardines_09_portal_sugerible_anticipo_musica
+20260706183311  jardines_10_admins_creado_por
+20260706192640  jardines_11_staff_invitacion_rsvp
+20260707015859  operativo_01_schema
+20260707015957  operativo_02_rls_realtime_storage
+20260707020338  operativo_03_progreso_ocupadas
+20260707021019  operativo_04_ubicar_rpc
+20260707021111  operativo_05_evento_activo_rpc
+20260707021949  operativo_06_mesa_token_default
+20260707022142  operativo_07_info_mesa_publica
+20260707022404  operativo_08_fix_rls_recursion
+20260707023028  operativo_09_perfil_rol_operativo
+
+# ── De Vero Seguros (schema `public`) — NO TOCAR ────────────────────────────
+20260729000206  vero_seguros_schema
+20260729000232  vero_seguros_seed
+20260729024411  insurer_logos
+20260729044838  detalles_pagos_planseguro
+20260729162623  proximamente_fecha_cuenta_regresiva
+20260729173843  textos_editables
+20260729173911  textos_editables_clave_camel
+20260729185426  vero_blindaje_permisos_y_almacenamiento
+20260729190112  vero_bitacora_de_cambios
+20260729214217  vero_bitacora_identifica_frases_por_clave
+
+# ── Blindaje de Jardines (SÍ están como archivo) ────────────────────────────
+20260801212308  jardines_sec_01_privado_auditoria_ratelimit
+20260801212458  jardines_sec_02_handle_new_user_sin_escalamiento
+20260801212847  jardines_sec_03_operativo_aislado_por_evento
+20260801213234  jardines_sec_04_tokens_staff
+20260801213443  jardines_sec_05_solicitudes_rpc_y_rate_limits_publicos
+20260801213613  jardines_sec_06_matriz_rls_y_grants
+20260801213853  jardines_sec_07_indices_storage_constraints
+20260801213926  jardines_sec_08_auditoria_operaciones_sensibles
+20260801214132  jardines_sec_09_consolidar_policies_permisivas
+20260801215026  jardines_sec_11_revoca_execute_public_residual
+20260801215125  jardines_sec_12_fix_trigger_auditoria_operativo
+20260801215424  jardines_sec_13_solicitudes_compat_saneada
+20260801225340  jardines_sec_14_operativo_fail_closed
+20260801225524  jardines_sec_15_api_ratelimit_idempotencia
+20260801225915  jardines_sec_16_acceso_unico
+20260801230119  jardines_sec_17_search_path_vacio_y_grants_privados
+20260801232933  jardines_sec_18_acceso_global_y_sin_dominio
+20260801233038  jardines_sec_19_idempotencia_recuperable_y_canje_dos_fases
+20260802003808  jardines_sec_20_retiro_staff_token_en_claro
+20260802003820  jardines_sec_21_retiro_insert_publico_solicitudes
+20260802012110  jardines_sec_22_limpia_perfil_cruzado_vero
+20260803194855  jardines_sec_23_retiro_rpcs_residuales
+20260803203804  jardines_sec_24_salon_planos_unico_y_path
+20260804181430  jardines_sec_25_evento_solicitud_id
+
+# ── PENDIENTES: escritas, ensayadas y NO aplicadas ──────────────────────────
+# Están en el repo a propósito y NO deben figurar arriba hasta que el dueño las apruebe.
+# PENDIENTE  20260805120000  jardines_sec_26_invitacion_cliente
+# PENDIENTE  20260805130000  jardines_sec_27_permisos_por_columna_y_defaults

@@ -16,7 +16,7 @@ import { Estado, EsqueletoFilas } from "@/components/ui/Estado";
  * NOTA: cuando exista el plano real del salón, `plano.imagenPlanoUrl` se pintará como fondo
  * del lienzo (ver más abajo). Hoy se usa un fondo placeholder de rejilla.
  */
-export default function MesaEditor({ eventoId, salonId, reglas, editable = false }) {
+export default function MesaEditor({ eventoId, salonId, reglas, editable = false, esCliente = false }) {
   const [mesas, setMesas] = useState([]);
   const [plano, setPlano] = useState(null);
   const [sel, setSel] = useState(null); // mesa seleccionada
@@ -73,7 +73,67 @@ export default function MesaEditor({ eventoId, salonId, reglas, editable = false
     await base44.entities.Mesa.update(id, campos);
   };
 
+  /**
+   * Borrar una mesa era lo más destructivo del editor y lo único sin confirmar — cuando borrar
+   * una simple invitación sí la pide.
+   *
+   * `invitados.mesa_id` es **ON DELETE CASCADE**: se lleva por delante los nombres, sin copia.
+   * `invitaciones.mesa_id` es SET NULL, así que los QR ya impresos **sobreviven y siguen
+   * validando**: en la puerta, el mesero lee bajo «SU MESA» la palabra «Sin mesa». Y este editor
+   * se le entrega al CLIENTE cuando `clientePuedeEditar` está encendido, sobre un lienzo que
+   * responde a `pointerdown`: en un móvil, un toque de más.
+   *
+   * La confirmación dice **qué se lleva por delante y cuánto**, no «¿estás seguro?». Los números
+   * se leen aquí, en el momento, y con `filterEstricto`: si la lectura falla NO se dice «no tiene
+   * invitados» —eso es J-02 en el peor sitio posible—, se dice que no se pudo comprobar.
+   */
   const borrar = async (id) => {
+    const mesa = mesas.find((m) => m.id === id);
+    let nInv = null, nQr = null;
+    try {
+      const [invs, qrs] = await Promise.all([
+        base44.entities.Invitado.filterEstricto({ mesaId: id }),
+        base44.entities.Invitacion.filterEstricto({ mesaId: id }),
+      ]);
+      nInv = invs.length; nQr = qrs.length;
+    } catch {
+      nInv = null; nQr = null;
+    }
+
+    // DECISIÓN: el cliente no borra una mesa con invitaciones ya emitidas. Un QR repartido es
+    // algo que ya salió de aquí —impreso, mandado por WhatsApp— y el cliente no tiene forma de
+    // reemitirlo ni de avisar a quien lo tenga. El admin sí puede, así que a él solo se le
+    // advierte. Con la lectura caída se bloquea igual: no saber cuántas hay no es saber que no hay.
+    if (esCliente && nQr !== 0) {
+      alert(
+        nQr === null
+          ? "No se pudo comprobar si esta mesa tiene invitaciones ya emitidas, así que no se " +
+            "borra. Inténtalo de nuevo en un momento."
+          : `Esta mesa tiene ${nQr} ${nQr === 1 ? "invitación ya emitida" : "invitaciones ya emitidas"}. ` +
+            "Sus códigos QR ya están repartidos y seguirían funcionando sin mesa, así que hay que " +
+            "quitarlas primero. Pídeselo a Jardines.",
+      );
+      return;
+    }
+
+    const lineas = [
+      `Vas a borrar «${mesa?.nombre || "esta mesa"}».`,
+      "",
+      nInv === null
+        ? "· NO se pudo comprobar cuántos invitados tiene. Si tiene, se borrarán con ella y no se pueden recuperar."
+        : nInv > 0
+          ? `· Se borrarán también sus ${nInv} ${nInv === 1 ? "invitado" : "invitados"}, y no se pueden recuperar.`
+          : "· No tiene invitados asignados.",
+      nQr === null
+        ? "· Tampoco se pudo comprobar si tiene invitaciones emitidas."
+        : nQr > 0
+          ? `· Sus ${nQr} ${nQr === 1 ? "invitación seguirá" : "invitaciones seguirán"} funcionando, pero sin mesa: en la puerta se leerá «Sin mesa».`
+          : null,
+      "",
+      "¿Borrar la mesa?",
+    ].filter((l) => l !== null);
+    if (!confirm(lineas.join("\n"))) return;
+
     await base44.entities.Mesa.delete(id);
     setSel(null);
     cargar();

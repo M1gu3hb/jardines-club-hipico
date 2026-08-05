@@ -1,5 +1,142 @@
 # CHANGELOG.md
 
+## 2026-08-05 — A-bis y A-ter: el cable que faltaba, y los contratos que solo miraban la forma
+
+### A-bis — `sec_26` no arreglaba el P0 para el que se escribió
+
+La migración estaba bien construida, bien ensayada y documentada. **Y no la llamaba nadie:**
+`grep -rn invitacion_guardar src/ api/` daba **0**. Sus dos únicas apariciones fuera de la
+migración eran contratos **en verde** comprobando los `grant`/`revoke` de una función que ningún
+código invoca.
+
+Si se hubiera desplegado así: el dueño aprueba la migración → se aplica → se prueba el portal →
+sale el **mismo** error de permisos → se concluye que la vía RPC no sirve. La conclusión sería
+falsa y habría cerrado el camino correcto.
+
+`PortalInvitacion` llama ya a `base44.rpc("invitacion_guardar", …)`. **Sin respaldo a
+`updateEstricto`**: un respaldo que tampoco puede funcionar solo sirve para volver a confundir la
+causa. Hoy la RPC no existe en la base, así que falla —legiblemente—: `PGRST202` se traduce a
+«todavía no está habilitada», que es una frase distinta de «no tienes permiso», y cada `motivo`
+de la RPC tiene su mensaje.
+
+**Y un contrato genérico que ata migración y llamador.** Encontró **seis huérfanas más**, todas
+anteriores y verificadas con cero apariciones en `src/`, `api/` y el bundle construido —
+`registrar_llegada_mesa`, `revocar_staff_token`, `confirmar_evento`, `auditoria_reciente`,
+`operativo_ubicar`, `operativo_evento_activo` (J-16).
+
+Las cinco menores, todas confirmadas antes de aplicarlas:
+
+- El comentario que afirmaba que «un admin también pasa por aquí» era **falso**: `is_my_event`
+  es solo `auth_user_id = auth.uid()`, leído de la definición en la base. Y lo decía describiendo
+  la opción B — que con esta función **no funcionaría**.
+- El puntero a una sección de `VALIDACION.md` que no existe: fuera.
+- El aviso del panel **deriva ahora del hecho comprobable** (`invitacionToken`), no de
+  `invitacionActiva`: el día que funcione, un cliente que active y luego desactive ya no dispara
+  «nunca se ha guardado».
+- `setOk(false)` y `ok && !error` en `PortalInvitacion`, a la par de las otras dos pantallas.
+- Las poscondiciones de `sec_26` comprueban las policies **por nombre** contra una foto de antes,
+  en vez de prometer «ni las policies» mirando solo `relrowsecurity`.
+
+### A-ter — 15 contratos vacuos y 18 ruidosos, arreglados afirmando propiedades
+
+Tres reglas, cada una nacida de una vacuidad medida:
+
+| Regla | Lo que dejaba pasar |
+|---|---|
+| **Alcanzabilidad, no orden de índices** | `await …updateEstricto(…).catch(() => {})` — el «Guardado ✓» volvía a mentir y los tres `indexOf` seguían en orden, porque un `.catch` no contiene `"} catch"` |
+| **Todas las apariciones, no la primera** | un **segundo** `update … set auth_user_id` detrás del bueno en `sec_26`; una segunda copia del aviso, mal guardada, detrás de la buena |
+| **Derivar identificadores, no fijarlos** | renombrar `debil` tumbaba dos contratos; `data`→`fila` y `(data||[]).length===0` rompían el de `updateEstricto` |
+
+Un helper único, `confirmacionAtadaALaEscritura`, sustituye la comparación de índices: exige que
+la escritura no lleve `.catch(` pegado, que no se pueda saltar —distinguiendo un `if/else` que
+despacha de un `if` que salta—, que haya `catch`, que el éxito se marque **una sola vez** y
+después de escribir, y que el cartel del render cuelgue de ese estado excluyendo el de error.
+Los nombres de los dos estados se leen del código.
+
+Y la clasificación de errores de Auth audita también `.includes("password")` y hermanos, no solo
+literales de regex: la palabra suelta volvía por la puerta de al lado.
+
+**Los contratos que solo miraban comentarios: retirados o reducidos a su mitad ejecutable**
+(D-COD-20). Fallaban las dos direcciones a la vez — no impedían reintroducir el bug y sí rompían
+con un sinónimo.
+
+**278 → 280 contratos.** 15 mutaciones destructivas fallan (las 15 que el brief midió en verde);
+7 inocuas pasan, tres de ellas solo después de arreglar el contrato que rompían.
+
+## 2026-08-05 — Bloque de cierre, fases 0 y A
+
+> **Desplegado (fase 0).** PR #11 mergeado como `ee19d7a`; deployment
+> `dpl_9c5WPM3Xh3rUjEQzMSKQf8pREJmX`, READY, target `production`, bundle
+> `assets/index-DVu0CBUL.js`. Es 9F + las tres correcciones de su auditoría.
+>
+> **La fase A NO está desplegada** (rama `claude/jardines-security-hardening-rkse8k`).
+
+### Fase 0 — los restos de la auditoría de 9F
+
+- **0.a · N1.** El contrato de G1 derivaba bien el array del render pero exigía el literal
+  `salones.length === 0`, así que `(salones || []).length === 0` —mismo comportamiento,
+  estrictamente más seguro— lo hacía **fallar**. Y no era hipotético: en `EventoDatos` los otros
+  dos props tienen valor por defecto y `salones` no, así que la edición defensiva natural sobre
+  ese archivo era justo la prohibida. Ahora afirma la propiedad y no la forma. **Mutar destapó
+  que el aviso hermano tenía el mismo defecto un contrato más allá.**
+- **0.b.** `duplicado` seguía clasificando desde una subcadena justo encima de lo que arregló
+  G4. Comprobado en `@supabase/auth-js` (`lib/error-codes.d.ts`): `email_exists` y
+  `user_already_exists` son códigos declarados. Código primero, frases completas de respaldo, y
+  el contrato pasa a exigirlo en **las dos** clasificaciones.
+- **0.c.** Comprobado que el matiz de «lista vieja» no es alcanzable: `AdminDashboard` monta la
+  pestaña con `{active === "eventos" && …}`, así que un prellenado llega siempre sobre un
+  montaje nuevo. Es una nota donde se leen los avisos, con la condición que la invalidaría.
+
+### Fase A — la escritura que fabricaba el éxito
+
+**Comprobado ejecutando** contra la base, en un bloque revertido:
+
+| Operación denegada por RLS | Qué devuelve |
+|---|---|
+| `UPDATE` | **sin error, 0 filas** |
+| `DELETE` | **sin error, 0 filas** |
+| `INSERT` | `ERROR 42501` |
+
+De esa asimetría sale todo: `create` no necesita variante estricta; `update` y `delete` sí.
+
+**A.1 · La decisión: `updateEstricto` aditivo, no cambiar `update`.** El argumento no es el
+precedente de `filterEstricto` sino el inventario: de las **71 escrituras** del proyecto, **diez
+componentes escriben sin un solo `catch`**. Hacer que `update` lance cambiaría hoy el engaño
+silencioso por un botón girando para siempre sin mensaje —que es exactamente el síntoma de las
+tres funciones muertas de este bloque— y aterrizaría días antes de la validación del dueño.
+
+**A.2 · El P0: la invitación digital del cliente nunca se guardó.** `eventos_upd` exige
+`is_admin()`, los usuarios del portal tienen rol `cliente`, y `count(invitacion_token)` en
+producción es **0**. `PortalInvitacion` es su único escritor en todo el repo.
+
+Y el panel decía «El cliente aún no activó su invitación digital (la crea desde su portal)»:
+le atribuía al cliente la causa de algo que el cliente **no puede hacer**. Esa frase plausible
+es la que cerró la investigación durante meses.
+
+**`sec_26` escrita y NO aplicada.** RPC `security definer` acotada a las cuatro columnas de la
+invitación contra `is_my_event`. No una policy: las policies de `jardines` conceden la fila
+entera (J-10), así que dejar al cliente escribir su evento le dejaría escribir también
+`auth_user_id` — la entrada del P0 del bloque 8. Ensayada en un bloque revertido por
+construcción; Vero idéntico antes y después (policies 134→134, funciones de `public` 4→4).
+**`sec_26` estaba reservado para el `unique` de `solicitud_id` (J-13); ese pasa a `sec_27`.**
+
+### Autoauditoría — lo que encontró, que no fue nada
+
+Cuatro contratos míos, recién escritos, fallaban una de las dos direcciones:
+
+| Contrato | Qué no veía | Cómo salió |
+|---|---|---|
+| aviso «desactualizada» | exigía el literal, igual que N1 | mutación inocua |
+| clasificación por código | exigía la forma `codigo === "x"` | inocua con `.includes(codigo)` |
+| `sec_26` cuatro columnas | contaba solo columnas `invitacion_*`, así que colar **`auth_user_id = auth.uid()`** en el `SET` pasaba en verde | mutación destructiva |
+| lanza con cero filas | ataba el nombre del ayudante interno | inocua al renombrarlo |
+
+El tercero es el que importa: era la columna del P0 del bloque 8, en la migración escrita para
+cerrar otro P0.
+
+**Contratos 270 → 278.** 20 mutaciones destructivas fallan su contrato; 6 inocuas pasan, cuatro
+de ellas solo después de arreglar el contrato que rompían.
+
 ## 2026-08-04 — Fase A: bloque 9 en producción, y 9F: los contratos que solo certificaban prosa
 
 > **Desplegado.** PR #10 mergeado como `1b0fb4f`; deployment `dpl_46GCBEcs83c7L5ksT6yZJxAH2fJ8`,

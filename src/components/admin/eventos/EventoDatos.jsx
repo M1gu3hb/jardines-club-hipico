@@ -10,6 +10,7 @@ export default function EventoDatos({ evento, salones, salonesIlegibles = false,
   const [guardando, setGuardando] = useState(false);
   const [ok, setOk] = useState(false);
   const [errorNombre, setErrorNombre] = useState("");
+  const [errorGuardar, setErrorGuardar] = useState("");
   const set = (k, v) => { setForm((f) => ({ ...f, [k]: v })); setOk(false); if (k === "nombreEvento") setErrorNombre(""); };
 
   // Credenciales (solo si el evento aún no tiene usuario ligado).
@@ -63,6 +64,39 @@ export default function EventoDatos({ evento, salones, salonesIlegibles = false,
       return;
     }
     setErrorNombre("");
+    setErrorGuardar("");
+
+    // ═══ CANCELAR APAGA LAS COSAS (B.4) ═══
+    //
+    // `estatus = 'Cancelado'` no tocaba nada más: el portal seguía abierto, la invitación
+    // digital seguía aceptando confirmaciones, el QR de staff seguía validando en la puerta y el
+    // operativo seguía activo. Dos días después, el cron le escribía a la pareja que canceló su
+    // boda: «⭐ ¿Cómo estuvo tu boda? … esperamos que haya sido inolvidable».
+    //
+    // QUÉ IMPLICA CANCELAR, decidido aquí y escrito: se apaga **todo lo que da acceso** —portal,
+    // invitación, operativo— y se **revoca el token de staff**, que es lo único que se puede
+    // usar desde fuera sin sesión. NO se borra nada: ni las confirmaciones, ni los invitados, ni
+    // el enlace de la invitación. Cancelar es cerrar las puertas, no vaciar la casa.
+    //
+    // Y NO es reversible solo: volver a poner el evento en «Confirmado» no vuelve a encender
+    // nada, porque no se puede saber qué estaba encendido antes. Por eso se avisa ANTES, con la
+    // lista de lo que se apaga, en vez de descubrirlo después.
+    const cancelando = form.estatus === "Cancelado" && evento.estatus !== "Cancelado";
+    if (cancelando) {
+      const ok = confirm(
+        "Vas a marcar este evento como CANCELADO.\n\n" +
+        "Se apagará el acceso de todos:\n" +
+        "· el portal del cliente\n" +
+        "· su invitación digital (deja de aceptar confirmaciones)\n" +
+        "· el operativo\n" +
+        "· y se revocará el QR de meseros, que es el único que funciona sin sesión.\n\n" +
+        "No se borra nada: las confirmaciones, los invitados y el enlace se conservan.\n" +
+        "Pero volver a activarlo hay que hacerlo a mano, uno por uno.\n\n" +
+        "¿Cancelar el evento?",
+      );
+      if (!ok) return;
+    }
+
     setGuardando(true);
     const patch = {
       nombreEvento: form.nombreEvento.trim(),
@@ -83,11 +117,51 @@ export default function EventoDatos({ evento, salones, salonesIlegibles = false,
       // reponía el valor que ya venía de la base. Un anticipo capturado por error
       // quedaba marcado para siempre. Ahora borrar el monto lo revierte.
       anticipoPagado: Number(form.anticipoMonto) > 0,
+      // Lo que apaga la cancelación. Va en el MISMO patch que el estatus: si fueran dos
+      // escrituras, un fallo entre ellas dejaría el evento cancelado con el portal abierto, que
+      // es peor que el estado de partida porque además parece resuelto.
+      ...(cancelando ? { portalActivo: false, invitacionActiva: false, operativoActivo: false } : {}),
     };
-    const actualizado = await base44.entities.Evento.update(evento.id, patch);
-    setGuardando(false);
-    setOk(true);
-    onActualizado?.({ ...evento, ...patch, ...actualizado });
+    // `updateEstricto`: es el guardado principal del panel y **afirma** «Guardado.». Con
+    // `update`, una escritura que RLS dejara en cero filas devuelve el propio `patch`, así que
+    // `onActualizado` repintaría la ficha con los valores nuevos, el dueño leería «Guardado.» y
+    // la base seguiría con los viejos. Es la misma forma del P0 del portal, un piso más arriba.
+    //
+    // Y con `try/catch`: sin él, cambiar a estricto convertiría la mentira en un botón girando
+    // para siempre. Eso es exactamente lo que hace que las tres funciones muertas de este
+    // bloque lo estén — no se puede arreglar una mitad y dejar la otra.
+    try {
+      const actualizado = await base44.entities.Evento.updateEstricto(evento.id, patch);
+      // El token de staff no es una columna que se pueda apagar desde aquí: está hasheado
+      // (`staff_token_hash`, desde `sec_20`) y se revoca por su RPC, que ya existía y **no tenía
+      // un solo llamador** — era una de las siete huérfanas de J-16. Cancelar es exactamente su
+      // caso de uso.
+      //
+      // Si la revocación falla, se dice: el evento queda cancelado pero el QR sigue vivo, y eso
+      // el dueño tiene que saberlo para revocarlo a mano desde la pestaña de meseros.
+      if (cancelando) {
+        try {
+          await base44.rpc("revocar_staff_token", { p_evento: evento.id });
+        } catch (e) {
+          console.error("[EventoDatos] revocar_staff_token", e?.message);
+          setErrorGuardar(
+            "El evento quedó cancelado, pero NO se pudo revocar el QR de meseros: sigue " +
+            "funcionando. Revócalo a mano desde la pestaña «QR / Meseros».",
+          );
+        }
+      }
+      setOk(true);
+      onActualizado?.({ ...evento, ...patch, ...actualizado });
+    } catch (e) {
+      console.error("[EventoDatos] guardar", e?.message);
+      setErrorGuardar(
+        e?.code === "escritura_sin_efecto"
+          ? "No se guardó: la base no modificó ninguna fila. Puede ser un problema de permisos, o que el evento ya no exista. Recarga la página."
+          : "No se pudo guardar. Revisa la conexión e inténtalo otra vez.",
+      );
+    } finally {
+      setGuardando(false);
+    }
   };
 
   const crearCredenciales = async () => {
@@ -236,7 +310,8 @@ export default function EventoDatos({ evento, salones, salonesIlegibles = false,
           className="flex items-center gap-2 bg-[#C9A84C] text-[#0a0a0a] px-6 py-2.5 text-sm font-medium hover:bg-[#d4b558] transition-all disabled:opacity-50">
           {guardando ? <Loader2 size={13} className="animate-spin" /> : <Check size={13} />} Guardar cambios
         </button>
-        {ok && <span className="text-green-400/80 text-xs">Guardado.</span>}
+        {ok && !errorGuardar && <span className="text-green-400/80 text-xs">Guardado.</span>}
+        {errorGuardar && <span className="text-red-400/90 text-xs">{errorGuardar}</span>}
       </div>
 
       {/* Lo que el cliente sueña (wishlist + notas de su portal) */}

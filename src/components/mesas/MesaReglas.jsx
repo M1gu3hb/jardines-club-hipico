@@ -16,6 +16,7 @@ export default function MesaReglas({ eventoId, onCambio }) {
   const [guardando, setGuardando] = useState(false);
   const [ok, setOk] = useState(false);
   const [errorCarga, setErrorCarga] = useState(null);
+  const [errorGuardar, setErrorGuardar] = useState("");
 
   const cargar = () =>
     base44.entities.EventoReglasMesas.filterEstricto({ eventoId })
@@ -50,6 +51,7 @@ export default function MesaReglas({ eventoId, onCambio }) {
 
   const guardar = async () => {
     setGuardando(true);
+    setErrorGuardar("");
     const datos = {
       eventoId,
       formasPermitidas: reglas.formasPermitidas,
@@ -57,13 +59,31 @@ export default function MesaReglas({ eventoId, onCambio }) {
       capacidadLibre: !!reglas.capacidadLibre,
       clientePuedeEditar: !!reglas.clientePuedeEditar,
     };
-    let guardado;
-    if (reglas.id) guardado = await base44.entities.EventoReglasMesas.update(reglas.id, datos);
-    else guardado = await base44.entities.EventoReglasMesas.create(datos);
-    setReglas((r) => ({ ...r, ...datos, id: guardado?.id || r.id }));
-    setGuardando(false);
-    setOk(true);
-    onCambio?.({ ...datos, id: guardado?.id || reglas.id });
+    // `updateEstricto` + `catch`. Esta pantalla afirmaba «Guardado.» sin mirar: con `update`,
+    // una escritura de cero filas devuelve el propio `datos` y `setReglas` repintaba las reglas
+    // nuevas sobre unas que la base no había cambiado. Y estas reglas GOBIERNAN lo que el
+    // cliente puede hacer con sus mesas (`clientePuedeEditar`), así que una falsa confirmación
+    // aquí es un permiso que el dueño cree haber quitado y sigue puesto.
+    //
+    // `create` no necesita la variante estricta: un INSERT denegado por RLS **sí** devuelve
+    // error (42501) y el shim lo relanza. El agujero silencioso es de `update` y `delete`.
+    try {
+      let guardado;
+      if (reglas.id) guardado = await base44.entities.EventoReglasMesas.updateEstricto(reglas.id, datos);
+      else guardado = await base44.entities.EventoReglasMesas.create(datos);
+      setReglas((r) => ({ ...r, ...datos, id: guardado?.id || r.id }));
+      setOk(true);
+      onCambio?.({ ...datos, id: guardado?.id || reglas.id });
+    } catch (e) {
+      console.error("[MesaReglas] guardar", e?.message);
+      setErrorGuardar(
+        e?.code === "escritura_sin_efecto"
+          ? "No se guardaron: la base no modificó ninguna fila. Recarga la página y vuelve a intentarlo."
+          : "No se pudieron guardar las reglas. Revisa la conexión e inténtalo otra vez.",
+      );
+    } finally {
+      setGuardando(false);
+    }
   };
 
   return (
@@ -106,7 +126,8 @@ export default function MesaReglas({ eventoId, onCambio }) {
           className="flex items-center gap-2 bg-[#C9A84C] text-[#0a0a0a] px-5 py-2 text-sm font-medium hover:bg-[#d4b558] transition-all disabled:opacity-50">
           {guardando ? <Loader2 size={13} className="animate-spin" /> : <Check size={13} />} Guardar reglas
         </button>
-        {ok && <span className="text-green-400/80 text-xs">Guardado.</span>}
+        {ok && !errorGuardar && <span className="text-green-400/80 text-xs">Guardado.</span>}
+        {errorGuardar && <span className="text-red-400/90 text-xs">{errorGuardar}</span>}
       </div>
     </div>
   );
