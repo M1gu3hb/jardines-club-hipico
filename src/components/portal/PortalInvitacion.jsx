@@ -6,6 +6,32 @@ import { Loader2, Check, Share2, Copy, ExternalLink, Users, Shirt, MessageSquare
 const invitacionUrl = (token) => `${window.location.origin}/invitacion/${token}`;
 
 /**
+ * Traduce lo que puede responder `jardines.invitacion_guardar` (`sec_26`) a algo que el cliente
+ * pueda leer. Un motivo por causa: mandar a "intentar de nuevo" algo que no va a funcionar
+ * nunca es la forma de mentira que costó el P0.
+ */
+const MOTIVOS = {
+  no_disponible: "No se encontró esta invitación, o no es de tu evento. Recarga la página.",
+  token_invalido: "No se pudo generar el enlace de tu invitación. Recarga la página e inténtalo otra vez.",
+  demasiado_largo: "El mensaje o el código de vestimenta son demasiado largos. Acórtalos e inténtalo otra vez.",
+  sin_efecto: "El cambio no llegó a guardarse. Recarga la página e inténtalo otra vez.",
+};
+const motivoRpc = (motivo) => {
+  const e = new Error(MOTIVOS[motivo] || "No se pudo guardar. Inténtalo de nuevo.");
+  /** @type {any} */ (e).motivo = motivo || "desconocido";
+  return e;
+};
+
+/**
+ * PostgREST responde `PGRST202` cuando la función no existe en el esquema expuesto. Aquí eso
+ * no es un error del cliente ni de la red: es que **`sec_26` todavía no está aplicada**, que es
+ * el estado de hoy. Decirlo con esas palabras evita que, el día que se aplique, un fallo
+ * distinto se lea como "sigue sin haber permisos" y se concluya que la vía RPC no sirve.
+ */
+const noHabilitada = (e) =>
+  e?.code === "PGRST202" || /Could not find the function|schema cache/i.test(e?.message || "");
+
+/**
  * PortalInvitacion — el cliente crea y comparte su invitación digital y ve las
  * confirmaciones (RSVP) de sus invitados. La página pública vive en /invitacion/<token>.
  */
@@ -30,6 +56,11 @@ export default function PortalInvitacion({ evento }) {
 
   const guardar = async (activar) => {
     setGuardando(true);
+    // `setOk(false)` al empezar y el ✓ excluye el error: sin esto, un guardado bueno seguido de
+    // uno fallido deja «Guardado ✓» y el mensaje de error juntos. Hoy es inalcanzable —nunca
+    // hay un guardado bueno— y se activa el dia en que la escritura funcione, que es el dia en
+    // que importa. Misma forma que `EventoDatos` y `MesaReglas`.
+    setOk(false);
     setError("");
     try {
       // El token ES la credencial de /invitacion/<token>: se genera con WebCrypto
@@ -41,28 +72,49 @@ export default function PortalInvitacion({ evento }) {
         invitacionMensaje: form.invitacionMensaje || null,
         invitacionDressCode: form.invitacionDressCode || null,
       };
-      // `updateEstricto` y NO `update`. Esta pantalla es el P0 del bloque de cierre: `update`
-      // devuelve el parche que se le pasa cuando RLS deja el UPDATE en cero filas, así que
-      // durante meses el cliente escribió su mensaje, leyó «Guardado ✓», recibió la tarjeta
-      // «Comparte tu invitación» y mandó por WhatsApp un enlace que a sus invitados les decía
-      // «Esta invitación no está disponible por ahora». `eventos_upd` exige `is_admin()` y los
-      // usuarios del portal tienen rol `cliente`: el UPDATE no tocó NUNCA una fila —comprobado,
-      // `count(invitacion_token)` es 0 en producción— y nada lo dijo.
+      // POR LA RPC, NO POR `entities.Evento`. Este es el P0 del bloque de cierre y su arreglo
+      // tiene dos mitades; la primera versión solo hizo una.
       //
-      // Con esto, el fallo se ve: se lanza, se pinta el error, `setForm` no corre y la tarjeta
-      // de compartir —que cuelga de `form`— no aparece. Deja de mentir aunque la función siga
-      // sin poder funcionar; que pueda funcionar exige `sec_26`, que es decisión del dueño.
-      await base44.entities.Evento.updateEstricto(evento.id, patch);
-      setForm((f) => ({ ...f, ...patch }));
+      //   1. Que deje de mentir. `update` devolvía el parche que se le pasaba cuando RLS dejaba
+      //      el UPDATE en cero filas, así que durante meses el cliente escribió su mensaje, leyó
+      //      «Guardado ✓», recibió la tarjeta «Comparte tu invitación» y mandó por WhatsApp un
+      //      enlace que a sus invitados les decía «Esta invitación no está disponible por
+      //      ahora». Comprobado: `count(invitacion_token)` = 0 en producción, ni una vez.
+      //
+      //   2. Que **pueda funcionar**. `eventos_upd` exige `is_admin()` y el portal es rol
+      //      `cliente`, así que CUALQUIER camino por `entities.Evento` seguirá tocando cero
+      //      filas por muy estricto que sea. `sec_26` existe justamente para eso — y estaba
+      //      escrita, ensayada y **sin que nadie la llamara**. Una pieza correcta que nadie
+      //      invoca es indistinguible de una que no existe, salvo porque parece resuelta.
+      //
+      // Hoy `sec_26` NO está aplicada, así que esta llamada falla. Falla **legiblemente** y con
+      // un motivo propio (ver `MOTIVOS` / `noHabilitada`): sin eso, el día que el dueño la apruebe y algo
+      // no funcione, el mensaje de "permisos" apuntaría al sitio equivocado.
+      //
+      // No hay respaldo a `updateEstricto` a propósito. Un respaldo que tampoco puede funcionar
+      // solo sirve para volver a confundir la causa, que es el error que este bloque persigue.
+      const r = await base44.rpc("invitacion_guardar", {
+        p_evento_id: evento.id,
+        p_token: token,
+        p_activa: patch.invitacionActiva,
+        p_mensaje: patch.invitacionMensaje,
+        p_dress_code: patch.invitacionDressCode,
+      });
+      if (!r?.ok) throw motivoRpc(r?.motivo);
+      // El token que vale es el que devuelve la base, no el que se mandó: si la invitación ya
+      // tenía uno, `sec_26` conserva el viejo y crear uno nuevo aquí dejaría muertos los
+      // enlaces ya repartidos.
+      setForm((f) => ({ ...f, ...patch, invitacionToken: r.token || token }));
       setOk(true);
     } catch (e) {
-      // Dos causas distintas, dos mensajes distintos. "Intenta de nuevo" ante un permiso
-      // denegado manda al cliente a repetir algo que no va a funcionar nunca.
+      // Tres causas distintas, tres mensajes distintos. "Intenta de nuevo" ante algo que no
+      // puede funcionar manda al cliente a repetir para siempre; y confundir "todavía no está
+      // habilitado" con "no tienes permiso" es lo que haría descartar la vía correcta.
       setError(
-        e?.code === "escritura_sin_efecto"
-          ? "No se pudo activar la invitación: tu cuenta no tiene permiso para guardarla. " +
-            "Avísale a Jardines — no es algo que puedas resolver desde aquí."
-          : e?.message || "No se pudo guardar. Intenta de nuevo.",
+        noHabilitada(e)
+          ? "Esta función todavía no está habilitada. Avísale a Jardines: está pendiente de " +
+            "activarse, no es algo que puedas resolver desde aquí."
+          : e?.message || "No se pudo guardar. Inténtalo de nuevo.",
       );
     } finally {
       setGuardando(false);
@@ -110,7 +162,7 @@ export default function PortalInvitacion({ evento }) {
             {guardando ? <Loader2 size={13} className="animate-spin" /> : <Check size={14} />}
             {activa ? "Guardar cambios" : "Crear y activar invitación"}
           </button>
-          {ok && <span className="text-green-400/80 text-xs">Guardado ✓</span>}
+          {ok && !error && <span className="text-green-400/80 text-xs">Guardado ✓</span>}
           {error && <span className="text-red-400/90 text-xs">{error}</span>}
         </div>
       </div>

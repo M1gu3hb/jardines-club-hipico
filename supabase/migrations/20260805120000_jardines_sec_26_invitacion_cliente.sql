@@ -68,7 +68,20 @@ begin
       'Precondicion fallida: se esperaban 4 columnas de invitacion en jardines.eventos, hay %. Nada modificado.', v_ya;
   end if;
 
-  raise notice 'sec_26: precondiciones OK.';
+  -- ── FOTO DE ANTES, para que las poscondiciones puedan comprobar de verdad que no se
+  --    tocó nada. Va en una tabla temporal porque los bloques `do $$` no comparten variables:
+  --    sin esto, la poscondición sobre policies no tendría con qué comparar y acabaría siendo
+  --    la promesa vacía que era.
+  create temp table if not exists _sec26_antes (clave text primary key, valor text);
+  delete from _sec26_antes;
+  insert into _sec26_antes values
+    ('policies_eventos', (select string_agg(policyname, ',' order by policyname) from pg_policies
+                          where schemaname = 'jardines' and tablename = 'eventos')),
+    ('policies_vero',    (select count(*)::text from pg_policies where schemaname = 'public')),
+    ('funciones_vero',   (select count(*)::text from pg_proc p join pg_namespace n on n.oid = p.pronamespace
+                          where n.nspname = 'public'));
+
+  raise notice 'sec_26: precondiciones OK, foto de antes tomada.';
 end $$;
 
 -- `search_path = ''` y nombres completamente calificados: regla del proyecto para toda función
@@ -89,8 +102,19 @@ declare
   v_filas integer;
 begin
   -- 1) ¿Es SU evento? Fail-closed: `is_my_event` es la misma comprobación que gobierna todo el
-  --    resto del portal. Un admin también pasa por aquí sin problema si alguna vez hiciera
-  --    falta, porque `is_my_event` no excluye a nadie que ya tenga acceso a la fila.
+  --    resto del portal.
+  --
+  --    OJO, Y ESTO IMPORTA PARA LA OPCIÓN B: `is_my_event` es **exactamente**
+  --      `select exists (select 1 from jardines.eventos e where e.id = evt
+  --                     and e.auth_user_id = auth.uid())`
+  --    — comprobado leyendo la definición en la base, no supuesto. **No tiene rama
+  --    `is_admin()`.** Así que un admin que no sea el `auth_user_id` de ese evento —que es el
+  --    caso normal: ese uuid es el del cliente— recibe `no_disponible` por esta función.
+  --
+  --    Consecuencia: si la decisión del dueño fuera «la invitación la activa el dueño desde el
+  --    panel», esta función **no sirve tal cual**. El panel seguiría por `eventos_upd`, que ya
+  --    permite `is_admin()`, y entonces esta migración sobra entera. No se puede usar como
+  --    respaldo de las dos opciones a la vez.
   if p_evento_id is null or not jardines.is_my_event(p_evento_id) then
     -- Respuesta genérica: no se distingue "no existe" de "no es tuyo". Mismo criterio que las
     -- rutas por token (sec_04/sec_20) — decir cuál de las dos es filtra qué eventos existen.
@@ -141,7 +165,13 @@ declare
   v_path text[];
   v_publico integer;
   v_rls boolean;
+  v_policies_eventos text;
+  v_policies_vero text;
+  v_funciones_vero text;
 begin
+  select valor into v_policies_eventos from _sec26_antes where clave = 'policies_eventos';
+  select valor into v_policies_vero    from _sec26_antes where clave = 'policies_vero';
+  select valor into v_funciones_vero   from _sec26_antes where clave = 'funciones_vero';
   select p.prosecdef, p.proconfig into v_def, v_path
   from pg_proc p join pg_namespace n on n.oid = p.pronamespace
   where n.nspname = 'jardines' and p.proname = 'invitacion_guardar';
@@ -160,11 +190,40 @@ begin
     raise exception 'Poscondicion fallida: invitacion_guardar es ejecutable por PUBLIC.';
   end if;
 
-  -- Y que nada de esto haya tocado RLS ni las policies de `eventos`.
+  -- Y que nada de esto haya tocado RLS **ni las policies** de `eventos`.
+  --
+  -- La primera versión decía "ni las policies" y solo miraba `relrowsecurity`: un
+  -- `drop policy eventos_upd` la habría superado sin despeinarse. Una poscondición que promete
+  -- más de lo que comprueba es la misma clase de mentira que este bloque persigue, y en una
+  -- migración es peor, porque es lo único que separa "no toqué nada" de "creo que no toqué
+  -- nada". Ahora se comprueban las policies **por nombre**, no por cuántas hay: quitar una y
+  -- añadir otra deja el recuento igual.
   select relrowsecurity into v_rls from pg_class where oid = 'jardines.eventos'::regclass;
   if not coalesce(v_rls, false) then
     raise exception 'Poscondicion fallida: RLS quedo desactivado en jardines.eventos.';
   end if;
+
+  if (select string_agg(policyname, ',' order by policyname) from pg_policies
+      where schemaname = 'jardines' and tablename = 'eventos')
+     is distinct from v_policies_eventos then
+    raise exception
+      'Poscondicion fallida: cambiaron las policies de jardines.eventos. Antes: [%]. Ahora: [%].',
+      v_policies_eventos,
+      (select string_agg(policyname, ',' order by policyname) from pg_policies
+        where schemaname = 'jardines' and tablename = 'eventos');
+  end if;
+
+  -- Candado de Vero: esto no debería poder tocar `public` ni de rebote, pero afirmarlo es
+  -- barato y la base es compartida.
+  if (select count(*)::text from pg_policies where schemaname = 'public') is distinct from v_policies_vero then
+    raise exception 'Poscondicion fallida: cambiaron las policies del schema public (Vero).';
+  end if;
+  if (select count(*)::text from pg_proc p join pg_namespace n on n.oid = p.pronamespace
+      where n.nspname = 'public') is distinct from v_funciones_vero then
+    raise exception 'Poscondicion fallida: cambiaron las funciones del schema public (Vero).';
+  end if;
+
+  drop table if exists _sec26_antes;
 
   raise notice 'sec_26: invitacion_guardar creada (security definer, search_path fijo, execute solo authenticated).';
 end $$;

@@ -13,9 +13,14 @@
  * Son comprobaciones estáticas sobre el código, sin red y sin credenciales, así
  * que corren en CI sin tocar Supabase ni enviar correos.
  */
-import { readFileSync } from "node:fs";
+import { readFileSync, readdirSync } from "node:fs";
 
 const leer = (p) => readFileSync(new URL(`../${p}`, import.meta.url), "utf8");
+const leerDir = (p) => readdirSync(new URL(`../${p}`, import.meta.url));
+/** Lista recursiva de archivos bajo `p`, con rutas relativas a la raíz del repo. */
+const leerDirRec = (p) =>
+  readdirSync(new URL(`../${p}`, import.meta.url), { withFileTypes: true })
+    .flatMap((d) => (d.isDirectory() ? leerDirRec(`${p}/${d.name}`) : [`${p}/${d.name}`]));
 
 /**
  * Igual que `leer`, pero sin comentarios. Necesario porque las cabeceras
@@ -52,6 +57,90 @@ const entre = (s, desde, hasta) => {
  * Se afirma sobre el ORDEN, no sobre la distancia en caracteres: "el texto X está
  * a menos de 400 caracteres de Y" no dice nada sobre si uno gobierna al otro.
  */
+/**
+ * ¿La confirmación de éxito está atada a que la escritura haya CUAJADO?
+ *
+ * Nace de una vacuidad medida: el contrato anterior comparaba el orden de tres `indexOf`
+ * —escritura, `setOk(true)`, `} catch`—, y
+ *
+ *     await base44.entities.Evento.updateEstricto(id, patch).catch(() => {});
+ *
+ * lo dejaba en verde: el `.catch` no contiene la cadena `"} catch"`, así que los tres índices
+ * seguían en orden mientras el «Guardado ✓» volvía a mentir. Lo mismo con `if (activar) await …`.
+ *
+ * Aquí se afirman propiedades, y los identificadores se **derivan del propio código** en vez de
+ * fijarse: qué setter marca el éxito y qué setter marca el error salen de lo que hay escrito, no
+ * de exigir `setOk` y `error` literales.
+ *
+ * @param {string} codigo   el archivo entero, sin comentarios
+ * @param {string} desde    ancla de la función que guarda
+ * @param {string} hasta    fin de esa función
+ * @param {RegExp} escritura  cómo se reconoce la escritura (`await base44.rpc(`, `.updateEstricto(`…)
+ */
+const confirmacionAtadaALaEscritura = (codigo, desde, hasta, escritura) => {
+  const cuerpo = entre(codigo, desde, hasta);
+  if (!cuerpo) return { ok: false, detalle: "no se encontró la función que guarda" };
+  const m = new RegExp(escritura.source, escritura.flags.replace("g", "")).exec(cuerpo);
+  if (!m) return { ok: false, detalle: "no se encontró la escritura" };
+  const i = m.index;
+  const fallos = [];
+
+  // 1) La escritura NO está silenciada. Un `.catch(` pegado al `await` se traga el fallo y deja
+  //    todo lo de abajo corriendo como si hubiera ido bien.
+  const finSentencia = cuerpo.indexOf(";", i);
+  const sentencia = cuerpo.slice(i, finSentencia < 0 ? cuerpo.length : finSentencia);
+  if (/\.catch\s*\(/.test(sentencia)) fallos.push("la escritura lleva un `.catch(` pegado: se traga el fallo");
+
+  // 2) Y NO se puede SALTAR. `if (activar) await …` deja el «Guardado ✓» pintándose también
+  //    cuando la escritura ni se intentó.
+  //
+  //    Pero "está bajo un `if`" no es la propiedad: `if (reglas.id) …update… else …create…` es
+  //    un despacho, no un salto — las dos ramas escriben, y exigir lo contrario obligaría a
+  //    reescribir código correcto. Lo cazó este mismo helper la primera vez que corrió, sobre
+  //    `MesaReglas`. Lo que se exige es que **ninguna rama se salte la escritura**: si hay un
+  //    `if`, tiene que haber un `else` que también escriba.
+  const iniLinea = cuerpo.lastIndexOf("\n", i) + 1;
+  const antesEnLinea = cuerpo.slice(iniLinea, i).trim();
+  if (/\bif\s*\(|\?$|&&$/.test(antesEnLinea)) {
+    const tras = finSentencia < 0 ? cuerpo.length : finSentencia + 1;   // +1: después del `;`, no en él
+    const trasLaSentencia = cuerpo.slice(tras, tras + 400);
+    const rama = /^\s*else\b([^;]*;)/.exec(trasLaSentencia);
+    if (!rama || !/await\s+base44\./.test(rama[1])) {
+      fallos.push(`la escritura se puede saltar: está bajo «${antesEnLinea}» y la otra rama no escribe`);
+    }
+  }
+
+  // 3) Hay un `catch` que la cubre. Estricto sin `catch` no es un arreglo: es un botón girando.
+  const iCatch = cuerpo.indexOf("} catch", i);
+  if (iCatch < 0) return { ok: false, detalle: [...fallos, "la escritura no está dentro de un `try/catch`"].join(" · ") };
+
+  // 4) El éxito se marca DESPUÉS de la escritura y ANTES del catch — y el nombre del estado se
+  //    lee de ahí, no se exige.
+  const entreMedias = cuerpo.slice(i, iCatch);
+  const setter = /set([A-Z]\w*)\(\s*true\s*\)/.exec(entreMedias);
+  if (!setter) return { ok: false, detalle: [...fallos, "nada marca el éxito entre la escritura y el catch"].join(" · ") };
+  const estadoOk = setter[1][0].toLowerCase() + setter[1].slice(1);
+
+  // 5) Ese mismo estado no puede marcarse en ningún otro sitio de la función: un `setOk(true)`
+  //    antes de escribir haría cierto lo de arriba y falso lo que ve el usuario.
+  const veces = [...cuerpo.matchAll(new RegExp(`set${setter[1]}\\(\\s*true\\s*\\)`, "g"))].length;
+  if (veces !== 1) fallos.push(`el éxito se marca ${veces} veces en la misma función`);
+
+  // 6) Y el cartel del render cuelga de ESE estado, excluyendo el estado de error que llena el
+  //    catch. Los dos nombres salen del código.
+  const cuerpoCatch = cuerpo.slice(iCatch, (cuerpo.indexOf("} finally", iCatch) + 1) || cuerpo.length);
+  const setterError = /set([A-Z]\w*)\(/.exec(cuerpoCatch);
+  const estadoError = setterError ? setterError[1][0].toLowerCase() + setterError[1].slice(1) : null;
+  const render = codigo.slice(codigo.indexOf("return (", codigo.indexOf(desde)));
+  const cartel = new RegExp(`\\{\\s*${estadoOk}\\s*&&([^}]*)`).exec(render);
+  if (!cartel) fallos.push(`el render no pinta nada colgado de \`${estadoOk}\``);
+  else if (estadoError && !new RegExp(`!\\s*${estadoError}\\b`).test(cartel[1])) {
+    fallos.push(`el cartel de éxito no excluye \`${estadoError}\`: se pueden pintar los dos a la vez`);
+  }
+
+  return { ok: fallos.length === 0, detalle: fallos.join(" · ") };
+};
+
 const cortaAntesDe = (cuerpo, cond, limite) => {
   const i = cuerpo.indexOf(cond);
   if (i < 0) return false;
@@ -1376,22 +1465,19 @@ for (const ruta of [
   // escrito: 8 es lo que Supabase recomienda explícitamente y el defecto de GoTrue es 6, así
   // que cualquier proyecto configurado por encima del defecto estará en 8 o más.
   {
-    // El motivo vive en un COMENTARIO, así que aquí hace falta el archivo con comentarios.
-    const reglasConComentarios = leer("api/_lib/reglas-credenciales.js");
     const min = Number((reglas.match(/export const PASSWORD_MIN = (\d+);/) || [])[1]);
     check(
       "credenciales: `PASSWORD_MIN` no baja del suelo de 8 (política de Auth, no legible desde aquí)",
       Number.isFinite(min) && min >= 8,
       `PASSWORD_MIN = ${min}`,
     );
-    // Y el motivo tiene que estar escrito donde está el número, o el suelo se borra sin saber
-    // por qué existía.
-    check(
-      "credenciales: el suelo dice de dónde sale y que Auth es un validador aparte",
-      /GoTrue tiene su propia política/.test(reglasConComentarios) &&
-        /configuración\s+global\s+del\s*\n?\s*\*?\s*proyecto/i.test(reglasConComentarios) &&
-        /no se debe tocar/.test(reglasConComentarios),
-    );
+    // RETIRADO EN A-ter: este contrato afirmaba que tres frases estuvieran escritas en el
+    // comentario que acompaña al número. No protegía nada —el suelo lo protege el contrato de
+    // arriba, que sí mira el valor— y rompía la suite si alguien reescribía la explicación en
+    // sinónimos, sin tocar una línea ejecutable. Es decir, fallaba las dos direcciones a la vez:
+    // vacuo hacia el bug y ruidoso hacia el refactor.
+    //
+    // Un contrato sobre prosa no es un contrato. Ver `docs/DECISIONS.md` D-COD-20.
     // Y si Auth rechaza igualmente, el alta lo dice en vez de responder opaco.
     //
     // G2 · REESCRITO EN 9F-2. La versión anterior buscaba tres cadenas
@@ -1406,21 +1492,25 @@ for (const ruta of [
     // gobierna el 400 y el motivo auditado.
     {
       const bloque = entre(api, "if (createErr) {", "nuevoId = created.user.id;");
-      const def = entre(bloque, "const debil =", ";");
-      const rama = entre(bloque, "} else if (debil) {", "} else {");
+      // El nombre de la señal se DERIVA de la rama que responde 400, no se fija: renombrar
+      // `debil` es un refactor y tumbaba este contrato entero (seis fallos de golpe).
+      const señal = (/else\s+if\s*\((\w+)\)\s*\{\s*\n?\s*res\.status\(400\)/.exec(bloque) || [])[1];
+      const def = señal ? entre(bloque, `const ${señal} =`, ";") : "";
+      const rama = señal ? entre(bloque, `} else if (${señal}) {`, "} else {") : "";
       const fallos = [];
+      if (!señal) fallos.push("ninguna rama `else if (…)` responde 400: la clasificación no gobierna nada");
       // 1) El material de la decisión sale del error real, no de una constante ni del cuerpo
       //    de la petición.
       if (!/const msg = createErr\.message \|\| "";/.test(bloque)) fallos.push("`msg` no sale de `createErr.message`");
-      if (!/\bmsg\b|\bcreateErr\b/.test(def)) fallos.push(`\`debil\` no se calcula desde el error: «${def.trim()}»`);
+      if (señal && !/\bmsg\b|\bcreateErr\b/.test(def)) fallos.push(`\`${señal}\` no se calcula desde el error: «${def.trim()}»`);
       // 2) Es `debil` quien gobierna el 400, y el 400 dice qué campo y por qué.
-      if (!rama) fallos.push("no hay una rama gobernada por `debil`");
-      if (!/res\.status\(400\)/.test(rama)) fallos.push("la rama de `debil` no responde 400");
+      if (señal && !rama) fallos.push(`no hay una rama gobernada por \`${señal}\``);
+      if (señal && !/res\.status\(400\)/.test(rama)) fallos.push(`la rama de \`${señal}\` no responde 400`);
       if (!/campo: "password"/.test(rama)) fallos.push("el 400 no señala el campo `password`");
       if (!/La política de contraseñas del proyecto rechazó/.test(rama)) fallos.push("el 400 no explica la causa");
       // 3) Y el rastro auditado sale de la misma decisión: si se separaran, la auditoría diría
       //    una cosa y la pantalla otra.
-      if (!/debil \? "password_rechazada_por_auth"/.test(bloque)) fallos.push("el motivo auditado no lo gobierna `debil`");
+      if (señal && !new RegExp(`${señal}\\s*\\?\\s*"password_rechazada_por_auth"`).test(bloque)) fallos.push(`el motivo auditado no lo gobierna \`${señal}\``);
       check(
         "credenciales: la rama del rechazo de Auth es ALCANZABLE y gobierna el 400 (no solo está escrita)",
         fallos.length === 0,
@@ -1448,25 +1538,39 @@ for (const ruta of [
       // encontró que `duplicado` seguía adivinando desde una subcadena justo encima de lo que
       // G4 había arreglado. Una regla que solo cubre el caso que la motivó vuelve a fallar en el
       // de al lado.
+      // Los nombres NO se fijan: se DERIVAN de la cadena `if (X) … else if (Y) …` que decide la
+      // respuesta. Renombrar `debil` a `esDebil` es un refactor, y tumbaba dos contratos.
+      const señales = [...new Set([
+        (/if\s*\((\w+)\)\s*\{\s*\n?\s*res\.status\(409\)/.exec(bloque) || [])[1],
+        (/else\s+if\s*\((\w+)\)\s*\{\s*\n?\s*res\.status\(400\)/.exec(bloque) || [])[1],
+      ].filter(Boolean))];
       const sueltos = [];
       let conCodigo = 0;
-      for (const señal of ["debil", "duplicado"]) {
+      for (const señal of señales) {
         const def = entre(bloque, `const ${señal} =`, ";");
         const nombreLista = (def.match(/(\w+)\.some\(/) || [])[1];
         const lista = nombreLista ? entre(bloque, `const ${nombreLista} = [`, "];") : "";
-        const literales = [...`${lista}\n${def}`.matchAll(/\/((?:[^/\\\n]|\\.)+)\/[a-z]*/g)].map((m) => m[1]);
+        const fuente = `${lista}\n${def}`;
+        // Literales de regex **y** de comparación por cadena. La versión anterior solo auditaba
+        // regex, así que `msg.toLowerCase().includes("password")` volvía a colar exactamente la
+        // palabra suelta que la regla prohíbe, por la puerta de al lado.
+        const literales = [
+          ...[...fuente.matchAll(/\/((?:[^/\\\n]|\\.)+)\/[a-z]*/g)].map((m) => m[1]),
+          ...[...fuente.matchAll(/\.(?:includes|startsWith|endsWith|indexOf|search|match)\(\s*["'`]([^"'`]+)["'`]/g)].map((m) => m[1]),
+        ];
         // Que CONSULTE el código, no cómo lo compare: `codigo === "x"`, un `includes` sobre una
         // lista o un `Set` son la misma propiedad. Exigir la forma es el defecto de N1 otra vez
         // —lo cazó una mutación inocua con `["email_exists", …].includes(codigo)`—.
         if (/\bcodigo\b/.test(def)) conCodigo++;
-        sueltos.push(...literales.filter((r) => !/\s|\.\*/.test(r)).map((r) => `${señal}: /${r}/`));
+        sueltos.push(...literales.filter((r) => !/\s|\.\*/.test(r)).map((r) => `${señal}: «${r}»`));
       }
+      if (señales.length !== 2) sueltos.push(`no se identificaron las dos clasificaciones del if/else (encontradas: ${señales.join(", ") || "ninguna"})`);
       check(
         "credenciales: los errores de Auth se clasifican por código o por frase, nunca por una palabra suelta",
-        conCodigo === 2 && sueltos.length === 0,
+        conCodigo === señales.length && señales.length === 2 && sueltos.length === 0,
         sueltos.length
           ? `patrones que casan por una palabra suelta: ${sueltos.join(", ")}`
-          : conCodigo === 2 ? "" : `solo ${conCodigo}/2 clasificaciones miran el código de error`,
+          : `solo ${conCodigo}/${señales.length || 2} clasificaciones miran el código de error`,
       );
       // Al estrechar la clasificación, más fallos caen en el "no se pudo" opaco. El código de
       // Auth tiene que quedar auditado SIEMPRE o la causa se pierde del todo.
@@ -1903,11 +2007,18 @@ for (const ruta of [
       const arr = fuente[1];
 
       // 2) La condición que gobierna el aviso: el `&& (` que lo abre, hacia atrás desde el texto.
-      const i = bloque.indexOf(aviso);
-      if (i < 0) return { ok: false, detalle: `${archivo}: no se encontró el aviso «${aviso}»` };
-      const antes = bloque.slice(0, i);
-      const j = antes.lastIndexOf("&& (");
-      const cond = j < 0 ? "" : antes.slice(antes.lastIndexOf("{", j), j);
+      //
+      //    TODAS las apariciones, no `indexOf`. Con la primera bastaba para que una **segunda**
+      //    copia del aviso, mal guardada y colocada DETRÁS de la buena, pasara en verde: el
+      //    contrato certificaba la copia correcta y no miraba la otra. Es la misma puerta que
+      //    "recorta el primer `update`" en `sec_26`, y por ella entraban cinco de los quince.
+      const apariciones = [...bloque.matchAll(new RegExp(aviso.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"), "g"))].map((m) => m.index);
+      if (!apariciones.length) return { ok: false, detalle: `${archivo}: no se encontró el aviso «${aviso}»` };
+      const condiciones = apariciones.map((i) => {
+        const antes = bloque.slice(0, i);
+        const j = antes.lastIndexOf("&& (");
+        return j < 0 ? "" : antes.slice(antes.lastIndexOf("{", j), j);
+      });
 
       // 3) Tiene que exigir que ese array esté VACÍO, y no poder ser cierta por otra vía.
       //
@@ -1923,17 +2034,18 @@ for (const ruta of [
       //    LONGITUD del array del desplegable y (ii) no haya una disyunción que la haga cierta
       //    con opciones delante. El `|| []` defensivo no es una disyunción de la guarda: es un
       //    valor por defecto del propio array, así que se normaliza antes de mirar los `||`.
-      const limpio = cond.replace(new RegExp(`\\(\\s*${arr}\\s*\\|\\|\\s*\\[\\s*\\]\\s*\\)`, "g"), arr);
-      const dependeDeLaLongitud = exige === "vacio"
-        ? new RegExp(`(!\\s*${arr}\\??\\.length\\b)|(${arr}\\??\\.length\\s*(===?\\s*0|<\\s*1))`).test(limpio)
-        : new RegExp(`(${arr}\\??\\.length\\s*(>\\s*0|>=\\s*1|!==?\\s*0))|([^!\\w]${arr}\\??\\.length\\b\\s*&&)`).test(limpio);
-      const sinDisyuncion = !limpio.includes("||");
-      const ok = dependeDeLaLongitud && sinDisyuncion;
+      const malas = condiciones.filter((cond) => {
+        const limpio = cond.replace(new RegExp(`\\(\\s*${arr}\\s*\\|\\|\\s*\\[\\s*\\]\\s*\\)`, "g"), arr);
+        const dependeDeLaLongitud = exige === "vacio"
+          ? new RegExp(`(!\\s*${arr}\\??\\.length\\b)|(${arr}\\??\\.length\\s*(===?\\s*0|<\\s*1))`).test(limpio)
+          : new RegExp(`(${arr}\\??\\.length\\s*(>\\s*0|>=\\s*1|!==?\\s*0))|([^!\\w]${arr}\\??\\.length\\b\\s*&&)`).test(limpio);
+        return !(dependeDeLaLongitud && !limpio.includes("||"));
+      });
       return {
-        ok,
-        detalle: ok ? "" : `${archivo}: condición del aviso = «${cond.trim()}»`
-          + ` (array del desplegable: ${arr}${dependeDeLaLongitud ? "" : `; no depende de que ${arr} esté ${exige}`}`
-          + `${sinDisyuncion ? "" : "; tiene una disyunción `||` que puede ser cierta en el estado contrario"})`,
+        ok: malas.length === 0,
+        detalle: malas.length === 0 ? ""
+          : `${archivo}: ${malas.length} de ${condiciones.length} apariciones del aviso no exigen que `
+            + `${arr} esté ${exige}, o tienen una disyunción: ${malas.map((c) => `«${c.trim()}»`).join(" / ")}`,
       };
     };
 
@@ -2037,15 +2149,39 @@ for (const ruta of [
   {
     const upd = entre(shim, "async updateEstricto(", "\n    },");
     const del = entre(shim, "async deleteEstricto(", "\n    },");
-    // Se afirma que LANZAN, no cómo se llama el ayudante que construye el error: renombrar una
-    // función interna es un refactor, no una regresión, y un contrato que lo castiga acaba
-    // borrado. Lo que sí es un contrato entre módulos —y se afirma aparte, abajo— es el `code`,
-    // porque las pantallas lo leen para no mandar a reintentar un permiso denegado.
+    // NADA DE FORMAS. Ni el nombre del ayudante que construye el error —renombrar una función
+    // interna es un refactor—, ni la forma exacta de la guarda: `if (!data)`, `if (data === null)`
+    // y `if ((data || []).length === 0)` son la misma propiedad, y las tres reescrituras rompían
+    // la versión anterior. Se DERIVA el nombre de la variable del propio destructuring y se
+    // afirma que hay un `throw` que depende de ella.
     const fallos = [];
-    if (!/if \(!data\) throw \w+\(/.test(upd)) fallos.push("`updateEstricto` no lanza con cero filas");
-    if (!/return rowToObj\(data\);/.test(upd) || /\{ id, \.\.\.patch \}/.test(upd)) fallos.push("`updateEstricto` sigue devolviendo el parche");
+    const lanzaSiVacio = (cuerpo, quien) => {
+      const nombre = (/const \{\s*data(?::\s*(\w+))?\s*,/.exec(cuerpo) || [])[1] || "data";
+      if (!new RegExp(`\\b${nombre}\\b`).test(cuerpo)) return `\`${quien}\` no usa el resultado de la escritura`;
+      // Cualquier condición que mencione esa variable y corte con un `throw`. Se recorre cada
+      // `throw` hacia atrás en vez de casar un `if (...)` con un regex: `[^)]*` no atraviesa
+      // paréntesis anidados, así que `if ((data || []).length === 0) throw` —una reescritura
+      // equivalente y más defensiva— lo hacía fallar. Lo cazó la mutación inocua.
+      const guarda = [...cuerpo.matchAll(/\bthrow\b/g)].some((t) => {
+        const atras = cuerpo.slice(Math.max(0, t.index - 200), t.index);
+        const iIf = atras.lastIndexOf("if");
+        return iIf >= 0 && new RegExp(`\\b${nombre}\\b`).test(atras.slice(iIf));
+      });
+      if (!guarda) return `\`${quien}\` no lanza cuando la escritura no tocó nada`;
+      return "";
+    };
+    for (const [cuerpo, quien] of [[upd, "updateEstricto"], [del, "deleteEstricto"]]) {
+      const f = lanzaSiVacio(cuerpo, quien);
+      if (f) fallos.push(f);
+    }
+    // Y `updateEstricto` devuelve lo que dijo la BASE, no el parche que le pasaron: si volviera a
+    // `{ id, ...patch }` lanzaría igual y seguiría fabricando la fila.
+    {
+      const param = (/async updateEstricto\(\s*\w+\s*,\s*(\w+)\s*\)/.exec(upd) || [])[1];
+      if (param && new RegExp(`\\.\\.\\.\\s*${param}\\b`).test(upd)) fallos.push("`updateEstricto` sigue devolviendo el parche");
+    }
+    // `deleteEstricto` tiene que PEDIR las filas borradas; sin `.select()` no hay nada que contar.
     if (!/\.select\(\)/.test(del)) fallos.push("`deleteEstricto` no pide las filas borradas, así que no puede contarlas");
-    if (!/if \(!data \|\| data\.length === 0\) throw \w+\(/.test(del)) fallos.push("`deleteEstricto` no lanza con cero filas");
     check("A.1: `updateEstricto`/`deleteEstricto` lanzan cuando la escritura no tocó nada", fallos.length === 0, fallos.join(" · "));
   }
 
@@ -2054,45 +2190,52 @@ for (const ruta of [
   //    funcionar es la forma de mentira que este bloque persigue.
   check(
     "A.1: el fallo de escritura llega con un código propio y un mensaje legible",
-    /code = "escritura_sin_efecto"/.test(shim) &&
-      /El cambio no se guardó/.test(leer("src/api/base44Client.js")),
+    // `shim` está sin comentarios A PROPÓSITO en las dos mitades: con el archivo comentado,
+    // mover el mensaje a un comentario dejaba el contrato en verde y al usuario sin texto.
+    /code = "escritura_sin_efecto"/.test(shim) && /El cambio no se guardó/.test(shim),
   );
 
   // 3) `update` y `delete` NO se han vuelto estrictos. Es deliberado y hay que poder verlo: hoy
   //    diez componentes escriben sin un solo `catch`, así que hacerlos lanzar cambiaría el
   //    engaño silencioso por una pantalla muerta, justo antes de la validación del dueño.
+  // Antes esto exigía además que el comentario dijera "FABRICA EL ÉXITO". Un contrato sobre
+  // prosa no protege nada —la advertencia se puede reescribir en sinónimos sin tocar una línea
+  // ejecutable, y entonces rompe la suite sin que nada haya cambiado— así que se queda solo la
+  // mitad ejecutable. Ver la decisión sobre contratos-de-comentario en `docs/DECISIONS.md`.
   check(
-    "A.1: `update` sigue siendo el no estricto, y está marcado como tal",
-    /return rowToObj\(data\) \|\| \{ id, \.\.\.patch \};/.test(shim) &&
-      /FABRICA EL ÉXITO/.test(leer("src/api/base44Client.js")),
+    "A.1: `update` sigue siendo el no estricto (deliberado: ver D-COD-18)",
+    /return rowToObj\(data\) \|\| \{ id, \.\.\.patch \};/.test(shim),
   );
 
   // 4) EL P0. `PortalInvitacion` es el único escritor de la invitación en todo el repo y solo se
   //    monta para el rol `cliente`, cuyo UPDATE sobre `eventos` no toca ninguna fila. Tiene que
   //    escribir estricto **y** traducir ese caso a algo que no sea "intenta de nuevo".
   {
-    const inv = leerCodigo("src/components/portal/PortalInvitacion.jsx");
-    const fallos = [];
-    if (!/Evento\.updateEstricto\(/.test(inv)) fallos.push("no escribe con `updateEstricto`");
-    if (/Evento\.update\(/.test(inv)) fallos.push("queda un `update` no estricto");
-    if (!/escritura_sin_efecto/.test(inv)) fallos.push("no distingue el permiso denegado de un fallo de red");
-    // Y el «Guardado ✓» tiene que quedar DESPUÉS de la escritura y dentro del `try`: si
-    // `setOk(true)` volviera a estar fuera, la pantalla afirmaría lo mismo de siempre.
-    const cuerpo = entre(inv, "const guardar = async (activar) => {", "\n  };");
-    const iEscribe = cuerpo.indexOf("updateEstricto");
-    const iOk = cuerpo.indexOf("setOk(true)");
-    const iCatch = cuerpo.indexOf("} catch");
-    if (!(iEscribe >= 0 && iOk > iEscribe && iCatch > iOk)) fallos.push(`el «Guardado ✓» no está entre la escritura y el catch (escribe=${iEscribe}, ok=${iOk}, catch=${iCatch})`);
-    check("A.2 (P0): la invitación del cliente no puede volver a decir «Guardado ✓» sin haber guardado", fallos.length === 0, fallos.join(" · "));
+    const r = confirmacionAtadaALaEscritura(
+      leerCodigo("src/components/portal/PortalInvitacion.jsx"),
+      "const guardar = async (activar) => {", "\n  };", /await\s+base44\.rpc\(/,
+    );
+    check(
+      "A.2 (P0): la invitación del cliente no puede volver a decir «Guardado ✓» sin haber guardado",
+      r.ok, r.detalle,
+    );
   }
 
   // 5) Y el panel deja de atribuirle al cliente una causa falsa. Esa frase es la que tapó el P0
   //    durante meses: el dueño leía una explicación plausible y no volvía a mirar.
   {
+    // NO se contrata la frase. Prohibir un texto no impide reescribir la misma atribución falsa
+    // con otras palabras, y exigir otro texto rompe con un sinónimo: las dos direcciones malas
+    // a la vez. Lo que se afirma es que el aviso **deriva del hecho comprobable**: hay token o
+    // no lo hay. `invitacion_token` solo lo escribe esta función, así que su ausencia es prueba
+    // de que nunca cuajó — y su presencia, de que sí, que es lo que impide volver a decir
+    // «nunca se guardó» de una invitación que el cliente activó y luego apagó.
     const rsvps = leerCodigo("src/components/admin/eventos/EventoRsvps.jsx");
+    const bloque = entre(rsvps, "{!evento.invitacionActiva && (", "\n      )}");
     check(
-      "A.2: el panel ya no dice que el cliente «aún no activó» algo que no puede activar",
-      !/aún no activó su invitación/.test(rsvps) && /no puede activarla/.test(rsvps),
+      "A.2: el aviso de la invitación deriva de si hay token, no de una suposición",
+      /evento\.invitacionToken\s*\?/.test(bloque) && bloque.split("invitacionToken").length > 1,
+      bloque ? "" : "no se encontró el bloque del aviso",
     );
   }
 
@@ -2100,18 +2243,11 @@ for (const ruta of [
   //    misma que en el P0 y se afirma igual: la confirmación va DESPUÉS de la escritura y
   //    DENTRO del `try`. Y el `catch` es obligatorio: estricto sin `catch` es un botón girando.
   for (const [archivo, ancla, fin, escritura] of [
-    ["src/components/admin/eventos/EventoDatos.jsx", "const guardar = async () => {", "\n  };", "Evento.updateEstricto("],
-    ["src/components/mesas/MesaReglas.jsx", "const guardar = async () => {", "\n  };", "EventoReglasMesas.updateEstricto("],
+    ["src/components/admin/eventos/EventoDatos.jsx", "const guardar = async () => {", "\n  };", /Evento\.updateEstricto\(/],
+    ["src/components/mesas/MesaReglas.jsx", "const guardar = async () => {", "\n  };", /EventoReglasMesas\.updateEstricto\(/],
   ]) {
-    const cuerpo = entre(leerCodigo(archivo), ancla, fin);
-    const iEscribe = cuerpo.indexOf(escritura);
-    const iOk = cuerpo.indexOf("setOk(true)");
-    const iCatch = cuerpo.indexOf("} catch");
-    const ok = iEscribe >= 0 && iOk > iEscribe && iCatch > iOk;
-    check(
-      `A.3: «Guardado.» solo si la base lo confirmó (${archivo.split("/").pop()})`,
-      ok, ok ? "" : `escribe=${iEscribe}, ok=${iOk}, catch=${iCatch}`,
-    );
+    const r = confirmacionAtadaALaEscritura(leerCodigo(archivo), ancla, fin, escritura);
+    check(`A.3: «Guardado.» solo si la base lo confirmó (${archivo.split("/").pop()})`, r.ok, r.detalle);
   }
 }
 
@@ -2122,7 +2258,10 @@ for (const ruta of [
 {
   const ruta = "supabase/migrations/20260805120000_jardines_sec_26_invitacion_cliente.sql";
   let sql = "";
-  try { sql = leer(ruta); } catch { sql = ""; }
+  // Sin comentarios SQL: las cabeceras de esta migración explican qué NO hace y nombran
+  // `drop policy` para decir que no lo usa. Con comentarios, el contrato fallaría por su propia
+  // documentación — el mismo tropiezo que ya obligó a `leerCodigo` en el resto de la suite.
+  try { sql = leer(ruta).replace(/^\s*--.*$/gm, ""); } catch { sql = ""; }
   const fallos = [];
   if (!sql) fallos.push("no existe el archivo de sec_26");
   else {
@@ -2141,13 +2280,144 @@ for (const ruta of [
     // exactamente la columna que provocó el P0 del bloque 8. El contrato tiene que mirar
     // TODAS las asignaciones y exigir que todas sean de la invitación, no contar las que ya
     // sabe que le gustan.
-    const upd = entre(sql, "update jardines.eventos", "where id = p_evento_id;");
-    const columnas = [...upd.matchAll(/(?:^|,)\s*(?:set\s+)?([a-z_]+)\s*=/gm)].map((m) => m[1]);
-    const ajenas = columnas.filter((c) => !c.startsWith("invitacion_"));
-    if (ajenas.length) fallos.push(`el UPDATE escribe columnas que no son de la invitación: ${ajenas.join(", ")}`);
-    else if (columnas.length !== 4) fallos.push(`el UPDATE toca ${columnas.length} columnas, no 4: ${columnas.join(", ")}`);
+    // TODAS las sentencias de escritura, no la primera. `entre()` recortaba el primer `update` y
+    // miraba solo ese, así que un SEGUNDO `update … set auth_user_id = …` detrás del bueno
+    // pasaba en verde. "Recorta el primero" es la misma puerta que `indexOf`.
+    const escrituras = [...sql.matchAll(/\b(update|insert\s+into|delete\s+from)\s+([a-z_]+\.[a-z_]+)/gi)];
+    const fuera = escrituras.filter((m) => m[2].toLowerCase() !== "jardines.eventos");
+    if (fuera.length) fallos.push(`escribe en tablas que no son jardines.eventos: ${[...new Set(fuera.map((m) => m[2]))].join(", ")}`);
+    if (escrituras.length !== 1) fallos.push(`hay ${escrituras.length} sentencias de escritura, se esperaba 1`);
+    for (const m of escrituras) {
+      const upd = sql.slice(m.index, sql.indexOf(";", m.index));
+      const columnas = [...upd.matchAll(/(?:^|,)\s*(?:set\s+)?([a-z_]+)\s*=/gm)].map((c) => c[1]);
+      const ajenas = columnas.filter((c) => !c.startsWith("invitacion_"));
+      if (ajenas.length) fallos.push(`una escritura toca columnas que no son de la invitación: ${ajenas.join(", ")}`);
+      else if (columnas.length !== 4) fallos.push(`una escritura toca ${columnas.length} columnas, no 4: ${columnas.join(", ")}`);
+    }
+    // La guarda de propiedad es una DISYUNCIÓN: `p_evento_id is null OR not is_my_event(...)`.
+    // Cambiar ese `or` por `and` la vuelve inofensiva —solo cortaría con el id nulo— y la
+    // versión anterior, que buscaba `is_my_event(p_evento_id)` suelto, lo dejaba pasar.
+    if (!/if\s+p_evento_id\s+is\s+null\s+or\s+not\s+jardines\.is_my_event\(p_evento_id\)\s+then/.test(sql)) {
+      fallos.push("la guarda de propiedad no corta con «id nulo O no es tuyo»");
+    }
+    // Y NINGÚN grant puede alcanzar a `anon`: esta RPC escribe.
+    if (/grant\s+execute[^;]*\banon\b/i.test(sql)) fallos.push("concede EXECUTE a `anon`");
+    // La forma del token se valida: sin eso, la RPC sirve para meter un token corto y adivinable.
+    if (!/p_token\s*!~\s*'\^\[a-f0-9\]/.test(sql)) fallos.push("no valida la forma del token");
   }
   check("A.2: `sec_26` acota la escritura del cliente a sus cuatro columnas y no toca nada más", fallos.length === 0, fallos.join(" · "));
+}
+
+// ------------------------------------------- A-bis · UNA PIEZA QUE NADIE INVOCA
+//
+// El hallazgo que invalidó el resultado de la fase A: `sec_26` estaba bien escrita, bien
+// ensayada y **sin un solo llamador**. `grep -rn invitacion_guardar src/ api/` daba 0, y sus
+// dos únicas apariciones fuera de la migración eran contratos verdes comprobando los
+// `grant`/`revoke` de una función que ningún código invoca.
+//
+// La consecuencia no era cosmética: el dueño aprueba la migración, se aplica, se prueba el
+// portal, sale el MISMO error de permisos, y se concluye que la vía RPC no sirve. La conclusión
+// sería falsa y cerraría el camino correcto.
+//
+// Esta comprobación es genérica a propósito: no mira `invitacion_guardar`, mira **toda** función
+// que cualquier migración cree en `jardines` y exige que alguien la llame. Un contrato que solo
+// cubriera el caso que lo motivó volvería a fallar en el siguiente.
+{
+  const migraciones = leerDir("supabase/migrations").filter((f) => f.endsWith(".sql"));
+  const sqlTodo = migraciones.map((f) => leer(`supabase/migrations/${f}`)).join("\n");
+  // Las funciones que las migraciones definen y **conceden a un rol del navegador**. Una
+  // `security definer` sin `grant` a `anon`/`authenticated` es interna (la llaman otras
+  // funciones o policies) y no tiene por qué aparecer en `src/`.
+  //
+  // Hay DOS formas de conceder en este repo, y mirar solo una dejaría fuera justo el ejemplo
+  // que motivó todo esto (`registrar_llegada_mesa`, sin llamador desde hace meses):
+  //   (1) literal:  grant execute on function jardines.x(...) to authenticated;
+  //   (2) en bucle: foreach f in array[...] loop execute format('grant execute … %s to anon…')
+  // Para (2) se afirma sobre el ORDEN, no sobre la distancia: para cada bucle que concede a un
+  // rol del navegador, se toman los nombres del `array[` inmediatamente anterior.
+  const expuestas = new Set(
+    [...sqlTodo.matchAll(/grant\s+execute\s+on\s+function\s+jardines\.(\w+)\s*\([^)]*\)\s*to\s+[^;]*\b(anon|authenticated)\b/gi)]
+      .map((m) => m[1]),
+  );
+  for (const m of sqlTodo.matchAll(/execute\s+format\(\s*'grant execute on function %s to ([^']*)'/gi)) {
+    if (!/\b(anon|authenticated)\b/.test(m[1])) continue;          // service_role no es el navegador
+    const antes = sqlTodo.slice(0, m.index);
+    const iArr = antes.lastIndexOf("array[");
+    if (iArr < 0) continue;
+    for (const f of antes.slice(iArr).matchAll(/'jardines\.(\w+)\s*\(/g)) expuestas.add(f[1]);
+  }
+  const codigoCliente = [...leerDirRec("src"), ...leerDirRec("api")]
+    .filter((f) => /\.(js|jsx|mjs)$/.test(f))
+    .map((f) => leer(f)).join("\n");
+
+  // "Nadie la invoca" no es "el JavaScript no la invoca". Media docena de estas funciones
+  // —`is_admin`, `is_my_event`, `client_can_edit`, `mis_canales`…— están concedidas a
+  // `authenticated` justamente porque **las policies las ejecutan como el usuario que llama**,
+  // y jamás se tocan desde el navegador. Contarlas como huérfanas sería el contrato ruidoso de
+  // siempre: mucho falso positivo y, en dos semanas, un `git rm`.
+  //
+  // La propiedad de verdad es «alguien la invoca»: el cliente, una policy, o otra función. Se
+  // buscan usos como llamada —`jardines.nombre(`— descartando su propia definición y las líneas
+  // de grant/revoke/drop, que nombran la función sin usarla.
+  const usadaEnSql = (fn) => {
+    const re = new RegExp(`jardines\\.${fn}\\s*\\(`, "g");
+    for (const m of sqlTodo.matchAll(re)) {
+      const lineaIni = sqlTodo.lastIndexOf("\n", m.index) + 1;
+      const linea = sqlTodo.slice(lineaIni, sqlTodo.indexOf("\n", m.index));
+      if (/^\s*--/.test(linea)) continue;                                  // comentario
+      if (/\b(grant|revoke|drop|comment)\b/i.test(linea)) continue;        // nombra, no usa
+      if (/create\s+(or\s+replace\s+)?function/i.test(linea)) continue;    // su definición
+      if (/^\s*'jardines\./.test(linea)) continue;                         // elemento de un array de grants
+      return true;
+    }
+    return false;
+  };
+  // HUÉRFANAS CONOCIDAS. Al escribir este contrato salieron seis, todas anteriores a este
+  // bloque y todas comprobadas: cero apariciones en `src/`, en `api/` y en el bundle construido.
+  // Se listan con su motivo en vez de bajar el listón, para que el contrato pase hoy y **falle
+  // con cualquier huérfana nueva** — que es lo que habría atrapado `invitacion_guardar`.
+  //
+  // La lista solo puede encoger. Está anotada como J-16 en `docs/BUGS_PENDING.md`; si alguien
+  // añade una entrada aquí en vez de enchufar la función, la deuda queda a la vista con nombre
+  // y fecha en el `git blame`, que es exactamente lo que no pasó con `registrar_llegada_mesa`.
+  const HUERFANAS_CONOCIDAS = {
+    registrar_llegada_mesa: "escribiría `mesas.ocupadas`, la fuente que el tablero de staff lee y nadie llena (fase B.1)",
+    revocar_staff_token: "el panel solo rota el token, nunca lo revoca sin sustituto",
+    confirmar_evento: "flujo de confirmación que nunca se construyó en la interfaz",
+    auditoria_reciente: "la auditoría se consulta por SQL, no hay pantalla que la lea",
+    operativo_ubicar: "la ubicación en vivo del operativo no llegó a tener pantalla",
+    operativo_evento_activo: "idem: parte del operativo que quedó sin interfaz",
+  };
+  const huerfanas = [...expuestas]
+    .filter((fn) => !new RegExp(`["'\`]${fn}["'\`]`).test(codigoCliente))
+    .filter((fn) => !usadaEnSql(fn));
+  const nuevas = huerfanas.filter((fn) => !(fn in HUERFANAS_CONOCIDAS));
+  check(
+    "A-bis: ninguna RPC concedida al navegador se queda sin llamador (salvo las huérfanas ya anotadas)",
+    nuevas.length === 0,
+    nuevas.length ? `concedidas al navegador y sin llamador: ${nuevas.join(", ")}` : "",
+  );
+  // Y la lista no puede quedarse con entradas muertas: una huérfana que ya se enchufó tiene que
+  // salir de aquí, o la próxima vez que se desenchufe nadie se enterará.
+  const yaNoHuerfanas = Object.keys(HUERFANAS_CONOCIDAS).filter((fn) => !huerfanas.includes(fn));
+  check(
+    "A-bis: la lista de huérfanas conocidas no tiene entradas caducadas",
+    yaNoHuerfanas.length === 0,
+    yaNoHuerfanas.length ? `ya tienen llamador (o dejaron de existir); quítalas de la lista: ${yaNoHuerfanas.join(", ")}` : "",
+  );
+
+  // Y el lado concreto: la pantalla del P0 tiene que ir por la RPC, no por la tabla. Con
+  // `entities.Evento` seguiría tocando cero filas por muy estricta que fuera la variante.
+  {
+    const inv = leerCodigo("src/components/portal/PortalInvitacion.jsx");
+    const fallos = [];
+    if (!/base44\.rpc\(\s*["']invitacion_guardar["']/.test(inv)) fallos.push("no llama a la RPC");
+    if (/entities\.Evento\.(update|updateEstricto)\(/.test(inv)) fallos.push("sigue escribiendo por `entities.Evento`, que pasa por `eventos_upd`");
+    // Hoy la RPC no existe en la base: eso tiene que ser un mensaje propio, no "no tienes
+    // permiso" ni un reventón.
+    if (!/PGRST202/.test(inv)) fallos.push("no distingue «la función todavía no existe» de un fallo de permisos");
+    check("A-bis: la invitación del cliente va por `sec_26` y no por la tabla", fallos.length === 0, fallos.join(" · "));
+  }
 }
 
 // ---------------------------------------------------------------- salida
