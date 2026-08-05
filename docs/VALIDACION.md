@@ -8,7 +8,7 @@
 >
 > | Parte | Qué es | ¿Bloquea el cierre? |
 > |---|---|---|
-> | **Parte 0** | Borrar los tres duplicados de «Boda ortega» | **Sí — hazlo primero** |
+> | ~~**Parte 0**~~ | ~~Borrar los tres duplicados de «Boda ortega»~~ | **Ya está hecha** |
 > | **Parte 1** | Las seis cosas nuevas que hay que ver funcionando | Sí |
 > | **Parte 2** | Los cinco flujos originales, con credenciales reales | Sí |
 > | Anexo | Las dos pantallas que nadie ha visto nunca | No |
@@ -57,59 +57,34 @@
 ---
 ---
 
-# PARTE 0 — Borrar los tres duplicados de «Boda ortega»
+# LO QUE TIENES QUE APROBAR
 
-> **Empieza por aquí, y hazlo mirando.** No es limpieza: es la **primera vez que el borrado de
-> eventos se ejecuta de verdad**. Su lógica está probada pieza a pieza, pero nunca ha corrido
-> contra la base real. Por eso lo haces tú, desde el panel, y no yo por detrás — hacerlo por
-> detrás no probaría nada.
+> Cuatro cosas. Ninguna se ha hecho: están escritas y ensayadas, esperando tu visto bueno. Las
+> dos primeras son cambios en la base de datos; las dos últimas no las puedo hacer yo.
 
-Al crear el evento de la boda Ortega se quedaron **cuatro** filas en vez de una, seguramente de
-un doble clic: se crearon con 24 segundos de diferencia entre la primera y la última.
+| Qué | Si dices que sí | Si dices que no |
+|---|---|---|
+| **`sec_26`** — la invitación digital | Tus clientes podrán crear y compartir su invitación por WhatsApp, ver quién confirma, y **cambiar el enlace** si se les filtra. Hoy esa pantalla existe en su portal pero **nunca ha guardado nada** | Se queda como está: la pantalla les dice claramente que no está habilitada, en vez de fingir que guardó. Y la opción alternativa sigue abierta: que la actives tú desde el panel |
+| **`sec_27`** — permisos | Las tablas nuevas dejan de nacer abiertas a cualquier visitante anónimo. Y con ella van el **tablero de meseros** (hoy marca 0 aunque se registren invitados) y el **control de aforo** (hoy se puede vender la misma mesa dos veces) | Las tres cosas siguen igual. El tablero avisa de que su número puede no ser el real, y el cupo por defecto ya es el que queda libre, así que el riesgo baja — pero no desaparece |
+| **El bucket `sitio` admitiendo PDF** | Podrás subir el menú en PDF desde el panel. Hoy el botón existe y **no funciona nunca**: el almacén no acepta ese tipo de archivo | Sigue sin poder subirse. Es un ajuste de la consola de Supabase, no código |
+| **Un aviso de privacidad** | El formulario público podrá seguir pidiendo que lo acepten. Hoy **obliga a aceptar un documento que no existe**: no hay página, ni enlace, ni texto | Habría que quitar la casilla, porque pedir que acepten algo inexistente no se sostiene |
 
-**El problema:** las cuatro se llaman igual, tienen el mismo cliente, la misma fecha, el mismo
-salón y el mismo creador. En la lista se ven **idénticas**. Y como el borrado se confirma
-escribiendo el nombre exacto, el nombre **no sirve** para distinguirlas: escribir el correcto no
-te protege de borrar la que no era.
+**Nada de esto corre riesgo de romper lo que ya funciona.** Las dos migraciones se ensayaron
+contra la base real dentro de una transacción que se deshace sola, y en las dos se comprobó que
+Vero Seguros queda idéntico antes y después.
 
-**La buena es la última**, la única que tiene cuenta de portal (`ortega-jch`). Las otras tres
-están vacías.
+---
+---
 
-### Qué hacer
+# PARTE 0 — HECHA ✔
 
-1. Entra al panel → **Eventos**. Verás cuatro «Boda ortega», cada una con una etiqueta ámbar que
-   dice **«nombre repetido»** y, al lado, la **hora de alta** y si tiene acceso.
-2. **Guíate por la hora de alta y por el acceso. Nunca por el nombre.**
-   - La que dice **`acceso «ortega-jch»`** → **NO la toques.** Esa se queda.
-   - Las tres que dicen **`sin acceso`** → esas son las que se van.
-3. Abre una de las tres, baja hasta **«Zona de peligro»** y pulsa **Eliminar este evento**.
-4. **Antes de confirmar, lee lo que sale.** Tiene que aparecer:
-   - Un aviso ámbar: *«Hay 3 eventos más con este mismo nombre»*, y debajo **cuál** vas a borrar:
-     la fecha y hora de alta, y que **no tiene cuenta de portal**.
-   - Un inventario de lo que se lleva. En estos tres debería ser muy poco: solo *«1 Reglas de
-     mesas»*.
-5. Escribe `Boda ortega` en la caja y pulsa **Eliminar definitivamente**.
-6. Repite con las otras dos.
-
-### Qué debe pasar
-
-- Tras cada borrado vuelves a la lista y hay **un evento menos**.
-- Al final queda **una sola** «Boda ortega», la de `ortega-jch`, y **ya no aparece la etiqueta
-  «nombre repetido»** (porque ya no hay repetidos).
-- El cliente sigue pudiendo entrar a su portal con `ortega-jch`.
-
-### Cómo sé que falló
-
-| Lo que ves | Qué significa |
-|---|---|
-| El aviso ámbar dice que la que vas a borrar **sí** tiene cuenta | **PARA.** Te has metido en la que hay que conservar. Cancela. |
-| El inventario enseña documentos, mesas o invitados | **PARA.** Esa no es una de las vacías. Cancela y avísame. |
-| «El evento se borró, pero queda algo pendiente» | Se borró el evento pero **no** su cuenta. Copia el mensaje entero y mándamelo. |
-| «El borrado se interrumpió en...» | No se completó. El mensaje dice exactamente qué quedó hecho. Cópialo y mándamelo. |
-| Sale un error y **no** se borra nada | Copia el mensaje. No lo reintentes más de dos veces. |
-
-**Si algo se tuerce, no hay prisa:** el diseño está hecho para que, si falla a mitad, **no borre
-el evento** hasta haber borrado sus archivos. Lo peor que puede pasar es que haya que reintentar.
+> Los tres duplicados de «Boda ortega» **ya están borrados**, y ese fue el primer uso real del
+> borrado de eventos: se comprobó fila a fila contra la base y salió limpio — 0 huérfanos en las
+> 14 tablas que cuelgan de `eventos`, 0 objetos sueltos en el bucket, 0 perfiles sin usuario, y
+> los 2 usuarios de portal vivos casan exactamente con los 2 eventos que quedan.
+>
+> **No hay que hacer nada aquí.** Si ves una sola «Boda ortega» en la lista, es la correcta: la
+> que tiene la cuenta `ortega-jch`.
 
 ---
 ---
@@ -218,7 +193,9 @@ te parezca una tontería.
 2. Ve a **Eventos** → crea uno nuevo. Ponle `PRUEBA VALIDACION`, elige salón y fecha, y guarda.
 3. Abre el evento y quédate en la pestaña **Datos**.
 4. Abajo, en **Credenciales de acceso**, escribe un usuario (por ejemplo `pruebavalidacion`) y una
-   contraseña de al menos 6 caracteres. **Apúntalos**, los necesitas en la prueba 2.
+   contraseña de **al menos 8 caracteres**. **Apúntalos**, los necesitas en la prueba 2.
+   *(Eran 6 en una versión anterior de este guion; el panel y el servidor exigen 8 y coinciden
+   desde el bloque 9. Si tecleas 6 el panel te lo rechaza, y eso es lo correcto.)*
 5. Pulsa **Crear credenciales**.
 
 **Qué debe pasar**
@@ -349,8 +326,7 @@ invitados y ver el avance de mesas **sin entrar al panel**.
 Dime, para cada prueba, si pasó o no. Si algo falló, con lo que viste en pantalla es suficiente —
 yo miro los logs.
 
-**Lo importante de todo esto**, por orden: la **Parte 0** (es la primera ejecución real del
-borrado), la prueba **1.2** (el botón «Avisar» nunca ha funcionado, así que es la primera vez que
+**Lo importante de todo esto**, por orden: la prueba **1.2** (el botón «Avisar» nunca ha funcionado, así que es la primera vez que
 alguien ve si el correo sale bien) y las cinco pruebas de la **Parte 2**, que son las que cierran
 el blindaje.
 

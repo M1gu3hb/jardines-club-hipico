@@ -2,14 +2,19 @@
 
 > **2026-08-04** · <https://jardines-club-hipico.vercel.app>
 >
-> **El código que corre en producción es el commit `ee19d7a`** (PR #11), subido por el deployment
-> `dpl_9c5WPM3Xh3rUjEQzMSKQf8pREJmX`; el bundle servido es `assets/index-DVu0CBUL.js`. Este
+> **El código que corre en producción es el commit `4a78f94`** (PR #12), subido por el deployment
+> `dpl_Hco4QLZNCwtYYrQ7xZSUmdCesFKG`; el bundle servido es `assets/index-BT5U00On.js`. Este
 > documento se ancla al commit de **código** a propósito — si citara el último deployment se
 > quedaría obsoleto cada vez que se toca un `.md`.
 >
-> **9F ya está en producción.** Lo que NO lo está es la **fase A del bloque de cierre**
-> (rama `claude/jardines-security-hardening-rkse8k`): `updateEstricto` y el arreglo del P0 de la
-> invitación. Lo de abajo describe lo desplegado, no lo escrito.
+> **El bloque de cierre está DESPLEGADO ENTERO** (PR #12): el seam de escritura y el P0 de la
+> invitación, el token que `sec_26` habría rechazado, la noche del evento, y los tres P0 de
+> infraestructura. Ya no hay nada escrito y sin desplegar.
+>
+> **Lo que sigue pendiente es de base de datos, y es decisión del dueño:** `sec_26` y `sec_27`
+> están escritas, ensayadas en bloques revertidos por construcción y **sin aplicar**. Hasta que
+> se apliquen, la invitación digital sigue sin poder guardarse (pero ya lo dice en vez de
+> mentir) y el tablero de meseros sigue leyendo la columna que nadie llena (pero ya avisa).
 >
 > Este documento existe para responder tres cosas de un vistazo: **qué está hecho**, **qué está en
 > producción** y **qué queda abierto**. Si algo de aquí contradice a otro documento, gana este.
@@ -30,12 +35,12 @@ fondo salió con un P0 cada vez.
 
 | | |
 |---|---|
-| Commit del código | `ee19d7a` |
-| Deployment que lo subió | `dpl_9c5WPM3Xh3rUjEQzMSKQf8pREJmX` (READY, target `production`) |
+| Commit del código | `4a78f94` |
+| Deployment que lo subió | `dpl_Hco4QLZNCwtYYrQ7xZSUmdCesFKG` (READY, target `production`) |
 | URL | <https://jardines-club-hipico.vercel.app> |
 | Funciones serverless | **8** |
 | Migraciones aplicadas | `jardines_sec_01..25` (sin `sec_10`) |
-| Contratos | 278/278 · typecheck 59 (línea base) · lint 0 |
+| Contratos | 290/290 · typecheck 59 (línea base) · lint 0 |
 
 **Bloques desplegados:** 1–9 completos, 9E incluido. Ya está arriba el arreglo que impedía crear
 dos eventos de la misma solicitud, el mínimo de contraseña unificado en 8, el botón de convertir
@@ -150,14 +155,13 @@ portadoras por diseño, `operativo_canales` es global y no por evento, y la CSP 
 
 ## 5. Qué hacer a continuación, por orden
 
-1. **Terminar el bloque de cierre.** Están hechas las fases 0 y A; quedan **B a H** (galería y
-   PDF del menú, teléfono equivocado incluido en Google, vistas por token, cron y correos,
-   formulario público, los P3, y el despliegue final).
-2. **Decidir de quién es la invitación digital**: del cliente (aplicar `sec_26`) o del dueño
-   (mover la pantalla al panel). Hasta entonces la función no existe para nadie.
-3. **Decidir `sec_27`** (único parcial sobre `eventos.solicitud_id`, J-13) y **J-10/J-11** (RLS
-   por columnas). Las tres son migraciones.
-4. **Terminar la auditoría funcional.** Ya cubrió las siete zonas y salieron 19 hallazgos.
+1. **El dueño decide sobre `sec_26` y `sec_27`.** Son las dos migraciones escritas, ensayadas y
+   sin aplicar. Están en la tabla de `docs/VALIDACION.md`, en lenguaje llano.
+2. **El censo dejó 63 hallazgos abiertos** (5 P0, 15 P1, 24 P2, 19 P3) y de ellos se cerraron
+   los tres P0 de infraestructura (1.1, 1.2, 1.3). **Quedan 1.4 y 1.5** —la página en blanco si
+   Supabase no contesta, y la familia de nueve respaldos que inventan datos— y las fases 2 a 7.
+3. **Terminar la auditoría funcional en el navegador.** Nada de esto se ha visto renderizado:
+   Chromium no atraviesa el proxy en estas sesiones.
 
 ---
 
