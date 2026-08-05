@@ -12,6 +12,7 @@ import AccesoPage from '@/components/meseros/AccesoPage';
 import StaffPage from '@/components/meseros/StaffPage';
 import InvitacionPublica from '@/components/invitacion/InvitacionPublica';
 import { ADMIN_SLUG } from '@/config/portal';
+import ErrorBoundary from '@/components/ErrorBoundary';
 
 const { Pages, Layout, mainPage } = pagesConfig;
 const mainPageKey = mainPage ?? Object.keys(Pages)[0];
@@ -27,6 +28,7 @@ const publicPages = Object.entries(Pages).filter(([path]) => path !== 'Admin');
 
 function App() {
   return (
+    <ErrorBoundary>
     <QueryClientProvider client={queryClientInstance}>
       <AuthProvider>
         <Router>
@@ -74,6 +76,7 @@ function App() {
       </AuthProvider>
       <Toaster />
     </QueryClientProvider>
+    </ErrorBoundary>
   )
 }
 

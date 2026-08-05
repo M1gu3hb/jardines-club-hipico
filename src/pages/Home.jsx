@@ -78,6 +78,26 @@ export default function Home() {
     ]);
   }, []);
 
+  /**
+   * EL SITIO ARRANCA AUNQUE LA BASE NO CONTESTE.
+   *
+   * El splash solo se monta con `configLoaded`, y `splashDone` solo lo pone el splash al terminar.
+   * Así que `configLoaded` gobernaba **todo** el render: si la petición de `ConfigSitio` no se
+   * resolvía nunca —y `fetch` no tiene tiempo límite propio, así que un socket colgado se queda
+   * colgado— el visitante se quedaba mirando un rectángulo negro indefinidamente. No un error, no
+   * un spinner: nada. Los otros dos caminos (error de PostgREST, red caída) sí resuelven, porque
+   * `list()` se traga el fallo y devuelve `[]`; el que mata es el que no resuelve.
+   *
+   * A los 2.5 s se sigue adelante con lo que haya. Eso ya no miente, porque los respaldos dejaron
+   * de inventar: sin `config`, el contacto sale de `src/config/negocio.js` —los datos verificados
+   * del negocio— y los salones dicen que la lista no cargó en vez de enseñar cinco inventados.
+   */
+  useEffect(() => {
+    if (configLoaded) return;
+    const t = setTimeout(() => setConfigLoaded(true), 2500);
+    return () => clearTimeout(t);
+  }, [configLoaded]);
+
   useEffect(() => {
     const observer = new IntersectionObserver(
       (entries) => {

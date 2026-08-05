@@ -3083,6 +3083,82 @@ for (const ruta of [
   check("2.3: `sec_28` amplía `sitio` y deja intacto `site-media` (Vero)", fallos2.length === 0, fallos2.join(" · "));
 }
 
+// ------------------------------------------- 3.1 · EL SITIO ARRANCA AUNQUE LA BASE NO CONTESTE
+//
+// El splash solo se monta con `configLoaded`, y `splashDone` —que gobierna TODO el render— solo lo
+// pone el splash al terminar. Si la lectura de `ConfigSitio` no se resolvía nunca (y `fetch` no
+// tiene tiempo límite propio), el visitante se quedaba mirando un rectángulo negro sin fin.
+//
+// Se afirma la CADENA, no la constante: que existe un temporizador que levanta la misma señal que
+// bloquea el render. Fijar «2500» no diría nada sobre si ese número desbloquea algo.
+{
+  const home = leerCodigo("src/pages/Home.jsx");
+  const fallos = [];
+
+  // Qué señal gobierna el render. Se DERIVA del propio archivo en vez de fijarse.
+  const puerta = (home.match(/\{\s*!?(\w+)\s*&&\s*configLoaded\s*&&/) || [])[0] ? "configLoaded" : "";
+  if (!puerta) fallos.push("ya no se ve `configLoaded` gobernando el montaje del splash");
+
+  // Y hay un `setTimeout` cuyo callback levanta ESA señal. El plazo concreto NO se afirma: subirlo
+  // a 4 s sigue cumpliendo la propiedad, y atarlo al número obligaba además a adivinar el
+  // espaciado —una coma final tras `2500,` rompía la afirmación sin que hubiera regresión.
+  const conTimeout = /setTimeout\(\s*\(\)\s*=>\s*setConfigLoaded\(true\)\s*,/.test(home);
+  if (!conTimeout) fallos.push("ningún temporizador levanta `configLoaded`: una lectura colgada deja la página en blanco");
+
+  // El temporizador se limpia (si no, deja un setState sobre un componente desmontado).
+  if (!/clearTimeout\(/.test(home)) fallos.push("el temporizador no se limpia al desmontar");
+
+  check("3.1: una lectura colgada no puede dejar la portada en blanco", fallos.length === 0, fallos.join(" · "));
+}
+
+// ------------------------------------------- 3.2 · HAY UN ERROR BOUNDARY, Y ENVUELVE LA APP
+//
+// No había ninguno en los 189 archivos. En React una excepción durante el render desmonta el árbol
+// entero: un `undefined.map` en cualquier componente dejaba `<div id="root">` vacío — rectángulo
+// negro, sin mensaje ni forma de recuperarse. El día del evento eso pasa en la puerta, en un móvil.
+{
+  const fallos = [];
+  const eb = leerCodigo("src/components/ErrorBoundary.jsx");
+  if (!/static getDerivedStateFromError/.test(eb)) fallos.push("`ErrorBoundary` no implementa `getDerivedStateFromError`");
+  if (!/componentDidCatch/.test(eb)) fallos.push("`ErrorBoundary` no implementa `componentDidCatch`");
+  // Recuperable: tiene que ofrecer salir del estado roto.
+  if (!/location\.reload\(\)/.test(eb)) fallos.push("`ErrorBoundary` no ofrece recargar");
+  // Y no le enseña al visitante el mensaje crudo, que puede llevar nombres de tablas o columnas.
+  const render = entre(eb, "render() {", "\n  }\n}");
+  if (/\{\s*(this\.)?state\.fallo(\?\.|\.)?(message|toString)/.test(render) || /\{\s*String\(this\.state\.fallo\)/.test(render)) {
+    fallos.push("`ErrorBoundary` pinta el mensaje crudo del error");
+  }
+
+  // Y envuelve la aplicación de verdad — que exista sin usarse es no tenerlo.
+  const app = leerCodigo("src/App.jsx");
+  if (!/import\s+ErrorBoundary\s+from/.test(app)) fallos.push("`App.jsx` no importa `ErrorBoundary`");
+  const cuerpo = entre(app, "function App()", "export default");
+  if (!/<ErrorBoundary>[\s\S]*<\/ErrorBoundary>/.test(cuerpo)) fallos.push("`App` no está envuelta en `ErrorBoundary`");
+  // Envuelve el Router, no un trozo suelto: si el boundary quedara DENTRO del árbol de rutas, un
+  // fallo del layout se lo saltaría.
+  if (!/<ErrorBoundary>[\s\S]*<Router>/.test(cuerpo)) fallos.push("el boundary no queda por fuera del Router");
+
+  check("3.2: hay un error boundary y envuelve la aplicación entera", fallos.length === 0, fallos.join(" · "));
+}
+
+// ------------------------------------------- 3.3 · UNA VARIABLE QUE FALTA SE VE
+//
+// `createClient(undefined, undefined)` LANZA en la carga del módulo, antes de que React monte.
+// El archivo solo hacía `console.error` bajo el comentario «avisar en runtime» — y no avisaba de
+// nada: el visitante veía un rectángulo negro y el aviso quedaba en una consola que nadie abre.
+{
+  const cli = leerCodigo("src/api/supabaseClient.js");
+  const guardia = entre(cli, "if (!url || !anonKey)", "\n}");
+  const fallos = [];
+  if (!guardia) fallos.push("ya no se comprueba que las variables existan");
+  // Se pinta algo en el DOM, no solo en la consola.
+  if (!/getElementById\("root"\)/.test(guardia)) fallos.push("el fallo de configuración no se pinta en la página");
+  if (!/textContent\s*=/.test(guardia)) fallos.push("no se escribe ningún texto visible");
+  // Sin `innerHTML` con interpolación: es DOM a mano justamente para no abrir esa puerta.
+  if (/innerHTML\s*=\s*[`"'][^`"']*\$\{/.test(guardia)) fallos.push("se construye HTML por interpolación");
+  check("3.3: una variable de entorno que falta se ve en la página, no solo en la consola", fallos.length === 0, fallos.join(" · "));
+}
+
 // ---------------------------------------------------------------- salida
 let fallan = 0;
 for (const c of casos) {
