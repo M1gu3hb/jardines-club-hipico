@@ -2744,12 +2744,17 @@ for (const ruta of [
       ? `\`db push\` los reejecutaría: ${huerfanos.map((h) => h.f).join(", ")}`
       : "",
   );
-  // Y las pendientes tienen que seguir siendo pendientes: si alguien mueve `sec_26` a la lista
-  // de aplicadas sin aplicarla, este contrato ya no protegería nada.
+  // Y una migración no puede estar en las dos listas a la vez. Antes esto afirmaba que `sec_26`
+  // y `sec_27` seguían pendientes; se aplicaron el 2026-08-05 con el visto bueno del dueño, así
+  // que aquel contrato dejó de ser cierto — y una afirmación que deja de ser cierta hay que
+  // cambiarla, no tolerarla. El invariante que sí vale siempre es que las dos listas sean
+  // disjuntas: si alguien mueve una a «aplicadas» sin aplicarla, o la deja en las dos, el
+  // contrato de arriba dejaría de proteger nada.
+  const enAmbas = [...pendientes].filter((p) => aplicadas.has(p));
   check(
-    "1.1: `sec_26` y `sec_27` siguen declaradas como NO aplicadas",
-    pendientes.size >= 2 && ![...pendientes].some((p) => aplicadas.has(p)),
-    `pendientes: ${[...pendientes].join(", ") || "ninguna"}`,
+    "1.1: ninguna migración figura a la vez como aplicada y como pendiente",
+    enAmbas.length === 0,
+    enAmbas.length ? `en las dos listas: ${enAmbas.join(", ")}` : `pendientes: ${[...pendientes].join(", ") || "ninguna"}`,
   );
 }
 
@@ -2794,6 +2799,46 @@ for (const ruta of [
     fallos.length === 0,
     fallos.join(" · "),
   );
+}
+
+// ------------------------------------------- 0 · LA FUENTE ÚNICA DEL AFORO (sec_27 aplicada)
+//
+// `progreso_mesas_staff` leía `mesas.ocupadas`, que no escribe nadie. Ahora suma de
+// `invitaciones.personas_registradas`, que es donde `registrar_acceso_staff` escribe — y
+// devuelve `fuente` para que la pantalla sepa de dónde viene el número.
+//
+// Ese `fuente` es lo que apaga el aviso provisional del tablero **solo**, sin que nadie tenga
+// que acordarse de quitarlo. Por eso se contrata la cadena: si la migración dejara de
+// devolverlo, o la pantalla dejara de mirarlo, el aviso se quedaría pintado para siempre
+// afirmando algo que ya no pasa — que es cómo envejecen todos los avisos viejos.
+// Se afirma sobre el CUERPO de cada función, recortado con `entre()`, no sobre el archivo entero.
+// Medido mutando: el primer intento buscaba «aforo de la mesa» en todo el SQL, y esa frase vive
+// también en el bloque de poscondiciones (`… not like '%aforo de la mesa%' …`, dos veces). Borrar
+// el `raise exception` de verdad —la comprobación entera— dejaba el contrato en VERDE. Es la
+// tercera forma de vacuidad del §9: presencia no es alcanzabilidad. Lo mismo con
+// `sum(i.personas_registradas)`, que aparece en las dos funciones: quitarla de `progreso` la
+// dejaba viva en `registrar` y el contrato pasaba afirmando algo de la función equivocada.
+{
+  const sql = leer(migracion("sec_27"));
+  const staff = leerCodigo("src/components/meseros/StaffPage.jsx");
+  // `as $$ … end $$;` de cada función, que es donde la propiedad tiene que estar.
+  const progreso = entre(sql, "create or replace function jardines.progreso_mesas_staff", "end $$;");
+  const registrar = entre(sql, "create or replace function jardines.registrar_acceso_staff", "end $$;");
+  const fallos = [];
+  if (!progreso) fallos.push("no se encuentra la definición de `progreso_mesas_staff`");
+  if (!registrar) fallos.push("no se encuentra la definición de `registrar_acceso_staff`");
+  if (!/'fuente',\s*'invitaciones'/.test(progreso)) fallos.push("`progreso_mesas_staff` no devuelve `fuente: invitaciones`");
+  if (!/sum\(i\.personas_registradas\)/.test(progreso)) fallos.push("`progreso_mesas_staff` no suma de `invitaciones.personas_registradas`");
+  // El freno de aforo: leer lo ya registrado en TODA la mesa, cruzarlo con `mesas.capacidad` y
+  // cortar. Las tres cosas, dentro del cuerpo de `registrar_acceso_staff`.
+  if (!/sum\(i\.personas_registradas\)/.test(registrar)) fallos.push("`registrar_acceso_staff` no cuenta lo ya registrado en la mesa");
+  // Sin ventana de caracteres: partir el `if` en tres líneas no es una regresión, y un
+  // `[\s\S]{0,80}` decía que los dos textos estaban cerca, no que uno gobernara al otro.
+  if (!/>\s*m\.capacidad\b/.test(registrar)) fallos.push("`registrar_acceso_staff` no compara contra `mesas.capacidad`");
+  if (!/m\.capacidad\s+is\s+not\s+null/.test(registrar)) fallos.push("`registrar_acceso_staff` no protege la comparación de una capacidad nula");
+  if (!/raise\s+exception\s+'excede el aforo de la mesa/.test(registrar)) fallos.push("`registrar_acceso_staff` no corta cuando se excede el aforo");
+  if (!/fuente\s*!==\s*"invitaciones"/.test(staff)) fallos.push("el aviso del tablero no cuelga de `fuente`, así que no se apagaría solo");
+  check("0: el avance de mesas sale de `invitaciones`, y el aviso provisional se apaga solo", fallos.length === 0, fallos.join(" · "));
 }
 
 // ---------------------------------------------------------------- salida

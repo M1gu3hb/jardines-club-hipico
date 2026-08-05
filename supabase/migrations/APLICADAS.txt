@@ -96,7 +96,10 @@
 20260803203804  jardines_sec_24_salon_planos_unico_y_path
 20260804181430  jardines_sec_25_evento_solicitud_id
 
+20260805042714  jardines_sec_26_invitacion_cliente
+20260805043150  jardines_sec_27_permisos_por_columna_y_defaults
+
 # ── PENDIENTES: escritas, ensayadas y NO aplicadas ──────────────────────────
 # Están en el repo a propósito y NO deben figurar arriba hasta que el dueño las apruebe.
-# PENDIENTE  20260805120000  jardines_sec_26_invitacion_cliente
-# PENDIENTE  20260805130000  jardines_sec_27_permisos_por_columna_y_defaults
+# (Ninguna ahora mismo. `sec_26` y `sec_27` se aplicaron el 2026-08-05 con su visto bueno;
+#  sus archivos se renombraron a la versión que registró la base, que es la regla de 1.1.)

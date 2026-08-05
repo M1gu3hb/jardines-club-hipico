@@ -1,9 +1,12 @@
 -- jardines_sec_26 — Que el cliente pueda activar SU invitación digital
 --
--- ⚠️ ESCRITA Y ENSAYADA, **NO APLICADA**. Es una decisión de producto que le toca al dueño:
---    ¿la invitación la activa el cliente desde su portal, o el dueño desde el panel? Este
---    archivo implementa la primera opción. Si el dueño elige la segunda, este archivo se borra
---    y la pantalla se mueve al panel — no se aplica "por si acaso".
+-- ✅ APLICADA el 2026-08-05 (version 20260805042714), con el visto bueno del dueño. Se decidió que la
+--    invitación la activa **el cliente** desde su portal.
+--
+--    Verificado tras aplicar: la función existe, es `security definer` con `search_path=""`,
+--    su ACL es {postgres=X, authenticated=X, service_role=X} y
+--    `has_function_privilege('anon', …)` es **false** — el agujero del default ACL, cerrado.
+--    Vero idéntico antes y después (1/11/8, 6 tablas, 11 policies, 4 funciones).
 --
 -- OJO CON EL NÚMERO: `sec_26` estaba reservado en `docs/NEXT_STEPS.md` para el índice único
 -- sobre `eventos.solicitud_id` (J-13). Ese pasa a ser **`sec_27`**. Se renumera aquí y en la
