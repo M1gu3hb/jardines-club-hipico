@@ -121,10 +121,29 @@ begin
     return jsonb_build_object('ok', false, 'motivo', 'no_disponible');
   end if;
 
-  -- 2) FORMA DEL TOKEN. Es una credencial portadora: 32 bytes en hex son 64 caracteres, que es
-  --    lo que produce `tokenSeguro()`. Se acota aquí para que la RPC no pueda usarse para meter
-  --    en esa columna un token corto y adivinable, ni un texto arbitrario de 10 KB.
-  if p_activa and (p_token is null or p_token !~ '^[a-f0-9]{32,128}$') then
+  -- 2) FORMA DEL TOKEN. Es una credencial portadora, así que se acota para que esta RPC no
+  --    pueda usarse para meter en esa columna un token corto y adivinable, ni un texto de 10 KB.
+  --
+  --    ⚠️ LA PRIMERA VERSIÓN EXIGÍA HEXADECIMAL Y HABRÍA RECHAZADO EL 100 % DE LOS TOKENS.
+  --    `^[a-f0-9]{32,128}$` con un comentario que afirmaba "32 bytes en hex son 64 caracteres,
+  --    que es lo que produce `tokenSeguro()`". Las dos mitades eran falsas: `tokenSeguro()`
+  --    devuelve **base64url de 43 caracteres**, no hex de 64. Medido con la función real:
+  --    20 000 tokens generados, **0 pasaban**. Y el fallo habría parecido intermitente, porque
+  --    «Desactivar» no valida el token y sí habría funcionado.
+  --
+  --    Se arregla la VALIDACIÓN, no el generador, y no por comodidad:
+  --      · `tokenSeguro()` es el generador del navegador para todo el proyecto;
+  --      · y la propia base ya genera así sus tokens desde `sec_04`:
+  --          rtrim(translate(encode(gen_random_bytes(32),'base64'), '+/', '-_'), '=')
+  --        que es exactamente base64url de 43 caracteres.
+  --    Pedir hex aquí metería un segundo alfabeto de token en la misma base para el mismo tipo
+  --    de credencial — la divergencia entre dos fuentes que ya costó el bug de 8A (cliente ≥6,
+  --    servidor ≥8). No hay nada emitido que respetar: `count(invitacion_token)` = 0.
+  --
+  --    El suelo de 43 no es estético: 43 caracteres de base64url son los 256 bits que produce
+  --    `gen_random_bytes(32)`. Un token más corto sería menos entropía, que es lo único que
+  --    protege esta credencial.
+  if p_activa and (p_token is null or p_token !~ '^[A-Za-z0-9_-]{43,128}$') then
     return jsonb_build_object('ok', false, 'motivo', 'token_invalido');
   end if;
 
@@ -137,15 +156,35 @@ begin
   -- 4) La escritura, EXACTAMENTE cuatro columnas. Ninguna otra puede tocarse desde aquí, y esa
   --    es la razón de que esto sea una función y no una policy.
   update jardines.eventos
-     set invitacion_token      = case when p_activa then p_token else invitacion_token end,
+     -- CONSERVA el token que ya hubiera. La primera versión era
+     --   `case when p_activa then p_token else invitacion_token end`
+     -- que al ACTIVAR sobrescribía siempre — justo lo contrario de lo que `PortalInvitacion`
+     -- promete y de lo que el cliente da por hecho. Con dos pestañas abiertas bastaba: la A
+     -- activa y reparte el enlace por WhatsApp; la B, que sigue con `invitacionToken` en null
+     -- porque `form` solo se inicializa al montar, guarda un cambio de mensaje y genera otro
+     -- token. Los enlaces ya repartidos quedaban muertos, sin aviso y sin forma de recuperarlos.
+     --
+     -- `coalesce` deja el token como lo que es: se emite UNA vez y no se rota por accidente.
+     -- Rotarlo a propósito sería una operación distinta y explícita, que hoy no existe.
+     -- El front se recompone solo, porque guarda el token que DEVUELVE esta función.
+     set invitacion_token      = coalesce(invitacion_token, case when p_activa then p_token end),
          invitacion_activa     = p_activa,
          invitacion_mensaje    = p_mensaje,
          invitacion_dress_code = p_dress_code
    where id = p_evento_id;
 
   get diagnostics v_filas = row_count;
-  -- Se DEVUELVE cuántas filas se tocaron. Es la misma lección que `updateEstricto` en el shim:
-  -- una escritura de cero filas no puede responder lo mismo que una de una.
+  -- ¿ES ALCANZABLE ESTA RAMA? Casi nunca, y conviene dejar escrito el "casi". `is_my_event` ya
+  -- probó que la fila existe; esta función es `security definer` y su dueño es `postgres`, que
+  -- tiene `rolbypassrls`; y `relforcerowsecurity` es **false** en `jardines.eventos`
+  -- (comprobado en producción). Así que RLS no filtra nada aquí dentro y el UPDATE toca una
+  -- fila. **Salvo una carrera**: que el evento se borre entre la comprobación y el UPDATE.
+  --
+  -- Se queda, y no como decoración. Es el único camino por el que esta función podría
+  -- responder "guardado" sin haber guardado, y cuesta dos líneas. Quitarlo porque "hoy no
+  -- puede dispararse" es exactamente el razonamiento que dejó vivo el P0 del bloque 8: un
+  -- guardarraíl que se da por innecesario hasta que un cambio de al lado lo hace necesario —y
+  -- esta función es `create or replace`, así que ese cambio es una edición de distancia.
   if v_filas = 0 then
     return jsonb_build_object('ok', false, 'motivo', 'sin_efecto');
   end if;

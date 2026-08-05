@@ -2302,8 +2302,10 @@ for (const ruta of [
     }
     // Y NINGÚN grant puede alcanzar a `anon`: esta RPC escribe.
     if (/grant\s+execute[^;]*\banon\b/i.test(sql)) fallos.push("concede EXECUTE a `anon`");
-    // La forma del token se valida: sin eso, la RPC sirve para meter un token corto y adivinable.
-    if (!/p_token\s*!~\s*'\^\[a-f0-9\]/.test(sql)) fallos.push("no valida la forma del token");
+    // La forma del token se valida — SIN fijar el alfabeto aquí. Esa mitad la comprueba T.1
+    // ejecutando el generador real contra esta misma regex, que es lo único que distingue una
+    // validación correcta de una que rechaza el 100 % de los tokens.
+    if (!/p_token\s+is\s+null\s+or\s+p_token\s*!~\s*'\^/.test(sql)) fallos.push("no valida la forma del token");
   }
   check("A.2: `sec_26` acota la escritura del cliente a sus cuatro columnas y no toca nada más", fallos.length === 0, fallos.join(" · "));
 }
@@ -2417,6 +2419,87 @@ for (const ruta of [
     // permiso" ni un reventón.
     if (!/PGRST202/.test(inv)) fallos.push("no distingue «la función todavía no existe» de un fallo de permisos");
     check("A-bis: la invitación del cliente va por `sec_26` y no por la tabla", fallos.length === 0, fallos.join(" · "));
+  }
+}
+
+// ------------------------------------------- FASE T · el token que la migración rechazaba
+//
+// `sec_26` validaba `^[a-f0-9]{32,128}$` y `tokenSeguro()` produce **base64url de 43
+// caracteres**. El día que el dueño aprobara la migración, cada clic en «Crear y activar
+// invitación» habría devuelto `token_invalido` — el 100 % — y el cliente habría leído «No se
+// pudo generar el enlace… inténtalo otra vez», que es exactamente la mentira que este bloque
+// existe para matar. Y habría parecido intermitente, porque «Desactivar» no valida el token.
+//
+// ESTE CONTRATO NO MIRA LA FORMA DE LA REGEX. Ejecuta el generador **real** contra la
+// validación **real** extraída del SQL. Es la única manera de que no vuelva a pasar: cualquier
+// contrato que se limitara a comparar dos textos habría dado por buenas las dos versiones.
+{
+  const sql = leer("supabase/migrations/20260805120000_jardines_sec_26_invitacion_cliente.sql");
+  const patron = (/p_token\s*!~\s*'([^']+)'/.exec(sql) || [])[1];
+  if (!patron) {
+    check("T.1: la validación del token de `sec_26` acepta lo que genera `tokenSeguro()`", false,
+      "no se encontró la validación del token en sec_26");
+  } else {
+    // `tokenSeguro` es puro y sin imports: se ejecuta tal cual. `btoa` y `crypto` son globales
+    // en Node 18+, igual que en el navegador.
+    const { tokenSeguro } = await import("../src/lib/tokenSeguro.js");
+    const re = new RegExp(patron);
+    const muestras = Array.from({ length: 2000 }, () => tokenSeguro());
+    const rechazados = muestras.filter((t) => !re.test(t));
+    check(
+      "T.1: la validación del token de `sec_26` acepta lo que genera `tokenSeguro()`",
+      rechazados.length === 0,
+      rechazados.length
+        ? `${rechazados.length}/${muestras.length} tokens reales rechazados por /${patron}/ (ej.: ${rechazados[0]}, ${rechazados[0].length} caracteres)`
+        : "",
+    );
+    // Y al revés: la validación tiene que seguir rechazando lo que no vale. Sin esto, "que
+    // acepte los reales" se cumpliría con `^.*$`.
+    const basura = ["", "corto", "a".repeat(42), "tiene espacios aqui", "con/barra+y+mas", "x".repeat(200)];
+    const colados = basura.filter((t) => re.test(t));
+    check(
+      "T.1: y sigue rechazando tokens cortos o de alfabeto equivocado",
+      colados.length === 0,
+      colados.length ? `deja pasar: ${colados.map((t) => `«${t.slice(0, 20)}»`).join(", ")}` : "",
+    );
+  }
+
+  // T.2 · El token se EMITE una vez. La primera versión lo sobrescribía en cada activación, así
+  // que dos pestañas bastaban para dejar muertos los enlaces ya repartidos — justo lo contrario
+  // de lo que el comentario del front prometía.
+  {
+    const asig = /invitacion_token\s*=\s*([^,\n]+)/.exec(sql.replace(/^\s*--.*$/gm, ""));
+    const conserva = asig && /coalesce\s*\(\s*invitacion_token\b/.test(asig[1]);
+    check(
+      "T.2: `sec_26` conserva el token ya emitido en vez de sobrescribirlo",
+      Boolean(conserva),
+      asig ? `asignación: «${asig[1].trim()}»` : "no se encontró la asignación de `invitacion_token`",
+    );
+    // Y el front y el SQL tienen que decir lo mismo: el comentario que prometía la conservación
+    // fue lo que hizo que nadie mirara si el SQL la hacía.
+    const inv = leer("src/components/portal/PortalInvitacion.jsx");
+    check(
+      "T.2: el front guarda el token que DEVUELVE la base, no el que mandó",
+      /invitacionToken:\s*r\.token\s*\|\|\s*token/.test(inv),
+    );
+  }
+
+  // T.3 · Cada `motivo` que la función puede devolver tiene mensaje en el front, y cada mensaje
+  // del front corresponde a un motivo que la función puede devolver. Una rama sin mensaje deja
+  // al cliente con un texto genérico; un mensaje sin rama es decoración.
+  {
+    const motivosSql = new Set([...sql.matchAll(/'motivo',\s*'(\w+)'/g)].map((m) => m[1]));
+    const inv = leerCodigo("src/components/portal/PortalInvitacion.jsx");
+    const bloqueMotivos = entre(inv, "const MOTIVOS = {", "};");
+    const motivosFront = new Set([...bloqueMotivos.matchAll(/^\s*(\w+):/gm)].map((m) => m[1]));
+    const sinMensaje = [...motivosSql].filter((m) => !motivosFront.has(m));
+    const sinRama = [...motivosFront].filter((m) => !motivosSql.has(m));
+    check(
+      "T.3: cada motivo de `sec_26` tiene mensaje, y cada mensaje tiene su motivo",
+      sinMensaje.length === 0 && sinRama.length === 0,
+      [sinMensaje.length ? `motivos sin mensaje: ${sinMensaje.join(", ")}` : "",
+       sinRama.length ? `mensajes sin motivo en la función: ${sinRama.join(", ")}` : ""].filter(Boolean).join(" · "),
+    );
   }
 }
 

@@ -14,7 +14,8 @@ const MOTIVOS = {
   no_disponible: "No se encontró esta invitación, o no es de tu evento. Recarga la página.",
   token_invalido: "No se pudo generar el enlace de tu invitación. Recarga la página e inténtalo otra vez.",
   demasiado_largo: "El mensaje o el código de vestimenta son demasiado largos. Acórtalos e inténtalo otra vez.",
-  sin_efecto: "El cambio no llegó a guardarse. Recarga la página e inténtalo otra vez.",
+  // Solo alcanzable si el evento se borra mientras se guarda (ver `sec_26`, `get diagnostics`).
+  sin_efecto: "Este evento ya no está disponible. Recarga la página.",
 };
 const motivoRpc = (motivo) => {
   const e = new Error(MOTIVOS[motivo] || "No se pudo guardar. Inténtalo de nuevo.");
@@ -101,9 +102,10 @@ export default function PortalInvitacion({ evento }) {
         p_dress_code: patch.invitacionDressCode,
       });
       if (!r?.ok) throw motivoRpc(r?.motivo);
-      // El token que vale es el que devuelve la base, no el que se mandó: si la invitación ya
-      // tenía uno, `sec_26` conserva el viejo y crear uno nuevo aquí dejaría muertos los
-      // enlaces ya repartidos.
+      // El token que vale es el que DEVUELVE la base, no el que se mandó. `sec_26` conserva con
+      // `coalesce` el token que ya hubiera, así que si otra pestaña activó primero, esta se
+      // recompone sola con el bueno en vez de repartir uno distinto. Sin ese `coalesce` —como
+      // estaba— dos pestañas bastaban para dejar muertos los enlaces ya repartidos.
       setForm((f) => ({ ...f, ...patch, invitacionToken: r.token || token }));
       setOk(true);
     } catch (e) {
