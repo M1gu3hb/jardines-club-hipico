@@ -1,5 +1,68 @@
 # CHANGELOG.md
 
+## 2026-08-05 — A-bis y A-ter: el cable que faltaba, y los contratos que solo miraban la forma
+
+### A-bis — `sec_26` no arreglaba el P0 para el que se escribió
+
+La migración estaba bien construida, bien ensayada y documentada. **Y no la llamaba nadie:**
+`grep -rn invitacion_guardar src/ api/` daba **0**. Sus dos únicas apariciones fuera de la
+migración eran contratos **en verde** comprobando los `grant`/`revoke` de una función que ningún
+código invoca.
+
+Si se hubiera desplegado así: el dueño aprueba la migración → se aplica → se prueba el portal →
+sale el **mismo** error de permisos → se concluye que la vía RPC no sirve. La conclusión sería
+falsa y habría cerrado el camino correcto.
+
+`PortalInvitacion` llama ya a `base44.rpc("invitacion_guardar", …)`. **Sin respaldo a
+`updateEstricto`**: un respaldo que tampoco puede funcionar solo sirve para volver a confundir la
+causa. Hoy la RPC no existe en la base, así que falla —legiblemente—: `PGRST202` se traduce a
+«todavía no está habilitada», que es una frase distinta de «no tienes permiso», y cada `motivo`
+de la RPC tiene su mensaje.
+
+**Y un contrato genérico que ata migración y llamador.** Encontró **seis huérfanas más**, todas
+anteriores y verificadas con cero apariciones en `src/`, `api/` y el bundle construido —
+`registrar_llegada_mesa`, `revocar_staff_token`, `confirmar_evento`, `auditoria_reciente`,
+`operativo_ubicar`, `operativo_evento_activo` (J-16).
+
+Las cinco menores, todas confirmadas antes de aplicarlas:
+
+- El comentario que afirmaba que «un admin también pasa por aquí» era **falso**: `is_my_event`
+  es solo `auth_user_id = auth.uid()`, leído de la definición en la base. Y lo decía describiendo
+  la opción B — que con esta función **no funcionaría**.
+- El puntero a una sección de `VALIDACION.md` que no existe: fuera.
+- El aviso del panel **deriva ahora del hecho comprobable** (`invitacionToken`), no de
+  `invitacionActiva`: el día que funcione, un cliente que active y luego desactive ya no dispara
+  «nunca se ha guardado».
+- `setOk(false)` y `ok && !error` en `PortalInvitacion`, a la par de las otras dos pantallas.
+- Las poscondiciones de `sec_26` comprueban las policies **por nombre** contra una foto de antes,
+  en vez de prometer «ni las policies» mirando solo `relrowsecurity`.
+
+### A-ter — 15 contratos vacuos y 18 ruidosos, arreglados afirmando propiedades
+
+Tres reglas, cada una nacida de una vacuidad medida:
+
+| Regla | Lo que dejaba pasar |
+|---|---|
+| **Alcanzabilidad, no orden de índices** | `await …updateEstricto(…).catch(() => {})` — el «Guardado ✓» volvía a mentir y los tres `indexOf` seguían en orden, porque un `.catch` no contiene `"} catch"` |
+| **Todas las apariciones, no la primera** | un **segundo** `update … set auth_user_id` detrás del bueno en `sec_26`; una segunda copia del aviso, mal guardada, detrás de la buena |
+| **Derivar identificadores, no fijarlos** | renombrar `debil` tumbaba dos contratos; `data`→`fila` y `(data||[]).length===0` rompían el de `updateEstricto` |
+
+Un helper único, `confirmacionAtadaALaEscritura`, sustituye la comparación de índices: exige que
+la escritura no lleve `.catch(` pegado, que no se pueda saltar —distinguiendo un `if/else` que
+despacha de un `if` que salta—, que haya `catch`, que el éxito se marque **una sola vez** y
+después de escribir, y que el cartel del render cuelgue de ese estado excluyendo el de error.
+Los nombres de los dos estados se leen del código.
+
+Y la clasificación de errores de Auth audita también `.includes("password")` y hermanos, no solo
+literales de regex: la palabra suelta volvía por la puerta de al lado.
+
+**Los contratos que solo miraban comentarios: retirados o reducidos a su mitad ejecutable**
+(D-COD-20). Fallaban las dos direcciones a la vez — no impedían reintroducir el bug y sí rompían
+con un sinónimo.
+
+**278 → 280 contratos.** 15 mutaciones destructivas fallan (las 15 que el brief midió en verde);
+7 inocuas pasan, tres de ellas solo después de arreglar el contrato que rompían.
+
 ## 2026-08-05 — Bloque de cierre, fases 0 y A
 
 > **Desplegado (fase 0).** PR #11 mergeado como `ee19d7a`; deployment

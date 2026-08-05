@@ -457,3 +457,34 @@ policy que dejara al cliente escribir su evento le dejaría escribir también `a
 `usuario`, `estatus`, `saldo`, `salon_id` y `solicitud_id` — incluida la columna que fue la
 entrada del P0 del bloque 8. Sería abrir de par en par la deuda que J-10 ya señala, para
 arreglar otra cosa.
+
+### D-COD-20 — Un contrato sobre prosa no es un contrato
+
+**Decisión.** Ningún contrato afirma sobre comentarios. Si la propiedad no tiene parte
+ejecutable, no se escribe el contrato y el motivo se queda en el comentario, a secas.
+
+**Por qué.** Se midieron dos contratos que solo miraban prosa y fallaban **las dos direcciones a
+la vez**: no impedían reintroducir el bug —la atribución falsa de `EventoRsvps` se podía
+reescribir con otras palabras— y sí rompían la suite si alguien reformulaba la explicación en
+sinónimos, sin tocar una línea ejecutable. Un contrato así no protege y además enseña a ignorar
+la suite.
+
+Retirado: el del suelo de `PASSWORD_MIN` (su parte ejecutable —el valor ≥ 8— ya está
+contratada aparte). Convertidos a su mitad ejecutable: el de `update` no estricto y el de
+`EventoRsvps`, que ahora afirma que el aviso **deriva de si hay token**, no qué frase usa.
+
+### D-COD-21 — Una pieza que nadie invoca es indistinguible de una que no existe
+
+**Decisión.** Toda función de `jardines` concedida a `anon` o `authenticated` tiene que ser
+invocada por alguien —el cliente, una policy u otra función—, y hay un contrato que lo
+comprueba. Las excepciones se listan **con motivo**, no se toleran en silencio.
+
+**Por qué.** `sec_26` se escribió, se ensayó y se documentó para arreglar el P0 de la invitación
+**sin que ningún código la llamara**, y había contratos en verde comprobando sus `grant`. Si se
+hubiera desplegado así: el dueño la aprueba, se aplica, se prueba el portal, sale el mismo error
+de permisos y se concluye que la vía RPC no sirve — una conclusión falsa que habría cerrado el
+camino correcto.
+
+El contrato encontró **seis huérfanas más**, todas anteriores: `registrar_llegada_mesa` (que
+escribiría la columna que el tablero de meseros lee y nadie llena), `revocar_staff_token`,
+`confirmar_evento`, `auditoria_reciente`, `operativo_ubicar` y `operativo_evento_activo`.

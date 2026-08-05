@@ -45,8 +45,30 @@ una causa falsa.
 
 - **Mitigado**: la pantalla ya no miente ni ofrece compartir un enlace muerto, y el panel dice
   lo que de verdad pasa.
-- **No resuelto**: la función sigue sin poder funcionar. Exige `sec_26` (escrita, ensayada, sin
-  aplicar) **o** mover la pantalla al panel. Es una decisión de producto del dueño.
+- **No resuelto**: la función sigue sin poder funcionar. Exige **las dos cosas**: `sec_26`
+  aplicada **y** que la pantalla la llame. La primera versión de este arreglo escribió la
+  migración y **no enchufó nada**, así que aplicar `sec_26` sola habría dado exactamente el
+  mismo error de permisos y habría hecho descartar la vía correcta. Hoy `PortalInvitacion` ya
+  llama a `jardines.invitacion_guardar` y falla con un mensaje propio («todavía no está
+  habilitada») mientras la migración no se aplique.
+- La alternativa sigue abierta: mover la activación al panel. Si se elige esa, `sec_26` **sobra
+  entera** — `is_my_event` es solo `auth_user_id = auth.uid()` y no cubre a un admin.
+
+### J-16 — Seis RPC concedidas al navegador que nadie invoca
+
+Salieron del contrato que ata migración y llamador. Todas comprobadas con cero apariciones en
+`src/`, en `api/` y en el bundle construido:
+
+| Función | Por qué importa |
+|---|---|
+| `registrar_llegada_mesa` | escribiría `mesas.ocupadas`, la fuente que el tablero de meseros lee y **nadie llena** |
+| `revocar_staff_token` | el panel solo rota el token, nunca lo revoca sin sustituto |
+| `confirmar_evento` | flujo de confirmación que nunca se construyó en la interfaz |
+| `auditoria_reciente` | la auditoría se consulta por SQL; no hay pantalla que la lea |
+| `operativo_ubicar`, `operativo_evento_activo` | parte del operativo que quedó sin interfaz |
+
+Están en una lista explícita del contrato, con su motivo, para que **cualquier huérfana nueva**
+haga fallar la suite. La lista solo puede encoger.
 
 ### J-15 — Las escrituras que RLS deja en cero filas siguen reportando éxito *(mitad cerrada)*
 
