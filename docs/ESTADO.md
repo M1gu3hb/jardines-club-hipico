@@ -1,24 +1,31 @@
 # ESTADO.md — dónde está el proyecto, sin optimismo
 
-> **2026-08-04** · <https://jardines-club-hipico.vercel.app>
+> **2026-08-06** · <https://jardines-club-hipico.vercel.app>
 >
-> **El código que corre en producción es el commit `4a78f94`** (PR #12), subido por el deployment
-> `dpl_Hco4QLZNCwtYYrQ7xZSUmdCesFKG`; el bundle servido es `assets/index-BT5U00On.js`. Este
-> documento se ancla al commit de **código** a propósito — si citara el último deployment se
-> quedaría obsoleto cada vez que se toca un `.md`.
+> **El código que corre en producción es el commit `8f7fe29`**, subido por el deployment
+> `dpl_7D3FpUnghgCcPKPAc2uaU1Ss6zoD` (READY, target `production`); el bundle servido es
+> `assets/index-DRaB7TwK.js`. Este documento se ancla al commit de **código** a propósito — si
+> citara el último deployment se quedaría obsoleto cada vez que se toca un `.md`.
 >
-> **El bloque de cierre está DESPLEGADO ENTERO** (PR #12): el seam de escritura y el P0 de la
-> invitación, el token que `sec_26` habría rechazado, la noche del evento, y los tres P0 de
-> infraestructura. Ya no hay nada escrito y sin desplegar.
+> **Desplegadas las FASES 0–4** del bloque final, además del video temporal del hero:
+> el teléfono del negocio en el JSON-LD, los respaldos que inventaban salones y datos de
+> contacto, la galería y el PDF del menú (que no funcionaban nunca), las dos cajas muertas del
+> panel, la página en blanco (plazo + error boundary), y los mensajes de la puerta que eran
+> inalcanzables. Verificado contra la URL de producción, no supuesto.
 >
-> **⚠️ ACTUALIZADO 2026-08-06 — lo de abajo ya no describe la base.** `sec_26`, `sec_27` y
-> `sec_28` **se aplicaron el 2026-08-05** con el visto bueno del dueño (ver `APLICADAS.txt`), así
-> que la invitación digital ya guarda, el tablero de meseros ya lee de `invitaciones` —y su aviso
-> provisional se apagó solo— y el bucket `sitio` admite PDF. Lo aplicado está en la base pero
-> **el código que lo acompaña todavía NO está desplegado**: vive en la rama
-> `claude/jardines-security-hardening-rkse8k`. La única migración pendiente hoy es **`sec_29`**
-> (que el libro de entradas sobreviva al borrado de una invitación): escrita, ensayada en un
-> bloque revertido por construcción, y **sin aplicar** a la espera de decisión.
+> **⚠️ NADIE HA CLICADO ESTO A MANO.** Pasa lint 0, build limpio, 314/314 contratos y typecheck en
+> línea base, y los marcadores de cada fase están comprobados en el bundle servido — pero no ha
+> habido validación humana con credenciales reales.
+>
+> **Base de datos:** `sec_26`, `sec_27` y `sec_28` **se aplicaron el 2026-08-05** con el visto
+> bueno del dueño (ver `APLICADAS.txt`), así que la invitación digital ya guarda, el tablero de
+> meseros lee de `invitaciones` —y su aviso provisional se apagó solo— y el bucket `sitio` admite
+> PDF. La única migración pendiente es **`sec_29`** (que el libro de entradas sobreviva al borrado
+> de una invitación): escrita, ensayada en un bloque revertido por construcción, y **sin aplicar**
+> a la espera de decisión.
+>
+> **Sin empezar:** FASES 5–8 del bloque final (las 36 escrituras sin `catch`, el aviso de
+> privacidad y los correos, la limpieza de contratos y código muerto, y la documentación).
 >
 > **TEMPORAL — video del hero.** El hero enseña un único video vertical
 > («Style Contest 2026», `public/media/img/style-contest-2026.mp4`) en lugar de los dos de
