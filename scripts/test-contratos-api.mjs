@@ -3324,28 +3324,69 @@ for (const ruta of [
   if (!src) fallos.push("`HERO_TEMPORAL.src` no es una ruta local de `/media/`");
   else { try { leer(`public${src}`); } catch { fallos.push(`falta el archivo \`public${src}\``); } }
 
-  // 4) LLENA EL HERO Y ESTÁ EN BUCLE. El archivo es VERTICAL (576×1024) y el hero es apaisado,
-  //    así que algo hay que ceder: o el cuadro entero con lados vacíos, o llenar y recortar. El
-  //    primer intento fue `contain` —cumplía «que se vea completo»— y en produccion se veía como
-  //    un reel centrado con marco oscuro. Corregido a `cover` a peticion del dueño.
+  // 4) EL VIDEO NO SE ESTIRA — ESA ES LA PROPIEDAD, Y ES ARITMETICA.
+  //
+  //    El archivo tiene 576x1024. Con `cover` en un monitor de 1080p hay que estirarlo 3.33x, y a
+  //    ese aumento se ven los pixeles: se probo en produccion y se veia pixelado. Con `contain`
+  //    el aumento es 1.05x — resolucion real. No es una preferencia estetica: el archivo no tiene
+  //    los pixeles para llenar un PC, y eso no se arregla desde el codigo.
+  //
+  //    Este contrato existe porque el camino equivocado es tentador: `cover` compone mejor y la
+  //    pixelacion solo se ve en pantalla grande, asi que se cambia «para que llene» y se rompe.
   const temporal = entre(hero, "function HeroVideoTemporal()", "\nexport default function HeroSection");
   if (!temporal) fallos.push("no se encuentra `HeroVideoTemporal`");
   if (!/objectFit:\s*ajuste/.test(temporal)) fallos.push("el ajuste del video no sale de la configuración");
-  if (!/ajuste:\s*"cover"/.test(cfg)) fallos.push("`ajuste` no es `cover`: el video no llenaría el hero");
-  if (!/objectPosition:\s*posicion/.test(temporal)) fallos.push("la franja que sobrevive al recorte no sale de la configuración");
+  if (!/ajuste:\s*"contain"/.test(cfg)) fallos.push("`ajuste` no es `contain`: en un PC habría que estirar el archivo 3× y se verían los píxeles");
+  if (!/objectPosition:\s*posicion/.test(temporal)) fallos.push("la posición del video no sale de la configuración");
   if (!/\bloop\b/.test(temporal)) fallos.push("el video no está en bucle");
-  if (!/\bmuted\b/.test(temporal)) fallos.push("el video no está silenciado — sin eso el navegador ni lo arranca");
   if (!/\bplaysInline\b/.test(temporal)) fallos.push("sin `playsInline`, iOS lo abre a pantalla completa");
 
-  // 5) UN SOLO `<video>`. La version de `contain` montaba DOS —el centrado y una copia
-  //    desenfocada de fondo— y al pasar a `cover` la copia sobra: seria un segundo decodificador
-  //    de video, en el movil tambien, pintando algo que ya no se ve. Se cuentan las etiquetas
-  //    dentro del componente; si alguien reintroduce el fondo, esto lo dice.
-  const nVideos = (temporal.match(/<video\b/g) || []).length;
-  if (nVideos !== 1) fallos.push(`\`HeroVideoTemporal\` monta ${nVideos} elementos <video>, y debe montar exactamente 1`);
-  if (/filter:\s*["'`]?\s*blur/.test(temporal)) fallos.push("vuelve a haber una copia desenfocada de fondo");
+  //    Y NADA de `scale` sobre el video de delante: escalarlo es exactamente lo que se acaba de
+  //    quitar. El fondo SI lleva `scale` a proposito, asi que buscarlo en todo el componente
+  //    daria verde por el elemento equivocado.
+  const elementos = temporal.split("<video").slice(1)
+    .map((t) => (t.indexOf("/>") < 0 ? t : t.slice(0, t.indexOf("/>"))));
+  const delante = elementos.find((e) => /objectFit:\s*ajuste/.test(e)) || "";
+  if (!delante) fallos.push("no hay ningún <video> que use el ajuste de la configuración");
+  else if (/transform:\s*["\'`]?\s*scale/.test(delante)) {
+    fallos.push("el video de delante lleva `scale`: eso vuelve a estirarlo y a pixelarlo");
+  }
 
-  check("TEMP: un solo video, llenando el hero y en bucle", fallos.length === 0, fallos.join(" · "));
+  // 5) LOS LADOS SE RELLENAN, Y EL FONDO NUNCA SUENA.
+  //
+  //    Con `contain` el video no llega a los bordes en un PC. Detras va una copia desenfocada del
+  //    mismo archivo. Y esa copia TIENE que estar muda: dos pistas del mismo audio con unos
+  //    milisegundos de desfase dan un eco metalico que se oye enseguida.
+  const nVideos = (temporal.match(/<video\b/g) || []).length;
+  if (nVideos !== 2) fallos.push(`\`HeroVideoTemporal\` monta ${nVideos} elementos <video>; deben ser 2 (el nítido y el fondo)`);
+  if (!/filter:\s*`blur\(\$\{desenfoque\}px\)/.test(temporal)) fallos.push("el fondo no está desenfocado, o el desenfoque no sale de la configuración");
+
+  //    LOS DOS VIDEOS SE IDENTIFICAN POR LO QUE HACEN, no por como se llaman sus refs. Medido
+  //    mutando: la primera version recortaba por `ref={fondoRef}` y renombrar esa ref rompia el
+  //    contrato sin que hubiera regresion — el mismo ruido que §9 prohibe, y van tres en este
+  //    bloque. El de fondo es «el que lleva desenfoque»; el de delante, «el que usa `ajuste`».
+  const elFondo = elementos.find((e) => /filter:\s*`?blur/.test(e)) || "";
+  if (!elFondo) fallos.push("no hay ningún <video> con desenfoque: los lados quedarían en negro");
+  else if (!/\bmuted\b/.test(elFondo)) fallos.push("el video de fondo no nace mudo: sonaría en eco con el de delante");
+  //    Y el efecto que le da volumen al de delante NO puede tocar el de fondo.
+  //
+  //    OJO CON EL RECORTE: el efecto EMPIEZA en `useEffect(() => {`, no en `const debeSonar`.
+  //    Recortando desde `debeSonar` —que fue el primer intento— quedaban fuera las dos primeras
+  //    líneas del cuerpo, que es justo donde se cogen las refs; la mutación que hacía
+  //    `videoRef.current || fondoRef.current` pasaba en VERDE. Se corta hacia atrás desde el
+  //    array de dependencias, que sí identifica el efecto sin ambigüedad.
+  const finAudio = temporal.indexOf("}, [conAudio");
+  const iniAudio = finAudio < 0 ? -1 : temporal.lastIndexOf("useEffect(", finAudio);
+  const efectoAudio = iniAudio < 0 ? "" : temporal.slice(iniAudio, finAudio);
+  //    Y la ref del fondo también se DERIVA: sale del propio elemento desenfocado.
+  const refFondo = (elFondo.match(/ref=\{(\w+)\}/) || [])[1];
+  if (!efectoAudio) fallos.push("no se encuentra el efecto que gobierna el audio");
+  else if (!refFondo) fallos.push("el video de fondo no tiene ref: nadie puede garantizar que no suene");
+  else if (new RegExp(`\\b${refFondo}\\b`).test(efectoAudio)) {
+    fallos.push("el efecto del audio toca el video de fondo: sonarían los dos");
+  }
+
+  check("TEMP: el video va a resolución real (no se estira), y el fondo nunca suena", fallos.length === 0, fallos.join(" · "));
 }
 
 {
@@ -3360,7 +3401,14 @@ for (const ruta of [
 
   // (a) El elemento sigue naciendo con `muted`, y el primer efecto lo fuerza por propiedad.
   //     Sin esto el video no arranca en absoluto.
-  const etiqueta = entre(temporal, "<video", "/>");
+  // El de DELANTE, que es el que lleva audio — identificado por lo que HACE (usa `ajuste` de la
+  // configuración), no por el nombre de su ref. Recortar por `<video` a secas encuentra el
+  // primero, que desde que hay fondo es el fondo, y este contrato hablaría del elemento
+  // equivocado; recortar por `ref={videoRef}` ata el contrato a un nombre local y renombrarlo lo
+  // rompe sin que haya regresión. Las dos versiones se probaron y las dos fallaron.
+  const etiqueta = temporal.split("<video").slice(1)
+    .map((t) => (t.indexOf("/>") < 0 ? t : t.slice(0, t.indexOf("/>"))))
+    .find((e) => /objectFit:\s*ajuste/.test(e)) || "";
   if (!/\bmuted\b/.test(etiqueta)) fallos.push("el `<video>` ya no nace silenciado: no arrancaría");
 
   // (b) La decisión de sonar depende de las TRES señales. Se recorta el efecto que la calcula

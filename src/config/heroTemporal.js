@@ -16,28 +16,38 @@
  * el hero es apaisado, así que **algo hay que ceder**: o se ve el cuadro entero
  * y sobran lados, o se llena la pantalla y se recorta. No hay una tercera.
  *
- * ── LO QUE SE ELIGIÓ, Y POR QUÉ ─────────────────────────────────────────────
+ * ── LO QUE SE ELIGIÓ, Y POR QUÉ — LA NITIDEZ MANDA ──────────────────────────
  *
- * `cover`: llena el hero y recorta, igual que el carrusel de siempre. En un PC
- * se ve una franja horizontal del centro del cuadro.
+ * Hubo dos intentos antes de este, y los dos enseñaron algo:
  *
- * El primer intento fue al revés —`contain`, el cuadro completo, con una copia
- * desenfocada detrás rellenando los lados— porque lo pedido era «que se vea
- * completo». Puesto en producción se veía como un reel centrado con marco
- * oscuro: cumplía la letra y no la intención. Corregido a petición del dueño:
- * «que se adaptara al fondo aunque se recorte un poco».
+ *   1º `contain` a secas + fondo desenfocado apagado  →  nítido, pero se veía
+ *      como un reel pegado sobre un marco negro. Rechazado por el dueño.
+ *   2º `cover`, llenando la pantalla  →  la composición gustaba, pero **se veía
+ *      pixelado en PC**. Rechazado por el dueño, y con razón: es aritmética.
  *
- * Cuánto se recorta, medido:
+ * El archivo tiene 576 × 1024 px. Cuánto hay que estirarlo, medido:
  *
- *   Teléfono en vertical (390×844)   se ve el 82 % del alto del cuadro
- *   iPad apaisado       (1180×820)   se ve el 39 %
- *   Laptop 15"          (1440×900)   se ve el 35 %
- *   Monitor 1080p       (1920×1080)  se ve el 32 %
+ *   pantalla              cover            contain
+ *   ───────────────────   ──────────────   ──────────────
+ *   iPhone 390×844        0.82×  nítido    0.68×  nítido
+ *   iPad apaisado         2.05×  se nota   0.80×  nítido
+ *   Laptop 15" 1440×900   2.50×  PIXELA    0.88×  nítido
+ *   Monitor 1080p         3.33×  PIXELA    1.05×  nítido
+ *   Monitor 1440p         4.44×  PIXELA    1.41×
  *
- * `posicion` decide QUÉ franja sobrevive. `"center"` deja la del medio; si la
- * acción del video estuviera arriba, `"center top"` la conservaría.
+ * No hay forma de arreglar eso desde el código: **el archivo no tiene los
+ * píxeles**. Un video de 576 px de ancho no puede llenar un monitor de 1920 sin
+ * inventarse tres de cada cuatro. La única solución real sería un original más
+ * grande (1080×1920), y entonces `cover` sí aguantaría un PC.
  *
- * Si algún día se quiere volver a verlo entero: `ajuste: "contain"`.
+ * Así que se vuelve a `contain` —resolución real, nítido— y se arregla lo que
+ * falló del primer intento, que no era el `contain` sino cómo se veían los
+ * lados: ahora llevan una copia del mismo archivo muy desenfocada y más clara,
+ * y el borde del video de delante se difumina para que no parezca un rectángulo
+ * pegado. Ahí el desenfoque hace irrelevante el estirón: se ven manchas de
+ * color, no píxeles.
+ *
+ * `posicion` decide qué parte se prioriza si algún día se vuelve a `cover`.
  *
  * ── UN DETALLE DEL BUILD, COMPROBADO ────────────────────────────────────────
  *
@@ -63,19 +73,42 @@ export const HERO_TEMPORAL = {
   src: "/media/img/style-contest-2026.mp4",
 
   /**
-   * "cover" = llena el hero y recorta (lo pedido). "contain" = cuadro completo
-   * con lados vacíos.
+   * "contain" = el cuadro entero a resolución real, NÍTIDO. "cover" = llena la
+   * pantalla, pero en un PC estira el archivo 3× y se ven los píxeles.
    *
    * El `@type` no es decorativo: sin él, TypeScript infiere `string` y
    * `objectFit: ajuste` deja de compilar contra `CSSProperties`. La unión
    * además impide escribir aquí un valor que `object-fit` no entienda.
    *
-   * @type {"cover" | "contain"}
+   * @type {"contain" | "cover"}
    */
-  ajuste: "cover",
+  ajuste: "contain",
 
-  /** Qué franja del cuadro sobrevive al recorte. Ej.: "center", "center top". */
+  /** Qué parte se prioriza. Solo cambia algo con `cover`. */
   posicion: "center",
+
+  // ── LOS LADOS, EN PANTALLAS ANCHAS ────────────────────────────────────────
+  // Con `contain` el video no llega a los bordes de un PC. En vez de dejar
+  // negro, se pinta detrás una copia del mismo archivo, muy desenfocada.
+
+  /** Ancho mínimo (px) para pintar el fondo. Por debajo no se monta: un solo video. */
+  fondoDesde: 900,
+
+  /** Desenfoque del fondo, en px. Cuanto más alto, menos se reconoce el estirón. */
+  desenfoque: 40,
+
+  /**
+   * Brillo del fondo, 0 a 1. El primer intento iba a 0.42 y quedaba tan apagado
+   * que el video de delante parecía una foto pegada sobre negro. 0.55 lo lee
+   * como luz ambiente en vez de como marco.
+   */
+  brilloFondo: 0.55,
+
+  /**
+   * Cuánto se difumina el borde del video de delante para que no se vea el
+   * rectángulo. Porcentaje de su ancho; 0% lo deja con canto duro.
+   */
+  bordeSuave: "5%",
 
   /**
    * Cuánto se ve el video por debajo de los degradados del hero. Los dos videos

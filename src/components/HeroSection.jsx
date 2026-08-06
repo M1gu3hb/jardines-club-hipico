@@ -96,25 +96,54 @@ function HeroVideoBg() {
  * │ poniendo `activo: false`, y `HeroVideoBg` (arriba, intacto) vuelve solo.  │
  * └──────────────────────────────────────────────────────────────────────────┘
  *
- * UN SOLO `<video>`, a pantalla completa, `object-fit: cover` — como el carrusel
- * de siempre. El archivo es vertical (576×1024) y el hero es apaisado, así que
- * en un PC se ve una franja horizontal del centro del cuadro: se recorta, y es
- * lo que se pidió («que se adaptara al fondo aunque se recorte un poco»).
+ * DOS `<video>` DEL MISMO ARCHIVO, y el motivo es la nitidez.
  *
- * ANTES ESTABA AL REVÉS: `contain` para verlo entero, con una copia desenfocada
- * detrás rellenando los lados. Se veía como un reel centrado con marco oscuro
- * —correcto para «completo», pero no era lo buscado— así que se retiró la copia
- * y el centrado. Un solo elemento: un solo decodificador de video, también en
- * el móvil.
+ * El archivo tiene 576×1024 px. Con `cover` en un monitor de 1080p hay que
+ * estirarlo 3.33×, y a ese aumento se ven los píxeles — que es exactamente lo
+ * que se reportó. Con `contain` el aumento es 1.05×: resolución real, nítido.
+ *
+ *   Laptop 15"      cover 2.50×  ·  contain 0.88×
+ *   Monitor 1080p   cover 3.33×  ·  contain 1.05×
+ *   Monitor 1440p   cover 4.44×  ·  contain 1.41×
+ *
+ * Así que el video de delante va `contain` —nítido, entero, sin escalar— y
+ * detrás se pone una copia del mismo archivo con `cover` y muy desenfocada, para
+ * que los lados no sean un hueco negro. Ahí el estirón de 3× da igual: lo que se
+ * ve son manchas de color, no píxeles. Un archivo, una descarga.
+ *
+ * El borde del video de delante se difumina para que no parezca un rectángulo
+ * pegado encima — que fue la queja del primer intento, no el `contain` en sí.
+ *
+ * EL FONDO NUNCA SUENA. Solo el video de delante lleva audio: dos pistas del
+ * mismo archivo con unos milisegundos de desfase dan un eco metálico.
+ *
+ * En teléfono no se monta el fondo: ahí el video ya llena casi toda la pantalla
+ * y no hay lados que rellenar, así que un solo decodificador.
  */
 function HeroVideoTemporal() {
-  const { src, ajuste, opacidad, posicion, conAudio, volumen, umbralVisible } = HERO_TEMPORAL;
+  const {
+    src, ajuste, opacidad, posicion, conAudio, volumen, umbralVisible,
+    fondoDesde, desenfoque, brilloFondo, bordeSuave,
+  } = HERO_TEMPORAL;
   const videoRef = useRef(null);
+  const fondoRef = useRef(null);
   const cajaRef = useRef(null);
 
   const [enPantalla, setEnPantalla] = useState(true);
   const [sonidoDelSitio, setSonidoDelSitio] = useState(isSoundEnabled);
   const [huboGesto, setHuboGesto] = useState(false);
+  const [anchaParaFondo, setAnchaParaFondo] = useState(false);
+
+  // El fondo desenfocado solo existe donde sobran lados. En un teléfono el video
+  // ya llena casi todo, así que ahí no se monta: un solo decodificador de video.
+  useEffect(() => {
+    if (typeof window === "undefined" || !window.matchMedia) return undefined;
+    const mq = window.matchMedia(`(min-width: ${fondoDesde}px)`);
+    const sincroniza = () => setAnchaParaFondo(mq.matches);
+    sincroniza();
+    mq.addEventListener("change", sincroniza);
+    return () => mq.removeEventListener("change", sincroniza);
+  }, [fondoDesde]);
 
   // ── 1) ARRANQUE: SIEMPRE SILENCIADO ───────────────────────────────────────
   // No es una preferencia, es la única forma de que reproduzca. Chrome, Safari y
@@ -198,8 +227,56 @@ function HeroVideoTemporal() {
     }
   }, [conAudio, sonidoDelSitio, enPantalla, volumen, huboGesto]);
 
+  // Mantiene el fondo reproduciendo. Va aparte del efecto del audio a propósito:
+  // ESTE VIDEO NUNCA SUENA. Dos pistas del mismo archivo sonando a la vez, con
+  // unos milisegundos de desfase, dan un eco metálico que se oye enseguida.
+  useEffect(() => {
+    const f = fondoRef.current;
+    if (!f) return;
+    f.muted = true;
+    const p = f.play();
+    if (p && typeof p.catch === "function") p.catch(() => {});
+  }, [anchaParaFondo]);
+
+  // Difumina el borde del video nítido para que no se vea como un rectángulo
+  // pegado encima del fondo. Se aplica solo cuando hay fondo detrás; sin él
+  // recortaría contra el negro y se vería peor.
+  const mascara = anchaParaFondo
+    ? `linear-gradient(to right, transparent 0, #000 ${bordeSuave}, #000 calc(100% - ${bordeSuave}), transparent 100%)`
+    : undefined;
+
   return (
     <div ref={cajaRef} style={{ position: "absolute", inset: 0, overflow: "hidden", background: "#050505" }}>
+      {anchaParaFondo && (
+        <video
+          ref={fondoRef}
+          src={src}
+          muted
+          loop
+          playsInline
+          autoPlay
+          preload="auto"
+          controls={false}
+          disablePictureInPicture
+          tabIndex={-1}
+          aria-hidden="true"
+          style={{
+            position: "absolute",
+            inset: 0,
+            width: "100%",
+            height: "100%",
+            objectFit: "cover",
+            // El desenfoque hace irrelevante que aquí el video se estire 3×: lo
+            // que se va a ver son manchas de color, no píxeles. Y el `scale`
+            // evita que el desenfoque deje los bordes translúcidos.
+            transform: "scale(1.2)",
+            filter: `blur(${desenfoque}px) brightness(${brilloFondo}) saturate(1.25)`,
+            zIndex: 0,
+            pointerEvents: "none",
+          }}
+        />
+      )}
+
       <video
         ref={videoRef}
         src={src}
@@ -218,9 +295,11 @@ function HeroVideoTemporal() {
           width: "100%",
           height: "100%",
           objectFit: ajuste,
-          // Qué parte del cuadro sobrevive al recorte. `center` deja la franja
-          // del medio, que es donde está la acción de este video.
+          // `contain` = el cuadro entero. NADA de `transform: scale` aquí: es lo
+          // único que mantiene el video a su resolución real y por tanto nítido.
           objectPosition: posicion,
+          maskImage: mascara,
+          WebkitMaskImage: mascara,
           opacity: opacidad,
           zIndex: 1,
           pointerEvents: "none",
