@@ -83,4 +83,34 @@ export const HERO_TEMPORAL = {
    * siguen legibles porque los degradados negros del hero no se tocan.
    */
   opacidad: 0.92,
+
+  // ── AUDIO ─────────────────────────────────────────────────────────────────
+  //
+  // LO QUE NO SE PUEDE HACER, y conviene saberlo antes de tocar esto: **ningún
+  // navegador deja que un video arranque con sonido**. Chrome, Safari y Firefox
+  // bloquean el autoplay con audio, y al bloquearlo dejan el video PAUSADO — un
+  // fotograma congelado de fondo. No es una opción que se pueda activar desde
+  // aquí ni desde Vercel: es política del navegador.
+  //
+  // Así que el video arranca SIEMPRE silenciado —eso siempre reproduce— y el
+  // audio entra en cuanto el visitante hace algo: un clic, un toque, una tecla o
+  // rodar la rueda del ratón. En la práctica, el primer scroll.
+  //
+  // Y se calla en tres casos, cualquiera de ellos:
+  //   · el hero deja de verse (se bajó por la página);
+  //   · el visitante apaga el sonido con el botón de arriba a la derecha;
+  //   · `conAudio: false` aquí abajo.
+
+  /** `false` deja el video mudo siempre, como los dos de siempre. */
+  conAudio: true,
+
+  /** 0 a 1. Es el volumen del propio archivo; 1 = tal cual se grabó. */
+  volumen: 1,
+
+  /**
+   * Cuánto del hero tiene que verse para que suene, de 0 a 1. Con 0.3, el audio
+   * se corta cuando ya se ha ido más del 70 % del hero — o sea, en cuanto se
+   * empieza a leer la sección siguiente.
+   */
+  umbralVisible: 0.3,
 };

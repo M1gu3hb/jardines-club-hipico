@@ -3,6 +3,7 @@ import { useEffect, useRef, useState } from "react";
 import { MapPin } from "lucide-react";
 import ProximamenteCartel from "./ProximamenteCartel";
 import { HERO_TEMPORAL } from "@/config/heroTemporal";
+import { isSoundEnabled, subscribeSoundEnabled } from "./soundSystem";
 
 const VIDEOS = [
   { src: "/media/img/NBa3E9g.mp4", maxTime: null },
@@ -107,13 +108,24 @@ function HeroVideoBg() {
  * el móvil.
  */
 function HeroVideoTemporal() {
-  const { src, ajuste, opacidad, posicion } = HERO_TEMPORAL;
+  const { src, ajuste, opacidad, posicion, conAudio, volumen, umbralVisible } = HERO_TEMPORAL;
   const videoRef = useRef(null);
+  const cajaRef = useRef(null);
 
-  // El atributo `autoPlay` no basta cuando el elemento se monta con el documento
-  // ya cargado —le pasa al carrusel de arriba, que por eso llama a `play()` a
-  // mano—, y `muted` se fija también por propiedad: sin eso iOS bloquea el
-  // autoplay aunque el atributo esté puesto.
+  const [enPantalla, setEnPantalla] = useState(true);
+  const [sonidoDelSitio, setSonidoDelSitio] = useState(isSoundEnabled);
+  const [huboGesto, setHuboGesto] = useState(false);
+
+  // ── 1) ARRANQUE: SIEMPRE SILENCIADO ───────────────────────────────────────
+  // No es una preferencia, es la única forma de que reproduzca. Chrome, Safari y
+  // Firefox bloquean el autoplay CON sonido, y lo que hacen al bloquearlo es
+  // dejar el video pausado: un fotograma congelado de fondo. Silenciado siempre
+  // arranca; el audio se enciende después, cuando el navegador ya lo permite.
+  //
+  // El atributo `autoPlay` tampoco basta cuando el elemento se monta con el
+  // documento ya cargado —le pasa al carrusel de arriba, que por eso llama a
+  // `play()` a mano—, y `muted` se fija por propiedad: sin eso iOS lo bloquea
+  // aunque el atributo esté puesto.
   useEffect(() => {
     const v = videoRef.current;
     if (!v) return;
@@ -122,8 +134,72 @@ function HeroVideoTemporal() {
     if (p && typeof p.catch === "function") p.catch(() => {});
   }, []);
 
+  // ── 2) ¿SE ESTÁ VIENDO EL HERO? ───────────────────────────────────────────
+  // Al salir de pantalla se calla. Se mide sobre el contenedor del video, no
+  // sobre la ventana, para que valga igual si mañana el hero cambia de alto.
+  useEffect(() => {
+    const caja = cajaRef.current;
+    if (!caja || typeof IntersectionObserver !== "function") return undefined;
+    const obs = new IntersectionObserver(
+      ([e]) => setEnPantalla(e.isIntersecting),
+      { threshold: umbralVisible },
+    );
+    obs.observe(caja);
+    return () => obs.disconnect();
+  }, [umbralVisible]);
+
+  // ── 3) EL BOTÓN DE SONIDO DEL SITIO MANDA ─────────────────────────────────
+  // Ya existe uno, arriba a la derecha (`SoundToggle`), y hasta hoy solo
+  // gobernaba los pitidos de la interfaz. Un video sonando mientras ese botón
+  // dice «sonido desactivado» sería una contradicción que el visitante ve. De
+  // paso, es el mecanismo para callarlo — que es lo que exige la WCAG 1.4.2
+  // cuando algo suena solo durante más de tres segundos.
+  // La limpieza se envuelve en vez de devolver `subscribeSoundEnabled` directo: lo que devuelve
+  // es `() => _listeners.delete(fn)`, que da un booleano, y React espera que el destructor no
+  // devuelva nada. Funcionaba igual, pero el typecheck lo cuenta — y la línea base no debe subir.
+  useEffect(() => {
+    const desuscribir = subscribeSoundEnabled((v) => setSonidoDelSitio(v));
+    return () => { desuscribir(); };
+  }, []);
+
+  // ── 4) EL PRIMER GESTO DESBLOQUEA EL AUDIO ────────────────────────────────
+  // Tras un toque, un clic o una tecla, el navegador ya deja quitar el silencio.
+  // `once` en los tres: solo interesa el primero.
+  useEffect(() => {
+    if (huboGesto || typeof window === "undefined") return undefined;
+    const marca = () => setHuboGesto(true);
+    const eventos = ["pointerdown", "keydown", "touchstart", "wheel"];
+    for (const ev of eventos) window.addEventListener(ev, marca, { once: true, passive: true });
+    return () => { for (const ev of eventos) window.removeEventListener(ev, marca); };
+  }, [huboGesto]);
+
+  // ── 5) LA REGLA, EN UN SOLO SITIO ─────────────────────────────────────────
+  // Suena si: el video lleva audio, el sitio tiene el sonido activado, y el hero
+  // está a la vista. Cualquiera de las tres en falso, silencio.
+  //
+  // Y si el navegador RECHAZA reproducir con sonido, se vuelve a silenciar y se
+  // reproduce igual. Esa rama es la que impide el peor resultado posible: un
+  // hero con un fotograma congelado por haber insistido en el audio.
+  useEffect(() => {
+    const v = videoRef.current;
+    if (!v) return;
+    const debeSonar = conAudio && sonidoDelSitio && enPantalla;
+
+    v.volume = volumen;
+    v.muted = !debeSonar;
+
+    const p = v.play();
+    if (p && typeof p.catch === "function") {
+      p.catch(() => {
+        v.muted = true;
+        const p2 = v.play();
+        if (p2 && typeof p2.catch === "function") p2.catch(() => {});
+      });
+    }
+  }, [conAudio, sonidoDelSitio, enPantalla, volumen, huboGesto]);
+
   return (
-    <div style={{ position: "absolute", inset: 0, overflow: "hidden", background: "#050505" }}>
+    <div ref={cajaRef} style={{ position: "absolute", inset: 0, overflow: "hidden", background: "#050505" }}>
       <video
         ref={videoRef}
         src={src}

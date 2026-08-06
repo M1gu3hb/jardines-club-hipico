@@ -3349,6 +3349,85 @@ for (const ruta of [
 }
 
 {
+  // 6) EL AUDIO. Ningún navegador deja arrancar un video con sonido: al bloquearlo lo deja
+  //    PAUSADO, o sea un fotograma congelado de fondo. Por eso el arranque es siempre silenciado
+  //    y el audio entra después. Lo que se contrata es esa cadena entera, porque cada eslabón que
+  //    falte tiene una consecuencia visible y distinta.
+  const cfg = leerCodigo("src/config/heroTemporal.js");
+  const hero = leerCodigo("src/components/HeroSection.jsx");
+  const temporal = entre(hero, "function HeroVideoTemporal()", "\nexport default function HeroSection");
+  const fallos = [];
+
+  // (a) El elemento sigue naciendo con `muted`, y el primer efecto lo fuerza por propiedad.
+  //     Sin esto el video no arranca en absoluto.
+  const etiqueta = entre(temporal, "<video", "/>");
+  if (!/\bmuted\b/.test(etiqueta)) fallos.push("el `<video>` ya no nace silenciado: no arrancaría");
+
+  // (b) La decisión de sonar depende de las TRES señales. Se recorta el efecto que la calcula
+  //     —de `const debeSonar` hasta su array de dependencias— y TODO lo demás se afirma dentro de
+  //     ese trozo. Al escribir esto salió la lección de siempre: buscar `p.catch(` sobre el
+  //     componente entero encontraba el del PRIMER efecto (`p.catch(() => {})`, el del arranque),
+  //     no el del rescate, así que el contrato fallaba señalando algo que sí estaba. Mismo error
+  //     de método que la vacuidad, con el signo cambiado.
+  const efectoRegla = entre(temporal, "const debeSonar", "}, [conAudio");
+  const regla = entre(efectoRegla, "const debeSonar", ";");
+  if (!efectoRegla) fallos.push("no se encuentra el efecto que decide si suena");
+
+  // Los nombres de las dos señales locales se DERIVAN del código, no se fijan. Medido mutando:
+  // la primera versión los escribía a mano y renombrar `sonidoDelSitio` la hacía fallar sin que
+  // hubiera regresión alguna. Un contrato que castiga un renombrado es ruido, y el ruido acaba
+  // borrado — con él, la propiedad. (`conAudio` sí va fijo: es una clave de la configuración,
+  // no un nombre local, y el punto (h) la pin­cha por su lado.)
+  const señalSonido = (temporal.match(/const \[(\w+),\s*\w+\]\s*=\s*useState\(\s*isSoundEnabled\s*\)/) || [])[1];
+  const setterVisible = (entre(temporal, "new IntersectionObserver(", "observe(").match(/\bset([A-Z]\w*)\(/) || [])[1];
+  const señalVisible = setterVisible ? setterVisible[0].toLowerCase() + setterVisible.slice(1) : "";
+
+  if (!new RegExp(`\\bconAudio\\b`).test(regla)) fallos.push("no se puede apagar el audio desde la configuración");
+
+  if (!señalSonido) fallos.push("ningún estado se inicializa con `isSoundEnabled`");
+  else if (!new RegExp(`\\b${señalSonido}\\b`).test(regla)) fallos.push("el botón de sonido del sitio no lo gobierna");
+
+  if (!señalVisible) fallos.push("el observador de visibilidad no actualiza ningún estado");
+  else if (!new RegExp(`\\b${señalVisible}\\b`).test(regla)) fallos.push("no se callaría al salir del hero");
+
+  // (c) Y esa decisión llega al elemento. Que se calcule y no se aplique es no tenerla.
+  if (!/v\.muted\s*=\s*!debeSonar/.test(efectoRegla)) fallos.push("`debeSonar` no llega a `muted`");
+
+  // (d) LA RED DE SEGURIDAD. Si el navegador rechaza reproducir con sonido, hay que volver a
+  //     silenciar y reproducir igual. Sin esta rama, insistir en el audio deja el hero congelado
+  //     — que es peor que no tener audio.
+  const rescate = entre(efectoRegla, "p.catch(", "});");
+  if (!/v\.muted\s*=\s*true/.test(rescate) || !/v\.play\(\)/.test(rescate)) {
+    fallos.push("si el navegador rechaza el sonido, no se vuelve a silenciar ni a reproducir: el hero quedaría congelado");
+  }
+
+  // (e) El observador de visibilidad existe de verdad y usa el umbral de la configuración.
+  if (!/new IntersectionObserver\(/.test(temporal)) fallos.push("no hay observador de visibilidad");
+  if (!/threshold:\s*umbralVisible/.test(temporal)) fallos.push("el umbral de visibilidad no sale de la configuración");
+  // Derivado, no fijado: `setterVisible` sale del propio callback del observador. Escribirlo a
+  // mano hacía fallar el contrato al renombrar el estado — el mismo defecto que (b), un punto más
+  // allá, y lo encontró la mutación INOCUA otra vez.
+  if (!setterVisible) fallos.push("el observador no actualiza ninguna señal de visibilidad");
+
+  // (f) El botón de sonido del sitio se escucha en vivo, no solo al montar: apagarlo tiene que
+  //     callar el video que ya está sonando.
+  if (!/subscribeSoundEnabled\(/.test(temporal)) fallos.push("no se reacciona a que el visitante apague el sonido");
+
+  // (g) Y hay un gesto que desbloquea. Sin esto el audio no llegaría nunca.
+  if (!/setHuboGesto\(true\)/.test(temporal)) fallos.push("ningún gesto del visitante desbloquea el audio");
+  if (!/huboGesto/.test(entre(temporal, "}, [conAudio", "]);"))) {
+    fallos.push("el gesto no vuelve a evaluar la regla: el audio no entraría hasta el siguiente cambio");
+  }
+
+  // (h) La configuración declara los tres valores.
+  for (const k of ["conAudio", "volumen", "umbralVisible"]) {
+    if (!new RegExp(`\\b${k}:\\s*[^,]`).test(cfg)) fallos.push(`\`${k}\` no está en la configuración`);
+  }
+
+  check("TEMP: el audio entra tras un gesto, se calla al salir del hero, y nunca congela el video", fallos.length === 0, fallos.join(" · "));
+}
+
+{
   // 6) LA PRECARGA. El hero no monta hasta que el splash termina, así que su `preload="auto"` no
   //    empezaba a descargar hasta el momento justo en que el video ya tenía que verse. La descarga
   //    se adelanta al splash — y se apaga sola con el interruptor, para no dejar 5.7 MB
