@@ -20,6 +20,7 @@ import Confianza from "../components/Confianza";
 import ComoFunciona from "../components/ComoFunciona";
 import FaqSection from "../components/FaqSection";
 import { WHATSAPP } from "@/config/negocio";
+import { precargarVideoHero } from "@/lib/precargaHero";
 
 // Orden = orden real del <main> de abajo. `como-funciona` y `faq` existen en el
 // DOM desde hace tiempo pero faltaban aquí: eran dos secciones de conversión
@@ -71,6 +72,12 @@ export default function Home() {
   const [proximamenteOpen, setProximamenteOpen] = useState(false);
 
   useEffect(() => {
+    // TEMPORAL — la descarga del video del hero arranca AQUÍ, en el montaje, no
+    // en el splash: el splash no aparece hasta que llega `ConfigSitio`, y esos
+    // segundos también sirven para descargar. Es idempotente, así que la llamada
+    // del splash no vuelve a descargar nada. Ver `src/config/heroTemporal.js`.
+    precargarVideoHero();
+
     Promise.all([
       base44.entities.ConfigSitio.list().then((d) => { setConfig(d[0] || {}); setConfigLoaded(true); }),
       base44.entities.Salon.filter({ activo: true }, "orden").then(setSalones),

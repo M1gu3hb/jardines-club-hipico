@@ -1,8 +1,16 @@
 import { useEffect, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
+import { precargarVideoHero } from "@/lib/precargaHero";
 
 export default function SplashScreen({ logoUrl, onFinish }) {
   const [visible, setVisible] = useState(true);
+
+  // TEMPORAL — el video del hero se descarga AQUÍ, mientras el splash corre.
+  // Sin esto la descarga empezaba cuando el hero montaba, o sea justo cuando el
+  // video ya tenía que verse: el splash dura ~4 s de todas formas y ese hueco
+  // estaba desaprovechado. No bloquea nada — si falla, el `<video>` descarga por
+  // su cuenta igual que antes. Se apaga solo con `HERO_TEMPORAL.activo: false`.
+  useEffect(() => { precargarVideoHero(); }, []);
 
   useEffect(() => {
     const timer = setTimeout(() => {

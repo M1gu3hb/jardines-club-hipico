@@ -11,10 +11,20 @@
 > invitación, el token que `sec_26` habría rechazado, la noche del evento, y los tres P0 de
 > infraestructura. Ya no hay nada escrito y sin desplegar.
 >
-> **Lo que sigue pendiente es de base de datos, y es decisión del dueño:** `sec_26` y `sec_27`
-> están escritas, ensayadas en bloques revertidos por construcción y **sin aplicar**. Hasta que
-> se apliquen, la invitación digital sigue sin poder guardarse (pero ya lo dice en vez de
-> mentir) y el tablero de meseros sigue leyendo la columna que nadie llena (pero ya avisa).
+> **⚠️ ACTUALIZADO 2026-08-06 — lo de abajo ya no describe la base.** `sec_26`, `sec_27` y
+> `sec_28` **se aplicaron el 2026-08-05** con el visto bueno del dueño (ver `APLICADAS.txt`), así
+> que la invitación digital ya guarda, el tablero de meseros ya lee de `invitaciones` —y su aviso
+> provisional se apagó solo— y el bucket `sitio` admite PDF. Lo aplicado está en la base pero
+> **el código que lo acompaña todavía NO está desplegado**: vive en la rama
+> `claude/jardines-security-hardening-rkse8k`. La única migración pendiente hoy es **`sec_29`**
+> (que el libro de entradas sobreviva al borrado de una invitación): escrita, ensayada en un
+> bloque revertido por construcción, y **sin aplicar** a la espera de decisión.
+>
+> **TEMPORAL — video del hero.** El hero enseña un único video vertical
+> («Style Contest 2026», `public/media/img/style-contest-2026.mp4`) en lugar de los dos de
+> siempre. Es a petición del dueño y se quita poniendo `activo: false` en
+> `src/config/heroTemporal.js` y volviendo a desplegar: el carrusel de los dos videos sigue
+> entero en el código y vuelve solo. No hay nada más que deshacer.
 >
 > Este documento existe para responder tres cosas de un vistazo: **qué está hecho**, **qué está en
 > producción** y **qué queda abierto**. Si algo de aquí contradice a otro documento, gana este.

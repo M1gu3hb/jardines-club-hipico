@@ -3277,6 +3277,97 @@ for (const ruta of [
   );
 }
 
+// ═══════════════════════════════════════════════════════════════════════════
+// TEMP · EL VIDEO TEMPORAL DEL HERO («Style Contest 2026»)
+// ═══════════════════════════════════════════════════════════════════════════
+//
+// Esto es TEMPORAL por petición del dueño. Todo el bloque se borra el día que se quite el video.
+// Mientras esté, lo que hay que proteger es que se pueda DESHACER: el valor del apaño no está solo
+// en que se vea, sino en que apagarlo devuelva exactamente lo de antes. Un cambio «temporal» que
+// no se puede revertir es un cambio permanente que nadie decidió.
+{
+  const cfg = leerCodigo("src/config/heroTemporal.js");
+  const hero = leerCodigo("src/components/HeroSection.jsx");
+  const fallos = [];
+
+  // 1) EL INTERRUPTOR EXISTE y es lo único que decide.
+  if (!/\bactivo:\s*(true|false)\b/.test(cfg)) fallos.push("`HERO_TEMPORAL.activo` no es un booleano literal");
+  if (!/HERO_TEMPORAL\.activo\s*\?\s*<HeroVideoTemporal\s*\/>\s*:\s*<HeroVideoBg\s*\/>/.test(hero)) {
+    fallos.push("el hero no elige entre el video temporal y el carrusel según `activo`");
+  }
+
+  // 2) EL CARRUSEL DE SIEMPRE SIGUE ENTERO. Es lo que vuelve al apagar el interruptor: si alguien
+  //    lo borrase «porque ya no se usa», apagar el video temporal dejaría el hero sin fondo. Se
+  //    afirma sobre el cuerpo de `HeroVideoBg`, no sobre el archivo, y sobre las dos fuentes
+  //    concretas — que son irrecuperables si desaparecen del código.
+  const carrusel = entre(hero, "function HeroVideoBg()", "\n}");
+  if (!carrusel) fallos.push("`HeroVideoBg` —el carrusel de siempre— ya no existe");
+  for (const v of ["/media/img/NBa3E9g.mp4", "/media/img/uykWsK9.mp4"]) {
+    if (!hero.includes(v)) fallos.push(`el hero ya no conoce \`${v}\`: apagar el video temporal no lo devolvería`);
+    try { leer(`public${v}`); } catch { fallos.push(`falta el archivo \`public${v}\``); }
+  }
+  if (!/switchTo\(/.test(carrusel) || !/maxTime/.test(carrusel)) {
+    fallos.push("el carrusel perdió su lógica de cambio entre los dos videos");
+  }
+
+  check("TEMP: el video temporal se apaga con un booleano, y lo de antes vuelve entero", fallos.length === 0, fallos.join(" · "));
+}
+
+{
+  const cfg = leerCodigo("src/config/heroTemporal.js");
+  const hero = leerCodigo("src/components/HeroSection.jsx");
+  const fallos = [];
+
+  // 3) EL ARCHIVO EXISTE Y ESTÁ AUTO-HOSPEDADO. La CSP dice `media-src 'self'`: un video servido
+  //    desde fuera lo bloquearía el navegador, así que la ruta tiene que ser local y estar.
+  const src = (cfg.match(/src:\s*"(\/media\/[^"]+)"/) || [])[1];
+  if (!src) fallos.push("`HERO_TEMPORAL.src` no es una ruta local de `/media/`");
+  else { try { leer(`public${src}`); } catch { fallos.push(`falta el archivo \`public${src}\``); } }
+
+  // 4) SE VE COMPLETO Y EN BUCLE. El video es VERTICAL (576×1024) y los que sustituye son
+  //    horizontales: `cover` —lo que usa el carrusel— recortaría hasta dejar un tercio del cuadro
+  //    en una pantalla de PC. Se pidió verlo completo, así que va `contain`.
+  const temporal = entre(hero, "function HeroVideoTemporal()", "\nexport default function HeroSection");
+  if (!temporal) fallos.push("no se encuentra `HeroVideoTemporal`");
+  if (!/objectFit:\s*ajuste/.test(temporal)) fallos.push("el ajuste del video no sale de la configuración");
+  if (!/ajuste:\s*"contain"/.test(cfg)) fallos.push("`ajuste` no es `contain`: el video no se vería completo");
+  if (!/\bloop:\s*true\b/.test(temporal)) fallos.push("el video no está en bucle");
+  if (!/\bmuted:\s*true\b/.test(temporal)) fallos.push("el video no está silenciado — sin eso el navegador ni lo arranca");
+  if (!/\bplaysInline:\s*true\b/.test(temporal)) fallos.push("sin `playsInline`, iOS lo abre a pantalla completa");
+
+  // 5) Y NADA DE `scale` SOBRE EL VIDEO PRINCIPAL. El carrusel usa `transform: scale(1.08)` para
+  //    tapar bordes con `cover`; aquí ese mismo truco recortaría justo lo que se quiere ver
+  //    completo. Se recorta el estilo del video principal —el fondo desenfocado SÍ lleva scale,
+  //    y buscar «scale» en todo el componente daría verde por el elemento equivocado.
+  const estiloPrincipal = entre(temporal, "ref={principalRef}", "/>");
+  if (/transform:\s*["'`]?\s*scale/.test(estiloPrincipal)) {
+    fallos.push("el video principal lleva `scale`: eso recorta justo lo que debe verse completo");
+  }
+
+  check("TEMP: el video se ve completo, en bucle y sin recortar", fallos.length === 0, fallos.join(" · "));
+}
+
+{
+  // 6) LA PRECARGA. El hero no monta hasta que el splash termina, así que su `preload="auto"` no
+  //    empezaba a descargar hasta el momento justo en que el video ya tenía que verse. La descarga
+  //    se adelanta al splash — y se apaga sola con el interruptor, para no dejar 5.7 MB
+  //    descargándose el día que el video ya no esté.
+  const pre = leerCodigo("src/lib/precargaHero.js");
+  const splash = leerCodigo("src/components/SplashScreen.jsx");
+  const fallos = [];
+
+  const cuerpo = entre(pre, "export function precargarVideoHero()", "\n}");
+  if (!cuerpo) fallos.push("no existe `precargarVideoHero`");
+  if (!/HERO_TEMPORAL\.activo/.test(cuerpo)) fallos.push("la precarga no se apaga con el interruptor");
+  if (!/if\s*\(enCurso\)\s*return enCurso;/.test(cuerpo)) fallos.push("la precarga no es idempotente: descargaría 5.7 MB por cada llamada");
+  if (!/\.catch\(/.test(cuerpo)) fallos.push("un fallo de la precarga podría tumbar algo: tiene que ser inocua");
+  if (!/\.blob\(\)/.test(cuerpo)) fallos.push("sin leer el cuerpo, el navegador puede dejar la descarga a medias");
+
+  if (!/precargarVideoHero\(\)/.test(splash)) fallos.push("el splash no arranca la precarga");
+
+  check("TEMP: el video se descarga durante el splash, una sola vez y sin poder romper nada", fallos.length === 0, fallos.join(" · "));
+}
+
 // ---------------------------------------------------------------- salida
 let fallan = 0;
 for (const c of casos) {

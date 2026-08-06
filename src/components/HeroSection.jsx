@@ -2,6 +2,7 @@ import { motion } from "framer-motion";
 import { useEffect, useRef, useState } from "react";
 import { MapPin } from "lucide-react";
 import ProximamenteCartel from "./ProximamenteCartel";
+import { HERO_TEMPORAL } from "@/config/heroTemporal";
 
 const VIDEOS = [
   { src: "/media/img/NBa3E9g.mp4", maxTime: null },
@@ -88,6 +89,107 @@ function HeroVideoBg() {
   );
 }
 
+/**
+ * ┌──────────────────────────────────────────────────────────────────────────┐
+ * │ TEMPORAL — video único del hero. Se apaga desde `src/config/heroTemporal`│
+ * │ poniendo `activo: false`, y `HeroVideoBg` (arriba, intacto) vuelve solo.  │
+ * └──────────────────────────────────────────────────────────────────────────┘
+ *
+ * El archivo es VERTICAL (576×1024). Va con `object-fit: contain` porque se
+ * pidió verlo completo, sin recortar. En pantallas anchas eso deja lados
+ * vacíos, así que ahí se pinta detrás una copia desenfocada del MISMO archivo
+ * —una sola descarga— para que el hueco no se vea muerto. En teléfono no se
+ * monta esa copia: no hay lados que rellenar y así no hay dos videos
+ * decodificando en un móvil.
+ */
+function HeroVideoTemporal() {
+  const { src, ajuste, opacidad, fondoDifuminadoDesde } = HERO_TEMPORAL;
+  const [pantallaAncha, setPantallaAncha] = useState(false);
+  const principalRef = useRef(null);
+  const fondoRef = useRef(null);
+
+  // El fondo desenfocado solo existe donde sobran lados. `matchMedia` y no un
+  // `resize`: no hace falta re-renderizar en cada pixel que se arrastre.
+  useEffect(() => {
+    if (typeof window === "undefined" || !window.matchMedia) return undefined;
+    const mq = window.matchMedia(`(min-width: ${fondoDifuminadoDesde}px)`);
+    const sincroniza = () => setPantallaAncha(mq.matches);
+    sincroniza();
+    mq.addEventListener("change", sincroniza);
+    return () => mq.removeEventListener("change", sincroniza);
+  }, [fondoDifuminadoDesde]);
+
+  // El atributo `autoPlay` no basta cuando el elemento se monta con el documento
+  // ya cargado —le pasa al carrusel de arriba, que por eso llama a `play()` a
+  // mano—, y `muted` se fija también por propiedad: sin eso iOS bloquea el
+  // autoplay aunque el atributo esté puesto.
+  useEffect(() => {
+    for (const v of [principalRef.current, fondoRef.current]) {
+      if (!v) continue;
+      v.muted = true;
+      const p = v.play();
+      if (p && typeof p.catch === "function") p.catch(() => {});
+    }
+  }, [pantallaAncha]);
+
+  const comunes = {
+    muted: true,
+    loop: true,
+    playsInline: true,
+    autoPlay: true,
+    preload: "auto",
+    controls: false,
+    disablePictureInPicture: true,
+    tabIndex: -1,
+  };
+
+  return (
+    <div style={{ position: "absolute", inset: 0, overflow: "hidden", background: "#050505" }}>
+      {pantallaAncha && (
+        <video
+          {...comunes}
+          ref={fondoRef}
+          src={src}
+          aria-hidden="true"
+          style={{
+            position: "absolute",
+            inset: 0,
+            width: "100%",
+            height: "100%",
+            objectFit: "cover",
+            // `scale` para que el desenfoque no deje los bordes translúcidos.
+            transform: "scale(1.15)",
+            filter: "blur(34px) brightness(0.42) saturate(1.15)",
+            zIndex: 0,
+            pointerEvents: "none",
+          }}
+        />
+      )}
+
+      <video
+        {...comunes}
+        ref={principalRef}
+        src={src}
+        aria-hidden="true"
+        style={{
+          position: "absolute",
+          inset: 0,
+          width: "100%",
+          height: "100%",
+          // `contain` = el cuadro entero, siempre. NADA de `transform: scale`
+          // aquí: cualquier escalado volvería a recortar justo lo que se quiere
+          // ver completo.
+          objectFit: ajuste,
+          objectPosition: "center center",
+          opacity: opacidad,
+          zIndex: 1,
+          pointerEvents: "none",
+        }}
+      />
+    </div>
+  );
+}
+
 export default function HeroSection({
   onFormClick,
   logoUrl,
@@ -105,7 +207,10 @@ export default function HeroSection({
       id="inicio"
       className="relative min-h-screen flex items-center justify-center overflow-hidden bg-[#050505] py-20 md:py-24"
     >
-      <HeroVideoBg />
+      {/* TEMPORAL: mientras `HERO_TEMPORAL.activo` sea `true` se ve el video de
+          Style Contest 2026. Con `false`, vuelve `HeroVideoBg` —los dos videos
+          de siempre— sin tocar una línea de su código. */}
+      {HERO_TEMPORAL.activo ? <HeroVideoTemporal /> : <HeroVideoBg />}
       <div className="absolute inset-0 bg-gradient-to-b from-black/70 via-black/30 to-black/80" style={{ zIndex: 2 }} />
       <div className="absolute inset-0 bg-gradient-to-r from-black/40 via-transparent to-black/40" style={{ zIndex: 2 }} />
       <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-transparent via-[#C9A84C]/60 to-transparent" style={{ zIndex: 3 }} />
