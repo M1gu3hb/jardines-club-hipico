@@ -8,30 +8,36 @@
  * ║  `HeroVideoBg` de `src/components/HeroSection.jsx`.                       ║
  * ╚══════════════════════════════════════════════════════════════════════════╝
  *
- * ── LO QUE HAY QUE SABER DEL ARCHIVO ────────────────────────────────────────
+ * ── EL ARCHIVO ──────────────────────────────────────────────────────────────
  *
  *   576 × 1024 px  ·  VERTICAL 9:16  ·  68.6 s  ·  5.66 MB  ·  H.264 + AAC
  *
- * Los dos videos que sustituye son 854 × 480 — HORIZONTALES. Por eso el hero
- * los ponía con `object-fit: cover` (llenan la pantalla y lo que sobra se
- * recorta). Con un video vertical eso no sirve: en una pantalla de PC, `cover`
- * dejaría ver una franja estrecha del centro y se perdería casi todo.
+ * Los dos videos que sustituye son 854 × 480 — apaisados. Este es vertical, y
+ * el hero es apaisado, así que **algo hay que ceder**: o se ve el cuadro entero
+ * y sobran lados, o se llena la pantalla y se recorta. No hay una tercera.
  *
- * Se pidió que se vea COMPLETO en todos los dispositivos, así que va con
- * `object-fit: contain`: el cuadro entero siempre, sin recortar un pixel. La
- * consecuencia geométrica, dicha claramente:
+ * ── LO QUE SE ELIGIÓ, Y POR QUÉ ─────────────────────────────────────────────
  *
- *   · Teléfono en vertical  → llena prácticamente toda la pantalla.
- *   · Tablet                → franjas oscuras a los lados.
- *   · PC / laptop           → el video ocupa una columna central; a 1920 px de
- *                             ancho son unos 600 px de video y el resto, lados.
+ * `cover`: llena el hero y recorta, igual que el carrusel de siempre. En un PC
+ * se ve una franja horizontal del centro del cuadro.
  *
- * Para que esos lados no se vean como huecos muertos, en pantallas anchas se
- * pinta DETRÁS una copia del mismo archivo, desenfocada y oscurecida. Es el
- * mismo fichero: el navegador lo descarga una sola vez. En teléfono no se pinta
- * —ahí no hay lados que rellenar— y así no se decodifican dos videos en un móvil.
+ * El primer intento fue al revés —`contain`, el cuadro completo, con una copia
+ * desenfocada detrás rellenando los lados— porque lo pedido era «que se vea
+ * completo». Puesto en producción se veía como un reel centrado con marco
+ * oscuro: cumplía la letra y no la intención. Corregido a petición del dueño:
+ * «que se adaptara al fondo aunque se recorte un poco».
  *
- * Si prefieres que llene la pantalla aunque recorte, cambia `ajuste` a "cover".
+ * Cuánto se recorta, medido:
+ *
+ *   Teléfono en vertical (390×844)   se ve el 82 % del alto del cuadro
+ *   iPad apaisado       (1180×820)   se ve el 39 %
+ *   Laptop 15"          (1440×900)   se ve el 35 %
+ *   Monitor 1080p       (1920×1080)  se ve el 32 %
+ *
+ * `posicion` decide QUÉ franja sobrevive. `"center"` deja la del medio; si la
+ * acción del video estuviera arriba, `"center top"` la conservaría.
+ *
+ * Si algún día se quiere volver a verlo entero: `ajuste: "contain"`.
  *
  * ── UN DETALLE DEL BUILD, COMPROBADO ────────────────────────────────────────
  *
@@ -57,15 +63,19 @@ export const HERO_TEMPORAL = {
   src: "/media/img/style-contest-2026.mp4",
 
   /**
-   * "contain" = se ve completo (lo pedido). "cover" = llena y recorta.
+   * "cover" = llena el hero y recorta (lo pedido). "contain" = cuadro completo
+   * con lados vacíos.
    *
    * El `@type` no es decorativo: sin él, TypeScript infiere `string` y
    * `objectFit: ajuste` deja de compilar contra `CSSProperties`. La unión
    * además impide escribir aquí un valor que `object-fit` no entienda.
    *
-   * @type {"contain" | "cover"}
+   * @type {"cover" | "contain"}
    */
-  ajuste: "contain",
+  ajuste: "cover",
+
+  /** Qué franja del cuadro sobrevive al recorte. Ej.: "center", "center top". */
+  posicion: "center",
 
   /**
    * Cuánto se ve el video por debajo de los degradados del hero. Los dos videos
@@ -73,7 +83,4 @@ export const HERO_TEMPORAL = {
    * siguen legibles porque los degradados negros del hero no se tocan.
    */
   opacidad: 0.92,
-
-  /** Ancho mínimo (px) para pintar el fondo desenfocado. Por debajo, no se pinta. */
-  fondoDifuminadoDesde: 900,
 };

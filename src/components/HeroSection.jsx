@@ -95,92 +95,56 @@ function HeroVideoBg() {
  * │ poniendo `activo: false`, y `HeroVideoBg` (arriba, intacto) vuelve solo.  │
  * └──────────────────────────────────────────────────────────────────────────┘
  *
- * El archivo es VERTICAL (576×1024). Va con `object-fit: contain` porque se
- * pidió verlo completo, sin recortar. En pantallas anchas eso deja lados
- * vacíos, así que ahí se pinta detrás una copia desenfocada del MISMO archivo
- * —una sola descarga— para que el hueco no se vea muerto. En teléfono no se
- * monta esa copia: no hay lados que rellenar y así no hay dos videos
- * decodificando en un móvil.
+ * UN SOLO `<video>`, a pantalla completa, `object-fit: cover` — como el carrusel
+ * de siempre. El archivo es vertical (576×1024) y el hero es apaisado, así que
+ * en un PC se ve una franja horizontal del centro del cuadro: se recorta, y es
+ * lo que se pidió («que se adaptara al fondo aunque se recorte un poco»).
+ *
+ * ANTES ESTABA AL REVÉS: `contain` para verlo entero, con una copia desenfocada
+ * detrás rellenando los lados. Se veía como un reel centrado con marco oscuro
+ * —correcto para «completo», pero no era lo buscado— así que se retiró la copia
+ * y el centrado. Un solo elemento: un solo decodificador de video, también en
+ * el móvil.
  */
 function HeroVideoTemporal() {
-  const { src, ajuste, opacidad, fondoDifuminadoDesde } = HERO_TEMPORAL;
-  const [pantallaAncha, setPantallaAncha] = useState(false);
-  const principalRef = useRef(null);
-  const fondoRef = useRef(null);
-
-  // El fondo desenfocado solo existe donde sobran lados. `matchMedia` y no un
-  // `resize`: no hace falta re-renderizar en cada pixel que se arrastre.
-  useEffect(() => {
-    if (typeof window === "undefined" || !window.matchMedia) return undefined;
-    const mq = window.matchMedia(`(min-width: ${fondoDifuminadoDesde}px)`);
-    const sincroniza = () => setPantallaAncha(mq.matches);
-    sincroniza();
-    mq.addEventListener("change", sincroniza);
-    return () => mq.removeEventListener("change", sincroniza);
-  }, [fondoDifuminadoDesde]);
+  const { src, ajuste, opacidad, posicion } = HERO_TEMPORAL;
+  const videoRef = useRef(null);
 
   // El atributo `autoPlay` no basta cuando el elemento se monta con el documento
   // ya cargado —le pasa al carrusel de arriba, que por eso llama a `play()` a
   // mano—, y `muted` se fija también por propiedad: sin eso iOS bloquea el
   // autoplay aunque el atributo esté puesto.
   useEffect(() => {
-    for (const v of [principalRef.current, fondoRef.current]) {
-      if (!v) continue;
-      v.muted = true;
-      const p = v.play();
-      if (p && typeof p.catch === "function") p.catch(() => {});
-    }
-  }, [pantallaAncha]);
-
-  const comunes = {
-    muted: true,
-    loop: true,
-    playsInline: true,
-    autoPlay: true,
-    preload: "auto",
-    controls: false,
-    disablePictureInPicture: true,
-    tabIndex: -1,
-  };
+    const v = videoRef.current;
+    if (!v) return;
+    v.muted = true;
+    const p = v.play();
+    if (p && typeof p.catch === "function") p.catch(() => {});
+  }, []);
 
   return (
     <div style={{ position: "absolute", inset: 0, overflow: "hidden", background: "#050505" }}>
-      {pantallaAncha && (
-        <video
-          {...comunes}
-          ref={fondoRef}
-          src={src}
-          aria-hidden="true"
-          style={{
-            position: "absolute",
-            inset: 0,
-            width: "100%",
-            height: "100%",
-            objectFit: "cover",
-            // `scale` para que el desenfoque no deje los bordes translúcidos.
-            transform: "scale(1.15)",
-            filter: "blur(34px) brightness(0.42) saturate(1.15)",
-            zIndex: 0,
-            pointerEvents: "none",
-          }}
-        />
-      )}
-
       <video
-        {...comunes}
-        ref={principalRef}
+        ref={videoRef}
         src={src}
+        muted
+        loop
+        playsInline
+        autoPlay
+        preload="auto"
+        controls={false}
+        disablePictureInPicture
+        tabIndex={-1}
         aria-hidden="true"
         style={{
           position: "absolute",
           inset: 0,
           width: "100%",
           height: "100%",
-          // `contain` = el cuadro entero, siempre. NADA de `transform: scale`
-          // aquí: cualquier escalado volvería a recortar justo lo que se quiere
-          // ver completo.
           objectFit: ajuste,
-          objectPosition: "center center",
+          // Qué parte del cuadro sobrevive al recorte. `center` deja la franja
+          // del medio, que es donde está la acción de este video.
+          objectPosition: posicion,
           opacity: opacidad,
           zIndex: 1,
           pointerEvents: "none",

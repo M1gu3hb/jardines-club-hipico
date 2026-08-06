@@ -3324,27 +3324,28 @@ for (const ruta of [
   if (!src) fallos.push("`HERO_TEMPORAL.src` no es una ruta local de `/media/`");
   else { try { leer(`public${src}`); } catch { fallos.push(`falta el archivo \`public${src}\``); } }
 
-  // 4) SE VE COMPLETO Y EN BUCLE. El video es VERTICAL (576×1024) y los que sustituye son
-  //    horizontales: `cover` —lo que usa el carrusel— recortaría hasta dejar un tercio del cuadro
-  //    en una pantalla de PC. Se pidió verlo completo, así que va `contain`.
+  // 4) LLENA EL HERO Y ESTÁ EN BUCLE. El archivo es VERTICAL (576×1024) y el hero es apaisado,
+  //    así que algo hay que ceder: o el cuadro entero con lados vacíos, o llenar y recortar. El
+  //    primer intento fue `contain` —cumplía «que se vea completo»— y en produccion se veía como
+  //    un reel centrado con marco oscuro. Corregido a `cover` a peticion del dueño.
   const temporal = entre(hero, "function HeroVideoTemporal()", "\nexport default function HeroSection");
   if (!temporal) fallos.push("no se encuentra `HeroVideoTemporal`");
   if (!/objectFit:\s*ajuste/.test(temporal)) fallos.push("el ajuste del video no sale de la configuración");
-  if (!/ajuste:\s*"contain"/.test(cfg)) fallos.push("`ajuste` no es `contain`: el video no se vería completo");
-  if (!/\bloop:\s*true\b/.test(temporal)) fallos.push("el video no está en bucle");
-  if (!/\bmuted:\s*true\b/.test(temporal)) fallos.push("el video no está silenciado — sin eso el navegador ni lo arranca");
-  if (!/\bplaysInline:\s*true\b/.test(temporal)) fallos.push("sin `playsInline`, iOS lo abre a pantalla completa");
+  if (!/ajuste:\s*"cover"/.test(cfg)) fallos.push("`ajuste` no es `cover`: el video no llenaría el hero");
+  if (!/objectPosition:\s*posicion/.test(temporal)) fallos.push("la franja que sobrevive al recorte no sale de la configuración");
+  if (!/\bloop\b/.test(temporal)) fallos.push("el video no está en bucle");
+  if (!/\bmuted\b/.test(temporal)) fallos.push("el video no está silenciado — sin eso el navegador ni lo arranca");
+  if (!/\bplaysInline\b/.test(temporal)) fallos.push("sin `playsInline`, iOS lo abre a pantalla completa");
 
-  // 5) Y NADA DE `scale` SOBRE EL VIDEO PRINCIPAL. El carrusel usa `transform: scale(1.08)` para
-  //    tapar bordes con `cover`; aquí ese mismo truco recortaría justo lo que se quiere ver
-  //    completo. Se recorta el estilo del video principal —el fondo desenfocado SÍ lleva scale,
-  //    y buscar «scale» en todo el componente daría verde por el elemento equivocado.
-  const estiloPrincipal = entre(temporal, "ref={principalRef}", "/>");
-  if (/transform:\s*["'`]?\s*scale/.test(estiloPrincipal)) {
-    fallos.push("el video principal lleva `scale`: eso recorta justo lo que debe verse completo");
-  }
+  // 5) UN SOLO `<video>`. La version de `contain` montaba DOS —el centrado y una copia
+  //    desenfocada de fondo— y al pasar a `cover` la copia sobra: seria un segundo decodificador
+  //    de video, en el movil tambien, pintando algo que ya no se ve. Se cuentan las etiquetas
+  //    dentro del componente; si alguien reintroduce el fondo, esto lo dice.
+  const nVideos = (temporal.match(/<video\b/g) || []).length;
+  if (nVideos !== 1) fallos.push(`\`HeroVideoTemporal\` monta ${nVideos} elementos <video>, y debe montar exactamente 1`);
+  if (/filter:\s*["'`]?\s*blur/.test(temporal)) fallos.push("vuelve a haber una copia desenfocada de fondo");
 
-  check("TEMP: el video se ve completo, en bucle y sin recortar", fallos.length === 0, fallos.join(" · "));
+  check("TEMP: un solo video, llenando el hero y en bucle", fallos.length === 0, fallos.join(" · "));
 }
 
 {
