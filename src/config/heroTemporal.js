@@ -2,10 +2,16 @@
  * ╔══════════════════════════════════════════════════════════════════════════╗
  * ║  VIDEO TEMPORAL DEL HERO — «Style Contest 2026»                          ║
  * ║                                                                          ║
- * ║  PARA QUITARLO:  pon  `activo: false`  aquí abajo. Nada más.             ║
- * ║  Vuelven solos los dos videos de siempre (NBa3E9g + uykWsK9), con su      ║
- * ║  carrusel y sus tiempos, porque ese código NO se tocó: sigue entero en    ║
- * ║  `HeroVideoBg` de `src/components/HeroSection.jsx`.                       ║
+ * ║  ESTADO HOY:  APAGADO (`activo: false`). El hero enseña los dos videos    ║
+ * ║  de siempre. Se apagó a petición del dueño el 2026-08-06.                 ║
+ * ║                                                                          ║
+ * ║  PARA VOLVER A PONERLO:  `activo: true` aquí abajo, y desplegar.          ║
+ * ║  PARA QUITARLO OTRA VEZ:  `activo: false`. Nada más, en los dos sentidos. ║
+ * ║                                                                          ║
+ * ║  NO SE BORRÓ NADA: el archivo sigue en `public/media/img/`, el componente ║
+ * ║  sigue en `HeroSection.jsx` y todos los ajustes de abajo siguen puestos   ║
+ * ║  tal como quedaron (nítido, con audio). Volver a encenderlo lo devuelve   ║
+ * ║  exactamente como estaba, sin reconfigurar nada.                          ║
  * ╚══════════════════════════════════════════════════════════════════════════╝
  *
  * ── EL ARCHIVO ──────────────────────────────────────────────────────────────
@@ -67,7 +73,7 @@
  */
 export const HERO_TEMPORAL = {
   /** ← EL INTERRUPTOR. `false` devuelve los dos videos de siempre. */
-  activo: true,
+  activo: false,
 
   /** Auto-hospedado en `public/media/`, como todo lo demás. Copiado tal cual. */
   src: "/media/img/style-contest-2026.mp4",

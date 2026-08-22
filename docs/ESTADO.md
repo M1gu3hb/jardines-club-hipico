@@ -27,11 +27,14 @@
 > **Sin empezar:** FASES 5–8 del bloque final (las 36 escrituras sin `catch`, el aviso de
 > privacidad y los correos, la limpieza de contratos y código muerto, y la documentación).
 >
-> **TEMPORAL — video del hero.** El hero enseña un único video vertical
-> («Style Contest 2026», `public/media/img/style-contest-2026.mp4`) en lugar de los dos de
-> siempre. Es a petición del dueño y se quita poniendo `activo: false` en
-> `src/config/heroTemporal.js` y volviendo a desplegar: el carrusel de los dos videos sigue
-> entero en el código y vuelve solo. No hay nada más que deshacer.
+> **Video temporal del hero — APAGADO desde el 2026-08-06.** El hero vuelve a enseñar los dos
+> videos de siempre. Estuvo puesto unas horas un único video vertical («Style Contest 2026»,
+> 576×1024) a petición del dueño, y se retiró igual: `activo: false` en
+> `src/config/heroTemporal.js`. **No se borró nada** — el archivo sigue en `public/media/img/`, el
+> componente sigue en `HeroSection.jsx` y sus ajustes siguen puestos, así que `activo: true` lo
+> devuelve tal cual estaba (nítido y con audio) sin reconfigurar nada. Lo que se aprendió por el
+> camino, y está escrito en ese archivo: el original es de 576 px de ancho, así que `cover` lo
+> estira 3× en un PC y se pixela; con `contain` va a resolución real.
 >
 > Este documento existe para responder tres cosas de un vistazo: **qué está hecho**, **qué está en
 > producción** y **qué queda abierto**. Si algo de aquí contradice a otro documento, gana este.
@@ -52,12 +55,11 @@ fondo salió con un P0 cada vez.
 
 | | |
 |---|---|
-| Commit del código | `4a78f94` |
-| Deployment que lo subió | `dpl_Hco4QLZNCwtYYrQ7xZSUmdCesFKG` (READY, target `production`) |
+| Commit del código | ver la cabecera de este documento |
 | URL | <https://jardines-club-hipico.vercel.app> |
 | Funciones serverless | **8** |
-| Migraciones aplicadas | `jardines_sec_01..25` (sin `sec_10`) |
-| Contratos | 290/290 · typecheck 59 (línea base) · lint 0 |
+| Migraciones aplicadas | `jardines_sec_01..28` (sin `sec_10`) — `sec_29` escrita y SIN aplicar |
+| Contratos | 315/315 · typecheck 59 (línea base) · lint 0 |
 
 **Bloques desplegados:** 1–9 completos, 9E incluido. Ya está arriba el arreglo que impedía crear
 dos eventos de la misma solicitud, el mínimo de contraseña unificado en 8, el botón de convertir
@@ -68,19 +70,24 @@ una solicitud en evento y la retirada de las imágenes que la CSP bloqueaba.
 cuelgan de `eventos`, 0 objetos huérfanos en el bucket, 0 perfiles sin usuario, el admin de Vero
 intacto, y los 2 usuarios de portal vivos casan con los 2 eventos que quedan.
 
-**La FASE A del bloque de cierre está escrita y NO desplegada**, y con ella el arreglo del P0 de
-la invitación. Mientras no suba, el cliente sigue viendo «Guardado ✓» sin haber guardado nada.
+**El bloque de cierre y las FASES 0–4 están DESPLEGADOS**, con ellos el arreglo del P0 de la
+invitación. Esa frase de aquí decía, hasta el 2026-08-06, que la fase A estaba escrita y sin
+desplegar; ya no es cierto.
 
-### 2.bis · Tres funciones que no han funcionado NUNCA
+### 2.bis · Tres funciones que no funcionaron NUNCA — las tres, ARREGLADAS
 
-Salieron de la auditoría de las siete zonas. Las tres fallan en silencio, y esa es la razón de
-que lleven meses así:
+Salieron de la auditoría de las siete zonas. Las tres fallaban en silencio, y esa es la razón de
+que llevaran meses así. Las tres se cerraron el 2026-08-05/06 y están desplegadas:
 
-| Función | Por qué |
-|---|---|
-| **La invitación digital del cliente** | `eventos_upd` exige `is_admin()`; el portal es rol `cliente`. `count(invitacion_token)` = **0**. Corregido en fase A para que deje de mentir; que llegue a funcionar exige `sec_26`, sin aplicar |
-| **Subir a la galería** | `orden: Date.now()` desborda un `integer` (×800). Las 69 filas de `galeria` tienen `orden` 1–69: la semilla. Ninguna se subió nunca desde el panel. **Sin arreglar** (fase B) |
-| **El PDF del menú** | el bucket `sitio` no admite `application/pdf`. **Sin arreglar** (fase B) |
+| Función | Por qué fallaba | Cómo se cerró |
+|---|---|---|
+| **La invitación digital del cliente** | `eventos_upd` exige `is_admin()` y el portal es rol `cliente`; `count(invitacion_token)` = **0** | RPC `invitacion_guardar` (`sec_26`, aplicada) + la pantalla la llama |
+| **Subir a la galería** | `orden: Date.now()` desborda un `integer` (×800) — comprobado: `22003 integer out of range`. Las 69 filas eran la semilla | el orden sale del máximo que ya existe, y los tres handlers dicen si fallan |
+| **El PDF del menú** | el bucket `sitio` no admitía `application/pdf` | `sec_28`, aplicada, lo añade sin tocar el bucket de Vero |
+
+**Queda un cuarto de la misma familia, y este SÍ sigue abierto:** borrar una invitación se lleva
+en cascada el registro de quién entró por ella (`accesos`). `sec_29` lo arregla — escrita,
+ensayada en un bloque revertido por construcción, y **sin aplicar** a la espera de decisión.
 
 **Verificado sin sesión tras el deploy:** las seis cabeceras de seguridad, `Cache-Control:
 no-store` en las ocho rutas `api/`, que cada función responde 405 al método incorrecto y 401 sin
