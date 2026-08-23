@@ -3602,6 +3602,41 @@ for (const ruta of [
   check("W: la plantilla escapa las dos URL, y el segundo boton es opcional", fallos2.length === 0, fallos2.join(" · "));
 }
 
+// ------------------------------------------- W.2 · LOS CAMPOS OBLIGATORIOS SE MIRAN RECORTADOS
+//
+// El servidor ya exige un telefono de verdad: el trigger `solicitud_saneo` hace `trim()` y luego
+// `new.telefono !~ '^[0-9+()\-\s]{7,30}$'` -> `raise exception 'Telefono invalido'`. El formulario
+// tambien lo marcaba obligatorio... pero con `!!form.telefono`, que es CIERTO con la barra
+// espaciadora: el boton se habilitaba, la solicitud viajaba, y el cliente recibia un error crudo
+// del servidor en vez del aviso normal de campo faltante.
+//
+// Esto importa mas desde que existe el boton de WhatsApp: el telefono dejo de ser un dato de
+// adorno y paso a ser el que abre el chat.
+{
+  const modal = leerCodigo("src/components/FormularioModal.jsx");
+  const guarda = entre(modal, "const puedeEnviar", ";");
+  const fallos = [];
+  if (!guarda) fallos.push("no se encuentra la guarda `puedeEnviar`");
+
+  // Ningun campo de TEXTO obligatorio puede comprobarse con `!!form.X` desnudo.
+  for (const campo of ["nombreCompleto", "telefono", "tipoEvento", "fechaTentativa"]) {
+    if (new RegExp(`!!\\s*form\\.${campo}\\b`).test(guarda)) {
+      fallos.push(`\`${campo}\` se comprueba con \`!!\`: la barra espaciadora lo daria por lleno`);
+    }
+  }
+
+  // Y el que envuelve al telefono recorta de verdad. El NOMBRE del helper se deriva del propio
+  // codigo — fijarlo haria que un renombrado inocuo rompiera el contrato (§9).
+  const helper = (guarda.match(/(\w+)\(\s*form\.telefono\s*\)/) || [])[1];
+  if (!helper) fallos.push("`form.telefono` no pasa por ninguna comprobacion");
+  else {
+    const def = entre(modal, `const ${helper} =`, ";");
+    if (!/\.trim\(\)/.test(def)) fallos.push(`\`${helper}\` no recorta: los espacios seguirian pasando`);
+  }
+
+  check("W.2: los campos de texto obligatorios se comprueban recortados, no con `!!`", fallos.length === 0, fallos.join(" · "));
+}
+
 // ---------------------------------------------------------------- salida
 let fallan = 0;
 for (const c of casos) {

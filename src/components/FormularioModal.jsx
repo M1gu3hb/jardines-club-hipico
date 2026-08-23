@@ -110,12 +110,20 @@ export default function FormularioModal({ open, onClose, preselectedSalon, whats
   const tipoEventoFinal = form.tipoEvento === "Otro" ? (form.tipoEventoOtro || "").trim() : form.tipoEvento;
   const waNumero = whatsappNumero || WHATSAPP;
 
+  // Los campos de texto se comprueban RECORTADOS. `!!form.telefono` era cierto con la barra
+  // espaciadora: el botón se habilitaba, la solicitud viajaba, y el servidor la rechazaba con
+  // «Teléfono inválido» —el trigger `solicitud_saneo` exige `^[0-9+()\-\s]{7,30}$` tras un
+  // `trim()`—, así que el cliente veía un error crudo en vez del aviso normal de campo faltante.
+  // No se añade validación de FORMATO aquí a propósito: rechazar un número legítimo poco común
+  // pierde un cliente, y eso es peor que un botón de WhatsApp de menos.
+  const lleno = (v) => String(v ?? "").trim().length > 0;
+
   const puedeEnviar =
-    !!form.nombreCompleto &&
-    !!form.telefono &&
-    !!form.tipoEvento &&
-    (form.tipoEvento !== "Otro" || !!form.tipoEventoOtro) &&
-    !!form.fechaTentativa &&
+    lleno(form.nombreCompleto) &&
+    lleno(form.telefono) &&
+    lleno(form.tipoEvento) &&
+    (form.tipoEvento !== "Otro" || lleno(form.tipoEventoOtro)) &&
+    lleno(form.fechaTentativa) &&
     !!form.numeroPersonas &&
     form.aceptoAvisoPrivacidad;
 
