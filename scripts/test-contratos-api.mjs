@@ -3496,6 +3496,112 @@ for (const ruta of [
   check("TEMP: el video se descarga durante el splash, una sola vez y sin poder romper nada", fallos.length === 0, fallos.join(" · "));
 }
 
+// ------------------------------------------- W · EL BOTON DE WHATSAPP DE LAS SOLICITUDES
+//
+// El correo de una solicitud lleva un boton que abre el chat de WhatsApp con el numero que el
+// cliente escribio en el formulario publico. Ese campo es TEXTO LIBRE —el formulario solo
+// comprueba que no este vacio— y `wa.me/<n>` abre el chat de QUIEN SEA que tenga ese numero.
+//
+// Si la conversion se equivoca no hay error visible: el dueño le escribe a un desconocido
+// creyendo que es su cliente, con el nombre y los datos del evento delante. Por eso lo que se
+// contrata no es «hay un boton», sino **que el numero sea de quien dice ser, o que no haya boton**.
+{
+  const { numeroWhatsApp, enlaceWhatsApp } = await import("../api/_lib/telefono.js");
+
+  // (a) EJECUTADO, no leido. Un contrato estatico aqui solo diria que existe un `replace`.
+  //     Las ocho primeras son formas legitimas; las seis ultimas, cosas que la gente y los
+  //     curiosos escriben de verdad en un campo de telefono.
+  const casos = [
+    // lo que escribe la gente          lo que debe salir
+    ["5564395810",                      "525564395810"],   // las 11 solicitudes reales son asi
+    ["55 2311 8153",                    "525523118153"],
+    ["+52 55 2311 8153",                "525523118153"],
+    ["(55) 2311-8153",                  "525523118153"],
+    ["+52 1 55 2311 8153",              "525523118153"],   // viejo formato de WhatsApp Mexico
+    ["525523118153",                    "525523118153"],
+    ["0052 5523118153",                 "525523118153"],   // prefijo internacional a mano
+    ["+1 415 555 2671",                 "14155552671"],    // EE. UU.
+    ["0155 2311 8153",                  null],             // larga distancia vieja: ambiguo
+    ["5523118153 ext 4",                null],             // con extension no es un movil
+    ["55231181",                        null],             // incompleto
+    ["llamame al 5564395810",           null],             // texto con digitos dentro
+    ["<img src=x onerror=alert(1)>5564395810", null],      // basura: el `1` se pegaba delante
+    ["",                                null],
+  ];
+  const malos = casos
+    .filter(([entrada, esperado]) => numeroWhatsApp(entrada) !== esperado)
+    .map(([entrada, esperado]) => `«${entrada}» -> ${numeroWhatsApp(entrada)}, se esperaba ${esperado}`);
+  check("W: el numero de WhatsApp se deriva bien, o no se deriva (ejecutado)", malos.length === 0, malos.join(" · "));
+
+  // (b) LA INVARIANTE DE SALIDA, sobre entradas hostiles: o `null`, o SOLO digitos. De esto
+  //     depende que el valor sea seguro dentro de una URL y dentro de un atributo HTML.
+  const hostiles = [
+    `5564395810" onmouseover="alert(1)`, `javascript:alert(1)`, `5564395810 https://otro.mx`,
+    `../../etc/passwd`, `<script>5564395810</script>`, `5564395810?text=x&foo=y`,
+  ];
+  const sucios = hostiles.filter((h) => {
+    const n = numeroWhatsApp(h);
+    return n !== null && !/^[0-9]{10,15}$/.test(n);
+  });
+  check("W: ninguna entrada hostil produce algo que no sean digitos (ejecutado)", sucios.length === 0, sucios.join(" · "));
+
+  // (c) Y la URL entera es la de WhatsApp, sin nada colado detras.
+  //     El saludo prellenado es una decision de negocio, no una propiedad: `telefono.js` explica
+  //     como quitarlo, y un contrato que castigara quitarlo seria ruido. Lo que SI se afirma es la
+  //     forma de la URL — `wa.me` + digitos, y si hay texto, codificado.
+  const url = enlaceWhatsApp("55 2311 8153", { nombre: "Ana Ortega", folio: "JCH-0012" });
+  check(
+    "W: el enlace es `wa.me` con el numero, y lo que lleve detras va codificado (ejecutado)",
+    typeof url === "string" && /^https:\/\/wa\.me\/525523118153(\?text=[A-Za-z0-9%.()_~*!'-]+)?$/.test(url),
+    String(url),
+  );
+  check(
+    "W: sin numero utilizable no hay enlace, y por tanto no hay boton (ejecutado)",
+    enlaceWhatsApp("no tengo telefono", { nombre: "x" }) === null,
+    "un telefono ilegible sigue produciendo enlace",
+  );
+}
+
+{
+  // (d) EL CORREO USA ESA FUNCION, y el boton cuelga de que haya enlace. Una pieza correcta que
+  //     nadie invoca es indistinguible de una que no existe (D-COD-21).
+  const sol = leerCodigo("api/solicitud.js");
+  const fallos = [];
+  if (!/from "\.\/_lib\/telefono\.js"/.test(sol)) fallos.push("`api/solicitud.js` no importa el normalizador");
+  if (!/enlaceWhatsApp\(s\.telefono/.test(sol)) fallos.push("el enlace no se deriva del telefono de la fila de la base");
+  // El boton NO puede construirse pegando el telefono crudo.
+  if (/wa\.me\/\$\{/.test(sol)) fallos.push("se construye una URL de `wa.me` a mano en vez de con el normalizador");
+  // Y cuelga del enlace: sin enlace, sin boton.
+  const envio = entre(sol, "cta2Texto:", "notaPie:");
+  if (!/waUrl\s*\?/.test(envio) || !/waUrl\s*\|\|\s*undefined/.test(envio)) {
+    fallos.push("el segundo boton no cuelga de que exista el enlace: se pintaria roto");
+  }
+  // El texto plano tambien lo lleva: hay clientes de correo que no pintan HTML.
+  if (!/ESCRIBIRLE POR WHATSAPP/.test(sol)) fallos.push("el texto plano no lleva el enlace");
+  check("W: el correo de solicitudes usa el normalizador, y sin numero no pinta boton", fallos.length === 0, fallos.join(" · "));
+
+  // (e) LA PLANTILLA ESCAPA LAS DOS URL. Hasta ahora `ctaUrl` no se escapaba, y daba igual porque
+  //     todas se construian con constantes; desde que una sale de un campo publico, no da igual.
+  const correo = leerCodigo("api/_lib/correo.js");
+  const fallos2 = [];
+
+  // NO se recorta por delimitador: `entre(correo, "const botonHtml =", "};")` cortaba en el `};`
+  // de `background: ${degradado};`, o sea ANTES del `href`, y el contrato fallaba señalando algo
+  // que si estaba. Cuarta vez en esta sesion que un recorte cae en el sitio equivocado.
+  //
+  // Y la afirmacion que sale es MEJOR que la que se intentaba: en vez de mirar un boton concreto,
+  // se exige que **ningun** `href` interpolado de la plantilla se quede sin escapar. Si mañana se
+  // añade un tercer enlace, tambien queda cubierto.
+  const hrefs = [...correo.matchAll(/href="\$\{([^}]*)\}"/g)].map((m) => m[1].trim());
+  if (hrefs.length === 0) fallos2.push("la plantilla ya no interpola ninguna URL: ¿siguen existiendo los botones?");
+  const sinEscapar = hrefs.filter((h) => !/^esc\(/.test(h));
+  if (sinEscapar.length) fallos2.push(`hay URL sin escapar en la plantilla: ${sinEscapar.join(", ")}`);
+  if (!/\$\{esc\(texto\)\}/.test(correo)) fallos2.push("el texto del boton no va escapado");
+  // Y el segundo boton es OPCIONAL: los seis correos que ya existian no lo pasan.
+  if (!/cta2Texto && cta2Url/.test(correo)) fallos2.push("el segundo boton no es opcional");
+  check("W: la plantilla escapa las dos URL, y el segundo boton es opcional", fallos2.length === 0, fallos2.join(" · "));
+}
+
 // ---------------------------------------------------------------- salida
 let fallan = 0;
 for (const c of casos) {

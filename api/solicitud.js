@@ -15,6 +15,7 @@
 //   fila no existe, el correo no sale. Rate limit por IP e idempotencia por
 //   solicitud, así que un reintento no duplica el aviso.
 import { plantillaOro, enviarCorreo, SITIO_URL } from "./_lib/correo.js";
+import { enlaceWhatsApp, numeroWhatsApp } from "./_lib/telefono.js";
 import {
   clienteAdmin, leerBody, rateLimit, idemIniciar, idemCerrar,
   auditar, generico, ipCliente, escHtml,
@@ -38,6 +39,24 @@ const seccion = (titulo, filas) => `
   <table role="presentation" cellpadding="0" cellspacing="0" width="100%" style="border-collapse:collapse;">${filas}</table>`;
 
 /**
+ * La fila del teléfono, que ademas dice si el número NO se pudo convertir en enlace.
+ *
+ * Sin esto, la ausencia del botón verde es ambigua: ¿está roto el correo, o es que el cliente
+ * escribió algo que no es un teléfono? Se responde en el sitio donde se mira. La nota es un
+ * literal fijo — no entra ni un carácter del cliente por esa vía.
+ */
+const filaTelefono = (tel) => {
+  if (numeroWhatsApp(tel)) return fila("Teléfono", tel);
+  return `
+  <tr>
+    <td style="padding:7px 12px 7px 0;color:#8a8a8a;font-size:12px;white-space:nowrap;vertical-align:top;">Teléfono</td>
+    <td style="padding:7px 0;color:#e8e8e8;font-size:13px;vertical-align:top;">${escHtml(tel || "—")}
+      <span style="color:#c98a4c;font-size:11px;"> · no tiene forma de número, por eso no hay botón de WhatsApp</span>
+    </td>
+  </tr>`;
+};
+
+/**
  * Cuerpo HTML del aviso, construido SOLO con la fila de la base — igual que el texto plano.
  * Todo valor pasa por `escHtml`: el nombre y los comentarios los escribe un desconocido en un
  * formulario público, así que son la entrada menos confiable de todo el proyecto.
@@ -47,7 +66,7 @@ function construirHtml(s) {
     seccion("IDENTIFICACIÓN",
       fila("Folio", s.folio) + fila("Fecha de envío", s.fecha_envio) + fila("Hora", s.hora_envio)) +
     seccion("CLIENTE",
-      fila("Nombre", s.nombre_completo) + fila("Teléfono", s.telefono) + fila("Correo", s.email)) +
+      fila("Nombre", s.nombre_completo) + filaTelefono(s.telefono) + fila("Correo", s.email)) +
     seccion("EVENTO",
       fila("Espacio / Salón", s.salon_seleccionado) + fila("Tipo", s.tipo_evento) +
       fila("Fecha tentativa", s.fecha_tentativa) +
@@ -60,7 +79,11 @@ function construirHtml(s) {
 
 /** Texto del correo, construido SOLO con la fila de la base. */
 function construirTexto(s) {
-  return `Nueva solicitud de evento recibida
+  const wa = enlaceWhatsApp(s.telefono, { nombre: s.nombre_completo, folio: s.folio });
+  return `Nueva solicitud de evento recibida${wa ? `
+
+ESCRIBIRLE POR WHATSAPP
+${wa}` : ""}
 
 IDENTIFICACION
 Folio:           ${s.folio || "-"}
@@ -140,6 +163,8 @@ export default async function handler(req, res) {
   }
   if (idem !== "procede") return generico(res, 500);
 
+  const waUrl = enlaceWhatsApp(s.telefono, { nombre: s.nombre_completo, folio: s.folio });
+
   try {
     // Era la única ruta con su propio transporter y texto plano. Ahora usa la misma plantilla
     // dorada que los demás correos del proyecto (`_lib/correo.js`), así que el remitente, el
@@ -157,6 +182,11 @@ export default async function handler(req, res) {
         cuerpoHtml: construirHtml(s),
         ctaTexto: "Ver en mi panel",
         ctaUrl: `${SITIO_URL}/${process.env.VITE_ADMIN_SLUG || "gestion-jch-9f27ax"}`,
+        // Segundo botón: abre el chat de WhatsApp con el número que escribió el cliente. Si ese
+        // número no se puede convertir con certeza, `enlaceWhatsApp` devuelve `null` y el botón
+        // NO se pinta — abrir el chat equivocado sería peor que no tener botón.
+        cta2Texto: waUrl ? "Escribir por WhatsApp" : undefined,
+        cta2Url: waUrl || undefined,
         notaPie: "Aviso automático del formulario de Jardines Club Hípico.",
       }),
       texto: construirTexto(s),
