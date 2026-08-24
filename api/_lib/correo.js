@@ -2,25 +2,15 @@
 // (Los archivos dentro de carpetas con "_" NO se publican como funciones en Vercel.)
 import nodemailer from "nodemailer";
 
-// P1 · UNA URL POR APLICACIÓN, NO UNA CONSTANTE PARA TODAS.
+// LAS TRES URL DEL ECOSISTEMA se mudaron a `./urls.js` en la FASE 4, y aqui solo se
+// re-exportan para que los `import { URL_WEB } from "./_lib/correo.js"` que ya existian
+// sigan valiendo sin tocarlos.
 //
-// Aquí había `SITIO_URL` fija al dominio de Vercel de la web (J-01). Mientras las tres
-// aplicaciones vivieron en el mismo despliegue dio igual; en cuanto el portal se muda de
-// origen deja de darlo: `crear-usuario-evento.js` construye con esto el enlace mágico de
-// primer acceso, que es de UN SOLO USO. Si apuntara al sitio equivocado el correo se quema y
-// el cliente nuevo se queda fuera sin que nadie se entere.
-// Ver `docs/PLAN-INDEPENDIZACION.md` §4, peligro P1.
-//
-// Las tres comparten HOY el valor por defecto —el que tenía `SITIO_URL`—, así que mientras las
-// variables de entorno no se definan el comportamiento no cambia ni un carácter.
-const URL_HOY = "https://jardines-club-hipico.vercel.app";
-
-/** Sitio público. Sirve los medios (el logo de los correos) y las páginas de marketing. */
-export const URL_WEB = process.env.URL_WEB || URL_HOY;
-/** Portal del cliente. Es quien canjea los enlaces de primer acceso (`#entrar=`) — ver P1. */
-export const URL_PORTAL = process.env.URL_PORTAL || URL_HOY;
-/** CRM / punto de venta: donde vive el panel de administración. */
-export const URL_CRM = process.env.URL_CRM || URL_HOY;
+// El motivo de la mudanza: `canjear-acceso.js` tambien las necesita —decide a que
+// aplicacion mandar a alguien despues de canjear su enlace— y hacerle importar ESTE
+// archivo le metia nodemailer en el paquete solo para leer una cadena.
+export { URL_WEB, URL_PORTAL, URL_CRM, RUTA_PANEL } from "./urls.js";
+import { URL_WEB } from "./urls.js";
 
 const LOGO_URL = `${URL_WEB}/media/img/aMxWuH8.png`;
 // El pie llevaba el dominio escrito a mano. Se deriva de `URL_WEB` para que no pueda quedarse

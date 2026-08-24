@@ -121,7 +121,7 @@ export default async function handler(req, res) {
         para <strong style="color:#E6C870;">${escHtml(ev.nombre_evento)}</strong> en la sección <em>Documentos</em> de tu portal.</p>
         <p style="margin:0;">Entra con tu usuario y contraseña de siempre. Cualquier duda, respóndenos este correo y con gusto te acompañamos.</p>`,
       ctaTexto: "Ver mi documento",
-      ctaUrl: `${URL_PORTAL}/portal`,
+      ctaUrl: `${URL_PORTAL}`,
       notaPie: "Este documento es exclusivo para ti y tu evento.",
     });
 
@@ -129,7 +129,7 @@ export default async function handler(req, res) {
       to: ev.cliente_email,
       subject: `📄 ${enc.asunto} de "${ev.nombre_evento}" — Jardines Club Hípico`,
       html,
-      texto: `${enc.titulo}. Revísalo en la sección Documentos de tu portal: ${URL_PORTAL}/portal`,
+      texto: `${enc.titulo}. Revísalo en la sección Documentos de tu portal: ${URL_PORTAL}`,
       replyTo: process.env.MAIL_TO || process.env.GMAIL_USER,
     });
 

@@ -41,9 +41,24 @@ const MENU_ITEMS = [
   { id: "contacto", label: "Contacto" },
   { id: "no-incluye", label: "Avisos" },
 ]
-  .map((i) => ({ ...i, link: `#${i.id}`, ariaLabel: `Ir a ${i.label}` }))
+  // `esRuta: false` no es adorno: iguala la forma de los dos lados del `concat` de abajo,
+  // que es lo que TypeScript comprueba. Y es cierto — estos items son anclas, no rutas.
+  .map((i) => ({ ...i, link: `#${i.id}`, ariaLabel: `Ir a ${i.label}`, esRuta: false }))
   // Acceso al portal de clientes: SOLO dentro del menú (no visible en la página).
-  .concat([{ id: "portal", label: "Portal de clientes", link: "/portal", ariaLabel: "Entrar al portal de clientes", esRuta: true }]);
+  //
+  // DESDE LA FASE 4 EL PORTAL ES OTRA APLICACIÓN, en otro origen. La URL sale de
+  // `VITE_URL_PORTAL` para que no quede escrita a mano en el código (regla R8).
+  //
+  // El respaldo `/portal` no es decorativo: si la variable faltara, el enlace cae en la
+  // ruta vieja de este mismo sitio, que la FASE 4 convirtió en un 301 hacia el portal.
+  // O sea que el peor caso es un salto de más, no un enlace roto.
+  .concat([{
+    id: "portal",
+    label: "Portal de clientes",
+    link: import.meta.env.VITE_URL_PORTAL || "/portal",
+    ariaLabel: "Entrar al portal de clientes",
+    esRuta: true,
+  }]);
 
 export default function Home() {
   const navigate = useNavigate();
@@ -132,6 +147,10 @@ export default function Home() {
     // validado; se decide qué hacer con él cuando `PortalShell` se mude en la FASE 2.
     if (item.esRuta) {
       try { sessionStorage.removeItem("jch_ver_sitio"); } catch { /* sin storage */ }
+      // Una URL absoluta es OTRA aplicación: hay que salir del router, no navegar dentro.
+      // El `#entrar=` de un enlace viejo sobrevive al salto: el fragmento no viaja al
+      // servidor y el navegador lo arrastra al destino.
+      if (/^https?:[/][/]/.test(item.link)) { window.location.href = item.link; return; }
       navigate(item.link);
       return;
     }

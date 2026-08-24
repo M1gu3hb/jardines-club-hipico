@@ -3707,6 +3707,91 @@ zona("web");
   check("W.2: los campos de texto obligatorios se comprueban recortados, no con `!!`", fallos.length === 0, fallos.join(" · "));
 }
 
+// ---------------------------------------------------------------- FASE 4 · las tres conectadas
+zona("web");
+{
+  // `/portal` Y `/invitacion/:token` REDIRIGEN, NO SE BORRAN (todavía).
+  //
+  // Las dos rutas existen desde hace meses y `/portal` está enlazada desde el menú, así que es
+  // razonable suponer que Google la conoce. Mudarlas sin 301 tira esas señales a la basura.
+  // El redirect vive en `vercel.json` y NO en el router de React a propósito: un salto de
+  // cliente no es un 301 y no transfiere nada.
+  //
+  // Y hay un segundo motivo, menos obvio: el fragmento `#entrar=<token>` de un enlace mágico
+  // ya enviado NO viaja al servidor, así que el navegador lo arrastra al destino. Los correos
+  // que ya están en las bandejas siguen funcionando.
+  const cfg = JSON.parse(leer("vercel.json"));
+  const fallos = [];
+  const redirs = cfg.redirects || [];
+  const buscar = (origen) => redirs.find((r) => r.source === origen);
+  for (const origen of ["/portal", "/invitacion/:token"]) {
+    const r = buscar(origen);
+    if (!r) { fallos.push(`no hay redirect para ${origen}`); continue; }
+    if (r.statusCode !== 301) fallos.push(`${origen} redirige con ${r.statusCode}, no 301`);
+    if (!/^https:\/\//.test(r.destination)) fallos.push(`${origen} no apunta a una URL absoluta`);
+  }
+  const inv = buscar("/invitacion/:token");
+  if (inv && !inv.destination.includes(":token")) fallos.push("la invitación pierde el token por el camino");
+  check("web: `/portal` y la invitación redirigen 301 a otra aplicación", fallos.length === 0, fallos.join(" · "));
+}
+
+zona("web");
+{
+  // EL ENLACE DEL MENÚ SALE DE UNA VARIABLE, no escrito a mano (R8). Atado al item del menú
+  // Y al manejador: si solo se mirase el item, cambiar el manejador para que hiciera
+  // `navigate()` sobre una URL absoluta rompería el enlace y el contrato pasaría igual.
+  const home = leerCodigo("src/pages/Home.jsx");
+  const item = entre(home, '.concat([{', '}]);');
+  // OJO CON EL RECORTE: `entre(home, "if (item.esRuta) {", "}")` corta en la llave del
+  // `catch { }` de sessionStorage, ANTES de la linea que importa, y el contrato acusaba a un
+  // codigo correcto. Se ata al cuerpo entero del manejador, hasta la rama que NO es ruta.
+  const manejador = entre(home, "const scrollToSection", "const el = document.getElementById");
+  const fallos = [];
+  if (!item) fallos.push("no se encuentra el item del portal en el menú");
+  else {
+    if (!/import\.meta\.env\.VITE_URL_PORTAL/.test(item)) fallos.push("el enlace no sale de `VITE_URL_PORTAL`");
+    if (!/\|\|\s*"\/portal"/.test(item)) fallos.push("no queda respaldo a la ruta vieja si falta la variable");
+  }
+  if (!manejador) fallos.push("no se encuentra el manejador del menú");
+  else if (!/window\.location\.href\s*=\s*item\.link/.test(manejador)) {
+    fallos.push("el manejador no sale del router para una URL absoluta");
+  }
+  check("web: el portal del menú sale de una variable y el manejador sabe salir del router", fallos.length === 0, fallos.join(" · "));
+}
+
+zona("comun");
+{
+  // LA RAÍZ DEL PORTAL *ES* EL PORTAL. En el monolito vivía en `/portal`, así que todos los
+  // correos construían `${URL_PORTAL}/portal`. Con el portal en su propio origen ese sufijo
+  // apunta a una ruta que no existe, y el enlace mágico es de UN SOLO USO: si falla, el correo
+  // se quema y el cliente se queda fuera sin que nadie se entere. Es el peligro P1.
+  const fallos = [];
+  for (const f of leerDir("api").filter((x) => x.endsWith(".js"))) {
+    const s = leerCodigo("api/" + f);
+    if (s.includes("URL_PORTAL}/portal")) fallos.push(`api/${f} sigue añadiendo el sufijo /portal`);
+  }
+  check("comun: ningún correo añade ya el sufijo `/portal` a `URL_PORTAL` (P1)", fallos.length === 0, fallos.join(" · "));
+}
+
+zona("comun");
+{
+  // LAS TRES URL, EN UN SOLO SITIO. `canjear-acceso` también las necesita desde la FASE 4, y
+  // hacerle importar `correo.js` le metía nodemailer en el paquete para leer una cadena.
+  // `correo.js` las re-exporta, así que los imports que ya existían siguen valiendo.
+  const urls = leerCodigo("api/_lib/urls.js");
+  const correo = leerCodigo("api/_lib/correo.js");
+  const fallos = [];
+  for (const n of ["URL_WEB", "URL_PORTAL", "URL_CRM"]) {
+    if (!new RegExp(`export const ${n} = process\.env\.${n} \|\|`).test(urls)) {
+      fallos.push(`${n} no sale de su variable de entorno`);
+    }
+  }
+  if (/const URL_HOY|export const URL_WEB =/.test(correo)) fallos.push("`correo.js` vuelve a declarar las URL en vez de re-exportarlas");
+  if (!/export \{[^}]*URL_WEB[^}]*\} from "\.\/urls\.js"/.test(correo)) fallos.push("`correo.js` no re-exporta desde `urls.js`");
+  check("comun: las tres URL se declaran UNA vez, en `api/_lib/urls.js`", fallos.length === 0, fallos.join(" · "));
+}
+
+
 // ---------------------------------------------------------------- salida
 
 // META-CONTRATO DEL REPARTO — FASE 1, punto 5 del plan de independización.

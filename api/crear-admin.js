@@ -134,7 +134,7 @@ export default async function handler(req, res) {
         p_user_id: nuevoId, p_proposito: "primer_acceso_admin", p_horas: 72,
       });
       const entrarUrl = tokenAcceso
-        ? `${URL_PORTAL}/portal#entrar=${encodeURIComponent(tokenAcceso)}`
+        ? `${URL_PORTAL}/#entrar=${encodeURIComponent(tokenAcceso)}`
         : panelUrl;
       const html = plantillaOro({
         pretitulo: "Acceso al panel",

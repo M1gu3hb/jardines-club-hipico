@@ -14,6 +14,7 @@
 import {
   clienteAdmin, leerBody, rateLimit, auditar, generico, ipCliente, rpcSeguro,
 } from "./_lib/guard.js";
+import { URL_CRM, RUTA_PANEL } from "./_lib/urls.js";
 
 export default async function handler(req, res) {
   if (req.method !== "POST") return generico(res, 405);
@@ -60,10 +61,18 @@ export default async function handler(req, res) {
     const r2 = await rpcSeguro(admin, "canjear_acceso_confirmar", { p_token: token });
     if (!r2.ok) throw new Error("no se pudo confirmar el consumo del acceso");
 
-    // El destino lo decide el servidor a partir del rol, no el correo ni el cliente.
+    // EL DESTINO LO DECIDE EL SERVIDOR A PARTIR DEL ROL, no el correo ni el navegador.
+    //
+    // FASE 4, opcion (a) del plan de cierre §3.3: el correo de alta de un ADMINISTRADOR
+    // apunta al PORTAL, porque el portal es quien sabe canjear `#entrar=`. Duplicar esa
+    // pantalla en el CRM seria una segunda copia de la pieza mas delicada del alta, y una
+    // de las dos se quedaria atras. Asi que el canje ocurre aqui y de aqui se manda al CRM
+    // con una URL ABSOLUTA: ya son dos aplicaciones en dos origenes distintos.
+    //
+    // Para un cliente el destino es `/`, porque la raiz de esta aplicacion ES el portal.
     const destino = fila.rol === "admin"
-      ? `/${process.env.VITE_ADMIN_SLUG || "gestion-jch-9f27ax"}`
-      : "/portal";
+      ? `${URL_CRM}/${RUTA_PANEL}`
+      : "/";
 
     res.status(200).json({ ok: true, tokenHash: link.properties.hashed_token, destino });
   } catch (e) {

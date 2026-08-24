@@ -54,7 +54,11 @@ export default function PortalLogin() {
         if (vErr) throw vErr;
         // El destino lo decide el servidor según el rol: el enlace de un
         // administrador no puede terminar en el portal de cliente.
-        if (destino && destino !== "/portal") {
+        //
+        // Desde la FASE 4, `/` significa «quédate aquí»: la raíz de esta aplicación ES el
+        // portal. Cualquier otro destino es una URL ABSOLUTA a otra aplicación —hoy solo
+        // el CRM, cuando quien canjea es un administrador.
+        if (destino && destino !== "/") {
           window.location.replace(destino);
           return;
         }

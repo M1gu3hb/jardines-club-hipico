@@ -230,10 +230,10 @@ export default async function handler(req, res) {
             cuerpoHtml: `<p style="margin:0 0 14px 0;">${escHtml((e.cliente_nombre || "Hola").split(/\s+/)[0])}, esperamos que <strong style="color:#E6C870;">${escHtml(e.nombre_evento)}</strong> haya sido inolvidable.</p>
               <p style="margin:0;">Tu opinión significa el mundo para nosotros. ¿Nos regalas un minuto para contarnos cómo te fue?</p>`,
             ctaTexto: "Dejar mi reseña",
-            ctaUrl: `${URL_PORTAL}/portal`,
+            ctaUrl: `${URL_PORTAL}`,
             notaPie: "Si ya la dejaste, ¡gracias! Ignora este correo.",
           });
-          await enviarCorreo({ to: e.cliente_email, subject: `⭐ ¿Cómo estuvo ${e.nombre_evento}? — Jardines Club Hípico`, html, texto: `Cuéntanos cómo estuvo tu evento en ${URL_PORTAL}/portal` });
+          await enviarCorreo({ to: e.cliente_email, subject: `⭐ ¿Cómo estuvo ${e.nombre_evento}? — Jardines Club Hípico`, html, texto: `Cuéntanos cómo estuvo tu evento en ${URL_PORTAL}` });
           enviadoOk = true;
           resenasInvitadas++;
         } catch (err) { console.error("[cron] resena mail:", err.message); }

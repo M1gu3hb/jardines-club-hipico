@@ -226,7 +226,7 @@ export default async function handler(req, res) {
           p_user_id: nuevoId, p_proposito: "primer_acceso_cliente", p_horas: 72,
         });
         if (taErr || !tokenAcceso) throw new Error("no se pudo emitir el acceso");
-        const linkMagico = `${URL_PORTAL}/portal#entrar=${encodeURIComponent(tokenAcceso)}`;
+        const linkMagico = `${URL_PORTAL}/#entrar=${encodeURIComponent(tokenAcceso)}`;
         const nombreCliente = (ev.cliente_nombre || nombre || "").split(/\s+/)[0] || "Hola";
         const html = plantillaOro({
           pretitulo: "Tu portal está listo",
