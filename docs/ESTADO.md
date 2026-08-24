@@ -1,6 +1,6 @@
 # ESTADO.md — dónde está el proyecto, sin optimismo
 
-> **2026-08-06** · <https://jardines-club-hipico.vercel.app>
+> **2026-08-24** · tres aplicaciones · <https://jardines-club-hipico.vercel.app>
 >
 > **El código que corre en producción es el commit `8f7fe29`**, subido por el deployment
 > `dpl_7D3FpUnghgCcPKPAc2uaU1Ss6zoD` (READY, target `production`); el bundle servido es
@@ -24,33 +24,52 @@
 > de una invitación): escrita, ensayada en un bloque revertido por construcción, y **sin aplicar**
 > a la espera de decisión.
 >
-> **LA SEPARACIÓN EN TRES APLICACIONES ESTÁ EMPEZADA — 2026-08-24.** Ya no es un plan: las
-> FASES 1, 2 y 3 de **`docs/PLAN-INDEPENDIZACION.md`** están hechas y desplegadas. Ese
-> documento manda sobre `PLAN-EXPANSION.md` en el CÓMO y el ORDEN.
+> **LA SEPARACIÓN EN TRES APLICACIONES ESTÁ TERMINADA — 2026-08-24.** Las siete fases de
+> `docs/PLAN-INDEPENDIZACION.md` y `docs/PLAN-CIERRE.md` están ejecutadas y desplegadas. Ese
+> par de documentos manda sobre `PLAN-EXPANSION.md` en el CÓMO y el ORDEN.
 >
-> | | |
-> |---|---|
-> | web pública | <https://jardines-club-hipico.vercel.app> — commit `00af219` |
-> | portal del cliente | <https://jch-portal-cliente.vercel.app> — repo `M1gu3hb/JCH-portal-cliente` |
-> | CRM / punto de venta | <https://jch-crm.vercel.app> — repo `M1gu3hb/JCH-CRM` |
+> | App | Repo · commit | URL | Bundle |
+> |---|---|---|---|
+> | web pública | `jardines-club-hipico` · `9d0e053` | <https://jardines-club-hipico.vercel.app> | **775 kB** |
+> | portal del cliente | `JCH-portal-cliente` · `901e80d` (privado) | <https://jch-portal-cliente.vercel.app> | 707 kB |
+> | CRM / punto de venta | `JCH-CRM` · `20a8e8f` (privado) | <https://jch-crm.vercel.app> | 848 kB |
 >
-> **FASE 1** (en este repo, aditiva): rotos los acoplamientos A1, A2 y A7 —el portal ya no
-> importa del panel y la web pública se quedó SIN código de autenticación—, y `SITIO_URL` dejó
-> de ser una constante: ahora son `URL_WEB` / `URL_PORTAL` / `URL_CRM` por entorno, las tres
-> con el valor de hoy por defecto, así que **ningún correo cambió de destino**. Los contratos
-> pasaron de 322 a 323 y todos llevan etiqueta de a qué app viajarán.
+> **Lo que cambió de verdad, y es el punto de todo esto:** el bundle público pasó de
+> **1 098 kB a 775 kB** y ya NO contiene el slug del panel, `AdminSolicitudes`,
+> `eliminar-evento`, `crear-admin`, `PortalShell` ni `RequireAdmin`. Cualquier visitante del
+> sitio se los descargaba. Comprobado sobre el archivo SERVIDO, no sobre el build local.
 >
-> **FASES 2 y 3**: portal y CRM nacieron en sus repos, con `storageKey` propio, `noindex`, su
-> `vercel.json` y sus contratos. **Nada se borró de este repo** — eso es la FASE 6.
+> **FASE 1** — rotos los acoplamientos A1, A2 y A7. El portal dejó de importar del panel y la
+> web pública se quedó **sin código de autenticación**. `SITIO_URL` dejó de ser una constante:
+> son `URL_WEB` / `URL_PORTAL` / `URL_CRM` por entorno.
 >
-> **⛔ LAS DOS APLICACIONES NUEVAS ESTÁN DESPLEGADAS PERO NO FUNCIONAN TODAVÍA**, y es una sola
-> causa: **les faltan las variables de entorno**. Vercel no devuelve el valor de las variables
-> cifradas del proyecto viejo (`vercel env pull` las trae vacías), así que no se pudieron
-> copiar: hay que ponerlas a mano. Hasta entonces las dos pintan «El sitio no está
-> configurado», que es el comportamiento correcto y visible, no un fallo silencioso.
+> **FASES 2 y 3** — portal y CRM nacieron en sus repos, con `storageKey` propio, `noindex`, su
+> `vercel.json` y sus contratos. El reparto de archivos salió de recorrer los `import` reales,
+> no de una lista escrita a mano, y eso corrigió cuatro errores del plan.
 >
-> **Sin hacer: FASES 4 a 7** — conectar los enlaces entre apps, la validación humana, retirar
-> lo viejo de este repo y el cierre documental.
+> **FASE 4** — las tres conectadas. `/portal` y `/invitacion/:token` responden **301** desde el
+> borde (no desde React: un salto de cliente no transfiere señales de Google), y el fragmento
+> `#entrar=` sobrevive al salto, así que los enlaces mágicos ya enviados siguen sirviendo. El
+> sufijo `/portal` desapareció de los correos porque la raíz del portal **es** el portal.
+> Aprobada la opción (a) del §3.3: el enlace de alta de un admin se canjea en el portal y sale
+> al CRM con URL absoluta. Y el panel del CRM volvió tras `ADMIN_SLUG`, con `/` en 404.
+>
+> **FASE 5** — la base intacta: 2 eventos con las mismas huellas, 13 solicitudes, 8 perfiles,
+> 9 usuarios en `auth.users` y el único administrador de Vero sin tocar.
+>
+> **FASE 6** — retirados 74 archivos del repo de la web. `api/` se queda solo con
+> `solicitud.js` y `_lib/`. Y el hueco que la FASE 2 dejó abierto a propósito quedó resuelto:
+> el shim se partió en **núcleo común** (byte a byte idéntico en los tres, `sha256 d39e08ba…`)
+> y **`funciones.js`**, que declara solo las rutas que esa app tiene desplegadas.
+>
+> **FASE 7** — cuatro juegos de documentación: el GENERAL aquí (canónico) y uno por aplicación.
+>
+> **⚠️ CINCO CASILLAS SIN COMPROBAR, y todas son de credenciales.** Están en
+> `docs/NEXT_STEPS.md` con su procedimiento. Ninguna bloquea el funcionamiento; todas dependen
+> de una persona con acceso: que el CRM enseñe los 2 eventos y las 13 solicitudes, que un
+> cliente entre al portal, que un enlace de primer acceso recién emitido funcione, que el
+> formulario público siga creando solicitud y mandando correo, y que el admin de Vero entre a
+> su aplicación. **No se dan por buenas.**
 >
 > **Sin empezar:** FASES 5–8 del bloque final (las 36 escrituras sin `catch`, el aviso de
 > privacidad y los correos, la limpieza de contratos y código muerto, y la documentación).

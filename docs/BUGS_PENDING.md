@@ -86,6 +86,20 @@ tenga `catch` primero: hoy diez componentes escriben sin ninguno, y hacer que `u
 cambiaría el engaño por una pantalla muerta. Ver `docs/DECISIONS.md`.
 
 ### J-01 — `SITIO_URL` está hardcodeada al dominio de Vercel
+
+> **✅ CERRADO el 2026-08-24, en la FASE 1 de la separación.** `SITIO_URL` dejó de existir:
+> ahora son `URL_WEB`, `URL_PORTAL` y `URL_CRM`, declaradas UNA vez en `api/_lib/urls.js` y
+> leídas de variables de entorno. En la FASE 4 pasaron a sus valores reales, así que cada
+> correo enlaza a la aplicación que le toca.
+>
+> Lo que quedaba de este bug era peor de lo que parecía: `crear-usuario-evento` construía con
+> ella el enlace mágico de primer acceso, que es de **un solo uso**. Con el portal mudado de
+> origen, ese enlace habría caído en una ruta inexistente — el correo se quema y el cliente se
+> queda fuera sin que nadie se entere. Era el peligro P1 del plan.
+>
+> **Lo único que sigue escrito a mano** es el destino de los dos redirects 301 en el
+> `vercel.json` de la web, porque Vercel no interpola variables de entorno ahí. Está acotado a
+> configuración de despliegue, no a código, y un contrato lo vigila.
 - **Impacto:** medio. **Todos** los correos transaccionales (alta de cliente, primer acceso,
   aviso de cotización, notificaciones al admin, recordatorios del cron) enlazan a
   `https://jardines-club-hipico.vercel.app`, no al dominio propio. También el logo embebido.

@@ -1,5 +1,13 @@
 # PLAN-CIERRE.md — FASES 4 a 7: conectar, retirar y documentar
 
+> ## ✅ EJECUTADO — 2026-08-24
+>
+> Este plan está **cumplido y desplegado**. Se conserva entero porque explica POR QUÉ se hizo
+> cada cosa, y eso no caduca. Lo que se desvió del plan está anotado en `docs/ESTADO.md` y,
+> con detalle, en los mensajes de commit de cada fase.
+>
+> **Lo que se desvió:** el §2.b pedía Password Protection en `jch-crm` antes de las variables. El dueño la descartó —exige plan superior— y en su lugar el panel volvió tras `ADMIN_SLUG` con `/` en 404, que recupera la misma capa de descubrimiento y es gratis. Las cuatro casillas de la FASE 4 que exigen credenciales quedaron sin comprobar, por decisión suya, y están escritas en `docs/NEXT_STEPS.md`. Al repartir los contratos aparecieron doce secciones que no quedaban en ningún repo: nueve se recuperaron reescribiéndolas para recorrer el `api/` real de cada uno.
+
 > **2026-08-24 · Continuación de `docs/PLAN-INDEPENDIZACION.md`.**
 > Las FASES 1, 2 y 3 están **hechas y desplegadas**. Este documento cubre lo que falta.
 > Donde este documento contradiga al anterior en las fases 4–7, **gana este**: el dueño relajó

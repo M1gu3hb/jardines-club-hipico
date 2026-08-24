@@ -1,5 +1,30 @@
 # NEXT_STEPS.md
 
+## ⏸ LO QUE ESTÁ PENDIENTE DE UNA PERSONA — 2026-08-24
+
+La separación en tres aplicaciones está terminada y desplegada, pero **cinco casillas no se
+pudieron comprobar** porque todas exigen credenciales o escriben en producción. No se dan por
+buenas: quedan aquí con su procedimiento exacto.
+
+| # | Qué falta comprobar | Cómo |
+|---|---|---|
+| 1 | Que el CRM enseñe **los 2 eventos y las 13 solicitudes** | Entrar al panel del CRM con una cuenta de administrador |
+| 2 | Que **un cliente entre al portal** nuevo | Usuario y contraseña de siempre en `jch-portal-cliente.vercel.app`. El login no pasa por `api/`, así que este camino ya debería funcionar |
+| 3 | Que **un enlace de primer acceso recién emitido** lleve al portal y sirva al primer intento | Dar de alta un cliente desde el CRM. **Es la casilla más importante**: el token es de un solo uso y si falla, el correo se quema |
+| 4 | Que el **formulario público** siga creando solicitud y mandando correo tras la FASE 4 | Enviar una cotización en `jardines-club-hipico.vercel.app` y ver llegar el correo. Comprueba de paso que el botón «Ver en mi panel» apunta ya al CRM nuevo |
+| 5 | Que el **administrador de Vero** entre a su aplicación | Su login de siempre. No se tocó nada suyo, pero se comparte `auth.users` |
+
+**Ninguna bloquea el funcionamiento.** Las tres aplicaciones están vivas, con sus variables
+puestas y sus cuatro puertas en verde. Lo que falta es la mirada de una persona.
+
+### Y una decisión que quedó abierta
+
+**`sec_29`** sigue escrita y sin aplicar: que el libro de entradas (`accesos`) sobreviva al
+borrado de una invitación. No la bloquea nada de la separación.
+
+---
+
+
 > Estado a **2026-08-03**, tras el despliegue de los bloques 3–6. Ordenado por prioridad real.
 > **Solo aparece lo que falta.** Lo ya hecho está en `docs/CHANGELOG.md`.
 >

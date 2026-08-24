@@ -1,5 +1,13 @@
 # PLAN-INDEPENDIZACION.md — partir Jardines en tres aplicaciones independientes
 
+> ## ✅ EJECUTADO — 2026-08-24
+>
+> Este plan está **cumplido y desplegado**. Se conserva entero porque explica POR QUÉ se hizo
+> cada cosa, y eso no caduca. Lo que se desvió del plan está anotado en `docs/ESTADO.md` y,
+> con detalle, en los mensajes de commit de cada fase.
+>
+> **Lo que se desvió:** el reparto de archivos salió de recorrer los `import` reales, no de la lista del §2, y eso corrigió cuatro errores del plan (`MesaReglas` no lo necesitaba el portal; `catalogos.js` y `cronogramaSugerencias.js` sí; de los ~45 de `ui/` solo hacían falta cinco). El §3 contaba 5 importadores de `_ui.jsx` y eran 9, y el §4 contaba 4 consumidores de `SITIO_URL` y eran 6. El hueco del shim que la FASE 2 dejó abierto se resolvió en la FASE 6.
+
 > **2026-08-24 · Documento de EJECUCIÓN.** Nada de esto está implementado todavía.
 >
 > Este documento manda sobre `docs/PLAN-EXPANSION.md` en todo lo que se refiere a **cómo y en

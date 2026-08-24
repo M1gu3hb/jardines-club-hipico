@@ -11,6 +11,28 @@ continúe el trabajo sin perder contexto.
 > cambios realizados, decisiones tomadas, archivos tocados, entidades afectadas, bugs
 > detectados y próximos pasos.
 
+## ⚠️ ESTE REPO YA NO ES TODO EL PROYECTO — hay TRES aplicaciones
+
+Desde el **2026-08-24** el proyecto vive en tres repositorios. **Este es el SITIO PÚBLICO.**
+
+| App | Repo | URL | Qué contiene |
+|---|---|---|---|
+| **Web pública** (este) | `M1gu3hb/jardines-club-hipico` | `jardines-club-hipico.vercel.app` | El sitio y el formulario de cotización. Una sola ruta `api/`: `solicitud.js` |
+| **Portal del cliente** | `M1gu3hb/JCH-portal-cliente` (privado) | `jch-portal-cliente.vercel.app` | PWA. La raíz `/` ES el portal |
+| **CRM / punto de venta** | `M1gu3hb/JCH-CRM` (privado) | `jch-crm.vercel.app` | El panel, tras `ADMIN_SLUG`. La raíz es 404 |
+
+**Aquí ya NO están** el panel de administración, el portal del cliente, la vista de meseros ni
+las siete funciones serverless que se fueron con ellos. Si buscas algo de eso, está en su repo.
+`/portal` y `/invitacion/:token` **siguen respondiendo**: son redirects **301** en `vercel.json`,
+puestos para no tirar las señales que Google ya tenía en esas rutas.
+
+**Este repositorio aloja además el juego de documentación GENERAL** (`docs/`), que es el
+canónico de todo el ecosistema y viaja copiado a `docs/general/` en los otros dos. La
+documentación de ESTA aplicación —solo del sitio público— está en **`docs/app/`**.
+
+**Las tres hablan con el MISMO Supabase.** No hay tres bases. Y ese proyecto está compartido con
+Vero Seguros: el candado de abajo sigue vigente palabra por palabra.
+
 ## Regla crítica — leer antes de tocar código
 
 0. `docs/ESTADO.md` — **dónde está el proyecto ahora mismo**: qué hay en producción, qué queda
@@ -25,7 +47,10 @@ continúe el trabajo sin perder contexto.
 7. `docs/BUGS_PENDING.md`
 8. `docs/NEXT_STEPS.md`
 9. `docs/CHANGELOG.md`
-10. `docs/PLAN-EXPANSION.md` — **el alcance de la partición en tres apps y las decisiones
+10. `docs/PLAN-INDEPENDIZACION.md` y `docs/PLAN-CIERRE.md` — **cómo se partió el proyecto en
+    tres y en qué orden. EJECUTADOS los dos.** Mandan sobre `PLAN-EXPANSION.md`.
+11. `docs/app/` — la documentación de ESTA aplicación (el sitio público) en concreto.
+12. `docs/PLAN-EXPANSION.md` — **el alcance de la partición en tres apps y las decisiones
     ya tomadas.** Léelo antes de proponer nada de arquitectura.
 11. `docs/PROMPTS.md` — prompts de arranque y de transferencia
 12. Mapa detallado de la UI: `docs/MAPA.md`, `docs/COMPONENTES.md`, `docs/DATOS.md`, `docs/DEPLOY.md`
@@ -107,8 +132,8 @@ Los cuatro tienen que pasar:
 ```bash
 npm run lint            # 0 problemas
 npm run build           # exit 0
-npm run test:contratos  # 323/323
-npm run typecheck       # 59 errores = línea base actual, no debe SUBIR
+npm run test:contratos  # 59/59
+npm run typecheck       # 9 errores = línea base de ESTE repo tras la FASE 6, no debe SUBIR
 ```
 
 Si tocaste SQL, además corre `supabase/tests/seguridad.sql` (va en

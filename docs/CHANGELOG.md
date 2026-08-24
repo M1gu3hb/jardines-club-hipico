@@ -1,5 +1,63 @@
 # CHANGELOG.md
 
+## 2026-08-24 — La separación: un repo se convierte en tres
+
+Siete fases entre el 23 y el 24 de agosto. El proyecto pasó de **un** repositorio que servía el
+sitio, el portal del cliente y el panel de administración, a **tres** aplicaciones
+independientes sobre el **mismo** Supabase.
+
+### Lo que se ganó, medido
+
+**El bundle público pasó de 1 098 kB a 775 kB**, y lo que importa más que el número: ya no
+contiene `gestion-jch` (el slug de la ruta del panel), `AdminSolicitudes`, `eliminar-evento`,
+`crear-admin`, `PortalShell` ni `RequireAdmin`. Cualquier visitante del sitio se descargaba
+todo eso. Comprobado sobre el archivo servido en producción, no sobre el build local.
+
+Y el aislamiento de sesión: cada app tiene su `storageKey` (`jch-web`, `jch-portal`,
+`jch-crm`) y su propio origen, así que un XSS en la web pública ya no puede leer la sesión de
+un administrador.
+
+**Lo que NO se ganó, y conviene tenerlo claro:** la frontera de datos sigue siendo RLS más el
+rol del JWT. Las tres usan la misma `anon key`, que es pública por diseño. Si RLS está mal,
+separar no salva nada.
+
+### Las siete fases
+
+- **FASE 1** — acoplamientos A1, A2 y A7 rotos. El portal dejó de importar del panel, y la web
+  pública se quedó **sin código de autenticación** al retirar el auto-redirect. `SITIO_URL`
+  murió: nacen `URL_WEB`, `URL_PORTAL` y `URL_CRM`, por entorno, con el valor de entonces por
+  defecto para que ningún correo cambiara de destino.
+- **FASES 2 y 3** — nacen `JCH-portal-cliente` y `JCH-CRM`. El reparto de archivos salió de
+  recorrer los `import` reales, no de la lista escrita en el plan, y eso corrigió cuatro
+  errores suyos.
+- **FASE 4** — las tres conectadas. `/portal` y `/invitacion/:token` responden **301** desde el
+  borde. El sufijo `/portal` desaparece de los correos porque la raíz del portal ya **es** el
+  portal. El enlace de alta de un administrador se canjea en el portal y sale al CRM con URL
+  absoluta (opción (a) del §3.3). El panel del CRM vuelve tras `ADMIN_SLUG`.
+- **FASE 5** — la base intacta: 2 eventos con las mismas huellas, 13 solicitudes, 9 usuarios y
+  el único administrador de Vero sin tocar.
+- **FASE 6** — 74 archivos retirados del repo de la web. El shim se parte en núcleo común
+  (byte a byte idéntico en los tres) y `funciones.js` por aplicación.
+- **FASE 7** — cuatro juegos de documentación.
+
+### Tres cosas que salieron mal por el camino, y se dicen
+
+1. **Un clon en Windows convirtió 269 de 281 archivos a CRLF** y cinco contratos fallaron en
+   falso, acusando a símbolos que sí estaban. Se cerró con `.gitattributes` en los repos nuevos.
+2. **El manifiesto de compartidos tenía un fallo de diseño**: comparaba contra el repo de la
+   web. Al vaciarse la web en la FASE 6, dejó de ver todo lo que portal y CRM comparten entre
+   sí y cayó de 57 a 24 archivos sin que nada hubiera divergido. Ahora compara contra los otros
+   dos.
+3. **Al repartir los contratos, doce secciones se quedaron sin repo.** Nueve se recuperaron
+   reescribiéndolas para que recorran el `api/` real de cada uno; las tres que cruzan repos o
+   dependen de `supabase/migrations` quedan documentadas como hueco conocido, no escondidas.
+
+### Lo que quedó pendiente de una persona
+
+Cinco casillas, todas de credenciales, en `docs/NEXT_STEPS.md`. Ninguna bloquea el
+funcionamiento.
+
+
 ## 2026-08-05 — A-bis y A-ter: el cable que faltaba, y los contratos que solo miraban la forma
 
 ### A-bis — `sec_26` no arreglaba el P0 para el que se escribió
