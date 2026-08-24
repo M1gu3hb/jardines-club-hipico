@@ -22,7 +22,7 @@ dueño, porque pidió expresamente que quedaran escritas:
 - El administrador de Vero entra a su aplicacion: sin comprobar.
 ```
 
-Estas cinco líneas son idénticas en los tres repositorios. **No se dan por buenas.**
+Las cinco **casillas** son las mismas en los tres repositorios, pero la redacción NO es idéntica: aquí van en prosa, en el CRM como tabla y en el portal como lista de comprobación. Se dice para que nadie las compare byte a byte y crea que divergieron. **No se dan por buenas.**
 
 ### La cuarta es la de ESTA aplicación
 
@@ -88,8 +88,15 @@ en su repo — es un archivo, no una copia registrada en `compartidos.json`.
 
 `registrar_llegada_mesa` e `info_mesa_token` son invocables sin sesión y ningún código las llama.
 Retirarlas es una migración (`revoke execute ... from anon`) y **hay que hacerla en el orden
-correcto**: comprobar antes que el CRM y el portal tampoco las usan, porque el contrato que las
-vigila corre en los tres repos y su lista solo puede encoger.
+correcto**: comprobar **a mano** que el CRM y el portal tampoco las usan, con un `grep` en cada
+repositorio, antes de tocar la base.
+
+**Y hay que decirlo así porque aquí no hay contrato que lo vigile.** De las siete RPC huérfanas,
+seis no aparecen **ni una vez** en `scripts/test-contratos-api.mjs`, y la séptima
+(`revocar_staff_token`) solo sale en un comentario en prosa de la línea 274, que no afirma nada.
+Ese contrato se fue con la FASE 6.
+El juego general todavía lo da por vivo. Si al retirarlas se rompe algo en otra app, **se sabrá
+en producción, no en `npm run test:contratos`.**
 
 ### 3.2 Decidir sobre `sec_29`
 
@@ -117,8 +124,12 @@ el del negocio. Por eso existen los contratos 1.4 y 1.5.
 
 - Partir el bundle (775 kB en un solo chunk). `framer-motion`, `gsap` y `three` son los
   candidatos obvios a carga diferida.
-- Quitar del bundle las 49 primitivas de `ui/` que no se usan. Vite ya hace tree-shaking, pero
-  conviene medir antes de afirmar que no pesan.
+- Borrar del repo las **46** primitivas de `ui/` que no se usan. En `src/components/ui/` hay
+  **49** archivos y solo **tres** llegan al bundle: `App.jsx` importa `toaster.jsx`, y ese arrastra
+  `toast.jsx` y `use-toast.jsx`. Las otras 46 no las importa nadie fuera de `ui/`. Ojo: **esas tres
+  son código común** registrado en `compartidos.json`, así que no se tocan sin pasar por el
+  manifiesto. Y Vite ya hace tree-shaking, así que esto es higiene del repo más que peso — conviene
+  medir antes de afirmar que recorta kilobytes.
 - Extraer el código común a un paquete de verdad, en vez de compartirlo por copia. Es la solución
   real al límite que `scripts/compartidos.json` declara de sí mismo: hoy solo detecta una edición
   local, no una divergencia remota.

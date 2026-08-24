@@ -15,11 +15,11 @@
 |---|---|
 | `index.html` | Plantilla de Vite. Meta de SEO, Open Graph, Twitter Card y **dos** bloques JSON-LD (`WebSite` y `EventVenue`, este último con dirección, coordenadas, aforo 600 y teléfono). **Ojo:** `og:url` y los dos `url` del JSON-LD apuntan a `jardinesclubhipico.com`, que no es el dominio servido — es J-04 |
 | `vercel.json` | Los 3 redirects 301 (`/portal`, `/portal/`, `/invitacion/:token`), el rewrite de SPA, y las cabeceras: CSP, HSTS, `X-Frame-Options: DENY`, `Referrer-Policy`, `Permissions-Policy`, `nosniff`, y `no-store` para `/api/*`. **Sin `crons`** |
-| `package.json` | Cinco scripts (`dev`, `build`, `lint`, `typecheck`, `preview`, `test:contratos`) y las dependencias |
+| `package.json` | **Siete** scripts (`dev`, `build`, `lint`, `lint:fix`, `typecheck`, `preview`, `test:contratos`) y las dependencias. Los cuatro de las puertas son `lint`, `build`, `test:contratos` y `typecheck`; `lint:fix` y `preview` son de conveniencia |
 | `package-lock.json` | Lockfile |
-| `vite.config.js` | Vite + plugin de React y un solo alias: `@` → `./src` |
+| `vite.config.js` | Vite + plugin de React y un solo alias: `@` → `./src`. **Código común con los otros dos repos** |
 | `jsconfig.json` | Configuración de `tsc` para `npm run typecheck`, con `checkJs: true`. **Su `include` real son `src/pages/**/*.jsx`, `src/Layout.jsx` y `src/vite-env.d.ts`** — ver la nota al final de este documento, porque el `exclude` no hace lo que parece |
-| `eslint.config.js` | Tres bloques: componentes/páginas, `src/api/**` y `api/**`. `no-undef` **activo** a propósito (atrapa símbolos borrados; el caso real fue una función eliminada cuyas dos llamadas siguieron vivas) |
+| `eslint.config.js` | Tres bloques: componentes/páginas, `src/api/**` y `api/**`. `no-undef` **activo** a propósito (atrapa símbolos borrados; el caso real fue una función eliminada cuyas dos llamadas siguieron vivas). **Código común con los otros dos repos** |
 | `tailwind.config.js` | Tema de Tailwind. Código común con los otros dos repos |
 | `postcss.config.js` | Autoprefixer. Código común |
 | `components.json` | Configuración de shadcn/ui (estilo `new-york`, base `neutral`, iconos Lucide). Código común |
@@ -37,7 +37,7 @@ Vercel **no publica** las carpetas que empiezan por `_`, así que solo `solicitu
 | Archivo | Qué hace |
 |---|---|
 | `api/solicitud.js` | **La única ruta.** Recibe `{ solicitudId }`, relee la fila con `service_role`, y manda el correo al dueño con los datos canónicos de la base. Rate limit por IP (10/hora), ventana de 15 minutos, idempotencia por solicitud, todo escapado con `escHtml`, y auditoría de cada resultado. Segundo botón de WhatsApp solo si el teléfono se pudo derivar |
-| `api/_lib/guard.js` | Los controles compartidos: `escHtml` (los cinco caracteres, `'` incluido), `clienteAdmin()`, `leerBody` con tope, `bearer`, `igualSeguro`, `autorizarJardines`, `rateLimit`, `idemIniciar`/`idemCerrar`, `rpcSeguro`, `auditar`, `ipCliente`, `generico`. Respaldados por PostgreSQL. **Código común** |
+| `api/_lib/guard.js` | Los controles compartidos: `escHtml` (los cinco caracteres, `'` incluido), `clienteAdmin()`, `leerBody` (tope **por defecto 16 KB**; el llamador puede apretarlo, y `solicitud.js` le pasa 4 KB), `bearer`, `igualSeguro`, `autorizarJardines`, `rateLimit`, `idemIniciar`/`idemCerrar`, `rpcSeguro`, `auditar`, `ipCliente`, `generico`. Respaldados por PostgreSQL. **Código común** |
 | `api/_lib/correo.js` | Plantilla dorada (tablas + estilos en línea, porque Gmail borra el `<style>` del `<head>`) y envío por Nodemailer. Importa `escHtml` de `guard.js`: había dos escapadores y el de la plantilla no escapaba `'`. **Código común** |
 | `api/_lib/urls.js` | `URL_WEB`, `URL_PORTAL`, `URL_CRM` y `RUTA_PANEL`, cada una desde su variable de entorno con el dominio de la web como paracaídas. **Código común** |
 | `api/_lib/telefono.js` | `numeroWhatsApp()` y `enlaceWhatsApp()`. **Propio de esta app.** Regla: ante la duda, `null`. Exige que el campo parezca un teléfono y nada más — sin esa puerta, `<img src=x onerror=alert(1)>5564395810` producía un número válido y un botón que abre el chat de un desconocido |
@@ -152,7 +152,7 @@ De todas ellas, el sitio público solo usa unas pocas —`toaster`/`toast`/`use-
 | Archivo | Qué hace |
 |---|---|
 | `scripts/test-contratos-api.mjs` | **La suite de contratos**, 1473 líneas. 59 casos, estáticos, sin red ni credenciales. Ver `docs/app/CONTRATOS.md` |
-| `scripts/compartidos.json` | El registro del código común: **24 archivos** con su `sha256` y en qué repos aparecen, más la lista de los propios. Un contrato lo verifica en cada ejecución |
+| `scripts/compartidos.json` | El registro del código común: **25 archivos** en `archivos` con su `sha256` y en qué repos aparecen, más **188** en `propios`. El contrato solo hashea los 25 de `archivos`; `propios` es inventario, no está vigilado |
 | `scripts/build-media.mjs` | Descargó los medios a `public/media/` y regenera `src/data/site-data.json`. **Descarga ~570 MB por red.** No es parte del ciclo normal |
 | `scripts/seed-supabase.mjs` | **No toca la base.** Lee `site-data.json` y escribe `scripts/seed/*.sql` |
 | `scripts/montage.mjs` | Hojas de contacto de la galería, para revisarla visualmente |
@@ -180,8 +180,9 @@ De todas ellas, el sitio público solo usa unas pocas —`toaster`/`toast`/`use-
   `DECISIONS.md`, `MAPA.md`, `COMPONENTES.md`, `DATOS.md`, `DEPLOY.md`, `PROMPTS.md`,
   `VALIDACION.md`, los cuatro `PLAN-*.md`) describe el proyecto **entero**, incluidas partes que
   ya no viven aquí; lo mantiene otra persona. El de **esta app** es `docs/app/`.
-  `docs/ECOSISTEMA.md` es idéntico en los tres repos y **no se edita solo aquí**.
-  `docs/muestras/` son dos correos de ejemplo en HTML.
+  `docs/ECOSISTEMA.md` es idéntico en los tres repos y **no se edita solo aquí**: es el único
+  `.md` de los **25** que `scripts/compartidos.json` registra con `sha256`, así que editarlo
+  aquí solo **rompe la suite**. `docs/muestras/` son dos correos de ejemplo en HTML.
 - **`nano-banana/`** — 16 archivos: cinco carpetas con el `prompt.md` y las imágenes de referencia
   que se usaron para generar ilustraciones, más un `README.md`. No entra en el build.
 - **`.claude/launch.json`** — arranque del servidor de desarrollo (`npm run dev`, puerto 5173).

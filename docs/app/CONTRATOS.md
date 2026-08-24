@@ -105,7 +105,7 @@ de terceros. Este último es el que impide ensanchar la CSP para tapar un proble
 una variable y el manejador sabe salir del router` · `comun: las tres URL se declaran UNA vez, en
 api/_lib/urls.js` · `comun: ningún correo añade ya el sufijo /portal a URL_PORTAL` · `comun: el
 shim no nombra ninguna ruta que esta aplicación no tenga desplegada` ·
-`compartidos: los 24 archivos comunes siguen siendo la copia registrada`.
+`compartidos: los 25 archivos comunes siguen siendo la copia registrada`.
 
 ### El video temporal del hero (4)
 
@@ -146,12 +146,18 @@ que aplican aquí». Las otras diecisiete las corren el portal y el CRM.
 
 ### 3.3 El manifiesto de código común solo ve ESTE repo
 
-`compartidos: los 24 archivos comunes siguen siendo la copia registrada` compara el `sha256` de
-cada archivo con el registrado. **Detecta** que alguien editó código común aquí sin pasar por el
-manifiesto. **No detecta** que el portal o el CRM hayan cambiado *su* copia: en CI cada repo se
-verifica contra su propio registro. La comparación entre los tres solo funciona con los tres
-presentes en la misma máquina. Está dicho, no aparentado, en `scripts/compartidos.json`. Lo
-resuelve de verdad extraer el paquete compartido.
+`compartidos: los 25 archivos comunes siguen siendo la copia registrada` compara el `sha256` de
+cada archivo con el registrado. El nombre del contrato lo genera el propio manifiesto
+(`manifiesto.archivos.length`), así que **la cifra se mueve sola** cuando se registra un archivo
+más: hoy son **25**, veinticuatro de código y uno de documentación (`docs/ECOSISTEMA.md`).
+Ojo con lo que **no** entra: la lista `propios` de ese mismo JSON —188 rutas, entre ellas todo
+`docs/app/`— es inventario y **nadie la hashea**.
+
+**Detecta** que alguien editó código común aquí sin pasar por el manifiesto. **No detecta** que
+el portal o el CRM hayan cambiado *su* copia: en CI cada repo se verifica contra su propio
+registro. La comparación entre los tres solo funciona con los tres presentes en la misma máquina.
+Está dicho, no aparentado, en `scripts/compartidos.json`. Lo resuelve de verdad extraer el
+paquete compartido.
 
 ### 3.4 El ledger de migraciones no es la base
 

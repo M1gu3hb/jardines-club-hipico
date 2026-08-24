@@ -124,7 +124,7 @@ Hoy:
 | Control | Cómo |
 |---|---|
 | Método | Solo `POST`; cualquier otro, 405 |
-| Tamaño del cuerpo | Tope de **4 KB** en `leerBody` |
+| Tamaño del cuerpo | **4 KB** — pero lo impone **el llamador**: `api/solicitud.js` llama `leerBody(req, 4 * 1024)`. El valor por defecto de la función es `maxBytes = 16 * 1024` (`api/_lib/guard.js`), así que **una ruta nueva que llame `leerBody(req)` a secas hereda 16 KB, no 4** |
 | Entrada | **Solo** `solicitudId`, y tiene que tener forma de UUID |
 | Rate limit | 10/hora por IP en el bucket `solicitud-correo`, persistente en Postgres. **Fail-closed**: si no se puede evaluar, no pasa |
 | Origen del contenido | El servidor **relee la fila** con `service_role`. Si no existe, no sale correo |
@@ -204,11 +204,19 @@ una variable de entorno. Los **nombres** sí.
 | `VITE_ADMIN_SLUG` | servidor | la ruta del panel **del CRM**, usada solo para componer el botón del correo |
 | `GEMINI_API_KEY` | local | solo `scripts/gen-images.mjs`, fuera del despliegue |
 
-**Dos cosas que hay en el código y conviene conocer:** `api/solicitud.js` tiene un destinatario
-por defecto escrito a mano para cuando falta `MAIL_TO`, y `api/_lib/urls.js` tiene la ruta del
-panel también con un valor por defecto. Ninguno es una credencial, pero **el segundo hace que el
-nombre de la ruta secreta del panel esté en este repositorio, que es público**. No lo copies a
-otros sitios, y si algún día esa ruta se rota, hay que rotarla también aquí.
+**Dos cosas que hay en el código y conviene conocer.** Ninguna es una credencial, pero **las dos
+son datos personales o secretos por oscuridad en un repositorio público**, y ninguna se arregla
+sola:
+
+1. **`api/solicitud.js` tiene un destinatario por defecto escrito a mano** (`DEST_DEFAULT`) para
+   cuando falta `MAIL_TO`. No es el correo que `src/config/negocio.js` declara como el del
+   negocio: es **una cuenta personal de Gmail, distinta**, en claro y versionada. Si `MAIL_TO`
+   deja de estar puesta en Vercel, los avisos de cotización se van ahí sin que nadie lo note.
+   Lo correcto es que `MAIL_TO` esté siempre configurada y que el paracaídas sea el correo del
+   negocio, no el de una persona.
+2. **`api/_lib/urls.js` tiene la ruta del panel con un valor por defecto**, lo que hace que **el
+   nombre de la ruta secreta del panel esté en este repositorio, que es público**. No lo copies a
+   otros sitios, y si algún día esa ruta se rota, hay que rotarla también aquí.
 
 `urls.js` da a las tres URL el dominio de la web como valor por defecto para que un enlace roto
 lleve a un sitio que existe en vez de a `undefined/...`. Es un paracaídas, no la configuración.
@@ -245,7 +253,9 @@ Detalle en `docs/app/BUGS_PENDING.md`. Resumido:
 - **J-16** — dos RPC concedidas a **`anon`** que ningún código invoca: `registrar_llegada_mesa`
   (escribiría `mesas.ocupadas`) e `info_mesa_token`. `anon` es el rol de esta aplicación, así que
   son invocables desde cualquier navegador, sin sesión. Las dos validan token y aplican rate
-  limit, pero son superficie que nadie usa. **La lista solo puede encoger.**
+  limit, pero son superficie que nadie usa. **Ningún contrato de este repo las vigila:** la suite
+  no las nombra (ver `docs/app/BUGS_PENDING.md`, J-16), así que una RPC huérfana nueva **no
+  rompería nada aquí**.
 - **J-10** — las policies de `jardines` autorizan la **fila entera**, no columnas. No se dispara
   desde aquí (exigen `is_admin()`), pero es de la base que este sitio comparte.
 - **J-11** — `eventos_del` permite borrar un evento desde el navegador saltándose el endpoint.

@@ -13,9 +13,14 @@
 ## Estado general
 
 **No hay bugs críticos abiertos en esta aplicación.** El P0 del proyecto (J-14, la invitación
-digital) es del portal y aquí no existe. Lo que queda son cinco entradas: dos propias del sitio
-público (J-03 y J-04), una que aquí casi no muerde (J-02/J-15), y dos que son de la base
-compartida y no se disparan desde este origen (J-10, J-11), más una de superficie (J-16).
+digital) es del portal y aquí no existe. Lo que queda son **cinco entradas** —los cinco
+encabezados de «Abiertos» de más abajo—: dos propias del sitio público (J-03 y J-04), una que aquí
+casi no muerde (J-02/J-15), una de superficie (J-16), y una de la base compartida que este origen
+no puede disparar (J-10/J-11).
+
+Cinco entradas, **siete identificadores**: J-02/J-15 y J-10/J-11 comparten encabezado porque son
+la misma causa contada dos veces en el registro común. `docs/app/ESTADO.md` §7 los tabula igual,
+en cinco filas.
 
 Lo que **sí** debería preocupar más que cualquiera de ellas: el único flujo de escritura del sitio
 —el formulario— **no se ha ejercitado a mano desde la FASE 4**. Ver `docs/app/NEXT_STEPS.md`.
@@ -93,8 +98,15 @@ Lo que **sí** debería preocupar más que cualquiera de ellas: el único flujo 
 - **Las otras cinco** (`revocar_staff_token`, `confirmar_evento`, `auditoria_reciente`,
   `operativo_ubicar`, `operativo_evento_activo`) no están concedidas a `anon` y no le tocan a esta
   app.
-- **Estado:** abierto. Hay una lista explícita en el contrato para que **cualquier huérfana nueva**
-  rompa la suite. **La lista solo puede encoger.**
+- **Estado:** abierto, **y sin red debajo en este repositorio.** El juego general
+  (`docs/BUGS_PENDING.md`) dice que hay una lista explícita en el contrato para que cualquier
+  huérfana nueva rompa la suite; ese contrato **se fue con la FASE 6 y aquí ya no existe.**
+  Comprobado: `grep -n "registrar_llegada_mesa\|info_mesa_token\|confirmar_evento\|auditoria_reciente\|operativo_ubicar\|operativo_evento_activo" scripts/test-contratos-api.mjs`
+  devuelve **cero** coincidencias — seis de las siete. La séptima, `revocar_staff_token`, sale una
+  vez, en un comentario en prosa de la línea 274, que no afirma nada. Ninguno de los 59 contratos
+  habla de RPC huérfanas: el identificador `huerfanos` que sí vive en la suite es del contrato 1.1
+  y va de **prefijos de migración**, no de funciones. Si alguien concede otra RPC a `anon`,
+  **nada aquí se pondrá rojo**; lo único que lo sostiene es que estas dos entradas se lean.
 
 ### J-10 / J-11 — Policies de la base compartida que este origen no puede disparar
 

@@ -123,7 +123,8 @@ publican, porque Vercel ignora las carpetas que empiezan por `_`.
 
 1. Rechaza todo lo que no sea `POST`.
 2. Exige `GMAIL_USER`, `GMAIL_APP_PASSWORD` y el cliente de `service_role`; sin eso, 500.
-3. Lee el cuerpo con tope de **4 KB** y exige que `solicitudId` tenga forma de UUID.
+3. Lee el cuerpo con tope de **4 KB** —el tope lo pasa esta ruta, `leerBody(req, 4 * 1024)`; el
+   defecto de `leerBody` es **16 KB**— y exige que `solicitudId` tenga forma de UUID.
 4. **Rate limit por IP** (10 por hora), persistente en Postgres — aparte del que ya aplica el
    trigger al INSERT. Sin esto se podía llamar aquí directamente para saltarse el control del
    formulario.
@@ -172,6 +173,11 @@ del ciclo normal.
 PWA mínima: `public/manifest.json` y `public/sw.js`, un service worker que **no cachea nada** y
 solo hace passthrough a la red. Existe para habilitar «Instalar app», no para servir offline; el
 sitio es dinámico y una caché agresiva enseñaría contenido viejo.
+
+En `public/` hay **dos** manifiestos, no uno: `manifest.json` (`start_url: "/"`) es el de este
+sitio y es el que enlaza `index.html`; `manifest.webmanifest` (`start_url: "/portal"`) es el del
+portal, sobrevivió a la separación y **nadie lo enlaza aquí**. Está anotado como limpieza en
+`docs/app/NEXT_STEPS.md` §2.4 y descrito en `docs/app/FILE_MAP.md`.
 
 ### 3.6 Calidad
 

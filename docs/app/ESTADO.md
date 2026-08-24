@@ -43,7 +43,7 @@ Reparto de esos archivos, contado con `git ls-files`:
 | Carpeta | Archivos | Nota |
 |---|---|---|
 | `public/media/` | **473** | 241 frames de la animación de scroll, 231 en `img/`, 1 en `b44/`. De todos ellos, **25 son video** |
-| `src/` | **101** | 49 son primitivas de `ui/` (shadcn) y 29 componentes propios |
+| `src/` | **101** | 49 son primitivas de `ui/` (shadcn) y 29 archivos propios — 28 componentes y una hoja de estilos |
 | `supabase/` | **30** | 28 migraciones `.sql`, el ledger `APLICADAS.txt` y `tests/seguridad.sql` |
 | `scripts/` | **22** | 5 `.mjs` de contenido, 8 SQL de seed, 7 JSON crudos, `compartidos.json` y la suite de contratos |
 | `docs/` | **23** | 22 del juego general (20 `.md` + 2 muestras `.html`) y `docs/app/ECOSISTEMA.md`. Este juego de `docs/app/` se añade encima |
@@ -70,8 +70,18 @@ de 500 kB: es esperado, no es un fallo, y es exactamente la cifra que la FASE 6 
 bundle venía de 1073 kB con el panel dentro.
 
 **Cuidado con los números de otros documentos.** El juego general todavía tiene párrafos
-históricos que citan *322 contratos*, *typecheck 59* y *8 funciones serverless*: eso era el
-monolito, antes de la FASE 6. Para el estado de hoy valen los cuatro de arriba.
+históricos con cifras del monolito, anteriores a la FASE 6. Localizadas hoy con `grep`, para que
+nadie las tome por el estado actual:
+
+| Cifra que aparece | Dónde | Hoy es |
+|---|---|---|
+| **322** contratos | `docs/ESTADO.md` (×2), `docs/PLAN-EXPANSION.md` (×2), `docs/PLAN-INDEPENDIZACION.md` (×4) | **59** |
+| **278** contratos | `docs/NEXT_STEPS.md`, `docs/DEPLOY.md`, `docs/PROMPTS.md`, `PROJECT_CONTEXT.md` | **59** |
+| typecheck **59** | `docs/ESTADO.md`, `docs/ARCHITECTURE.md`, `docs/BUGS_PENDING.md`, `README.md` | **9**| **7** funciones serverless | `docs/DEPLOY.md`, `docs/MAPA.md`, `PROJECT_CONTEXT.md`, `README.md` | **1** |
+| **8** funciones en `api/` | `docs/PLAN-INDEPENDIZACION.md` | **1** |
+
+El `CLAUDE.md` de la raíz **sí** está al día (dice `59/59` y 9 de typecheck). Para el estado de
+hoy valen los cuatro de arriba, medidos en este repo.
 
 ---
 
@@ -105,9 +115,11 @@ No se toca desde este repo, pero el repo la documenta y la vigila con contratos.
   (que el libro de entradas sobreviva al borrado de una invitación): escrita, con dos contratos
   que la vigilan, y **sin aplicar**. Ese archivo es la copia del ledger de la base, no la base:
   aquí no hay forma de confirmarlo contra Postgres.
-- **Este proyecto NO se puede reconstruir desde cero.** Las 19 migraciones fundacionales
-  (`jardines_01…11` y `operativo_01…09`) están en el ledger y **no existen como archivo en el
-  repositorio**. Un `db push` contra una base vacía fallaría en `sec_01`, que ya da por hechas
+- **Este proyecto NO se puede reconstruir desde cero.** Las **19** migraciones fundacionales
+  están en el ledger y **no existen como archivo en el repositorio**. Son 19 y no 20 porque la
+  numeración tiene un hueco: `jardines_01…11` **sin `jardines_07`** (= 10) más `operativo_01…09`
+  (= 9). El hueco lo hereda `APLICADAS.txt`, que es donde se puede comprobar; no es una errata
+  de esta cuenta. Un `db push` contra una base vacía fallaría en `sec_01`, que ya da por hechas
   las tablas. Recuperarlas exigiría volcar el esquema de producción, y ese volcado incluiría el
   schema `public` de Vero Seguros. Está anotado como deuda; no se resuelve desde aquí.
 

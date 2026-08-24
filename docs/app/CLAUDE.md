@@ -149,7 +149,9 @@ las lee `api/`.
 
 Después de cada cambio significativo, actualiza el documento que corresponda de `docs/app/`. Si
 algo ya no aplica, márcalo obsoleto o bórralo — no dejes un banner encima de un cuerpo que dice lo
-contrario. **`docs/ECOSISTEMA.md` no se toca aquí solo**: es idéntico en los tres repos.
+contrario. **`docs/ECOSISTEMA.md` no se toca aquí solo**: es idéntico en los tres repos, está
+registrado con su `sha256` en `scripts/compartidos.json` —es el único `.md` de los 25 que el
+manifiesto vigila— y editarlo aquí **pone en rojo el contrato `compartidos`**.
 
 ---
 
@@ -186,9 +188,12 @@ Medidas ejecutándolas aquí el **2026-08-24**, sobre el árbol de `9d0e053`:
 | Contratos | `npm run test:contratos` | **59/59** — reparto `web 31 · comun 28` | ninguno puede quedar en rojo |
 | Typecheck | `npm run typecheck` | **9 errores** | es la línea base, **no debe SUBIR** |
 
-**Las cifras viejas ya no valen.** Antes de la FASE 6 este repo daba 322-323 contratos y 55-59
-errores de typecheck, porque contenía el panel y el portal. Si un documento del juego general cita
-esos números como el estado de HOY, está desactualizado — los de arriba son los medidos.
+**Las cifras viejas ya no valen.** Antes de la FASE 6 este repo contenía el panel y el portal, y
+el juego general fue anotando su cuenta de contratos según avanzaba: hoy cita **278** en unos
+documentos y **322** en otros. También cita **59** errores de typecheck y **7 u 8** funciones en
+`api/` — comprobado con `grep`, no de memoria. Si un documento del juego
+general presenta cualquiera de esos números como el estado de HOY, está desactualizado — los de
+arriba son los medidos. `docs/app/ESTADO.md` §3 tiene la tabla de dónde aparece cada cifra vieja.
 
 Los 9 errores de typecheck están en seis archivos y ninguno es un fallo de ejecución: son huecos
 de tipado en JSX y en el shim. Listados uno a uno en `docs/app/ESTADO.md` §4.
