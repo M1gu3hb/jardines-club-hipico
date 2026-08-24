@@ -60,6 +60,14 @@
       ]
     },
     {
+      "ruta": "docs/ECOSISTEMA.md",
+      "sha256": "927f529757b2c2e5c94d41065945d129f889c63e459b3e664daa971b5b44387f",
+      "tambienEn": [
+        "portal",
+        "crm"
+      ]
+    },
+    {
       "ruta": "eslint.config.js",
       "sha256": "f6a5fa2161526635bb8fe2489ca6e00e63d413f5eae5f287bc5ba18a62fd5c37",
       "tambienEn": [
@@ -216,7 +224,7 @@
     },
     {
       "ruta": "CLAUDE.md",
-      "motivo": "solo existe en esta aplicacion"
+      "motivo": "existe en otro repo pero ADAPTADO aqui"
     },
     {
       "ruta": "PROJECT_CONTEXT.md",
@@ -236,11 +244,11 @@
     },
     {
       "ruta": "docs/ARCHITECTURE.md",
-      "motivo": "solo existe en esta aplicacion"
+      "motivo": "existe en otro repo pero ADAPTADO aqui"
     },
     {
       "ruta": "docs/BUGS_PENDING.md",
-      "motivo": "solo existe en esta aplicacion"
+      "motivo": "existe en otro repo pero ADAPTADO aqui"
     },
     {
       "ruta": "docs/CHANGELOG.md",
@@ -252,7 +260,7 @@
     },
     {
       "ruta": "docs/DATABASE.md",
-      "motivo": "solo existe en esta aplicacion"
+      "motivo": "existe en otro repo pero ADAPTADO aqui"
     },
     {
       "ruta": "docs/DATOS.md",
@@ -268,11 +276,11 @@
     },
     {
       "ruta": "docs/ESTADO.md",
-      "motivo": "solo existe en esta aplicacion"
+      "motivo": "existe en otro repo pero ADAPTADO aqui"
     },
     {
       "ruta": "docs/FILE_MAP.md",
-      "motivo": "solo existe en esta aplicacion"
+      "motivo": "existe en otro repo pero ADAPTADO aqui"
     },
     {
       "ruta": "docs/MAPA.md",
@@ -280,7 +288,7 @@
     },
     {
       "ruta": "docs/NEXT_STEPS.md",
-      "motivo": "solo existe en esta aplicacion"
+      "motivo": "existe en otro repo pero ADAPTADO aqui"
     },
     {
       "ruta": "docs/PLAN-CIERRE.md",
@@ -304,10 +312,50 @@
     },
     {
       "ruta": "docs/SEGURIDAD.md",
-      "motivo": "solo existe en esta aplicacion"
+      "motivo": "existe en otro repo pero ADAPTADO aqui"
     },
     {
       "ruta": "docs/VALIDACION.md",
+      "motivo": "solo existe en esta aplicacion"
+    },
+    {
+      "ruta": "docs/app/ARCHITECTURE.md",
+      "motivo": "solo existe en esta aplicacion"
+    },
+    {
+      "ruta": "docs/app/BUGS_PENDING.md",
+      "motivo": "solo existe en esta aplicacion"
+    },
+    {
+      "ruta": "docs/app/CLAUDE.md",
+      "motivo": "solo existe en esta aplicacion"
+    },
+    {
+      "ruta": "docs/app/CONTRATOS.md",
+      "motivo": "solo existe en esta aplicacion"
+    },
+    {
+      "ruta": "docs/app/DATABASE.md",
+      "motivo": "solo existe en esta aplicacion"
+    },
+    {
+      "ruta": "docs/app/ECOSISTEMA.md",
+      "motivo": "solo existe en esta aplicacion"
+    },
+    {
+      "ruta": "docs/app/ESTADO.md",
+      "motivo": "solo existe en esta aplicacion"
+    },
+    {
+      "ruta": "docs/app/FILE_MAP.md",
+      "motivo": "solo existe en esta aplicacion"
+    },
+    {
+      "ruta": "docs/app/NEXT_STEPS.md",
+      "motivo": "solo existe en esta aplicacion"
+    },
+    {
+      "ruta": "docs/app/SEGURIDAD.md",
       "motivo": "solo existe en esta aplicacion"
     },
     {
@@ -365,6 +413,10 @@
     {
       "ruta": "scripts/build-media.mjs",
       "motivo": "solo existe en esta aplicacion"
+    },
+    {
+      "ruta": "scripts/compartidos.json",
+      "motivo": "existe en otro repo pero ADAPTADO aqui"
     },
     {
       "ruta": "scripts/gen-images.mjs",
