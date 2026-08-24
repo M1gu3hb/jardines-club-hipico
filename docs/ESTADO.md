@@ -24,9 +24,33 @@
 > de una invitación): escrita, ensayada en un bloque revertido por construcción, y **sin aplicar**
 > a la espera de decisión.
 >
-> **Lo que viene:** partir el proyecto en TRES aplicaciones (web pública / portal cliente PWA /
-> CRM con MCP) sobre el MISMO Supabase y en tres repositorios. El alcance, las decisiones ya
-> tomadas y el orden de ejecución están en **`docs/PLAN-EXPANSION.md`**. Nada implementado aún.
+> **LA SEPARACIÓN EN TRES APLICACIONES ESTÁ EMPEZADA — 2026-08-24.** Ya no es un plan: las
+> FASES 1, 2 y 3 de **`docs/PLAN-INDEPENDIZACION.md`** están hechas y desplegadas. Ese
+> documento manda sobre `PLAN-EXPANSION.md` en el CÓMO y el ORDEN.
+>
+> | | |
+> |---|---|
+> | web pública | <https://jardines-club-hipico.vercel.app> — commit `00af219` |
+> | portal del cliente | <https://jch-portal-cliente.vercel.app> — repo `M1gu3hb/JCH-portal-cliente` |
+> | CRM / punto de venta | <https://jch-crm.vercel.app> — repo `M1gu3hb/JCH-CRM` |
+>
+> **FASE 1** (en este repo, aditiva): rotos los acoplamientos A1, A2 y A7 —el portal ya no
+> importa del panel y la web pública se quedó SIN código de autenticación—, y `SITIO_URL` dejó
+> de ser una constante: ahora son `URL_WEB` / `URL_PORTAL` / `URL_CRM` por entorno, las tres
+> con el valor de hoy por defecto, así que **ningún correo cambió de destino**. Los contratos
+> pasaron de 322 a 323 y todos llevan etiqueta de a qué app viajarán.
+>
+> **FASES 2 y 3**: portal y CRM nacieron en sus repos, con `storageKey` propio, `noindex`, su
+> `vercel.json` y sus contratos. **Nada se borró de este repo** — eso es la FASE 6.
+>
+> **⛔ LAS DOS APLICACIONES NUEVAS ESTÁN DESPLEGADAS PERO NO FUNCIONAN TODAVÍA**, y es una sola
+> causa: **les faltan las variables de entorno**. Vercel no devuelve el valor de las variables
+> cifradas del proyecto viejo (`vercel env pull` las trae vacías), así que no se pudieron
+> copiar: hay que ponerlas a mano. Hasta entonces las dos pintan «El sitio no está
+> configurado», que es el comportamiento correcto y visible, no un fallo silencioso.
+>
+> **Sin hacer: FASES 4 a 7** — conectar los enlaces entre apps, la validación humana, retirar
+> lo viejo de este repo y el cierre documental.
 >
 > **Sin empezar:** FASES 5–8 del bloque final (las 36 escrituras sin `catch`, el aviso de
 > privacidad y los correos, la limpieza de contratos y código muerto, y la documentación).

@@ -107,7 +107,7 @@ Los cuatro tienen que pasar:
 ```bash
 npm run lint            # 0 problemas
 npm run build           # exit 0
-npm run test:contratos  # 278/278
+npm run test:contratos  # 323/323
 npm run typecheck       # 59 errores = línea base actual, no debe SUBIR
 ```
 
