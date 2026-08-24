@@ -11,6 +11,7 @@
  * - Escrituras: RLS decide (admin para CMS; público solo puede insertar solicitudes).
  */
 import { supabase } from "./supabaseClient";
+import { functions } from "./funciones";
 
 // Entidad (nombre que usan los componentes) → tabla en el schema jardines.
 const TABLES = {
@@ -260,78 +261,15 @@ const entities = new Proxy(/** @type {any} */ ({}), {
   },
 });
 
-// Envío del formulario por correo (la función serverless sigue mandando el correo).
-const functions = {
-  async invoke(name, payload) {
-    if (name === "gmailSolicitud" || name === "notificarNuevaSolicitud") {
-      const body = (payload && payload.data) || payload || {};
-      const res = await fetch("/api/solicitud", {
-        method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body),
-      });
-      if (!res.ok) throw new Error(`solicitud ${res.status}`);
-      return res.json().catch(() => ({ ok: true }));
-    }
-    return {};
-  },
-  // Crea el usuario de Auth del cliente (server-side, con service_role) y lo liga al evento.
-  async crearUsuarioEvento(payload) {
-    const { data } = await supabase.auth.getSession();
-    const token = data?.session?.access_token;
-    const res = await fetch("/api/crear-usuario-evento", {
-      method: "POST",
-      headers: { "Content-Type": "application/json", Authorization: `Bearer ${token || ""}` },
-      body: JSON.stringify(payload),
-    });
-    const json = await res.json().catch(() => ({}));
-    if (!res.ok) throw new Error(json.error || `Error ${res.status}`);
-    return json;
-  },
-  /**
-   * Borra un evento COMPLETO: filas, archivos del bucket y usuario de Auth.
-   * Todo ocurre en el servidor (`api/eliminar-evento.js`) porque borrar un usuario de Auth
-   * exige `service_role`, y repartirlo entre navegador y servidor dejaría estados a medias.
-   *
-   * Con `soloInventario: true` no borra nada: devuelve el recuento de lo que se llevaría.
-   */
-  async eliminarEvento(payload) {
-    const { data } = await supabase.auth.getSession();
-    const token = data?.session?.access_token;
-    const res = await fetch("/api/eliminar-evento", {
-      method: "POST",
-      headers: { "Content-Type": "application/json", Authorization: `Bearer ${token || ""}` },
-      body: JSON.stringify(payload),
-    });
-    const json = await res.json().catch(() => ({}));
-    if (!res.ok) throw new Error(json.error || `Error ${res.status}`);
-    return json;
-  },
-  // Crea otro ADMINISTRADOR del panel (server-side con service_role; valida rol admin).
-  async crearAdmin(payload) {
-    const { data } = await supabase.auth.getSession();
-    const token = data?.session?.access_token;
-    const res = await fetch("/api/crear-admin", {
-      method: "POST",
-      headers: { "Content-Type": "application/json", Authorization: `Bearer ${token || ""}` },
-      body: JSON.stringify(payload),
-    });
-    const json = await res.json().catch(() => ({}));
-    if (!res.ok) throw new Error(json.error || `Error ${res.status}`);
-    return json;
-  },
-  // Correos del admin hacia el cliente (p. ej. aviso "tu cotización está lista").
-  async correoCliente(payload) {
-    const { data } = await supabase.auth.getSession();
-    const token = data?.session?.access_token;
-    const res = await fetch("/api/correo-cliente", {
-      method: "POST",
-      headers: { "Content-Type": "application/json", Authorization: `Bearer ${token || ""}` },
-      body: JSON.stringify(payload),
-    });
-    const json = await res.json().catch(() => ({}));
-    if (!res.ok) throw new Error(json.error || `Error ${res.status}`);
-    return json;
-  },
-};
+// LAS FUNCIONES SERVERLESS SON DE CADA APLICACIÓN, no del núcleo común.
+//
+// Aquí vivía un objeto `functions` que nombraba con `fetch` las CINCO rutas de `api/` del
+// monolito. Al partir el proyecto, cada aplicación solo tiene desplegadas las suyas: en las
+// otras dos esos nombres viajaban en el bundle apuntando a rutas que allí dan 404.
+//
+// Se movió a `./funciones.js`, que es la ÚNICA pieza de este archivo que difiere entre los
+// tres repos. Todo lo demás —entidades, RPC, storage, auth— sigue siendo byte a byte igual,
+// porque bifurcar el shim es el riesgo número uno del plan: tres verdades sobre la misma base.
 
 // Storage genérico (para el bucket privado `clientes` de documentos del evento).
 /**

@@ -1,0 +1,922 @@
+{
+  "_comentario": [
+    "Codigo comun a mas de una aplicacion (docs/PLAN-INDEPENDIZACION.md 2.4 y PLAN-CIERRE 5).",
+    "Se comparte por COPIA, y una copia sin contrato es deuda pura: el mismo bug se arregla en",
+    "un repo y sigue vivo en los otros.",
+    "En 'archivos' va cada fichero que es BYTE A BYTE igual al de OTRO repo, con su sha256 y en",
+    "cuales aparece. Un contrato lo verifica en cada ejecucion, asi que editar codigo comun solo",
+    "aqui rompe la suite y obliga a hacerlo consciente.",
+    "SE COMPARA CONTRA LOS OTROS DOS REPOS, no solo contra la web. Cuando la FASE 6 vacio el repo",
+    "de la web, comparar solo contra el dejaba de ver todo lo que portal y CRM comparten entre si.",
+    "LIMITE, dicho en vez de aparentado: esto solo corre con los tres repos presentes en la misma",
+    "maquina. En CI cada repo verifica su propia copia contra el sha registrado, que detecta una",
+    "edicion local, no una divergencia remota. Lo resuelve de verdad extraer el paquete compartido."
+  ],
+  "generado": {
+    "comparadoCon": [
+      "portal",
+      "crm"
+    ]
+  },
+  "archivos": [
+    {
+      "ruta": ".gitignore",
+      "sha256": "b011dd6e84cbaa12345abe413527740f703302757f69c9a73a7885d3d05ac8ad",
+      "tambienEn": [
+        "portal",
+        "crm"
+      ]
+    },
+    {
+      "ruta": "api/_lib/correo.js",
+      "sha256": "b9e206c13411ea2e4b37cb410d8cd61a9fe7d81c766c2e5a8619641d860437b4",
+      "tambienEn": [
+        "portal",
+        "crm"
+      ]
+    },
+    {
+      "ruta": "api/_lib/guard.js",
+      "sha256": "6fae0389ddecbb517e8cab6daec03511cd6e1963f446a42d2febd3f9b7530e1b",
+      "tambienEn": [
+        "portal",
+        "crm"
+      ]
+    },
+    {
+      "ruta": "api/_lib/urls.js",
+      "sha256": "7f8f151fd04f944bc80ea862cacce9beba5433f9f01ae9b5f0559e952c638013",
+      "tambienEn": [
+        "portal",
+        "crm"
+      ]
+    },
+    {
+      "ruta": "components.json",
+      "sha256": "73e1334afce0f20f01500532e3b63a7cc36238d8a05addef40c476fadf9dc349",
+      "tambienEn": [
+        "portal",
+        "crm"
+      ]
+    },
+    {
+      "ruta": "eslint.config.js",
+      "sha256": "f6a5fa2161526635bb8fe2489ca6e00e63d413f5eae5f287bc5ba18a62fd5c37",
+      "tambienEn": [
+        "portal",
+        "crm"
+      ]
+    },
+    {
+      "ruta": "postcss.config.js",
+      "sha256": "190c877db466995bf1482f4a16abd06e04a89ede3119341e2a86ff96e1737b27",
+      "tambienEn": [
+        "portal",
+        "crm"
+      ]
+    },
+    {
+      "ruta": "public/sw.js",
+      "sha256": "afa25969d3bef449211ef4c6895a6bfd177923fb137f2f6f74824f666558abb5",
+      "tambienEn": [
+        "portal"
+      ]
+    },
+    {
+      "ruta": "src/api/base44Client.js",
+      "sha256": "d39e08ba3dcb7123ea6c381197894d178110b4f683020bf2df577f66dc6cd585",
+      "tambienEn": [
+        "portal",
+        "crm"
+      ]
+    },
+    {
+      "ruta": "src/components/ErrorBoundary.jsx",
+      "sha256": "531330b7c5c1df4625c60658f185153d0e74a24a392fb71c1b53b44742899c79",
+      "tambienEn": [
+        "portal",
+        "crm"
+      ]
+    },
+    {
+      "ruta": "src/components/MediaCarrusel.jsx",
+      "sha256": "2f84352039d607442a7a25d60d541938beae99a9a9268ff9ca686e13a3df996a",
+      "tambienEn": [
+        "portal"
+      ]
+    },
+    {
+      "ruta": "src/components/MediaViewer.jsx",
+      "sha256": "e2987808bf66ed711a72d961382aa036733c953835a3b19fcde94ca4c2dd6ee2",
+      "tambienEn": [
+        "portal",
+        "crm"
+      ]
+    },
+    {
+      "ruta": "src/components/ui/toast.jsx",
+      "sha256": "8a98ef70908fd33627d09f6a5c715417b243502836539acda857843dd4817070",
+      "tambienEn": [
+        "portal",
+        "crm"
+      ]
+    },
+    {
+      "ruta": "src/components/ui/toaster.jsx",
+      "sha256": "fc1bce32d9a45f5be28c67b486962b90eed76742f3c0995f5fb908ffc6bde3cd",
+      "tambienEn": [
+        "portal",
+        "crm"
+      ]
+    },
+    {
+      "ruta": "src/components/ui/use-toast.jsx",
+      "sha256": "40f2839736597a3f7d54e4359a375c5991ce58eb341d8abb944874ac0dce9bbc",
+      "tambienEn": [
+        "portal",
+        "crm"
+      ]
+    },
+    {
+      "ruta": "src/config/negocio.js",
+      "sha256": "b24cdfcbcd5789b055c26ea7abf96f9dfbf25983b273b59a0ba07ffa59a00f66",
+      "tambienEn": [
+        "portal"
+      ]
+    },
+    {
+      "ruta": "src/index.css",
+      "sha256": "8b3995528215d96ef6ca852d09a7677d08b62048f7b248287b883b29a0a8c80b",
+      "tambienEn": [
+        "portal",
+        "crm"
+      ]
+    },
+    {
+      "ruta": "src/lib/PageNotFound.jsx",
+      "sha256": "8edcc16f9a9c74ec3956725f67cdf8a18d6e0695090f0d7ebf1c238f15f3318c",
+      "tambienEn": [
+        "portal",
+        "crm"
+      ]
+    },
+    {
+      "ruta": "src/lib/query-client.js",
+      "sha256": "0a080b6d9a1ed9f5f32150d9e3faa928f955d2b8d6206831e2b1658e84612c92",
+      "tambienEn": [
+        "portal",
+        "crm"
+      ]
+    },
+    {
+      "ruta": "src/lib/utils.js",
+      "sha256": "4f592359765d69c32c3617700fa111af9a6a9cac8f18cb1987c25503a343c203",
+      "tambienEn": [
+        "portal",
+        "crm"
+      ]
+    },
+    {
+      "ruta": "src/styles/theme.css",
+      "sha256": "c37da11bc930f0ba3d4496381fc846bc4e18b41fbcfaed80697b959610e975e8",
+      "tambienEn": [
+        "portal",
+        "crm"
+      ]
+    },
+    {
+      "ruta": "src/vite-env.d.ts",
+      "sha256": "805437f33f365e1fb7145bfbb935707971d9ce900dba7ed1cb6aa5c6a82154d0",
+      "tambienEn": [
+        "portal",
+        "crm"
+      ]
+    },
+    {
+      "ruta": "tailwind.config.js",
+      "sha256": "cb9ef9ccd5f0850399286952cb62e14e8fcabe76e8197e715a860c5a15ec418e",
+      "tambienEn": [
+        "portal",
+        "crm"
+      ]
+    },
+    {
+      "ruta": "vite.config.js",
+      "sha256": "0a99149126e8393308a9a53890f39f34a5f6b2644bfa05fa436264a10e6d3d87",
+      "tambienEn": [
+        "portal",
+        "crm"
+      ]
+    }
+  ],
+  "propios": [
+    {
+      "ruta": ".claude/launch.json",
+      "motivo": "solo existe en esta aplicacion"
+    },
+    {
+      "ruta": "CLAUDE.md",
+      "motivo": "solo existe en esta aplicacion"
+    },
+    {
+      "ruta": "PROJECT_CONTEXT.md",
+      "motivo": "solo existe en esta aplicacion"
+    },
+    {
+      "ruta": "README.md",
+      "motivo": "solo existe en esta aplicacion"
+    },
+    {
+      "ruta": "api/_lib/telefono.js",
+      "motivo": "solo existe en esta aplicacion"
+    },
+    {
+      "ruta": "api/solicitud.js",
+      "motivo": "solo existe en esta aplicacion"
+    },
+    {
+      "ruta": "docs/ARCHITECTURE.md",
+      "motivo": "solo existe en esta aplicacion"
+    },
+    {
+      "ruta": "docs/BUGS_PENDING.md",
+      "motivo": "solo existe en esta aplicacion"
+    },
+    {
+      "ruta": "docs/CHANGELOG.md",
+      "motivo": "solo existe en esta aplicacion"
+    },
+    {
+      "ruta": "docs/COMPONENTES.md",
+      "motivo": "solo existe en esta aplicacion"
+    },
+    {
+      "ruta": "docs/DATABASE.md",
+      "motivo": "solo existe en esta aplicacion"
+    },
+    {
+      "ruta": "docs/DATOS.md",
+      "motivo": "solo existe en esta aplicacion"
+    },
+    {
+      "ruta": "docs/DECISIONS.md",
+      "motivo": "solo existe en esta aplicacion"
+    },
+    {
+      "ruta": "docs/DEPLOY.md",
+      "motivo": "solo existe en esta aplicacion"
+    },
+    {
+      "ruta": "docs/ESTADO.md",
+      "motivo": "solo existe en esta aplicacion"
+    },
+    {
+      "ruta": "docs/FILE_MAP.md",
+      "motivo": "solo existe en esta aplicacion"
+    },
+    {
+      "ruta": "docs/MAPA.md",
+      "motivo": "solo existe en esta aplicacion"
+    },
+    {
+      "ruta": "docs/NEXT_STEPS.md",
+      "motivo": "solo existe en esta aplicacion"
+    },
+    {
+      "ruta": "docs/PLAN-CIERRE.md",
+      "motivo": "solo existe en esta aplicacion"
+    },
+    {
+      "ruta": "docs/PLAN-EJECUCION.md",
+      "motivo": "solo existe en esta aplicacion"
+    },
+    {
+      "ruta": "docs/PLAN-EXPANSION.md",
+      "motivo": "solo existe en esta aplicacion"
+    },
+    {
+      "ruta": "docs/PLAN-INDEPENDIZACION.md",
+      "motivo": "solo existe en esta aplicacion"
+    },
+    {
+      "ruta": "docs/PROMPTS.md",
+      "motivo": "solo existe en esta aplicacion"
+    },
+    {
+      "ruta": "docs/SEGURIDAD.md",
+      "motivo": "solo existe en esta aplicacion"
+    },
+    {
+      "ruta": "docs/VALIDACION.md",
+      "motivo": "solo existe en esta aplicacion"
+    },
+    {
+      "ruta": "docs/muestras/correo-nueva-solicitud.html",
+      "motivo": "solo existe en esta aplicacion"
+    },
+    {
+      "ruta": "docs/muestras/correo-resumen-diario.html",
+      "motivo": "solo existe en esta aplicacion"
+    },
+    {
+      "ruta": "index.html",
+      "motivo": "existe en otro repo pero ADAPTADO aqui"
+    },
+    {
+      "ruta": "jsconfig.json",
+      "motivo": "existe en otro repo pero ADAPTADO aqui"
+    },
+    {
+      "ruta": "nano-banana/1-sanitarios/prompt.md",
+      "motivo": "solo existe en esta aplicacion"
+    },
+    {
+      "ruta": "nano-banana/2-seguridad-privada/prompt.md",
+      "motivo": "solo existe en esta aplicacion"
+    },
+    {
+      "ruta": "nano-banana/3-coordinacion-montaje/prompt.md",
+      "motivo": "solo existe en esta aplicacion"
+    },
+    {
+      "ruta": "nano-banana/4-flexibilidad-horarios/prompt.md",
+      "motivo": "solo existe en esta aplicacion"
+    },
+    {
+      "ruta": "nano-banana/5-trampolin/prompt.md",
+      "motivo": "solo existe en esta aplicacion"
+    },
+    {
+      "ruta": "nano-banana/README.md",
+      "motivo": "solo existe en esta aplicacion"
+    },
+    {
+      "ruta": "package.json",
+      "motivo": "existe en otro repo pero ADAPTADO aqui"
+    },
+    {
+      "ruta": "public/manifest.json",
+      "motivo": "solo existe en esta aplicacion"
+    },
+    {
+      "ruta": "public/manifest.webmanifest",
+      "motivo": "existe en otro repo pero ADAPTADO aqui"
+    },
+    {
+      "ruta": "scripts/build-media.mjs",
+      "motivo": "solo existe en esta aplicacion"
+    },
+    {
+      "ruta": "scripts/gen-images.mjs",
+      "motivo": "solo existe en esta aplicacion"
+    },
+    {
+      "ruta": "scripts/montage.mjs",
+      "motivo": "solo existe en esta aplicacion"
+    },
+    {
+      "ruta": "scripts/raw/alimentos.json",
+      "motivo": "solo existe en esta aplicacion"
+    },
+    {
+      "ruta": "scripts/raw/amenidades.json",
+      "motivo": "solo existe en esta aplicacion"
+    },
+    {
+      "ruta": "scripts/raw/config.json",
+      "motivo": "solo existe en esta aplicacion"
+    },
+    {
+      "ruta": "scripts/raw/galeria.json",
+      "motivo": "solo existe en esta aplicacion"
+    },
+    {
+      "ruta": "scripts/raw/salones.json",
+      "motivo": "solo existe en esta aplicacion"
+    },
+    {
+      "ruta": "scripts/raw/servicios.json",
+      "motivo": "solo existe en esta aplicacion"
+    },
+    {
+      "ruta": "scripts/raw/serviciosExtra.json",
+      "motivo": "solo existe en esta aplicacion"
+    },
+    {
+      "ruta": "scripts/reorder-galeria.mjs",
+      "motivo": "solo existe en esta aplicacion"
+    },
+    {
+      "ruta": "scripts/seed-supabase.mjs",
+      "motivo": "solo existe en esta aplicacion"
+    },
+    {
+      "ruta": "scripts/seed/01_config.sql",
+      "motivo": "solo existe en esta aplicacion"
+    },
+    {
+      "ruta": "scripts/seed/02_salones.sql",
+      "motivo": "solo existe en esta aplicacion"
+    },
+    {
+      "ruta": "scripts/seed/03_galeria.sql",
+      "motivo": "solo existe en esta aplicacion"
+    },
+    {
+      "ruta": "scripts/seed/04_servicios.sql",
+      "motivo": "solo existe en esta aplicacion"
+    },
+    {
+      "ruta": "scripts/seed/05_amenidades.sql",
+      "motivo": "solo existe en esta aplicacion"
+    },
+    {
+      "ruta": "scripts/seed/06_extra.sql",
+      "motivo": "solo existe en esta aplicacion"
+    },
+    {
+      "ruta": "scripts/seed/07_alimentos.sql",
+      "motivo": "solo existe en esta aplicacion"
+    },
+    {
+      "ruta": "scripts/seed/08_resenas.sql",
+      "motivo": "solo existe en esta aplicacion"
+    },
+    {
+      "ruta": "scripts/test-contratos-api.mjs",
+      "motivo": "existe en otro repo pero ADAPTADO aqui"
+    },
+    {
+      "ruta": "src/App.jsx",
+      "motivo": "existe en otro repo pero ADAPTADO aqui"
+    },
+    {
+      "ruta": "src/Layout.jsx",
+      "motivo": "solo existe en esta aplicacion"
+    },
+    {
+      "ruta": "src/api/funciones.js",
+      "motivo": "existe en otro repo pero ADAPTADO aqui"
+    },
+    {
+      "ruta": "src/api/supabaseClient.js",
+      "motivo": "existe en otro repo pero ADAPTADO aqui"
+    },
+    {
+      "ruta": "src/components/AnimatedItem.jsx",
+      "motivo": "solo existe en esta aplicacion"
+    },
+    {
+      "ruta": "src/components/BarraDulces.jsx",
+      "motivo": "solo existe en esta aplicacion"
+    },
+    {
+      "ruta": "src/components/ComoFunciona.jsx",
+      "motivo": "solo existe en esta aplicacion"
+    },
+    {
+      "ruta": "src/components/Confianza.jsx",
+      "motivo": "solo existe en esta aplicacion"
+    },
+    {
+      "ruta": "src/components/ContactoSection.jsx",
+      "motivo": "solo existe en esta aplicacion"
+    },
+    {
+      "ruta": "src/components/CtaCotizacion.jsx",
+      "motivo": "solo existe en esta aplicacion"
+    },
+    {
+      "ruta": "src/components/FaqSection.jsx",
+      "motivo": "solo existe en esta aplicacion"
+    },
+    {
+      "ruta": "src/components/FormularioModal.jsx",
+      "motivo": "solo existe en esta aplicacion"
+    },
+    {
+      "ruta": "src/components/GaleriaSection.jsx",
+      "motivo": "solo existe en esta aplicacion"
+    },
+    {
+      "ruta": "src/components/HeroSection.jsx",
+      "motivo": "solo existe en esta aplicacion"
+    },
+    {
+      "ruta": "src/components/NoIncluyeSection.jsx",
+      "motivo": "solo existe en esta aplicacion"
+    },
+    {
+      "ruta": "src/components/ProximamenteCartel.jsx",
+      "motivo": "solo existe en esta aplicacion"
+    },
+    {
+      "ruta": "src/components/ProximamenteModal.jsx",
+      "motivo": "solo existe en esta aplicacion"
+    },
+    {
+      "ruta": "src/components/SalonGallery.jsx",
+      "motivo": "solo existe en esta aplicacion"
+    },
+    {
+      "ruta": "src/components/SalonOverlay.jsx",
+      "motivo": "solo existe en esta aplicacion"
+    },
+    {
+      "ruta": "src/components/SalonesSection.jsx",
+      "motivo": "solo existe en esta aplicacion"
+    },
+    {
+      "ruta": "src/components/ScrollAnimationCaptions.jsx",
+      "motivo": "solo existe en esta aplicacion"
+    },
+    {
+      "ruta": "src/components/ScrollAnimationSection.jsx",
+      "motivo": "solo existe en esta aplicacion"
+    },
+    {
+      "ruta": "src/components/ScrollHint.jsx",
+      "motivo": "solo existe en esta aplicacion"
+    },
+    {
+      "ruta": "src/components/ServiceAmenityCard.jsx",
+      "motivo": "solo existe en esta aplicacion"
+    },
+    {
+      "ruta": "src/components/ServiciosAmenidades.jsx",
+      "motivo": "solo existe en esta aplicacion"
+    },
+    {
+      "ruta": "src/components/SoundToggle.jsx",
+      "motivo": "solo existe en esta aplicacion"
+    },
+    {
+      "ruta": "src/components/SplashScreen.jsx",
+      "motivo": "solo existe en esta aplicacion"
+    },
+    {
+      "ruta": "src/components/StaggeredMenu.css",
+      "motivo": "solo existe en esta aplicacion"
+    },
+    {
+      "ruta": "src/components/StaggeredMenu.jsx",
+      "motivo": "solo existe en esta aplicacion"
+    },
+    {
+      "ruta": "src/components/soundSystem.jsx",
+      "motivo": "solo existe en esta aplicacion"
+    },
+    {
+      "ruta": "src/components/ui/accordion.jsx",
+      "motivo": "solo existe en esta aplicacion"
+    },
+    {
+      "ruta": "src/components/ui/alert-dialog.jsx",
+      "motivo": "solo existe en esta aplicacion"
+    },
+    {
+      "ruta": "src/components/ui/alert.jsx",
+      "motivo": "solo existe en esta aplicacion"
+    },
+    {
+      "ruta": "src/components/ui/aspect-ratio.jsx",
+      "motivo": "solo existe en esta aplicacion"
+    },
+    {
+      "ruta": "src/components/ui/avatar.jsx",
+      "motivo": "solo existe en esta aplicacion"
+    },
+    {
+      "ruta": "src/components/ui/badge.jsx",
+      "motivo": "solo existe en esta aplicacion"
+    },
+    {
+      "ruta": "src/components/ui/breadcrumb.jsx",
+      "motivo": "solo existe en esta aplicacion"
+    },
+    {
+      "ruta": "src/components/ui/button.jsx",
+      "motivo": "solo existe en esta aplicacion"
+    },
+    {
+      "ruta": "src/components/ui/calendar.jsx",
+      "motivo": "solo existe en esta aplicacion"
+    },
+    {
+      "ruta": "src/components/ui/card.jsx",
+      "motivo": "solo existe en esta aplicacion"
+    },
+    {
+      "ruta": "src/components/ui/carousel.jsx",
+      "motivo": "solo existe en esta aplicacion"
+    },
+    {
+      "ruta": "src/components/ui/chart.jsx",
+      "motivo": "solo existe en esta aplicacion"
+    },
+    {
+      "ruta": "src/components/ui/checkbox.jsx",
+      "motivo": "solo existe en esta aplicacion"
+    },
+    {
+      "ruta": "src/components/ui/collapsible.jsx",
+      "motivo": "solo existe en esta aplicacion"
+    },
+    {
+      "ruta": "src/components/ui/command.jsx",
+      "motivo": "solo existe en esta aplicacion"
+    },
+    {
+      "ruta": "src/components/ui/context-menu.jsx",
+      "motivo": "solo existe en esta aplicacion"
+    },
+    {
+      "ruta": "src/components/ui/dialog.jsx",
+      "motivo": "solo existe en esta aplicacion"
+    },
+    {
+      "ruta": "src/components/ui/drawer.jsx",
+      "motivo": "solo existe en esta aplicacion"
+    },
+    {
+      "ruta": "src/components/ui/dropdown-menu.jsx",
+      "motivo": "solo existe en esta aplicacion"
+    },
+    {
+      "ruta": "src/components/ui/form.jsx",
+      "motivo": "solo existe en esta aplicacion"
+    },
+    {
+      "ruta": "src/components/ui/hover-card.jsx",
+      "motivo": "solo existe en esta aplicacion"
+    },
+    {
+      "ruta": "src/components/ui/input-otp.jsx",
+      "motivo": "solo existe en esta aplicacion"
+    },
+    {
+      "ruta": "src/components/ui/input.jsx",
+      "motivo": "solo existe en esta aplicacion"
+    },
+    {
+      "ruta": "src/components/ui/label.jsx",
+      "motivo": "solo existe en esta aplicacion"
+    },
+    {
+      "ruta": "src/components/ui/menubar.jsx",
+      "motivo": "solo existe en esta aplicacion"
+    },
+    {
+      "ruta": "src/components/ui/navigation-menu.jsx",
+      "motivo": "solo existe en esta aplicacion"
+    },
+    {
+      "ruta": "src/components/ui/pagination.jsx",
+      "motivo": "solo existe en esta aplicacion"
+    },
+    {
+      "ruta": "src/components/ui/popover.jsx",
+      "motivo": "solo existe en esta aplicacion"
+    },
+    {
+      "ruta": "src/components/ui/progress.jsx",
+      "motivo": "solo existe en esta aplicacion"
+    },
+    {
+      "ruta": "src/components/ui/radio-group.jsx",
+      "motivo": "solo existe en esta aplicacion"
+    },
+    {
+      "ruta": "src/components/ui/resizable.jsx",
+      "motivo": "solo existe en esta aplicacion"
+    },
+    {
+      "ruta": "src/components/ui/scroll-area.jsx",
+      "motivo": "solo existe en esta aplicacion"
+    },
+    {
+      "ruta": "src/components/ui/select.jsx",
+      "motivo": "solo existe en esta aplicacion"
+    },
+    {
+      "ruta": "src/components/ui/separator.jsx",
+      "motivo": "solo existe en esta aplicacion"
+    },
+    {
+      "ruta": "src/components/ui/sheet.jsx",
+      "motivo": "solo existe en esta aplicacion"
+    },
+    {
+      "ruta": "src/components/ui/sidebar.jsx",
+      "motivo": "solo existe en esta aplicacion"
+    },
+    {
+      "ruta": "src/components/ui/skeleton.jsx",
+      "motivo": "solo existe en esta aplicacion"
+    },
+    {
+      "ruta": "src/components/ui/slider.jsx",
+      "motivo": "solo existe en esta aplicacion"
+    },
+    {
+      "ruta": "src/components/ui/sonner.jsx",
+      "motivo": "solo existe en esta aplicacion"
+    },
+    {
+      "ruta": "src/components/ui/switch.jsx",
+      "motivo": "solo existe en esta aplicacion"
+    },
+    {
+      "ruta": "src/components/ui/table.jsx",
+      "motivo": "solo existe en esta aplicacion"
+    },
+    {
+      "ruta": "src/components/ui/tabs.jsx",
+      "motivo": "solo existe en esta aplicacion"
+    },
+    {
+      "ruta": "src/components/ui/textarea.jsx",
+      "motivo": "solo existe en esta aplicacion"
+    },
+    {
+      "ruta": "src/components/ui/toggle-group.jsx",
+      "motivo": "solo existe en esta aplicacion"
+    },
+    {
+      "ruta": "src/components/ui/toggle.jsx",
+      "motivo": "solo existe en esta aplicacion"
+    },
+    {
+      "ruta": "src/components/ui/tooltip.jsx",
+      "motivo": "solo existe en esta aplicacion"
+    },
+    {
+      "ruta": "src/config/heroTemporal.js",
+      "motivo": "solo existe en esta aplicacion"
+    },
+    {
+      "ruta": "src/data/resenas.json",
+      "motivo": "solo existe en esta aplicacion"
+    },
+    {
+      "ruta": "src/data/site-data.json",
+      "motivo": "solo existe en esta aplicacion"
+    },
+    {
+      "ruta": "src/hooks/use-mobile.jsx",
+      "motivo": "solo existe en esta aplicacion"
+    },
+    {
+      "ruta": "src/hooks/useBackButtonClose.js",
+      "motivo": "solo existe en esta aplicacion"
+    },
+    {
+      "ruta": "src/hooks/useLockBodyScroll.js",
+      "motivo": "solo existe en esta aplicacion"
+    },
+    {
+      "ruta": "src/lib/precargaHero.js",
+      "motivo": "solo existe en esta aplicacion"
+    },
+    {
+      "ruta": "src/main.jsx",
+      "motivo": "existe en otro repo pero ADAPTADO aqui"
+    },
+    {
+      "ruta": "src/pages.config.js",
+      "motivo": "solo existe en esta aplicacion"
+    },
+    {
+      "ruta": "src/pages/Home.jsx",
+      "motivo": "solo existe en esta aplicacion"
+    },
+    {
+      "ruta": "src/utils/index.ts",
+      "motivo": "solo existe en esta aplicacion"
+    },
+    {
+      "ruta": "supabase/migrations/20260801212308_jardines_sec_01_privado_auditoria_ratelimit.sql",
+      "motivo": "solo existe en esta aplicacion"
+    },
+    {
+      "ruta": "supabase/migrations/20260801212458_jardines_sec_02_handle_new_user_sin_escalamiento.sql",
+      "motivo": "solo existe en esta aplicacion"
+    },
+    {
+      "ruta": "supabase/migrations/20260801212847_jardines_sec_03_operativo_aislado_por_evento.sql",
+      "motivo": "solo existe en esta aplicacion"
+    },
+    {
+      "ruta": "supabase/migrations/20260801213234_jardines_sec_04_tokens_staff.sql",
+      "motivo": "solo existe en esta aplicacion"
+    },
+    {
+      "ruta": "supabase/migrations/20260801213443_jardines_sec_05_solicitudes_rpc_y_rate_limits_publicos.sql",
+      "motivo": "solo existe en esta aplicacion"
+    },
+    {
+      "ruta": "supabase/migrations/20260801213613_jardines_sec_06_matriz_rls_y_grants.sql",
+      "motivo": "solo existe en esta aplicacion"
+    },
+    {
+      "ruta": "supabase/migrations/20260801213853_jardines_sec_07_indices_storage_constraints.sql",
+      "motivo": "solo existe en esta aplicacion"
+    },
+    {
+      "ruta": "supabase/migrations/20260801213926_jardines_sec_08_auditoria_operaciones_sensibles.sql",
+      "motivo": "solo existe en esta aplicacion"
+    },
+    {
+      "ruta": "supabase/migrations/20260801214132_jardines_sec_09_consolidar_policies_permisivas.sql",
+      "motivo": "solo existe en esta aplicacion"
+    },
+    {
+      "ruta": "supabase/migrations/20260801215026_jardines_sec_11_revoca_execute_public_residual.sql",
+      "motivo": "solo existe en esta aplicacion"
+    },
+    {
+      "ruta": "supabase/migrations/20260801215125_jardines_sec_12_fix_trigger_auditoria_operativo.sql",
+      "motivo": "solo existe en esta aplicacion"
+    },
+    {
+      "ruta": "supabase/migrations/20260801215424_jardines_sec_13_solicitudes_compat_saneada.sql",
+      "motivo": "solo existe en esta aplicacion"
+    },
+    {
+      "ruta": "supabase/migrations/20260801225340_jardines_sec_14_operativo_fail_closed.sql",
+      "motivo": "solo existe en esta aplicacion"
+    },
+    {
+      "ruta": "supabase/migrations/20260801225524_jardines_sec_15_api_ratelimit_idempotencia.sql",
+      "motivo": "solo existe en esta aplicacion"
+    },
+    {
+      "ruta": "supabase/migrations/20260801225915_jardines_sec_16_acceso_unico.sql",
+      "motivo": "solo existe en esta aplicacion"
+    },
+    {
+      "ruta": "supabase/migrations/20260801230119_jardines_sec_17_search_path_vacio_y_grants_privados.sql",
+      "motivo": "solo existe en esta aplicacion"
+    },
+    {
+      "ruta": "supabase/migrations/20260801232933_jardines_sec_18_acceso_global_y_sin_dominio.sql",
+      "motivo": "solo existe en esta aplicacion"
+    },
+    {
+      "ruta": "supabase/migrations/20260801233038_jardines_sec_19_idempotencia_recuperable_y_canje_dos_fases.sql",
+      "motivo": "solo existe en esta aplicacion"
+    },
+    {
+      "ruta": "supabase/migrations/20260802003808_jardines_sec_20_retiro_staff_token_en_claro.sql",
+      "motivo": "solo existe en esta aplicacion"
+    },
+    {
+      "ruta": "supabase/migrations/20260802003820_jardines_sec_21_retiro_insert_publico_solicitudes.sql",
+      "motivo": "solo existe en esta aplicacion"
+    },
+    {
+      "ruta": "supabase/migrations/20260802012110_jardines_sec_22_limpia_perfil_cruzado_vero.sql",
+      "motivo": "solo existe en esta aplicacion"
+    },
+    {
+      "ruta": "supabase/migrations/20260803194855_jardines_sec_23_retiro_rpcs_residuales.sql",
+      "motivo": "solo existe en esta aplicacion"
+    },
+    {
+      "ruta": "supabase/migrations/20260803203804_jardines_sec_24_salon_planos_unico_y_path.sql",
+      "motivo": "solo existe en esta aplicacion"
+    },
+    {
+      "ruta": "supabase/migrations/20260804181430_jardines_sec_25_evento_solicitud_id.sql",
+      "motivo": "solo existe en esta aplicacion"
+    },
+    {
+      "ruta": "supabase/migrations/20260805042714_jardines_sec_26_invitacion_cliente.sql",
+      "motivo": "solo existe en esta aplicacion"
+    },
+    {
+      "ruta": "supabase/migrations/20260805043150_jardines_sec_27_permisos_por_columna_y_defaults.sql",
+      "motivo": "solo existe en esta aplicacion"
+    },
+    {
+      "ruta": "supabase/migrations/20260805045400_jardines_sec_28_bucket_sitio_admite_pdf.sql",
+      "motivo": "solo existe en esta aplicacion"
+    },
+    {
+      "ruta": "supabase/migrations/20260806000000_jardines_sec_29_accesos_sobreviven_a_la_invitacion.sql",
+      "motivo": "solo existe en esta aplicacion"
+    },
+    {
+      "ruta": "supabase/migrations/APLICADAS.txt",
+      "motivo": "solo existe en esta aplicacion"
+    },
+    {
+      "ruta": "supabase/tests/seguridad.sql",
+      "motivo": "solo existe en esta aplicacion"
+    },
+    {
+      "ruta": "vercel.json",
+      "motivo": "existe en otro repo pero ADAPTADO aqui"
+    }
+  ]
+}

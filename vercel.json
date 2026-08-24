@@ -23,12 +23,6 @@
       "destination": "/index.html"
     }
   ],
-  "crons": [
-    {
-      "path": "/api/cron-recordatorios",
-      "schedule": "0 15 * * *"
-    }
-  ],
   "headers": [
     {
       "source": "/(.*)",
