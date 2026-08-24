@@ -14,7 +14,7 @@
 //   con service_role y arma el correo con los datos CANÓNICOS de la base. Si la
 //   fila no existe, el correo no sale. Rate limit por IP e idempotencia por
 //   solicitud, así que un reintento no duplica el aviso.
-import { plantillaOro, enviarCorreo, SITIO_URL } from "./_lib/correo.js";
+import { plantillaOro, enviarCorreo, URL_CRM } from "./_lib/correo.js";
 import { enlaceWhatsApp, numeroWhatsApp } from "./_lib/telefono.js";
 import {
   clienteAdmin, leerBody, rateLimit, idemIniciar, idemCerrar,
@@ -181,7 +181,7 @@ export default async function handler(req, res) {
         titulo: "Nueva solicitud de evento",
         cuerpoHtml: construirHtml(s),
         ctaTexto: "Ver en mi panel",
-        ctaUrl: `${SITIO_URL}/${process.env.VITE_ADMIN_SLUG || "gestion-jch-9f27ax"}`,
+        ctaUrl: `${URL_CRM}/${process.env.VITE_ADMIN_SLUG || "gestion-jch-9f27ax"}`,
         // Segundo botón: abre el chat de WhatsApp con el número que escribió el cliente. Si ese
         // número no se puede convertir con certeza, `enlaceWhatsApp` devuelve `null` y el botón
         // NO se pinta — abrir el chat equivocado sería peor que no tener botón.

@@ -2,7 +2,7 @@ import { useState, useEffect } from "react";
 import { base44 } from "@/api/base44Client";
 import { MESA_FORMAS } from "@/lib/catalogos";
 import { Loader2, Check, X } from "lucide-react";
-import { Toggle } from "@/components/admin/eventos/_ui";
+import { Toggle } from "@/components/ui/Comunes";
 import { Estado, EsqueletoTexto } from "@/components/ui/Estado";
 
 /**

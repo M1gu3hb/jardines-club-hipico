@@ -32,7 +32,7 @@
 //   se registran en `incidentes` y en la auditoría, así que quedan visibles en
 //   lugar de silenciosos.
 import { createClient } from "@supabase/supabase-js";
-import { plantillaOro, enviarCorreo, SITIO_URL } from "./_lib/correo.js";
+import { plantillaOro, enviarCorreo, URL_PORTAL, URL_CRM } from "./_lib/correo.js";
 import { igualSeguro, bearer, generico, idemIniciar, idemCerrar, escHtml, escrituraOk, auditar } from "./_lib/guard.js";
 
 const DEST_DEFAULT = "mighuer427@gmail.com";
@@ -187,7 +187,7 @@ export default async function handler(req, res) {
         titulo: "Tu agenda de hoy",
         cuerpoHtml: cuerpo + pieLimpieza,
         ctaTexto: "Abrir mi panel",
-        ctaUrl: `${SITIO_URL}/${process.env.VITE_ADMIN_SLUG || "gestion-jch-9f27ax"}`,
+        ctaUrl: `${URL_CRM}/${process.env.VITE_ADMIN_SLUG || "gestion-jch-9f27ax"}`,
         notaPie: "Resumen automático diario de Jardines Club Hípico.",
       });
       const claveDigest = `digest:${claveDia}`;
@@ -230,10 +230,10 @@ export default async function handler(req, res) {
             cuerpoHtml: `<p style="margin:0 0 14px 0;">${escHtml((e.cliente_nombre || "Hola").split(/\s+/)[0])}, esperamos que <strong style="color:#E6C870;">${escHtml(e.nombre_evento)}</strong> haya sido inolvidable.</p>
               <p style="margin:0;">Tu opinión significa el mundo para nosotros. ¿Nos regalas un minuto para contarnos cómo te fue?</p>`,
             ctaTexto: "Dejar mi reseña",
-            ctaUrl: `${SITIO_URL}/portal`,
+            ctaUrl: `${URL_PORTAL}/portal`,
             notaPie: "Si ya la dejaste, ¡gracias! Ignora este correo.",
           });
-          await enviarCorreo({ to: e.cliente_email, subject: `⭐ ¿Cómo estuvo ${e.nombre_evento}? — Jardines Club Hípico`, html, texto: `Cuéntanos cómo estuvo tu evento en ${SITIO_URL}/portal` });
+          await enviarCorreo({ to: e.cliente_email, subject: `⭐ ¿Cómo estuvo ${e.nombre_evento}? — Jardines Club Hípico`, html, texto: `Cuéntanos cómo estuvo tu evento en ${URL_PORTAL}/portal` });
           enviadoOk = true;
           resenasInvitadas++;
         } catch (err) { console.error("[cron] resena mail:", err.message); }

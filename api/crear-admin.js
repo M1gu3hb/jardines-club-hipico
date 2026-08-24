@@ -6,7 +6,7 @@
 // misma URL secreta con su correo + contraseña, y recibe un correo de bienvenida.
 //
 // Body: { nombre, correo, password, telefono? }
-import { plantillaOro, enviarCorreo, SITIO_URL } from "./_lib/correo.js";
+import { plantillaOro, enviarCorreo, URL_PORTAL, URL_CRM } from "./_lib/correo.js";
 import {
   escHtml, clienteAdmin, leerBody, autorizarJardines, rateLimit,
   idemIniciar, idemCerrar, auditar, generico, rpcSeguro, compensarAlta,
@@ -128,13 +128,13 @@ export default async function handler(req, res) {
     // 4) Correo de bienvenida con sus accesos y el link del panel.
     let correoEnviado = false;
     try {
-      const panelUrl = `${SITIO_URL}/${process.env.VITE_ADMIN_SLUG || "gestion-jch-9f27ax"}`;
+      const panelUrl = `${URL_CRM}/${process.env.VITE_ADMIN_SLUG || "gestion-jch-9f27ax"}`;
       // Enlace de un solo uso en lugar de la contraseña en el cuerpo del correo.
       const { data: tokenAcceso } = await admin.rpc("crear_acceso_unico", {
         p_user_id: nuevoId, p_proposito: "primer_acceso_admin", p_horas: 72,
       });
       const entrarUrl = tokenAcceso
-        ? `${SITIO_URL}/portal#entrar=${encodeURIComponent(tokenAcceso)}`
+        ? `${URL_PORTAL}/portal#entrar=${encodeURIComponent(tokenAcceso)}`
         : panelUrl;
       const html = plantillaOro({
         pretitulo: "Acceso al panel",

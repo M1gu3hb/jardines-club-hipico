@@ -5,7 +5,7 @@ import {
   CalendarDays, Inbox, Star, DoorOpen, ChevronRight, Clock, PartyPopper, Bell, Check, ChevronDown,
   Trash2, AlertTriangle, Loader2,
 } from "lucide-react";
-import { estatusColor } from "@/components/admin/eventos/_ui";
+import { estatusColor } from "@/components/ui/Comunes";
 import { fechaLarga, diasFaltantes, tiempoRelativo, hoyLocal } from "@/lib/fechas";
 import { Estado, EsqueletoFilas } from "@/components/ui/Estado";
 

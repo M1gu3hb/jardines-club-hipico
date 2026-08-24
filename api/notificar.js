@@ -12,7 +12,7 @@
 //      contenido se DERIVA de una acción de una lista cerrada y de datos que el
 //      servidor vuelve a leer de la base; lo que aporta el cliente se escapa.
 //   3. No había rate limit ni idempotencia: se podía inundar el buzón.
-import { plantillaOro, enviarCorreo, SITIO_URL } from "./_lib/correo.js";
+import { plantillaOro, enviarCorreo, URL_CRM } from "./_lib/correo.js";
 import {
   escHtml, clienteAdmin, leerBody, autorizarJardines,
   rateLimit, idemIniciar, idemCerrar, auditar, generico,
@@ -150,7 +150,7 @@ export default async function handler(req, res) {
       cuerpoHtml: `${detalleHtml}
         <p style="margin:0; color:#8a8a8a;">Revisa la sección <strong style="color:#E6C870;">Resumen</strong> de tu panel para darle seguimiento.</p>`,
       ctaTexto: "Abrir mi panel",
-      ctaUrl: `${SITIO_URL}/${process.env.VITE_ADMIN_SLUG || "gestion-jch-9f27ax"}`,
+      ctaUrl: `${URL_CRM}/${process.env.VITE_ADMIN_SLUG || "gestion-jch-9f27ax"}`,
       notaPie: "Notificación automática del portal de clientes.",
     });
 

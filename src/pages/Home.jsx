@@ -1,7 +1,6 @@
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { base44 } from "@/api/base44Client";
-import { useAuth } from "@/api/authContext";
 import SplashScreen from "../components/SplashScreen";
 import StaggeredMenu from "../components/StaggeredMenu";
 import SoundToggle from "../components/SoundToggle";
@@ -48,18 +47,15 @@ const MENU_ITEMS = [
 
 export default function Home() {
   const navigate = useNavigate();
-  const { loading: authLoading, isCliente, evento } = useAuth();
-
-  // Auto-entrada al portal: si quien visita tiene sesión de CLIENTE con evento,
-  // lo llevamos directo a SU portal (su beneficio exclusivo — y terminado el
-  // evento, lo primero que ve es la invitación a dejar su reseña). El botón
-  // "Ver sitio" del portal pone un bypass en sessionStorage para navegar libre.
-  useEffect(() => {
-    if (authLoading || !isCliente || !evento) return;
-    let bypass = false;
-    try { bypass = sessionStorage.getItem("jch_ver_sitio") === "1"; } catch { /* sin storage */ }
-    if (!bypass) navigate("/portal", { replace: true });
-  }, [authLoading, isCliente, evento, navigate]);
+  // AQUÍ VIVÍA EL AUTO-REDIRECT AL PORTAL. Se retiró en la FASE 1 de la separación
+  // (`docs/PLAN-INDEPENDIZACION.md` §3, acoplamiento A7).
+  //
+  // Empujaba al portal a cualquier visitante con sesión de cliente, y era una trampa: quien
+  // quería ver la web pública no podía. Con él se va el ÚNICO uso de `@/api/authContext` en la
+  // web, así que el sitio público deja de arrastrar código de autenticación — es el mayor
+  // recorte de superficie del plan.
+  //
+  // Al portal se entra por el menú («Portal de clientes»), como a cualquier otra ruta.
 
   const [splashDone, setSplashDone] = useState(false);
   const [configLoaded, setConfigLoaded] = useState(false);
@@ -128,8 +124,12 @@ export default function Home() {
 
   const scrollToSection = (item) => {
     playSound("click");
-    // El item "Portal de clientes" navega a la ruta del portal (quita el bypass
-    // para que, si hay sesión de cliente, entre directo a su evento).
+    // El item "Portal de clientes" navega a la ruta del portal.
+    //
+    // El `removeItem` de abajo alimentaba al auto-redirect que se retiró con A7, así que hoy no
+    // lo lee nadie: `jch_ver_sitio` solo lo escribe `PortalShell` («Ver sitio»). Se conserva
+    // porque R4 prohíbe retirar nada del repo actual antes de que el portal esté desplegado y
+    // validado; se decide qué hacer con él cuando `PortalShell` se mude en la FASE 2.
     if (item.esRuta) {
       try { sessionStorage.removeItem("jch_ver_sitio"); } catch { /* sin storage */ }
       navigate(item.link);

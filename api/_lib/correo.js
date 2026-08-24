@@ -2,8 +2,30 @@
 // (Los archivos dentro de carpetas con "_" NO se publican como funciones en Vercel.)
 import nodemailer from "nodemailer";
 
-export const SITIO_URL = "https://jardines-club-hipico.vercel.app";
-const LOGO_URL = `${SITIO_URL}/media/img/aMxWuH8.png`;
+// P1 · UNA URL POR APLICACIÓN, NO UNA CONSTANTE PARA TODAS.
+//
+// Aquí había `SITIO_URL` fija al dominio de Vercel de la web (J-01). Mientras las tres
+// aplicaciones vivieron en el mismo despliegue dio igual; en cuanto el portal se muda de
+// origen deja de darlo: `crear-usuario-evento.js` construye con esto el enlace mágico de
+// primer acceso, que es de UN SOLO USO. Si apuntara al sitio equivocado el correo se quema y
+// el cliente nuevo se queda fuera sin que nadie se entere.
+// Ver `docs/PLAN-INDEPENDIZACION.md` §4, peligro P1.
+//
+// Las tres comparten HOY el valor por defecto —el que tenía `SITIO_URL`—, así que mientras las
+// variables de entorno no se definan el comportamiento no cambia ni un carácter.
+const URL_HOY = "https://jardines-club-hipico.vercel.app";
+
+/** Sitio público. Sirve los medios (el logo de los correos) y las páginas de marketing. */
+export const URL_WEB = process.env.URL_WEB || URL_HOY;
+/** Portal del cliente. Es quien canjea los enlaces de primer acceso (`#entrar=`) — ver P1. */
+export const URL_PORTAL = process.env.URL_PORTAL || URL_HOY;
+/** CRM / punto de venta: donde vive el panel de administración. */
+export const URL_CRM = process.env.URL_CRM || URL_HOY;
+
+const LOGO_URL = `${URL_WEB}/media/img/aMxWuH8.png`;
+// El pie llevaba el dominio escrito a mano. Se deriva de `URL_WEB` para que no pueda quedarse
+// mintiendo cuando la web cambie de dirección; hoy produce exactamente el mismo texto.
+const ETIQUETA_WEB = URL_WEB.replace(/^https?:[/][/]/, "");
 
 // ⚠️ HABÍA DOS ESCAPADORES Y EL DÉBIL ERA EL DE LA PLANTILLA COMPARTIDA.
 //
@@ -87,7 +109,7 @@ export function plantillaOro({ pretitulo, titulo, cuerpoHtml, ctaTexto, ctaUrl, 
         <tr><td align="center" style="padding-top: 24px; font-family: Arial, Helvetica, sans-serif; font-size: 11px; line-height: 1.7; color: #666666;">
           ${notaPie ? esc(notaPie) + "<br>" : ""}
           Jardines Club Hípico · Xochimilco, CDMX<br>
-          <a href="${esc(SITIO_URL)}" style="color: #C9A84C; text-decoration: none;">jardines-club-hipico.vercel.app</a>
+          <a href="${esc(URL_WEB)}" style="color: #C9A84C; text-decoration: none;">${esc(ETIQUETA_WEB)}</a>
         </td></tr>
 
       </table>

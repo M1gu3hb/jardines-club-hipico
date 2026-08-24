@@ -2,7 +2,7 @@ import { useState } from "react";
 import { base44 } from "@/api/base44Client";
 import { useAuth } from "@/api/authContext";
 import { UserPlus, Loader2, Check, ShieldCheck, Phone, Mail, Eye, EyeOff } from "lucide-react";
-import { Field } from "@/components/admin/eventos/_ui";
+import { Field } from "@/components/ui/Comunes";
 import { useCarga } from "@/lib/useCarga";
 import { Estado, EsqueletoFilas } from "@/components/ui/Estado";
 

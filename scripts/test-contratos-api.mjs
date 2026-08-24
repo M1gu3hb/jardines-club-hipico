@@ -111,7 +111,30 @@ const leerCodigo = (p) => {
   return out;
 };
 const casos = [];
-const check = (nombre, ok, detalle = "") => casos.push({ nombre, ok, detalle });
+
+/**
+ * ZONA — a qué aplicación viaja cada contrato cuando el repo se parta en tres
+ * (`docs/PLAN-INDEPENDIZACION.md` §2). Se marca en la FASE 1, se usa en la FASE 6.
+ *
+ * Se etiqueta por SECCIÓN, no por contrato, y la razón está medida: de los contratos que
+ * corren, solo 262 son llamadas literales a `check()` — el resto nacen dentro de bucles.
+ * Etiquetar en el call-site dejaría sesenta y tantos sin etiqueta y nadie lo notaría.
+ *
+ *   web    · sitio público                portal · portal del cliente (PWA)
+ *   crm    · panel / punto de venta       comun  · shim, ui/, api/_lib, migraciones
+ *
+ * `comun` NO quiere decir «no lo sé»: quiere decir que el contrato cruza la frontera de más
+ * de una aplicación, y por tanto o viaja a las tres o se queda en el juego común del backend.
+ * Un contrato mal etiquetado hace que la FASE 6 reparta con un mapa equivocado; por eso el
+ * meta-contrato del final exige que ninguno se quede sin zona.
+ */
+const ZONAS = ["web", "portal", "crm", "comun"];
+let zonaActual = null;
+const zona = (z) => {
+  if (!ZONAS.includes(z)) throw new Error(`zona desconocida: ${z}`);
+  zonaActual = z;
+};
+const check = (nombre, ok, detalle = "") => casos.push({ nombre, ok, detalle, zona: zonaActual });
 
 /**
  * Recorta el trozo de código que va de `desde` a `hasta` (excluido).
@@ -302,6 +325,7 @@ const cortaAntesDe = (cuerpo, cond, limite) => {
 };
 
 // ---------------------------------------------------------------- notificar
+zona("portal");
 {
   const front = leer("src/lib/notificar.js");
   const api = leer("api/notificar.js");
@@ -328,6 +352,7 @@ const cortaAntesDe = (cuerpo, cond, limite) => {
 }
 
 // ---------------------------------------------------------------- correo-cliente
+zona("crm");
 {
   const front = leer("src/components/admin/eventos/EventoDocumentos.jsx");
   const api = leer("api/correo-cliente.js");
@@ -377,6 +402,7 @@ const cortaAntesDe = (cuerpo, cond, limite) => {
 }
 
 // ---------------------------------------------------------------- solicitud
+zona("web");
 {
   const front = leer("src/components/FormularioModal.jsx");
   const api = leer("api/solicitud.js");
@@ -424,6 +450,7 @@ const cortaAntesDe = (cuerpo, cond, limite) => {
 }
 
 // ---------------------------------------------------------------- escapado de correos
+zona("comun");
 for (const ruta of [
   "api/notificar.js",
   "api/correo-cliente.js",
@@ -446,6 +473,7 @@ for (const ruta of [
 }
 
 // ---------------------------------------------------------------- cron fail-closed
+zona("crm");
 {
   const s = leerCodigo("api/cron-recordatorios.js");
   check("cron: falla cerrado si falta CRON_SECRET", /if \(!secret\)/.test(s));
@@ -455,6 +483,7 @@ for (const ruta of [
 }
 
 // ---------------------------------------------------------------- primer acceso
+zona("portal");
 {
   const api = leer("api/canjear-acceso.js");
   const front = leer("src/components/portal/PortalLogin.jsx");
@@ -466,6 +495,7 @@ for (const ruta of [
 }
 
 // ---------------------------------------------------------------- credenciales en correos
+zona("crm");
 for (const ruta of ["api/crear-admin.js", "api/crear-usuario-evento.js"]) {
   const s = leer(ruta);
   check(`${ruta}: sin contraseña en el correo`, !/Contraseña: \$\{password\}/.test(s));
@@ -474,6 +504,7 @@ for (const ruta of ["api/crear-admin.js", "api/crear-usuario-evento.js"]) {
 }
 
 // ---------------------------------------------------------------- corte por idempotencia
+zona("crm");
 // El corte en `duplicado` tiene que devolver la MISMA FORMA que el camino de
 // éxito. Cuando no lo hacía, el panel escribía `usuario: undefined` en el estado
 // del evento y volvía a pedir credenciales para un evento que ya las tenía.
@@ -505,6 +536,7 @@ for (const ruta of ["api/crear-admin.js", "api/crear-usuario-evento.js"]) {
 }
 
 // ---------------------------------------------------------------- errores de supabase-js
+zona("comun");
 // supabase-js resuelve con { error } en vez de rechazar: `.catch()` no atrapa nada.
 for (const ruta of [
   "api/notificar.js", "api/correo-cliente.js", "api/solicitud.js",
@@ -546,6 +578,7 @@ for (const ruta of [
 }
 
 // ---------------------------------------------------------------- plano del salón
+zona("crm");
 // Los fallos que ya ocurrieron: el rollback borraba el archivo de una escritura
 // que sí había cuajado, porque la relectura no distinguía "no hay fila" de "la
 // lectura falló".
@@ -643,6 +676,7 @@ for (const ruta of [
 }
 
 // ---------------------------------------------------------------- operativo
+zona("crm");
 {
   const s = leerCodigo("src/components/admin/AdminOperativo.jsx");
   const carga = entre(s, "const cargar = useCallback", "useEffect(");
@@ -729,6 +763,7 @@ for (const ruta of [
 }
 
 // ---------------------------------------------------------------- solicitudes: estatus
+zona("crm");
 // El fallo real: `sec_07` puso un CHECK con cinco estatus y el panel seguía ofreciendo otros
 // tres. Solo coincidía "Nueva", así que CUALQUIER cambio violaba el CHECK (23514) — y como
 // `updateStatus` no capturaba nada, el desplegable volvía solo y el dueño no veía por qué.
@@ -799,6 +834,7 @@ for (const ruta of [
 }
 
 // ---------------------------------------------------------------- notificaciones: se BORRAN
+zona("crm");
 // Decisión del dueño: la actividad del portal se borra, no se archiva. Ni a mano ni a los
 // 7 días queda nada. Y `delete` del shim devuelve `{success:true}` pase lo que pase (J-02),
 // así que un borrado que RLS rechace en silencio diría "quitadas ✓" sin quitar nada.
@@ -906,6 +942,7 @@ for (const ruta of [
 }
 
 // ---------------------------------------------------------------- catálogos (listas cerradas)
+zona("comun");
 // EL PATRÓN QUE YA COSTÓ DOS BUGS: una lista de opciones declarada dentro del componente que la
 // usa, que nadie cruza contra la restricción de la base.
 //   1. `AdminSolicitudes` ofrecía tres estatus que el CHECK no admitía  → bloque 7A
@@ -1010,6 +1047,7 @@ for (const ruta of [
 }
 
 // ---------------------------------------------------------------- documentos: subir y borrar
+zona("crm");
 {
   const s = leerCodigo("src/components/admin/eventos/EventoDocumentos.jsx");
   const subir = entre(s, "const subir = async", "const descargar");
@@ -1054,6 +1092,7 @@ for (const ruta of [
 }
 
 // ---------------------------------------------------------------- eliminar evento (8B)
+zona("crm");
 // La ÚNICA operación irreversible del panel. El orden de los pasos no es estilo: es lo que
 // impide dejar archivos sin asa o huérfanas invisibles.
 {
@@ -1157,6 +1196,7 @@ for (const ruta of [
 }
 
 // ---------------------------------------------------------------- borrado de usuarios (8F)
+zona("comun");
 // EL CONTRATO QUE VALE PARA SIEMPRE. `auth.users` es la tabla COMPARTIDA con Vero Seguros y
 // `deleteUser` es un hard delete sobre ella. El uuid que se le pasaba venía de
 // `jardines.eventos.auth_user_id`, una columna que cualquier admin puede escribir desde el
@@ -1412,6 +1452,7 @@ for (const ruta of [
 }
 
 // ---------------------------------------------------------------- homónimos (8C)
+zona("crm");
 // Medido en producción antes de escribir esto: cuatro eventos «Boda ortega» creados con 24
 // segundos de diferencia, con el MISMO cliente, fecha, salón y creador. En la lista se pintan
 // idénticos y el único distinto —el que tiene cuenta de portal— es el que hay que conservar.
@@ -1474,6 +1515,7 @@ for (const ruta of [
 }
 
 // ---------------------------------------------------------------- tres estados (8E)
+zona("comun");
 // "Todavía no ha llegado", "de verdad no hay nada" y "la lectura se cayó" se pintaban las tres
 // igual, porque el shim devuelve `[]` en las tres. Lo que sigue ata las piezas que impiden que
 // vuelvan a fundirse.
@@ -1577,6 +1619,7 @@ for (const ruta of [
 }
 
 // ---------------------------------------------------------------- alta de evento (8A)
+zona("crm");
 // La causa raíz: el formulario validaba `password.length < 6` y el servidor `< 8`, y el
 // usuario ni siquiera se comprobaba en el cliente. Una contraseña de 6 pasaba el formulario,
 // moría en el servidor con un 400 opaco, y el evento quedaba creado sin credenciales.
@@ -1805,6 +1848,7 @@ for (const ruta of [
 }
 
 // ---------------------------------------------------------------- sec_25 (9B)
+zona("comun");
 // La migración que añade `eventos.solicitud_id`. Se afirma que sigue siendo ADITIVA y
 // autoprotegida: es la única de este bloque y toca la base compartida con Vero.
 {
@@ -1839,6 +1883,7 @@ for (const ruta of [
 }
 
 // ---------------------------------------------------------------- solicitud -> evento (9C)
+zona("crm");
 // ¿DE QUIÉN ES ESTE DATO Y QUIÉN ME LO DIO? Lo escribió un desconocido en el formulario
 // público. Que esté en la base solo dice que pasó por `solicitud_crear`, no que sea bueno.
 // Estos contratos atan lo que NO puede copiarse tal cual.
@@ -2227,6 +2272,7 @@ for (const ruta of [
 }
 
 // ---------------------------------------------------------------- CSP e imágenes (9D)
+zona("web");
 // J-12: `CtaCotizacion` pintaba SIEMPRE un fondo de `images.unsplash.com`, y la CSP desplegada
 // solo admite `'self'`, `data:`, `blob:` y el bucket en `img-src`. La franja que pide cotización
 // —la que genera el negocio— llevaba un fondo que el navegador bloquea. Otros cuatro
@@ -2283,6 +2329,7 @@ for (const ruta of [
 }
 
 // ------------------------------------------- FASE A · la escritura que fabricaba el éxito
+zona("comun");
 //
 // EL HECHO, comprobado EJECUTANDO contra la base (en un bloque revertido):
 //
@@ -2405,6 +2452,7 @@ for (const ruta of [
 }
 
 // ------------------------------------------- sec_26, escrita y NO aplicada
+zona("comun");
 // La RPC que permitiría que el cliente active su invitación. Es una decisión de producto del
 // dueño, así que aquí solo se contrata que el archivo, si existe, cumpla las reglas del
 // proyecto para una `security definer` — no que esté aplicada.
@@ -2469,6 +2517,7 @@ for (const ruta of [
 }
 
 // ------------------------------------------- A-bis · UNA PIEZA QUE NADIE INVOCA
+zona("portal");
 //
 // El hallazgo que invalidó el resultado de la fase A: `sec_26` estaba bien escrita, bien
 // ensayada y **sin un solo llamador**. `grep -rn invitacion_guardar src/ api/` daba 0, y sus
@@ -2653,6 +2702,7 @@ for (const ruta of [
 }
 
 // ------------------------------------------- FASE T · el token que la migración rechazaba
+zona("portal");
 //
 // `sec_26` validaba `^[a-f0-9]{32,128}$` y `tokenSeguro()` produce **base64url de 43
 // caracteres**. El día que el dueño aprobara la migración, cada clic en «Crear y activar
@@ -2743,6 +2793,7 @@ for (const ruta of [
 }
 
 // ------------------------------------------- 1.2 · EL ESCAPADOR, EJECUTADO
+zona("comun");
 //
 // Doce contratos comprobaban «esta ruta importa `escHtml`» y **ninguno comprobaba qué hace**.
 // Medido: sustituyendo el cuerpo por `String(s ?? "")` —es decir, dejando todo el correo
@@ -2784,6 +2835,7 @@ for (const ruta of [
 }
 
 // ------------------------------------------- 1.1 · EL LEDGER DE MIGRACIONES
+zona("comun");
 //
 // `supabase db push` compara el prefijo del archivo con la versión registrada. Dieciséis de los
 // veinticinco archivos tenían prefijos inventados, así que el comando de despliegue estándar
@@ -2826,6 +2878,7 @@ for (const ruta of [
 }
 
 // ------------------------------------------- 1.3 · CADA FUNCIÓN NUEVA, REVOCADA A MANO
+zona("comun");
 //
 // El DEFAULT ACL de `jardines` concede `anon=X` a toda función nueva, y —comprobado ensayando—
 // PostgreSQL concede además EXECUTE a PUBLIC por defecto del motor, que `ALTER DEFAULT
@@ -2869,6 +2922,7 @@ for (const ruta of [
 }
 
 // ------------------------------------------- 0 · LA FUENTE ÚNICA DEL AFORO (sec_27 aplicada)
+zona("crm");
 //
 // `progreso_mesas_staff` leía `mesas.ocupadas`, que no escribe nadie. Ahora suma de
 // `invitaciones.personas_registradas`, que es donde `registrar_acceso_staff` escribe — y
@@ -2909,6 +2963,7 @@ for (const ruta of [
 }
 
 // ------------------------------------------- 1.4 · UN SOLO NÚMERO, Y QUE SEA EL SUYO
+zona("web");
 //
 // El JSON-LD de `index.html` publicaba `+525548663656`, que NO es el teléfono del negocio
 // (`config_sitio.telefono_contacto` = `+52 55 2311 8153`). Es HTML estático: no pasa por Supabase,
@@ -2966,6 +3021,7 @@ for (const ruta of [
 }
 
 // ------------------------------------------- 1.5 · UN RESPALDO NO PUEDE INVENTAR EL SALÓN
+zona("web");
 //
 // `SalonesSection` traía cinco salones de respaldo para cuando Supabase no devuelve nada. No eran
 // una aproximación: «Salón Cerrado» no existe, y a «Jardines» le ponían 100–300 personas cuando el
@@ -2994,6 +3050,7 @@ for (const ruta of [
 }
 
 // ------------------------------------------- 2.1 · `orden` CABE EN UN `integer`
+zona("crm");
 //
 // `AdminGaleria` escribía `orden: Date.now()`. `jardines.galeria.orden` es `integer` (máximo
 // 2 147 483 647) y `Date.now()` va por 1.75×10¹². Comprobado ejecutándolo contra la base:
@@ -3026,6 +3083,7 @@ for (const ruta of [
 }
 
 // ------------------------------------------- 2.2 · EL PANEL NO ESCRIBE COLUMNAS QUE NO EXISTEN
+zona("crm");
 //
 // `AdminConfig` tenía dos cajas que escribían `textoServicios` y `textoAmenidades`. Esas columnas
 // NO EXISTEN en `jardines.config_sitio` — comprobado contra producción, `42703 column does not
@@ -3046,6 +3104,7 @@ for (const ruta of [
 }
 
 // ------------------------------------------- 2.3 · EL `accept` NO PROMETE MÁS QUE EL BUCKET
+zona("comun");
 //
 // Storage rechaza lo que no esté en `allowed_mime_types`. Un `accept="image/*"` incluye HEIC —lo
 // que sale de un iPhone—, SVG y BMP, que el bucket `sitio` NO admite: el selector de archivos
@@ -3084,6 +3143,7 @@ for (const ruta of [
 }
 
 // ------------------------------------------- 3.1 · EL SITIO ARRANCA AUNQUE LA BASE NO CONTESTE
+zona("web");
 //
 // El splash solo se monta con `configLoaded`, y `splashDone` —que gobierna TODO el render— solo lo
 // pone el splash al terminar. Si la lectura de `ConfigSitio` no se resolvía nunca (y `fetch` no
@@ -3112,6 +3172,7 @@ for (const ruta of [
 }
 
 // ------------------------------------------- 3.2 · HAY UN ERROR BOUNDARY, Y ENVUELVE LA APP
+zona("web");
 //
 // No había ninguno en los 189 archivos. En React una excepción durante el render desmonta el árbol
 // entero: un `undefined.map` en cualquier componente dejaba `<div id="root">` vacío — rectángulo
@@ -3142,6 +3203,7 @@ for (const ruta of [
 }
 
 // ------------------------------------------- 3.3 · UNA VARIABLE QUE FALTA SE VE
+zona("comun");
 //
 // `createClient(undefined, undefined)` LANZA en la carga del módulo, antes de que React monte.
 // El archivo solo hacía `console.error` bajo el comentario «avisar en runtime» — y no avisaba de
@@ -3160,6 +3222,7 @@ for (const ruta of [
 }
 
 // ------------------------------------------- 4.1 · LOS MENSAJES DE LA PUERTA SON ALCANZABLES
+zona("crm");
 //
 // Las tres pantallas del día del evento clasificaban el error buscando la palabra «autorizado»
 // dentro del mensaje del servidor. Y el servidor, A PROPÓSITO, no la dice:
@@ -3197,6 +3260,7 @@ for (const ruta of [
 }
 
 // ------------------------------------------- 4.2 · «HOY» ES EL DEL SALÓN, NO EL DEL SERVIDOR
+zona("crm");
 //
 // `new Date().toISOString().slice(0, 10)` da el día en UTC, y la CDMX va seis horas por detrás:
 // de las 18:00 en adelante, hora local, «hoy» en UTC ya es MAÑANA. El panel calculaba así los
@@ -3240,6 +3304,7 @@ for (const ruta of [
 }
 
 // ------------------------------------------- 4.3 · `sec_29` — EL LIBRO DE ENTRADAS (NO APLICADA)
+zona("comun");
 //
 // `accesos.invitacion_id` cae en CASCADE: borrar una invitación se lleva el registro de quién
 // entró de verdad por ella. `MesaEditor.borrar()` borra invitaciones, y reorganizar el salón se
@@ -3278,6 +3343,9 @@ for (const ruta of [
 }
 
 // ═══════════════════════════════════════════════════════════════════════════
+// Los contratos del video temporal son de la WEB pública, aunque vivan dentro
+// de la sección de `sec_29`. Zona propia para que no hereden la de arriba.
+zona("web");
 // TEMP · EL VIDEO TEMPORAL DEL HERO («Style Contest 2026»)
 // ═══════════════════════════════════════════════════════════════════════════
 //
@@ -3497,6 +3565,7 @@ for (const ruta of [
 }
 
 // ------------------------------------------- W · EL BOTON DE WHATSAPP DE LAS SOLICITUDES
+zona("web");
 //
 // El correo de una solicitud lleva un boton que abre el chat de WhatsApp con el numero que el
 // cliente escribio en el formulario publico. Ese campo es TEXTO LIBRE —el formulario solo
@@ -3603,6 +3672,7 @@ for (const ruta of [
 }
 
 // ------------------------------------------- W.2 · LOS CAMPOS OBLIGATORIOS SE MIRAN RECORTADOS
+zona("web");
 //
 // El servidor ya exige un telefono de verdad: el trigger `solicitud_saneo` hace `trim()` y luego
 // `new.telefono !~ '^[0-9+()\-\s]{7,30}$'` -> `raise exception 'Telefono invalido'`. El formulario
@@ -3638,6 +3708,20 @@ for (const ruta of [
 }
 
 // ---------------------------------------------------------------- salida
+
+// META-CONTRATO DEL REPARTO — FASE 1, punto 5 del plan de independización.
+//
+// Etiquetar sin comprobar la etiqueta es decorar. Si mañana se añade una sección sin
+// `zona(...)`, sus contratos heredarían en silencio la zona de la sección anterior y la
+// FASE 6 repartiría archivos con un mapa equivocado. Esto lo convierte en un fallo ruidoso.
+zona("comun");
+const sinZona = casos.filter((c) => !c.zona).map((c) => c.nombre);
+check(
+  "reparto: todos los contratos declaran a qué aplicación viajan (web / portal / crm / comun)",
+  sinZona.length === 0,
+  sinZona.length ? `${sinZona.length} sin zona · p.ej. ${sinZona.slice(0, 3).join(" · ")}` : "",
+);
+
 let fallan = 0;
 for (const c of casos) {
   if (!c.ok) fallan++;
@@ -3645,4 +3729,6 @@ for (const c of casos) {
   console.log(`${marca}  ${c.nombre}${c.ok || !c.detalle ? "" : `  ->  ${c.detalle}`}`);
 }
 console.log(`\n${casos.length - fallan}/${casos.length} pasan`);
+const porZona = Object.fromEntries(ZONAS.map((z) => [z, casos.filter((c) => c.zona === z).length]));
+console.log(`reparto  ${ZONAS.map((z) => `${z} ${porZona[z]}`).join("  ·  ")}`);
 process.exit(fallan === 0 ? 0 : 1);

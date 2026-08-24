@@ -5,7 +5,7 @@ import {
   Calendar, MapPin, Tag, CheckCircle2, Sparkles,
   FileText, Clock, Music, LayoutGrid, ChevronRight, Heart, Star, Wallet,
 } from "lucide-react";
-import { estatusColor } from "@/components/admin/eventos/_ui";
+import { estatusColor } from "@/components/ui/Comunes";
 import { fechaLarga, diasFaltantes, eventoYaPaso } from "@/lib/fechas";
 import PortalSugerencias from "./PortalSugerencias";
 

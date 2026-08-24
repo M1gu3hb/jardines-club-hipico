@@ -9,7 +9,7 @@
 //      relee el documento y se comprueba que pertenece a ESE evento.
 //   2. No había límite de tamaño del cuerpo, ni rate limit, ni idempotencia.
 //   3. Usaba su propio bloque de autorización en vez del guard compartido.
-import { plantillaOro, enviarCorreo, SITIO_URL } from "./_lib/correo.js";
+import { plantillaOro, enviarCorreo, URL_PORTAL } from "./_lib/correo.js";
 import {
   escHtml, clienteAdmin, leerBody, autorizarJardines,
   rateLimit, idemIniciar, idemCerrar, auditar, generico,
@@ -121,7 +121,7 @@ export default async function handler(req, res) {
         para <strong style="color:#E6C870;">${escHtml(ev.nombre_evento)}</strong> en la sección <em>Documentos</em> de tu portal.</p>
         <p style="margin:0;">Entra con tu usuario y contraseña de siempre. Cualquier duda, respóndenos este correo y con gusto te acompañamos.</p>`,
       ctaTexto: "Ver mi documento",
-      ctaUrl: `${SITIO_URL}/portal`,
+      ctaUrl: `${URL_PORTAL}/portal`,
       notaPie: "Este documento es exclusivo para ti y tu evento.",
     });
 
@@ -129,7 +129,7 @@ export default async function handler(req, res) {
       to: ev.cliente_email,
       subject: `📄 ${enc.asunto} de "${ev.nombre_evento}" — Jardines Club Hípico`,
       html,
-      texto: `${enc.titulo}. Revísalo en la sección Documentos de tu portal: ${SITIO_URL}/portal`,
+      texto: `${enc.titulo}. Revísalo en la sección Documentos de tu portal: ${URL_PORTAL}/portal`,
       replyTo: process.env.MAIL_TO || process.env.GMAIL_USER,
     });
 
