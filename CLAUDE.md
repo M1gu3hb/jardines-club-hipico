@@ -25,8 +25,10 @@ continúe el trabajo sin perder contexto.
 7. `docs/BUGS_PENDING.md`
 8. `docs/NEXT_STEPS.md`
 9. `docs/CHANGELOG.md`
-10. `docs/PROMPTS.md` — prompts de arranque y de transferencia
-11. Mapa detallado de la UI: `docs/MAPA.md`, `docs/COMPONENTES.md`, `docs/DATOS.md`, `docs/DEPLOY.md`
+10. `docs/PLAN-EXPANSION.md` — **el alcance de la partición en tres apps y las decisiones
+    ya tomadas.** Léelo antes de proponer nada de arquitectura.
+11. `docs/PROMPTS.md` — prompts de arranque y de transferencia
+12. Mapa detallado de la UI: `docs/MAPA.md`, `docs/COMPONENTES.md`, `docs/DATOS.md`, `docs/DEPLOY.md`
 
 ## Documentación viva
 

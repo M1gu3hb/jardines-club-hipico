@@ -13,7 +13,7 @@
 > panel, la página en blanco (plazo + error boundary), y los mensajes de la puerta que eran
 > inalcanzables. Verificado contra la URL de producción, no supuesto.
 >
-> **⚠️ NADIE HA CLICADO ESTO A MANO.** Pasa lint 0, build limpio, 314/314 contratos y typecheck en
+> **⚠️ NADIE HA CLICADO ESTO A MANO.** Pasa lint 0, build limpio, 322/322 contratos y typecheck en
 > línea base, y los marcadores de cada fase están comprobados en el bundle servido — pero no ha
 > habido validación humana con credenciales reales.
 >
@@ -23,6 +23,10 @@
 > PDF. La única migración pendiente es **`sec_29`** (que el libro de entradas sobreviva al borrado
 > de una invitación): escrita, ensayada en un bloque revertido por construcción, y **sin aplicar**
 > a la espera de decisión.
+>
+> **Lo que viene:** partir el proyecto en TRES aplicaciones (web pública / portal cliente PWA /
+> CRM con MCP) sobre el MISMO Supabase y en tres repositorios. El alcance, las decisiones ya
+> tomadas y el orden de ejecución están en **`docs/PLAN-EXPANSION.md`**. Nada implementado aún.
 >
 > **Sin empezar:** FASES 5–8 del bloque final (las 36 escrituras sin `catch`, el aviso de
 > privacidad y los correos, la limpieza de contratos y código muerto, y la documentación).
@@ -59,7 +63,7 @@ fondo salió con un P0 cada vez.
 | URL | <https://jardines-club-hipico.vercel.app> |
 | Funciones serverless | **8** |
 | Migraciones aplicadas | `jardines_sec_01..28` (sin `sec_10`) — `sec_29` escrita y SIN aplicar |
-| Contratos | 315/315 · typecheck 59 (línea base) · lint 0 |
+| Contratos | 322/322 · typecheck 59 (línea base) · lint 0 |
 
 **Bloques desplegados:** 1–9 completos, 9E incluido. Ya está arriba el arreglo que impedía crear
 dos eventos de la misma solicitud, el mínimo de contraseña unificado en 8, el botón de convertir
