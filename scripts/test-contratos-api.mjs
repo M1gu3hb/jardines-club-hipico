@@ -785,36 +785,41 @@ zona("web");
     fallos.push("el cuerpo de la portada vuelve a estar detras de `splashDone`: sin JavaScript la pagina queda en blanco");
   }
 
-  // ── Y el splash sigue teniendo salida cuando la base no contesta ─────────
+  // ── EL SPLASH NO ESPERA A NADIE PARA APARECER ───────────────────────────
   //
-  // La señal que gobierna el splash se DERIVA del archivo. Puede ser un estado directo o un
-  // valor compuesto: si lo es, se mira de que depende y se exige que a alguna de esas piezas
-  // la levante un temporizador. Fijar el nombre aqui es justo lo que rompio este contrato la
-  // vez anterior, cuando `configLoaded` paso a componerse de otras señales.
-  const senal = (retorno.match(/\{\s*!splashDone\s*&&\s*(\w+)\s*&&/) || [])[1] || "";
-  if (!senal) fallos.push("ya no se ve una señal gobernando el montaje del splash");
-  else {
-    // Se busca la definicion por posicion y NO con una expresion regular construida a partir
-    // de texto: escapar `\s` dentro de una cadena para meterlo en `new RegExp` es una fuente
-    // constante de errores silenciosos —un escape que se pierde deja el patron buscando la
-    // letra «s», el contrato pasa siempre y deja de afirmar nada.
-    const iDef = home.indexOf("const " + senal + " =");
-    const definicion = iDef === -1 ? "" : home.slice(iDef, home.indexOf(";", iDef));
-    const piezas = [senal, ...(definicion.match(/\w+/g) || [])];
-    const enMayuscula = (n) => "set" + n[0].toUpperCase() + n.slice(1);
-
-    // Sin espacios, la comparacion es literal y a la vez tolera cualquier formato: partir el
-    // `setTimeout` en tres lineas no es una regresion y no debe romper el contrato.
-    const homeSinEspacios = home.replace(/\s/g, "");
-    const levantada = piezas.some((n) =>
-      homeSinEspacios.includes("setTimeout(()=>" + enMayuscula(n) + "(true)"));
-    if (!levantada) {
-      fallos.push("ningun temporizador levanta `" + senal + "` ni nada de lo que depende: el splash se queda para siempre");
-    }
+  // Este trozo vigilaba otra cosa hasta el 2026-08-25: que una señal derivada de la carga de
+  // `ConfigSitio` levantara el splash. Esa señal ERA EL FALLO. Al hidratar en el navegador la
+  // peticion aun no ha resuelto, asi que React quitaba del DOM el splash que el prerender ya
+  // habia pintado, se veia el hero, y un instante despues el splash volvia a montarse encima.
+  // El dueño lo describio como «parece rota»: hero, splash, hero.
+  //
+  // La propiedad que de verdad importa no cambio —nada puede dejar la portada en blanco ni
+  // colgar el splash para siempre— pero se cumple de otra forma, y ahora se afirma sobre eso:
+  //
+  //   1. El splash se monta SOLO con `splashDone`. Cualquier otra condicion lo retrasa.
+  //   2. Su salida vive dentro de `SplashScreen`, con temporizador propio y su limpieza.
+  //
+  // Lo de arriba —que el cuerpo de la portada no dependa del splash— sigue intacto y es lo
+  // que garantiza que, pase lo que pase con la animacion, debajo ya hay una pagina.
+  const montaje = retorno.match(/\{\s*!splashDone\s*&&\s*(.)/);
+  if (!montaje) {
+    fallos.push("no se encuentra el montaje del splash en la portada");
+  } else if (montaje[1] !== "(") {
+    fallos.push("el splash espera a otra señal antes de montarse: al hidratar desaparece y vuelve, y se ve el hero por debajo");
   }
 
-  // El temporizador se limpia (si no, deja un setState sobre un componente desmontado).
-  if (!/clearTimeout\(/.test(home)) fallos.push("el temporizador no se limpia al desmontar");
+  // La salida del splash, en su propio archivo. Sin espacios, para tolerar cualquier formato.
+  const splashSinEspacios = leerCodigo("src/components/SplashScreen.jsx").replace(/\s/g, "");
+  // Se exige el temporizador QUE LO APAGA, no un `setTimeout` cualquiera: el archivo tiene un
+  // segundo anidado —el que llama a `onFinish` tras el fundido— y buscar la palabra suelta daba
+  // por bueno un splash al que le hubieran quitado la salida. Comprobado mutando: con el
+  // `includes` flojo, borrar el temporizador de verdad pasaba el contrato igual.
+  if (!splashSinEspacios.includes("setTimeout(()=>{setVisible(false)")) {
+    fallos.push("`SplashScreen` ya no tiene el temporizador que lo apaga: el splash se queda para siempre");
+  }
+  if (!splashSinEspacios.includes("clearTimeout(")) {
+    fallos.push("el temporizador del splash no se limpia al desmontar");
+  }
 
   check("3.1: ni el splash ni una lectura colgada pueden dejar la portada en blanco", fallos.length === 0, fallos.join(" · "));
 }

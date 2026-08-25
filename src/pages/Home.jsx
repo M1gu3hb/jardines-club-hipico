@@ -1,6 +1,5 @@
 import { useState, useEffect } from "react";
 import SplashScreen from "../components/SplashScreen";
-import BandaClasesDeBaile from '@/components/anuncios/BandaClasesDeBaile';
 import InformacionDeServicios from '@/components/avisos/InformacionDeServicios';
 import HeroSection from "../components/HeroSection";
 import CtaCotizacion from "../components/CtaCotizacion";
@@ -54,7 +53,6 @@ export default function Home() {
       return false;
     }
   });
-  const [tiempoAgotado, setTiempoAgotado] = useState(false);
   const [modalOpen, setModalOpen] = useState(false);
   const [preselectedSalon, setPreselectedSalon] = useState("");
 
@@ -67,9 +65,11 @@ export default function Home() {
   // 2. **Un `useEffect` NO CORRE EN EL PRERENDER.** El HTML del build salía con la portada
   //    montada pero sin un solo salón dentro, que es justo lo que el prerender existe para
   //    evitar. Con la caché, el guion siembra los datos y el render los encuentra ya puestos.
-  const { data: config, isSuccess: configListo } = useConfigSitio();
-
-  const configLoaded = configListo || tiempoAgotado;
+  // Solo hace falta el dato. El splash ya NO espera a que llegue —ver la nota junto a su
+  // montaje— y el resto de la portada tiene sus propios respaldos cuando `config` viene vacía:
+  // el contacto sale de `src/config/negocio.js` y las listas dicen que no cargaron en vez de
+  // inventar contenido.
+  const { data: config } = useConfigSitio();
 
   useEffect(() => {
     // TEMPORAL — la descarga del video del hero arranca AQUÍ, en el montaje, no
@@ -79,25 +79,6 @@ export default function Home() {
     precargarVideoHero();
   }, []);
 
-  /**
-   * EL SITIO ARRANCA AUNQUE LA BASE NO CONTESTE.
-   *
-   * El splash solo se monta con `configLoaded`, y `splashDone` solo lo pone el splash al terminar.
-   * Así que `configLoaded` gobernaba **todo** el render: si la petición de `ConfigSitio` no se
-   * resolvía nunca —y `fetch` no tiene tiempo límite propio, así que un socket colgado se queda
-   * colgado— el visitante se quedaba mirando un rectángulo negro indefinidamente. No un error, no
-   * un spinner: nada. Los otros dos caminos (error de PostgREST, red caída) sí resuelven, porque
-   * `list()` se traga el fallo y devuelve `[]`; el que mata es el que no resuelve.
-   *
-   * A los 2.5 s se sigue adelante con lo que haya. Eso ya no miente, porque los respaldos dejaron
-   * de inventar: sin `config`, el contacto sale de `src/config/negocio.js` —los datos verificados
-   * del negocio— y los salones dicen que la lista no cargó en vez de enseñar cinco inventados.
-   */
-  useEffect(() => {
-    if (configLoaded) return undefined;
-    const t = setTimeout(() => setTiempoAgotado(true), 2500);
-    return () => clearTimeout(t);
-  }, [configLoaded]);
 
   const openForm = (salon) => {
     setPreselectedSalon(salon || "");
@@ -132,7 +113,32 @@ export default function Home() {
         }}
       />
 
-      {!splashDone && configLoaded && (
+      {/* ══════════════════════════════════════════════════════════════════════
+        * EL SPLASH SE MONTA YA. NO ESPERA A NADIE.
+        * ══════════════════════════════════════════════════════════════════════
+        *
+        * Aquí ponía `!splashDone && configLoaded`, y eso producía el parpadeo que describió el
+        * dueño: *«metes el link y luego luego te pone el hero como un segundo, luego se quita
+        * y pasa el splash, y luego ya el hero otra vez… quita toda la ilusión, parece rota»*.
+        *
+        * LA MECÁNICA EXACTA. El HTML construido SÍ trae el splash dentro —el prerender corre
+        * con la caché de datos llena, así que `configListo` es cierto ahí—. Pero al hidratar en
+        * el navegador esa petición todavía no ha resuelto, `configListo` vuelve a ser falso, y
+        * React **quita del DOM el splash que ya estaba pintado**. Queda el hero a la vista. Un
+        * instante después llega la configuración y el splash se monta otra vez encima.
+        *
+        * De ahí la secuencia de tres tiempos: hero, splash, hero. Y no era un fallo de
+        * animación: era el orden de montaje.
+        *
+        * POR QUÉ SE PUEDE QUITAR LA CONDICIÓN. Estaba puesta para que el sitio no se quedase en
+        * un rectángulo negro si la base no contestaba — pero eso era cuando el contenido vivía
+        * DENTRO de `{splashDone && …}` y el splash gobernaba todo el render. Hoy la portada se
+        * pinta debajo del splash desde el primer byte, así que si la configuración no llega
+        * nunca, el splash termina igual a los 3,4 s y debajo ya hay una página.
+        *
+        * Lo único que aportaba `config` al splash era el logotipo, y `SplashScreen` ya tiene su
+        * respaldo: enseña el monograma JCH y cambia al logotipo en cuanto llega. */}
+      {!splashDone && (
         <SplashScreen logoUrl={config?.logoUrl} onFinish={() => {
             setSplashDone(true);
             try {
@@ -177,9 +183,14 @@ export default function Home() {
               logoUrl={config?.logoUrl}
             />
 
-            {/* El anuncio de la academia, en franja fina. Va justo aquí por orden del
-                dueño: después del hero y antes de las cifras. Ver `BandaClasesDeBaile`. */}
-            <BandaClasesDeBaile />
+            {/* AQUÍ IBA EL ANUNCIO DE LAS CLASES DE BAILE. Retirado el 2026-08-25 a
+                petición del dueño: *«quítalo por el momento, no me gusta cómo se ve, me lo
+                imaginé diferente»*.
+
+                No se borró nada: `src/components/anuncios/BandaClasesDeBaile.jsx` sigue ahí
+                con su imagen y su respaldo dibujado, y la imagen sigue en
+                `public/media/img/anuncio-clases-de-baile.png`. Para devolverlo: importarlo y
+                ponerlo de vuelta en esta línea. */}
 
             {/* LAS CIFRAS, PEGADAS AL HERO.
               *
