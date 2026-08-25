@@ -123,6 +123,25 @@ nombre que hoy confunde a la gente.
 | **La forma ovalada del campo** | Es la pista de equitación |
 | **Las caballerizas** | Siguen en pie, unas **25**. Hoy son **bodega** y están **cerradas al público** |
 
+### Quién fundó y quién opera hoy
+
+- **Fundadores: los abuelos** del dueño actual.
+- **Hoy lo operan su papá y él.**
+- La familia se apellida **Huerta**, y eso **sí** se puede publicar — lo confirmó
+  expresamente: *«la familia Huerta, eso sí»*.
+
+> 🔒 **LOS NOMBRES COMPLETOS NO SE ESCRIBEN AQUÍ, Y NO ES UN DESCUIDO.**
+>
+> El dueño los dio de viva voz y a la vez dudó: *«no sé si esté bien que los pongas, la
+> verdad»*. Son **nombres completos de personas reales** —dos de ellas mayores, y no fueron
+> ellas quienes los dieron— y **este repositorio es el del sitio público**: escribirlos en un
+> archivo versionado los publica, aunque la web nunca los muestre. Y un commit no se borra
+> con la misma facilidad con la que se escribe.
+>
+> Así que la página habla de **«la familia Huerta»**, que es lo que él autorizó sin dudar, y
+> de **«los abuelos»** y **«su papá»** sin nombrarlos. Si más adelante quiere los nombres,
+> hacen falta dos cosas: que lo diga sin dudar, y **el permiso de las personas nombradas**.
+
 ### El cambio de rumbo
 
 Empezaron a rentar el lugar para eventos, y *«el rumbo fue cambiando y se evolucionó a un salón
@@ -286,6 +305,37 @@ real por ese flujo — `jardines.accesos` tiene 0 filas.
 
 ---
 
+## 12.bis · SECCIÓN DE ANUNCIOS — pedida, y hay que dejarla LISTA Y VACÍA
+
+> *«Necesitamos una sección de avisos, de próximamente o cosas así. Una sección de publicidad
+> lista ya, porque a veces hacemos anuncios. Que se vean bien, amplios, con imágenes.»*
+
+**El caso concreto que viene:** van a abrir una **academia de clases de baile en el Salón de
+los Espejos**. Ya tienen profesores y logística; **faltan horarios y precios**. Por eso:
+
+> ⛔ **NO se publica nada de las clases de baile todavía.** *«Cuando te diga lo metes, aún
+> no.»* Publicar una academia sin horarios ni forma de inscribirse genera preguntas que nadie
+> puede contestar.
+
+### Lo que sí se construye ahora
+
+La misma receta que funcionó con los tipos de evento: **la pieza se construye, nace apagada, y
+se enciende desde el panel el día que haya contenido.** Sin tocar código y sin esperar a nadie.
+
+| Pieza | Estado |
+|---|---|
+| Tabla `jardines.anuncios` con `activo`, vigencia, imagen y enlace | por construir |
+| Página `/avisos` | por construir |
+| Bloque en la Home, que **desaparece si no hay ninguno activo** | por construir |
+
+**Ya existe algo parecido y hay que no duplicarlo:** `config_sitio` tiene
+`proximamente_titulo`, `proximamente_descripcion` y
+`proximamente_imagen_url`, que alimentan `ProximamenteCartel` y
+`ProximamenteModal`. Eso da **un solo aviso**. Lo que pide el dueño son **varios**,
+así que la tabla nueva lo sustituye y el cartel viejo pasa a leer de ella.
+
+---
+
 ## 12. LO QUE SIGUE PENDIENTE
 
 | # | Qué falta | Bloquea |
@@ -296,3 +346,5 @@ real por ese flujo — `jardines.accesos` tiene 0 filas.
 | 4 | **Fotos propias de boda y de XV** | Publicar esas dos páginas con material real |
 | 5 | **Confirmar la redacción del portal/QR** | El bloque de §11 |
 | 6 | **Encender Web Analytics en Vercel** | Medir si el rediseño sirvió |
+| 7 | **Horarios y precios de la academia de baile** | Publicar ese aviso |
+| 8 | **Decidir si se publican los nombres de los fundadores** (y pedirles permiso) | El cierre de `/nosotros` |
