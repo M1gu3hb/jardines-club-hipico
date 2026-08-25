@@ -15,7 +15,7 @@
 | Rama | **`redesign/sitio-publico-v2`** — todo el trabajo vive aquí |
 | `main` | **`ad91904`, INTACTO.** No se mergea ni se despliega a producción (§86 del encargo) |
 | Preview | Automático en cada push. **Detrás del login de Vercel** — el dueño entra, nadie más |
-| Fase actual | **FASE 1** cerrándose · siguiente **FASE 2** |
+| Fase actual | **FASE 2** en curso · FASE 1 pendiente solo de la investigación de competencia |
 
 ### Commits de esta rama, en orden
 
@@ -23,7 +23,26 @@
 a784ca2  FASE 0: el plan del rediseño entra al repo, en su propia rama
 ef5565c  FASE 0: medicion encendida, que hasta hoy no habia ninguna
 b2a3033  FASE 1: el mapeo de servicios encuentra que las dos tablas estan cruzadas
+f4169d0  FASE 1: bitacora de estado, y las cuatro respuestas del dueño
+52647ff  FASE 2: el sitio dejaba de ser suyo en los metadatos
 ```
+
+### FASE 2 — avance punto por punto (los 9 del `07-FASES.md`)
+
+| # | Punto | Estado |
+|---|---|---|
+| 1 | Corregir capacidades rotas | ⛔ **BLOQUEADO** — necesita al dueño (§ abajo) |
+| 2 | Migraciones `sec_30/31/32` | ⛔ **BLOQUEADO** — escribe en la base de producción |
+| 3 | Routing multipágina | ⬜ siguiente |
+| 4 | Layout base (nav, breadcrumbs, footer) | ⬜ |
+| 5 | `<head>` por ruta | ⬜ |
+| 6 | Bug del dominio ajeno | ✅ **`52647ff`** |
+| 7 | Prerender + sitemap + robots | ⬜ |
+| 8 | `rewrites` de `vercel.json` | ⬜ |
+| 9 | 404 real | ⬜ |
+
+**Los puntos 3-5 y 7-9 se pueden hacer sin la base**, con las rutas estáticas. Las dinámicas
+(`/espacios/:slug`, `/eventos/:slug`) esperan a las migraciones.
 
 ---
 
@@ -109,6 +128,39 @@ Ninguno es opinión: todos salieron de leer el código o la base.
 
 ---
 
+## 3.bis · LOS DOS BLOQUEOS DE LA FASE 2 — datos exactos
+
+### A · Las capacidades no cuadran entre el texto y los números
+
+`jardines.salones` tiene DOS fuentes de capacidad y **se contradicen**. El texto es lo que el
+sitio enseña hoy; los números son lo que usaría el comparador y «Encuentra tu espacio».
+
+| Espacio | Texto que se publica | `capacidad_min` | Problema |
+|---|---|---|---|
+| **Jardines** | 400-600 personas | **`null`** | El espacio más grande **queda fuera de todo filtro numérico** |
+| **Salón de los Espejos** | 300-400 personas | **150** | El comparador y la ficha dirían cosas distintas |
+| **Espacio Nocturno (Eclipse)** | 80-120 personas | **50** | Igual |
+| **Estancias (Bungalos)** | — | — | Es hospedaje, no capacidad de evento |
+
+**La pregunta al dueño, y no se puede inventar (§79 del encargo):** ¿el número menor es el
+mínimo REAL con el que se puede rentar el espacio, o es un dato viejo mal cargado? Cambia la
+respuesta del buscador: si Espejos admite de verdad 150 personas, tiene que salir cuando
+alguien busque 150; si no, recomendarlo sería mentir.
+
+Y falta el rango de **Jardines**, que hoy no existe en números.
+
+### B · Las migraciones escriben en la base de PRODUCCIÓN
+
+El código vive en una rama, pero **la base es una sola y la comparte el sitio en vivo** (y Vero,
+en su propio schema). `sec_30/31/32` añaden columnas a `salones` y la tabla `tipos_evento`.
+
+Son **aditivas y anulables** —el sitio actual sigue funcionando sin ellas— pero siguen siendo
+una escritura en producción, y la regla del dueño es preguntar antes. **No se aplican sin su sí.**
+
+Cuando se apliquen: `sec_27` ya no concede permisos solos, así que toda tabla nueva necesita su
+`GRANT` explícito y hay que **comprobar que `anon` puede leerla**, no suponerlo.
+
+---
 ## 4. Reglas que no se rompen en esta rama
 
 - **Producción no se toca.** Sin merge a `main`, sin deploy de producción, sin tocar aliases.
