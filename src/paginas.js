@@ -32,8 +32,9 @@ export const CARGADORES = {
   'clases-de-baile': () => import('@/pages/ClasesDeBaile'),
   'como-funciona': () => import('@/pages/ComoFunciona'),
   'preguntas-frecuentes': () => import('@/pages/PreguntasFrecuentes'),
-  ubicacion: () => import('@/pages/Ubicacion'),
   contacto: () => import('@/pages/Contacto'),
   cotizar: () => import('@/pages/Cotizar'),
-  nosotros: () => import('@/pages/Nosotros'),
+  // `nosotros` esta APARCADA por decision del dueno (2026-08-25): sin ruta y sin carga
+  // perezosa. El archivo sigue en `src/pages/Nosotros.jsx` con las instrucciones para
+  // revivirla. `ubicacion` se fundio con `contacto` y su archivo se borro.
 };

@@ -84,8 +84,8 @@ Cada uno termina con su auditoría. `[ ]` pendiente · `[x]` hecho y auditado.
       porque el que había mandaba a `/amenidades` y rompía el patrón de los otros tres.
 - **Auditoría:** recorrer la portada entera y comprobar orden, enlaces y destinos.
 
-### PASO 6 · Las tarjetas de salón, como estaban
-- [ ] Recuperar el diseño del sitio actual: marco dorado, «Ver detalles», el número de personas
+### PASO 6 · Las tarjetas de salón, como estaban  ✅
+- [x] Recuperar el diseño del sitio actual: marco dorado, «Ver detalles», el número de personas
       en pequeño. Sobre `main`, no de memoria.
 - **Auditoría:** comparar contra el sitio en producción, lado a lado.
 
@@ -154,3 +154,9 @@ entra en el encargo del rediseño.
 
 Validado por mutación antes de revertirlo: sin el `import`, el lint falla con
 `'CtaFinal' is not defined`.
+
+**Segundo agujero del mismo tipo:** `src/paginas.js` mapea cada ruta a un `import()` dinámico
+**por cadena de texto**. Al borrar `pages/Ubicacion.jsx` el mapa siguió apuntando ahí y ni el
+lint ni el `typecheck` dijeron nada — lo cazó el build. Un contrato que compruebe que cada
+clave de `paginas.js` tiene su archivo, y que cada ruta de `rutas.js` tiene su clave, cerraría
+esto antes. Es repo-local, así que no arrastra el problema de los archivos compartidos.
