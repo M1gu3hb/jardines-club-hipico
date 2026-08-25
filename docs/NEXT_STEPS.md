@@ -1,5 +1,29 @@
 # NEXT_STEPS.md
 
+## 🔄 EL REDISEÑO — lo que sigue (2026-08-24)
+
+### Lo que depende del dueño y bloquea contenido
+
+| # | Qué | Desbloquea |
+|---|---|---|
+| 1 | **Los menús de los proveedores** | El detalle de alimentos. Hoy la web nombra las opciones sin un solo platillo, porque inventarlos está prohibido |
+| 2 | **Etiquetar las 69 fotos** (~media hora) | Filtros de galería, fotos por espacio, fotos de cada evento, `alt` y las imágenes al compartir |
+| 3 | **Encender Web Analytics** en el panel de Vercel | Medir si el rediseño sirvió. Sin línea base no hay forma de saberlo |
+| 4 | **Las 54 preguntas** de `rediseño-sitio-web/15-PREGUNTAS-ABIERTAS.md` | Cada respuesta cierra un hueco concreto |
+| 5 | **¿Se retira `StaggeredMenu`?** | Quedó en el repo sin usar. Es una pieza con carácter y retirarla es decisión suya |
+| 6 | **¿Deploy Hook?** | Que guardar en el panel dispare un rebuild. Sin él, el HTML prerenderizado no cambia hasta el siguiente despliegue |
+
+### Lo que sigue en código
+
+- **FASES 4-6:** ampliar `/espacios`, `/eventos` y `/galeria` con lo que las fotos etiquetadas
+  permitan.
+- **FASE 7:** el formulario más extenso, con la columna `contexto` en `solicitudes` hecha en
+  condiciones. Hoy lo elegido viaja dentro del campo libre para no tocar la RPC, que es la
+  única vía de escritura pública que existe.
+- **FASE 9:** SEO local, ficha de Google y directorios.
+- **Pendiente de la FASE 1:** la investigación de competencia (`10-COMPETENCIA-DETALLE.md`).
+
+---
 ## ⏸ LO QUE ESTÁ PENDIENTE DE UNA PERSONA — 2026-08-24
 
 La separación en tres aplicaciones está terminada y desplegada, pero **cinco casillas no se

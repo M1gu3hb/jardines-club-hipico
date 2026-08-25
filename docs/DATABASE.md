@@ -74,6 +74,60 @@ que se hizo el seed inicial (histórico). **Si Supabase no responde, el sitio se
 
 ---
 
+## A.bis Lo que añadió el rediseño (2026-08-24)
+
+### `jardines.tipos_evento` — nueva (`sec_31`)
+
+Una fila por tipo de evento. Alimenta `/eventos` y `/eventos/{slug}`.
+
+`activo` es la pieza clave: **una fila apagada no se enlaza ni entra en el sitemap**. Se
+enciende cuando tiene contenido propio real. Hoy hay 5 encendidas (bodas, xv-anos, infantiles,
+corporativos, nocturnos) y `cumpleanos` apagada, porque no se escribió su contenido.
+
+### `jardines.anuncios` — nueva (`sec_33`, corregida por `sec_34`)
+
+Avisos con vigencia (`desde`/`hasta`), imagen, enlace y `destacado`. **Nace vacía.**
+
+> ⚠️ **Su política de lectura es distinta al resto y a propósito.** En las demás tablas de
+> contenido la política es `using (true)` y el filtro por `activo` lo pone el frontend. Aquí
+> **el filtro vive en la política**: un borrador no es legible por `anon` ni consultando la
+> tabla a mano.
+>
+> Y hay dos políticas de lectura, no una: la de `anon` **no llama a ninguna función**. La
+> primera versión llamaba a `jardines.is_admin()` para que el panel viera los borradores, pero
+> `anon` **no tiene EXECUTE** sobre esa función y Postgres evalúa la política entera: toda
+> lectura pública moría con `permission denied for function is_admin`.
+
+### Columnas nuevas en `jardines.salones` (`sec_30`)
+
+`slug` · `tipo_espacio` · `capacidad_maxima_real` · `capacidad_hospedaje` ·
+`eventos_ideales` · `servicios_relacionados` · `preguntas` · `datos_rapidos` ·
+`seo_title` · `seo_description` · `og_image`
+
+> **`capacidad_min` y `capacidad_max` significan RECOMENDADO, no límite.** Está escrito en un
+> `COMMENT` de las propias columnas. `capacidad_maxima_real` es lo que de verdad cabe: Jardines
+> se anuncia como 600 y admite ~1 000.
+
+> **`slug` quedó ANULABLE a propósito.** El panel del CRM inserta salones sin enviarlo; un
+> `not null` habría reventado esa inserción. Sin slug, simplemente no hay página pública.
+
+### Columnas nuevas en `jardines.galeria` (`sec_32`)
+
+`alt` · `salon_id` · `tipo_evento_slug` · `destacada`. Las claves foráneas van con
+`on delete set null` y no `cascade`: borrar un salón del panel no puede llevarse por delante
+sus fotos.
+
+> **Están vacías.** Etiquetar las 69 piezas es trabajo humano y desbloquea a la vez los filtros
+> de la galería, las fotos por espacio, las de cada evento y las imágenes de Open Graph.
+
+### El trap de los permisos, que aplica a TODA columna nueva
+
+Desde `sec_27` los permisos de este esquema son **por columna**. Una columna nueva nace **sin
+permiso para `anon`**: el sitio la lee como `null` **sin un solo error**. Cada migración lleva
+su `GRANT` explícito, y la comprobación se hace **desde el rol `anon`**, no desde el rol que
+aplica migraciones.
+
+---
 ## B. Operación del evento (privado, RLS por dueño)
 
 ### Evento → `eventos` (tabla central, 31 columnas)

@@ -1,5 +1,33 @@
 # ESTADO.md — dónde está el proyecto, sin optimismo
 
+> ## 🔄 REDISEÑO EN CURSO — rama `redesign/sitio-publico-v2` (2026-08-24)
+>
+> **`main` está INTACTO en `ad91904` y no se ha desplegado nada de esto.** Todo el rediseño
+> vive en su rama, tal como pidió el dueño (§86 del encargo).
+>
+> El sitio pasó de **una** página a **26 rutas prerenderizadas**. Lo que está hecho:
+>
+> | Fase | Qué |
+> |---|---|
+> | 0 | Medición encendida (`@vercel/analytics`). **Falta que el dueño active el interruptor en Vercel** |
+> | 1 | Inventario, mapeo de servicios y bitácora. Pendiente la investigación de competencia |
+> | 2 | Migraciones `sec_30`–`sec_32`, enrutado multipágina, `<head>` por ruta, prerender, `sitemap.xml`, `robots.txt` y 404 real |
+> | 3 | Portada reconstruida como distribuidor; navegación unificada |
+> | — | Tablero de anuncios (`sec_33`/`sec_34`), vacío y listo |
+> | — | Contenido del negocio: 7 693 palabras y 83 preguntas, verificadas en dos rondas |
+>
+> **Lo que hay que saber para seguir:**
+>
+> · `rediseño-sitio-web/12-BITACORA.md` es el documento de estado del rediseño.
+> · `rediseño-sitio-web/14-RESPUESTAS-NEGOCIO.md` **manda sobre cualquier texto del sitio**.
+> · `rediseño-sitio-web/15-PREGUNTAS-ABIERTAS.md` son las 54 preguntas que quedaron para el dueño.
+>
+> **La línea base de `typecheck` bajó de 9 a 7** al retirar el menú de anclas.
+>
+> **El prerender congela el HTML en el build:** un cambio en el panel no se ve hasta el
+> siguiente despliegue. Lo resuelve un Deploy Hook, que está preguntado al dueño.
+
+---
 > **2026-08-24** · tres aplicaciones · <https://jardines-club-hipico.vercel.app>
 >
 > **El código que corre en producción es el commit `8f7fe29`**, subido por el deployment

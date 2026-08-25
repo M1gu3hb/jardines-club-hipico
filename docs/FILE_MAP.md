@@ -3,6 +3,58 @@
 > Reescrito el **2026-08-03**. La versión anterior describía la etapa estática (FASE-01) y ya no
 > correspondía a la realidad. Formato: archivo · qué hace · de qué depende · riesgo si se toca.
 
+## Lo que añadió el rediseño (2026-08-24, rama `redesign/sitio-publico-v2`)
+
+### El cimiento
+
+| Archivo | Qué es |
+|---|---|
+| `src/rutas.js` | **La única fuente de verdad de las rutas.** La leen el enrutador, el menú, las migas, el `sitemap.xml` y el prerender. Es dato puro —sin JSX ni imports— para que los guiones de Node lo importen sin inventarse una segunda lista |
+| `src/paginas.js` | Clave de ruta → el módulo que la pinta. Un mapa de FUNCIONES: el navegador se lo pasa a `lazy`, el prerender las ejecuta y espera |
+| `src/ArbolDeRutas.jsx` | El árbol SIN el enrutador, compartido por el navegador y el prerender. **Se llamaba `Rutas.jsx` y colisionaba con `rutas.js` en Linux** |
+| `src/entrada-servidor.jsx` | Pinta una ruta a HTML en el build |
+| `src/config/sitio.js` | La dirección del sitio, en un solo sitio. La lee el navegador **y** `vite.config.js` |
+| `src/lib/Cabecera.jsx` | El `<head>` por ruta, sin dependencias nuevas. Funciona en el navegador y en el prerender |
+| `src/lib/datos.js` | Todas las lecturas, con caché compartida |
+| `src/lib/capacidad.js` | **Cómo se decide si un espacio sirve.** El mínimo NUNCA descarta |
+| `src/lib/servicios.js` | El reparto de las dos tablas cruzadas, por lo que cada fila ES |
+| `src/lib/sugerencias.js` | Qué amenidades proponer según el tipo de evento |
+| `scripts/prerender.mjs` | 26 rutas a HTML + `sitemap.xml` + `robots.txt` + `404.html` |
+
+### Páginas (`src/pages/`)
+
+`Espacios` · `EspacioDetalle` · `Eventos` · `EventoDetalle` · `Servicios` · `Amenidades` ·
+`Galeria` · `Avisos` · `ComoFunciona` · `PreguntasFrecuentes` · `Ubicacion` · `Contacto` ·
+`Cotizar` · `Nosotros` · `NoEncontrada`
+
+### Componentes nuevos
+
+| Carpeta | Qué |
+|---|---|
+| `src/components/navegacion/` | `BarraNavegacion`, `Migas`, `PieDeSitio`, `Pagina`, `BloqueTexto` |
+| `src/components/home/` | `QueEstasPlaneando`, `EspaciosDestacados`, `Diferenciadores`, `BloqueAvisos`, `VerTodo` |
+| `src/components/espacios/` | `GaleriaEspacio` |
+| `src/components/formulario/` | `Sugerencias` |
+
+### Textos (`src/data/`)
+
+`textos-nosotros.js` · `textos-servicios.js` · `textos-como-funciona.js` · `preguntas.js`
+
+Son la prosa que explica el NEGOCIO, no fichas. Las fichas viven en la base, donde el dueño
+las edita. Todo sale de `rediseño-sitio-web/14-RESPUESTAS-NEGOCIO.md`, **que manda sobre
+cualquier texto del sitio**.
+
+### Retirados
+
+| Archivo | Por qué |
+|---|---|
+| `src/pages.config.js` | Resto de cuando esto era una landing. Las rutas salen de `rutas.js` |
+| `src/lib/PageNotFound.jsx` | Era común a los tres repos. Aquí nace `src/pages/NoEncontrada.jsx`, que lista las secciones del sitio — algo que no aplica al portal ni al CRM. Declarado en `propios` del manifiesto |
+
+> `src/components/StaggeredMenu.jsx` **sigue en el repo pero YA NO SE USA.** La FASE 3 unificó
+> la navegación. Es una pieza con carácter y retirarla del todo es decisión del dueño.
+
+---
 ## Raíz
 
 | Archivo | Qué hace | Riesgo |

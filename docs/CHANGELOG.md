@@ -1,5 +1,50 @@
 # CHANGELOG.md
 
+## 2026-08-24 — El rediseño: de una landing a un sitio (rama `redesign/sitio-publico-v2`)
+
+**No desplegado.** `main` sigue en `ad91904`.
+
+### Base de datos
+
+| Migración | Qué |
+|---|---|
+| `sec_30` | 11 columnas en `salones` (slug, tipo, tope real, SEO, datos rápidos, preguntas). Los 8 slugs a mano. **Corrige las 3 capacidades falsas** |
+| `sec_31` | Tabla `tipos_evento`, 6 filas nacidas apagadas |
+| `sec_32` | `galeria` admite etiquetas: `alt`, `salon_id`, `tipo_evento_slug`, `destacada` |
+| `sec_33` | Tabla `anuncios` con vigencia. Nace vacía |
+| `sec_34` | **Corrige un fallo de `sec_33`**: la política llamaba a `is_admin()`, que `anon` no puede ejecutar, y la tabla era ilegible para el sitio |
+
+**El hallazgo de fondo:** `capacidad_min` **nunca fue un mínimo de renta**. Es una
+recomendación estética, y el negocio renta por debajo rellenando con salitas. Un comparador
+que descartara por ese número rechazaría rentas que hoy se aceptan. Queda escrito en un
+`COMMENT` de la propia base.
+
+### El sitio
+
+- **26 rutas prerenderizadas**, cada una con su HTML, su `<head>` y su contenido. Antes,
+  cualquier lector que no ejecutara JavaScript —WhatsApp, Facebook, X— veía un `<div>` vacío.
+- `sitemap.xml`, `robots.txt` y **404 real**: se retiró el `rewrites` atrapatodo de
+  `vercel.json`, que convertía cualquier dirección inventada en un 200.
+- Portada reconstruida como distribuidor: enlaza 20 rutas. Navegación unificada.
+- El formulario pregunta **«¿cómo imaginas tu evento?»** y **sugiere amenidades** según el tipo.
+
+### Cinco fallos que solo aparecieron al ejecutarlo
+
+1. **La portada entera estaba detrás del splash**: sin JavaScript, la página más compartida
+   del sitio estaba en blanco.
+2. Cada página interior **heredaba el `og:url` y el título de la portada**.
+3. `%VITE_SITE_URL%` no se sustituía en desarrollo: Vite corre antes que los plugins.
+4. `@/Rutas` y `@/rutas` diferían **solo en una mayúscula**: habría reventado en Vercel (Linux).
+5. El prerender **se envenenaba a sí mismo** y escribía 20 páginas con el cuerpo vacío.
+
+### Contenido
+
+7 693 palabras y 83 preguntas frecuentes, de la entrevista al dueño. Pasaron por una
+verificación adversaria que encontró **80 afirmaciones sin respaldo, 33 frases vetadas y 41 de
+relleno**, una ronda de corrección y una segunda verificación. Ninguna de esas 154 marcas
+llegó a la base. Comprobado sobre `dist/`: **cero cifras de dinero en las 26 páginas**.
+
+---
 ## 2026-08-24 — La separación: un repo se convierte en tres
 
 Siete fases entre el 23 y el 24 de agosto. El proyecto pasó de **un** repositorio que servía el
