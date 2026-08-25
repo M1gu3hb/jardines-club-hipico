@@ -5,6 +5,7 @@ import { pagesConfig } from './pages.config'
 import { BrowserRouter as Router, Route, Routes } from 'react-router-dom';
 import PageNotFound from './lib/PageNotFound';
 import ErrorBoundary from '@/components/ErrorBoundary';
+import { Analytics } from '@vercel/analytics/react';
 
 /**
  * SITIO PÚBLICO — aplicación independiente.
@@ -59,6 +60,11 @@ function App() {
         </Routes>
       </Router>
       <Toaster />
+      {/* MEDICION. Hasta hoy el sitio no medía NADA: sin línea base no hay forma de saber
+          si el rediseño sirvió. Va al mismo origen (`/_vercel/insights/*`), así que la CSP
+          actual —`script-src 'self'`, `connect-src 'self'`— ya lo cubre y no hay que
+          abrirla. Falta encenderla en el panel de Vercel para que empiece a registrar. */}
+      <Analytics />
     </QueryClientProvider>
     </ErrorBoundary>
   )
