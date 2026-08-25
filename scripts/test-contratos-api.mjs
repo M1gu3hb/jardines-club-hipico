@@ -1446,6 +1446,41 @@ zona("comun");
 }
 
 
+// ---------------------------------------------------------------- finales de linea
+zona("comun");
+{
+  // NINGUN ARCHIVO DE TEXTO PUEDE TENER CRLF, y esto no es cosmetica.
+  //
+  // `.gitattributes` fija `eol=lf`, asi que git normaliza al commitear. Pero el manifiesto de
+  // `scripts/compartidos.json` hashea los bytes del ARBOL DE TRABAJO: si un archivo se escribe
+  // con CRLF en Windows, su sha se registra con CRLF, y en un clon limpio —donde llega en LF—
+  // el contrato de compartidos falla sin que nada haya divergido de verdad.
+  //
+  // Ya paso una vez y costo caro: al clonar el repo de la web en una maquina Windows limpia,
+  // 269 de 281 archivos llegaron en CRLF y cinco contratos fallaron en falso, acusando a
+  // simbolos que si estaban. Un contrato que acusa a codigo correcto es peor que no tenerlo.
+  const EXT = /\.(js|jsx|mjs|ts|tsx|json|md|css|html|sql|txt|yml|yaml)$/i;
+  const sospechosos = [];
+  const recorrer = (dir) => {
+    for (const f of leerDir(dir)) {
+      if (f === "node_modules" || f === ".git" || f === "dist" || f === "media") continue;
+      const ruta = dir === "." ? f : dir + "/" + f;
+      let esDir = false;
+      try { leerDir(ruta); esDir = true; } catch { esDir = false; }
+      if (esDir) { recorrer(ruta); continue; }
+      if (!EXT.test(f)) continue;
+      if (leer(ruta).includes("\r\n")) sospechosos.push(ruta);
+    }
+  };
+  recorrer(".");
+  check(
+    "finales de linea: ningun archivo de texto lleva CRLF (rompiria el manifiesto en un clon limpio)",
+    sospechosos.length === 0,
+    sospechosos.slice(0, 5).join(" · "),
+  );
+}
+
+
 // ---------------------------------------------------------------- salida
 
 // META-CONTRATO DEL REPARTO — FASE 1, punto 5 del plan de independización.
