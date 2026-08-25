@@ -60,6 +60,25 @@ export default function Galeria() {
 
         {!isLoading && !isError && (
           <>
+            {/* LA GALERÍA NECESITA DECIR QUÉ ES.
+              *
+              * Llegar a una rejilla de sesenta y nueve fotos sin una línea de contexto deja al
+              * visitante mirando imágenes sueltas sin saber qué está viendo ni qué hacer
+              * después. Dos párrafos y un camino de salida convierten «mirar fotos» en «esto es
+              * el sitio donde puede ser mi boda». */}
+            <div className="mb-12 max-w-3xl space-y-4 text-base font-light leading-[1.85] text-white/55">
+              <p>
+                Todo lo que ves aquí es de Jardines Club Hípico: los jardines abiertos, los
+                salones techados, la capilla, el área de los niños y las áreas comunes por las
+                que pasan tus invitados. Ninguna es de banco de imágenes ni de otro lugar.
+              </p>
+              <p>
+                Son más de dos hectáreas y en fotos cuesta dimensionarlas. Por eso insistimos en
+                la visita: este lugar se explica caminándolo. Pero para hacerte una idea de si
+                es lo que buscas, empieza por aquí.
+              </p>
+            </div>
+
             <p className="mb-6 text-xs font-light tracking-[0.14em] uppercase text-white/30">
               {items.length} {items.length === 1 ? 'pieza' : 'piezas'}
             </p>
@@ -119,6 +138,34 @@ export default function Galeria() {
           </>
         )}
       </div>
+
+      {/* La salida. Una galería sin camino de salida deja a la gente mirando fotos hasta que
+          se aburre; con él, el que le gustó lo que vio sabe qué hacer. */}
+      <section className="border-t border-white/5">
+        <div className="mx-auto max-w-3xl px-5 sm:px-8 py-16 text-center">
+          <h2 className="text-2xl font-extralight text-white/90 sm:text-3xl">
+            ¿Te late el lugar?
+          </h2>
+          <p className="mx-auto mt-4 max-w-lg text-sm font-light leading-relaxed text-white/45">
+            Cuéntanos cómo imaginas tu evento y te decimos qué espacio le queda mejor y si tu
+            fecha está libre. O ven a verlo: la visita no cuesta nada.
+          </p>
+          <div className="mt-8 flex flex-col items-center justify-center gap-3 sm:flex-row">
+            <Link
+              to="/cotizar"
+              className="skeu-gold-btn w-full rounded-full px-7 py-3.5 text-xs font-medium tracking-[0.16em] uppercase text-[#1a1408] sm:w-auto"
+            >
+              Cotizar mi evento
+            </Link>
+            <Link
+              to="/espacios"
+              className="skeu-dark-btn w-full rounded-full px-7 py-3.5 text-xs font-medium tracking-[0.16em] uppercase sm:w-auto"
+            >
+              Ver los ocho espacios
+            </Link>
+          </div>
+        </div>
+      </section>
 
       <AnimatePresence>
         {abierto !== null && (

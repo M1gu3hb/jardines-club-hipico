@@ -1,5 +1,6 @@
 import { Link } from 'react-router-dom';
 import { motion } from 'framer-motion';
+import TextoQueAparece from '@/components/animacion/TextoQueAparece';
 import { ArrowRight } from 'lucide-react';
 import { useTodosLosTipos } from '@/lib/datos';
 import { construyeRuta, rutaPorClave } from '@/rutas';
@@ -33,7 +34,7 @@ export default function QueEstasPlaneando() {
   return (
     <section
       id="eventos"
-      aria-labelledby="que-planeas"
+      aria-label="Tipos de evento"
       className="w-full bg-[#0a0a0a] px-4 py-20 sm:px-6 md:py-28"
     >
       <div className="mx-auto w-full max-w-6xl">
@@ -52,12 +53,11 @@ export default function QueEstasPlaneando() {
             <div className="h-px w-12 bg-gradient-to-l from-transparent to-[#C9A84C]/50 sm:w-16" />
           </div>
 
-          <h2
-            id="que-planeas"
-            className="text-3xl font-extralight tracking-tight text-white/95 sm:text-5xl"
-          >
-            ¿Qué estás planeando?
-          </h2>
+          <TextoQueAparece
+            como="h2"
+            texto="¿Qué estás planeando?"
+            className="block text-3xl font-extralight tracking-tight text-white/95 sm:text-5xl"
+          />
 
           {/* La promesa, con las palabras del dueño: la primera pregunta que hace en la cita
               es «¿cómo lo imaginas?», porque así como lo imaginen, así lo construyen. */}

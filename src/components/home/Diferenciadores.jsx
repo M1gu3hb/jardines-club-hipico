@@ -1,5 +1,6 @@
 import { Link } from 'react-router-dom';
 import { motion } from 'framer-motion';
+import TextoQueAparece from '@/components/animacion/TextoQueAparece';
 import { Church, BedDouble, Baby, ShieldCheck } from 'lucide-react';
 
 /**
@@ -56,20 +57,15 @@ const COSAS = [
 export default function Diferenciadores() {
   return (
     <section
-      aria-labelledby="diferenciadores"
+      aria-label="Lo que no tiene un salón normal"
       className="w-full border-y border-white/5 bg-[#0a0a0a] px-4 py-20 sm:px-6 md:py-24"
     >
       <div className="mx-auto w-full max-w-6xl">
-        <motion.h2
-          id="diferenciadores"
-          initial={{ opacity: 0, y: 20 }}
-          whileInView={{ opacity: 1, y: 0 }}
-          viewport={{ once: true }}
-          transition={{ duration: 0.7 }}
-          className="mb-14 text-center text-3xl font-extralight tracking-tight text-white/95 sm:text-4xl"
-        >
-          Lo que no tiene un salón normal
-        </motion.h2>
+        <TextoQueAparece
+          como="h2"
+          texto="Lo que no tiene un salón normal"
+          className="mb-14 block text-center text-3xl font-extralight tracking-tight text-white/95 sm:text-4xl"
+        />
 
         <ul className="grid gap-8 sm:grid-cols-2 lg:grid-cols-4">
           {COSAS.map((c, i) => (

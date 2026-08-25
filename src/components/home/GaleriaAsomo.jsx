@@ -1,5 +1,6 @@
 import { Link } from 'react-router-dom';
 import { motion } from 'framer-motion';
+import TextoQueAparece from '@/components/animacion/TextoQueAparece';
 import { ArrowRight } from 'lucide-react';
 import { useGaleria } from '@/lib/datos';
 import { medidasDe } from '@/lib/medidas';
@@ -46,7 +47,7 @@ export default function GaleriaAsomo() {
   return (
     <section
       id="galeria"
-      aria-labelledby="galeria-asomo"
+      aria-label="Galería"
       className="w-full bg-[#080808] px-4 pt-20 sm:px-6 md:pt-28"
     >
       <div className="mx-auto w-full max-w-6xl">
@@ -65,9 +66,11 @@ export default function GaleriaAsomo() {
             <div className="h-px w-12 bg-gradient-to-l from-transparent to-[#C9A84C]/50 sm:w-16" />
           </div>
 
-          <h2 id="galeria-asomo" className="text-3xl font-extralight tracking-tight text-white/95 sm:text-5xl">
-            Míralo tú
-          </h2>
+          <TextoQueAparece
+            como="h2"
+            texto="Míralo tú"
+            className="block text-3xl font-extralight tracking-tight text-white/95 sm:text-5xl"
+          />
           <p className="mx-auto mt-5 max-w-xl text-sm font-light leading-relaxed text-white/45 sm:text-base">
             Ninguna de estas fotos es de banco de imágenes ni de otro lugar. Son de aquí.
           </p>

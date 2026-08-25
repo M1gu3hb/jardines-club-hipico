@@ -5,6 +5,7 @@ import { ENTRADILLA, BLOQUES } from '@/data/textos-nosotros';
 import { urlAbsoluta } from '@/config/sitio';
 import { useSalones } from '@/lib/datos';
 import { medidasDe } from '@/lib/medidas';
+import PistaQueSeDibuja from '@/components/animacion/PistaQueSeDibuja';
 
 /**
  * /nosotros — la página que NO EXISTÍA, y que la entrevista al dueño desbloqueó.
@@ -89,6 +90,24 @@ export default function Nosotros() {
           {BLOQUES.map((b, i) => (
             <div key={b.id}>
               <BloqueTexto id={b.id} titulo={b.titulo} texto={b.texto} />
+
+              {/* EL PLANO DEL CLUB, justo debajo del párrafo que lo cuenta.
+                *
+                * No es un adorno: es la planta real del terreno. La pista ovalada donde se daba
+                * equitación, el picadero redondo que hoy ocupa el Salón Encanto, y el tubo del
+                * centro al que se ataba la cuerda. Se dibuja solo al llegar a él.
+                *
+                * Va únicamente en el bloque de las huellas, que es donde el texto habla de esas
+                * dos formas. En otro sitio sería decoración. */}
+              {b.id === 'las-huellas' && (
+                <div className="pb-12">
+                  <PistaQueSeDibuja className="mx-auto w-full max-w-lg" />
+                  <p className="mt-3 text-center text-[10px] font-light tracking-[0.2em] uppercase text-white/25">
+                    La pista, el picadero y el tubo del centro
+                  </p>
+                </div>
+              )}
+
               {fotos[i] && <FotoDelRecinto salon={fotos[i]} />}
             </div>
           ))}

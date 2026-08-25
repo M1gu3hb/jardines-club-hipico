@@ -1,6 +1,8 @@
+import { motion } from 'framer-motion';
 import Cabecera from '@/lib/Cabecera';
 import Migas from './Migas';
 import { rutaPorClave, construyeRuta } from '@/rutas';
+import TextoQueAparece from '@/components/animacion/TextoQueAparece';
 
 /**
  * Pagina — el envoltorio que comparten todas las páginas interiores.
@@ -75,14 +77,25 @@ export default function Pagina({
 
           {/* El salto de escala entre el `eyebrow` y el título es lo que crea jerarquía sin
               tener que gritar con negritas: 10 px frente a 60. */}
-          <h1 className="mt-5 text-4xl sm:text-6xl lg:text-7xl font-extralight tracking-tight text-white/95 leading-[0.95]">
-            {encabezado}
-          </h1>
+          {/* El título entra palabra por palabra. El texto está en el HTML desde el primer
+              render —solo cambia su opacidad y su posición—, así que el prerender lo escribe
+              entero y Google lo lee igual. Ver `TextoQueAparece`. */}
+          <TextoQueAparece
+            como="h1"
+            texto={encabezado}
+            className="mt-5 block text-4xl sm:text-6xl lg:text-7xl font-extralight tracking-tight text-white/95 leading-[0.95]"
+          />
 
           {entradilla && (
-            <p className="mt-7 max-w-2xl text-base sm:text-lg font-light leading-relaxed text-white/50">
+            <motion.p
+              initial={{ opacity: 0, y: 14 }}
+              whileInView={{ opacity: 1, y: 0 }}
+              viewport={{ once: true }}
+              transition={{ duration: 0.6, delay: 0.25 }}
+              className="mt-7 max-w-2xl text-base sm:text-lg font-light leading-relaxed text-white/50"
+            >
               {entradilla}
-            </p>
+            </motion.p>
           )}
         </header>
       )}

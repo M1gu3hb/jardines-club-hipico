@@ -4,6 +4,8 @@ import { ArrowRight } from 'lucide-react';
 import { useServicios, useAmenidades } from '@/lib/datos';
 import { reparte, fotosDe } from '@/lib/servicios';
 import { medidasDe } from '@/lib/medidas';
+import NumeroQueCuenta from '@/components/animacion/NumeroQueCuenta';
+import TextoQueAparece from '@/components/animacion/TextoQueAparece';
 
 /**
  * Servicios y amenidades en la portada — dos invitaciones, no dos listas.
@@ -43,7 +45,7 @@ export default function ServiciosYAmenidades() {
   return (
     <section
       id="servicios"
-      aria-labelledby="servicios-amenidades"
+      aria-label="Servicios y amenidades"
       className="w-full bg-[#0a0a0a] px-4 py-20 sm:px-6 md:py-28"
     >
       <div className="mx-auto w-full max-w-6xl">
@@ -62,12 +64,11 @@ export default function ServiciosYAmenidades() {
             <div className="h-px w-12 bg-gradient-to-l from-transparent to-[#C9A84C]/50 sm:w-16" />
           </div>
 
-          <h2
-            id="servicios-amenidades"
-            className="text-3xl font-extralight tracking-tight text-white/95 sm:text-5xl"
-          >
-            No hace falta traer nada de fuera
-          </h2>
+          <TextoQueAparece
+            como="h2"
+            texto="No hace falta traer nada de fuera"
+            className="block text-3xl font-extralight tracking-tight text-white/95 sm:text-5xl"
+          />
           <p className="mx-auto mt-5 max-w-xl text-sm font-light leading-relaxed text-white/45 sm:text-base">
             Y si ya tienes tus proveedores, también se puede hablar. Aquí nada es obligatorio.
           </p>
@@ -77,7 +78,8 @@ export default function ServiciosYAmenidades() {
           <Invitacion
             items={servicios}
             eyebrow="Para que el evento salga"
-            titulo={`${servicios.length} servicios`}
+            cantidad={servicios.length}
+            sustantivo="servicios"
             texto="Montaje a tu medida, mesa de honor, asesoría en decoración y logística, coordinación de montaje y desmontaje, seguridad privada y sala de conferencias. Y los alimentos, con menú de tres tiempos, taquiza, barbacoa o buffet."
             enlace="/servicios"
             cta="Ver todos los servicios"
@@ -86,7 +88,8 @@ export default function ServiciosYAmenidades() {
           <Invitacion
             items={amenidades}
             eyebrow="Para que se recuerde"
-            titulo={`${amenidades.length} amenidades`}
+            cantidad={amenidades.length}
+            sustantivo="amenidades"
             texto="Inflables, futbolito, gladiador, trampolines, alberca, un mago. Cámara 360, set fotográfico, mega pantalla led, pista pixel led. Grupos musicales en vivo, chinelos y un auto clásico para las fotos."
             enlace="/amenidades"
             cta="Ver todas las amenidades"
@@ -98,7 +101,7 @@ export default function ServiciosYAmenidades() {
   );
 }
 
-function Invitacion({ items, eyebrow, titulo, texto, enlace, cta, retraso }) {
+function Invitacion({ items, eyebrow, cantidad, sustantivo, texto, enlace, cta, retraso }) {
   // Cuatro fotos de los que más tienen. Al venir ya ordenados por número de fotos, esto es
   // siempre lo mejor que hay que enseñar, sin ninguna lista de destacados que mantener.
   const asomo = items.flatMap(fotosDe).slice(0, 4);
@@ -147,8 +150,12 @@ function Invitacion({ items, eyebrow, titulo, texto, enlace, cta, retraso }) {
             {eyebrow}
           </span>
 
+          {/* El número sube desde cero al llegar a él. Los números de aquí son argumentos
+              —diecisiete amenidades, ocho espacios— y contarlos lleva la vista al DATO en vez
+              de a la decoración, que es lo contrario de lo que hace casi cualquier animación.
+              El valor real está en el HTML desde el primer render; ver `NumeroQueCuenta`. */}
           <h3 className="mt-3 text-3xl font-extralight tracking-tight text-white/95 transition-colors group-hover:text-[#C9A84C] sm:text-4xl">
-            {titulo}
+            <NumeroQueCuenta hasta={cantidad} /> {sustantivo}
           </h3>
 
           <p className="mt-4 flex-1 text-sm font-light leading-relaxed text-white/45 sm:text-base">

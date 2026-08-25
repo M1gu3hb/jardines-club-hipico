@@ -1,5 +1,6 @@
 import { Link } from 'react-router-dom';
 import { motion } from 'framer-motion';
+import TextoQueAparece from '@/components/animacion/TextoQueAparece';
 import { ArrowRight } from 'lucide-react';
 import { useSalones } from '@/lib/datos';
 import { rangoTexto, topeReal, ETIQUETA_TIPO } from '@/lib/capacidad';
@@ -51,7 +52,7 @@ export default function EspaciosDestacados() {
   return (
     <section
       id="salones"
-      aria-labelledby="espacios-destacados"
+      aria-label="Espacios destacados"
       className="w-full bg-[#080808] px-4 py-20 sm:px-6 md:py-28"
     >
       <div className="mx-auto w-full max-w-6xl">
@@ -70,12 +71,11 @@ export default function EspaciosDestacados() {
             <div className="h-px w-12 bg-gradient-to-l from-transparent to-[#C9A84C]/50 sm:w-16" />
           </div>
 
-          <h2
-            id="espacios-destacados"
-            className="text-3xl font-extralight tracking-tight text-white/95 sm:text-5xl"
-          >
-            Dónde puede pasar
-          </h2>
+          <TextoQueAparece
+            como="h2"
+            texto="Dónde puede pasar"
+            className="block text-3xl font-extralight tracking-tight text-white/95 sm:text-5xl"
+          />
 
           <p className="mx-auto mt-5 max-w-xl text-sm font-light leading-relaxed text-white/45 sm:text-base">
             Salones cerrados, jardines abiertos, una capilla y un área para los niños. Todo
