@@ -31,8 +31,8 @@ f4169d0  FASE 1: bitacora de estado, y las cuatro respuestas del dueño
 
 | # | Punto | Estado |
 |---|---|---|
-| 1 | Corregir capacidades rotas | ⛔ **BLOQUEADO** — necesita al dueño (§ abajo) |
-| 2 | Migraciones `sec_30/31/32` | ⛔ **BLOQUEADO** — escribe en la base de producción |
+| 1 | Corregir capacidades rotas | 🔄 **DESBLOQUEADO** — ver §1.5 |
+| 2 | Migraciones `sec_30/31/32` | 🔄 **AUTORIZADAS** por el dueño |
 | 3 | Routing multipágina | ⬜ siguiente |
 | 4 | Layout base (nav, breadcrumbs, footer) | ⬜ |
 | 5 | `<head>` por ruta | ⬜ |
@@ -96,6 +96,78 @@ está vacía, pero el servicio existe. Lo que el dueño confirmó, textual:
 El empleado que ayuda con la administración **no participa en esto** y no hay que involucrarlo.
 El único que revisa el Preview es el dueño, que entra con su propia cuenta de Vercel.
 **No se toca `ssoProtection`.**
+
+---
+
+## 1.5 · CAPACIDADES — la respuesta del dueño cambia el modelo (2026-08-24)
+
+**NO EXISTE UNA CAPACIDAD MÍNIMA DE RENTA.** Ese era el malentendido de fondo. Los números
+pequeños que hay en la base no son un límite: son una **recomendación estética**.
+
+Palabras del dueño: en Espejos, *«si son menos de cien personas se ve medio vacío; a partir de
+cien ya se ve bien»*. Y aun así **lo han rentado para 40-60 personas** — *«lo demás se rellena
+con sillones, con salitas»*. Lo mismo en Eclipse.
+
+Eso da la vuelta al asunto: **no es una restricción, es un servicio.** Un recinto que adapta el
+montaje a un grupo pequeño está resolviendo un problema, no poniendo una barrera.
+
+| Espacio | Recomendado | Máximo real | Nota |
+|---|---|---|---|
+| **Jardines** | **400-600** | **~1 000** | *«pueden caber hasta mil personas, fácil»* |
+| **Salón de los Espejos** | **100-400** | 400 | Por debajo de 100 se adapta con montaje lounge |
+| **Espacio Nocturno (Eclipse)** | 80-120 | 120 | Igual: se ha usado para 40-50 |
+| **Estancias (Bungalos)** | — | — | Es hospedaje, no capacidad de evento |
+
+### Lo que esto obliga a cambiar
+
+1. **`capacidad_min` y `capacidad_max` pasan a significar RECOMENDADO**, no límite. Hay que
+   decirlo en la interfaz: «Recomendado para 100-400», no «Capacidad 100-400».
+2. **Nace `capacidad_maxima_real`**: lo que de verdad cabe. Jardines se publica como 600 y
+   admite unas 1 000; sin esa columna, un evento de 800 personas se iría a la competencia
+   porque nuestra propia web dice que no cabe.
+3. **«Encuentra tu espacio» NO descarta por debajo del mínimo.** Si alguien pide 50 personas,
+   Espejos **sale igual**, con la nota de que se adapta con montaje lounge. Descartarlo sería
+   perder una renta que hoy se acepta.
+4. **El máximo sí descarta**, y ahí se usa el real, no el recomendado.
+
+> **NO PUBLICAR:** el dueño contó que hace ~15 años metieron 6 000 personas en el patio grande
+> para un evento que *«nunca vamos a volver a hacer»*. Es contexto para entender el terreno, no
+> un dato comercial. No entra en la web ni en la base.
+
+---
+
+## 1.6 · MIGRACIONES APLICADAS (2026-08-24)
+
+Las tres, con autorización expresa del dueño. Cada una lleva **precondiciones al entrar y
+verificación al salir**, y las tres pasaron su propia verificación.
+
+| Migración | Versión en la base | Qué hizo |
+|---|---|---|
+|  |  | 11 columnas en `salones`, los 8 slugs, tipo de espacio, y las 3 capacidades falsas corregidas |
+|  |  | Tabla `tipos_evento` + RLS + 4 políticas + 6 filas **apagadas** |
+|  |  | 4 columnas en `galeria` + 2 claves foráneas + 3 índices |
+
+### El trap que casi se traga todo esto
+
+Desde  **los permisos de este esquema son por columna**. Una columna nueva nace **sin
+permiso para `anon`**. El sitio la habría leído como `null` **sin un solo error en consola** —
+ni en el navegador, ni en los logs, ni en las pruebas. Habría parecido que el dato no se guardó.
+
+Por eso cada migración lleva su `GRANT` explícito y, sobre todo, por eso la comprobación final
+se hizo **desde el rol `anon`**, no desde el rol que aplica migraciones. Verificar con el rol
+privilegiado habría dado verde con el sitio roto.
+
+### Dos decisiones para no romper producción
+
+1. **`slug` quedó anulable.** El panel del CRM inserta salones sin enviar slug; un `not null`
+   habría reventado esa inserción el primer día. Sin slug simplemente no hay página.
+2. **`on delete set null` en la galería, no `cascade`.** Borrar un salón del panel no puede
+   llevarse por delante sus fotos: se pierde la etiqueta, no el patrimonio.
+
+### Nota lateral
+
+El 2026-08-25 aparece en la base `vero_seguros_viajes_y_estudiantes`, que **no es nuestra**.
+Confirma que Vero sigue en desarrollo activo sobre este mismo proyecto. No se tocó nada suyo.
 
 ---
 

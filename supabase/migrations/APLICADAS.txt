@@ -100,6 +100,18 @@
 20260805043150  jardines_sec_27_permisos_por_columna_y_defaults
 20260805045400  jardines_sec_28_bucket_sitio_admite_pdf
 
+# ── REDISENO DEL SITIO PUBLICO (2026-08-24, autorizadas por el dueno) ───────
+20260825035218  jardines_sec_30_espacios_con_pagina_propia
+20260825035353  jardines_sec_31_tipos_de_evento
+20260825035419  jardines_sec_32_galeria_etiquetable
+#
+# Las tres llevan bloque de verificacion propio y las tres pasaron. Ademas se comprobo
+# DESDE EL ROL anon que las columnas nuevas se leen: sin GRANT explicito por columna
+# habrian salido nulas sin un solo error, que es el fallo mas caro posible aqui.
+#
+# NOTA: el 2026-08-25 aparece tambien vero_seguros_viajes_y_estudiantes, que NO es
+# nuestra. Confirma que Vero sigue vivo en este mismo proyecto. No se toco.
+
 # ── PENDIENTES: escritas, ensayadas y NO aplicadas ──────────────────────────
 # Están en el repo a propósito y NO deben figurar arriba hasta que el dueño las apruebe.
 # `sec_26` y `sec_27` se aplicaron el 2026-08-05 con su visto bueno, y `sec_28` el mismo día bajo
