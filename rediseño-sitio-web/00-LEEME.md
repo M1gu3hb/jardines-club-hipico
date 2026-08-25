@@ -22,6 +22,16 @@ hospedaje, ¿tienen esa fecha?»* — en vez de empezar por *«¿qué espacios t
 
 ---
 
+## ⚠️ SI RETOMAS ESTO, EMPIEZA POR LA BITÁCORA
+
+**[`12-BITACORA.md`](12-BITACORA.md)** es el documento de ESTADO: en qué fase vamos, qué commits
+hay en la rama, qué respondió el dueño a las preguntas que no se pueden deducir del código, y qué
+hallazgos cambiaron el plan.
+
+Se escribió porque este trabajo es largo y la memoria de una sesión no sobrevive. **Léela primero
+y no te fíes de ningún recuerdo.** Después `07-FASES.md`, y de ahí el documento de la fase que toque.
+
+---
 ## Los documentos, en orden de lectura
 
 | # | Documento | Para qué |
