@@ -10,7 +10,22 @@ function getFrameUrl(n) {
 }
 
 // Altura real del viewport en móvil (evita el bug de 100vh con barras del navegador)
+/**
+ * Alto de la ventana, o un valor razonable cuando no hay ventana.
+ *
+ * Esto se llama DURANTE EL RENDER (`useRef(getVH())`), no dentro de un efecto. En el
+ * navegador da igual; en el prerender del build no hay `window`, así que lanzaba
+ * `ReferenceError` y **se llevaba por delante la portada entera**: React atrapaba el fallo en
+ * el `Suspense` de arriba y escribía la pantalla de «Cargando» en el HTML.
+ *
+ * O sea que el archivo que ve WhatsApp al compartir el sitio decía «Cargando» y nada más.
+ * El síntoma no apuntaba aquí en absoluto — apuntaba a la portada.
+ *
+ * 800 es un alto de ventana corriente. Solo se usa para la primera pintada del servidor: en
+ * cuanto el componente monta en el navegador, el efecto de `resize` lo corrige con el real.
+ */
 function getVH() {
+  if (typeof window === "undefined") return 800;
   return window.innerHeight;
 }
 

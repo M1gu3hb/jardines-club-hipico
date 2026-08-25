@@ -17,12 +17,33 @@ import { fileURLToPath, URL } from 'node:url'
  * variable falta, el peor caso es apuntar a la URL de Vercel, que sí es nuestra. El día que
  * se compre el `.mx` se cambia la variable y no se toca una línea de código.
  */
-const SITIO = process.env.VITE_SITE_URL || 'https://jardines-club-hipico.vercel.app'
+import { URL_SITIO } from './src/config/sitio.js'
 
-/** Sustituye `%VITE_SITE_URL%` en `index.html` durante el build. */
+/**
+ * Sustituye `%VITE_SITE_URL%` en `index.html`.
+ *
+ * ── `order: 'pre'` NO es opcional ───────────────────────────────────────────
+ *
+ * Vite trae su propia sustitución de `%VARIABLE%` en el HTML, y se ejecuta ANTES que los
+ * plugins normales. Como `VITE_SITE_URL` no está definida en el entorno (a propósito: su
+ * valor por defecto vive en `src/config/sitio.js`, no en un `.env`), Vite no la encontraba,
+ * avisaba y dejaba el marcador tal cual.
+ *
+ * Resultado, y solo se veía levantando el servidor: en desarrollo el `og:url` y los dos
+ * JSON-LD contenían literalmente la cadena `%VITE_SITE_URL%`. El build sí funcionaba, así
+ * que ninguna de las cuatro puertas lo habría cazado nunca.
+ *
+ * Con `order: 'pre'` este plugin sustituye primero y Vite ya no encuentra nada que avisar.
+ *
+ * El valor sale de `src/config/sitio.js`, el mismo módulo que usa el JavaScript del sitio,
+ * para que el HTML y la aplicación no puedan discrepar sobre cuál es su propia dirección.
+ */
 const urlDelSitio = () => ({
   name: 'url-del-sitio',
-  transformIndexHtml: (html) => html.split('%VITE_SITE_URL%').join(SITIO),
+  transformIndexHtml: {
+    order: 'pre',
+    handler: (html) => html.split('%VITE_SITE_URL%').join(URL_SITIO),
+  },
 })
 
 // https://vite.dev/config/

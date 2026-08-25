@@ -1,6 +1,5 @@
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
-import { base44 } from "@/api/base44Client";
 import SplashScreen from "../components/SplashScreen";
 import StaggeredMenu from "../components/StaggeredMenu";
 import SoundToggle from "../components/SoundToggle";
@@ -20,6 +19,7 @@ import ComoFunciona from "../components/ComoFunciona";
 import FaqSection from "../components/FaqSection";
 import { WHATSAPP } from "@/config/negocio";
 import { precargarVideoHero } from "@/lib/precargaHero";
+import { useSalones, useGaleria, useConfigSitio } from "@/lib/datos";
 
 // Orden = orden real del <main> de abajo. `como-funciona` y `faq` existen en el
 // DOM desde hace tiempo pero faltaban aquí: eran dos secciones de conversión
@@ -73,14 +73,26 @@ export default function Home() {
   // Al portal se entra por el menú («Portal de clientes»), como a cualquier otra ruta.
 
   const [splashDone, setSplashDone] = useState(false);
-  const [configLoaded, setConfigLoaded] = useState(false);
-  const [config, setConfig] = useState(null);
-  const [salones, setSalones] = useState([]);
-  const [galeria, setGaleria] = useState([]);
+  const [tiempoAgotado, setTiempoAgotado] = useState(false);
   const [modalOpen, setModalOpen] = useState(false);
   const [preselectedSalon, setPreselectedSalon] = useState("");
   const [activeSection, setActiveSection] = useState("inicio");
   const [proximamenteOpen, setProximamenteOpen] = useState(false);
+
+  // LAS LECTURAS PASAN POR LA CACHE COMPARTIDA, no por un `useEffect` propio.
+  //
+  // Dos motivos, y el segundo es el que obligó al cambio:
+  //
+  // 1. Estos mismos datos los quieren `/espacios`, `/galeria` y el formulario. Con un
+  //    `useEffect` aquí, ir a la portada y volver los pedía otra vez cada vez.
+  // 2. **Un `useEffect` NO CORRE EN EL PRERENDER.** El HTML del build salía con la portada
+  //    montada pero sin un solo salón dentro, que es justo lo que el prerender existe para
+  //    evitar. Con la caché, el guion siembra los datos y el render los encuentra ya puestos.
+  const { data: salones = [], isSuccess: salonesListos } = useSalones();
+  const { data: galeria = [] } = useGaleria();
+  const { data: config, isSuccess: configListo } = useConfigSitio();
+
+  const configLoaded = configListo || salonesListos || tiempoAgotado;
 
   useEffect(() => {
     // TEMPORAL — la descarga del video del hero arranca AQUÍ, en el montaje, no
@@ -88,12 +100,6 @@ export default function Home() {
     // segundos también sirven para descargar. Es idempotente, así que la llamada
     // del splash no vuelve a descargar nada. Ver `src/config/heroTemporal.js`.
     precargarVideoHero();
-
-    Promise.all([
-      base44.entities.ConfigSitio.list().then((d) => { setConfig(d[0] || {}); setConfigLoaded(true); }),
-      base44.entities.Salon.filter({ activo: true }, "orden").then(setSalones),
-      base44.entities.Galeria.list().then(setGaleria),
-    ]);
   }, []);
 
   /**
@@ -111,8 +117,8 @@ export default function Home() {
    * del negocio— y los salones dicen que la lista no cargó en vez de enseñar cinco inventados.
    */
   useEffect(() => {
-    if (configLoaded) return;
-    const t = setTimeout(() => setConfigLoaded(true), 2500);
+    if (configLoaded) return undefined;
+    const t = setTimeout(() => setTiempoAgotado(true), 2500);
     return () => clearTimeout(t);
   }, [configLoaded]);
 
@@ -164,8 +170,20 @@ export default function Home() {
         <SplashScreen logoUrl={config?.logoUrl} onFinish={() => setSplashDone(true)} />
       )}
 
-      {splashDone && (
-        <div className="min-h-screen bg-[#0a0a0a]">
+      {/* EL CONTENIDO SE PINTA SIEMPRE, TAMBIEN DEBAJO DEL SPLASH.
+         *
+         * Antes iba dentro de `{splashDone && (...)}`, asi que hasta que la animacion
+         * terminaba NO EXISTIA NADA en el documento. Para el visitante daba igual —el splash
+         * es `fixed inset-0 z-[9999]` y lo tapa todo—, pero para quien NO ejecuta JavaScript
+         * la portada del sitio estaba literalmente en blanco:
+         *
+         *   · la vista previa de WhatsApp, Facebook y X, que no ejecutan nada
+         *   · el prerender del build, que se encontraba una pagina vacia
+         *
+         * O sea que la pagina que mas se comparte de un recinto de eventos se compartia sin
+         * nada. Ahora el splash se superpone —tapa igual, la animacion no cambia, N1 intacto—
+         * y debajo hay un documento completo desde el primer byte. */}
+      <div className="min-h-screen bg-[#0a0a0a]">
           <StaggeredMenu
             items={MENU_ITEMS}
             logoUrl={config?.logoUrl}
@@ -218,8 +236,7 @@ export default function Home() {
               </svg>
             </a>
           </div>
-        </div>
-      )}
+      </div>
 
       <FormularioModal
         open={modalOpen}

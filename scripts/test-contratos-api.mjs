@@ -769,20 +769,54 @@ zona("web");
   const home = leerCodigo("src/pages/Home.jsx");
   const fallos = [];
 
-  // Qué señal gobierna el render. Se DERIVA del propio archivo en vez de fijarse.
-  const puerta = (home.match(/\{\s*!?(\w+)\s*&&\s*configLoaded\s*&&/) || [])[0] ? "configLoaded" : "";
-  if (!puerta) fallos.push("ya no se ve `configLoaded` gobernando el montaje del splash");
+  // ── LO PRIMERO, Y LO MAS FUERTE: el contenido NO depende del splash ──────
+  //
+  // El rediseño saco el cuerpo de la portada de dentro de `{splashDone && (...)}`. Mientras
+  // estuvo ahi, el documento no contenia NADA hasta que la animacion terminaba — y eso solo
+  // ocurre ejecutando JavaScript. Para la vista previa de WhatsApp, para la de Facebook y para
+  // el prerender del build, la pagina mas compartida del sitio estaba en blanco.
+  //
+  // Se afirma sobre el RETORNO, no sobre todo el archivo: `splashDone` aparece tambien en su
+  // `useState` y en el `onFinish`, y buscarlo suelto acusaria a codigo correcto.
+  const iRetorno = home.indexOf("  return (");
+  const retorno = iRetorno === -1 ? "" : home.slice(iRetorno);
+  if (!retorno) fallos.push("no se encuentra el bloque `return` de la portada");
+  else if (/\{\s*splashDone\s*&&\s*\(/.test(retorno)) {
+    fallos.push("el cuerpo de la portada vuelve a estar detras de `splashDone`: sin JavaScript la pagina queda en blanco");
+  }
 
-  // Y hay un `setTimeout` cuyo callback levanta ESA señal. El plazo concreto NO se afirma: subirlo
-  // a 4 s sigue cumpliendo la propiedad, y atarlo al número obligaba además a adivinar el
-  // espaciado —una coma final tras `2500,` rompía la afirmación sin que hubiera regresión.
-  const conTimeout = /setTimeout\(\s*\(\)\s*=>\s*setConfigLoaded\(true\)\s*,/.test(home);
-  if (!conTimeout) fallos.push("ningún temporizador levanta `configLoaded`: una lectura colgada deja la página en blanco");
+  // ── Y el splash sigue teniendo salida cuando la base no contesta ─────────
+  //
+  // La señal que gobierna el splash se DERIVA del archivo. Puede ser un estado directo o un
+  // valor compuesto: si lo es, se mira de que depende y se exige que a alguna de esas piezas
+  // la levante un temporizador. Fijar el nombre aqui es justo lo que rompio este contrato la
+  // vez anterior, cuando `configLoaded` paso a componerse de otras señales.
+  const senal = (retorno.match(/\{\s*!splashDone\s*&&\s*(\w+)\s*&&/) || [])[1] || "";
+  if (!senal) fallos.push("ya no se ve una señal gobernando el montaje del splash");
+  else {
+    // Se busca la definicion por posicion y NO con una expresion regular construida a partir
+    // de texto: escapar `\s` dentro de una cadena para meterlo en `new RegExp` es una fuente
+    // constante de errores silenciosos —un escape que se pierde deja el patron buscando la
+    // letra «s», el contrato pasa siempre y deja de afirmar nada.
+    const iDef = home.indexOf("const " + senal + " =");
+    const definicion = iDef === -1 ? "" : home.slice(iDef, home.indexOf(";", iDef));
+    const piezas = [senal, ...(definicion.match(/\w+/g) || [])];
+    const enMayuscula = (n) => "set" + n[0].toUpperCase() + n.slice(1);
+
+    // Sin espacios, la comparacion es literal y a la vez tolera cualquier formato: partir el
+    // `setTimeout` en tres lineas no es una regresion y no debe romper el contrato.
+    const homeSinEspacios = home.replace(/\s/g, "");
+    const levantada = piezas.some((n) =>
+      homeSinEspacios.includes("setTimeout(()=>" + enMayuscula(n) + "(true)"));
+    if (!levantada) {
+      fallos.push("ningun temporizador levanta `" + senal + "` ni nada de lo que depende: el splash se queda para siempre");
+    }
+  }
 
   // El temporizador se limpia (si no, deja un setState sobre un componente desmontado).
   if (!/clearTimeout\(/.test(home)) fallos.push("el temporizador no se limpia al desmontar");
 
-  check("3.1: una lectura colgada no puede dejar la portada en blanco", fallos.length === 0, fallos.join(" · "));
+  check("3.1: ni el splash ni una lectura colgada pueden dejar la portada en blanco", fallos.length === 0, fallos.join(" · "));
 }
 
 
@@ -1509,12 +1543,90 @@ zona("web");
   if (sinMarcador.length) fallos.push(`URLs absolutas sin pasar por la variable: ${sinMarcador.slice(0, 2).join(" · ")}`);
 
   if (!/transformIndexHtml/.test(vite)) fallos.push("`vite.config.js` no sustituye el marcador en el build");
-  const respaldo = (vite.match(/VITE_SITE_URL \|\| '([^']+)'/) || [])[1];
-  if (!respaldo) fallos.push("el plugin no declara un respaldo para cuando falte la variable");
+
+  // El plugin tiene que sustituir ANTES que Vite. Vite trae su propia sustitucion de
+  // `%VARIABLE%` en el HTML y corre primero: como `VITE_SITE_URL` no vive en un `.env`, no la
+  // encontraba, avisaba y dejaba el marcador literal. En desarrollo el `og:url` era la cadena
+  // `%VITE_SITE_URL%`. El build pasaba igual, asi que ninguna puerta lo veia.
+  const plugin = entre(vite, "const urlDelSitio", "})");
+  if (!/order:[^,]*'pre'/.test(plugin)) {
+    fallos.push("el plugin no declara `order: 'pre'`: Vite sustituiria antes y dejaria el marcador literal");
+  }
+
+  // El respaldo vive en `src/config/sitio.js`, que es el MISMO modulo que lee el JavaScript del
+  // sitio. Antes estaba escrito en `vite.config.js`, o sea que el HTML y la aplicacion tenian
+  // cada uno su idea de cual es su propia direccion y podian discrepar sin que nada avisara.
+  const sitio = leerCodigo("src/config/sitio.js");
+  const respaldo = (sitio.match(/\|\|\s*'(https?:\/\/[^']+)'/) || [])[1];
+  if (!respaldo) fallos.push("`src/config/sitio.js` no declara un respaldo para cuando falte la variable");
   else if (/jardinesclubhipico\./.test(respaldo)) fallos.push("el respaldo apunta al dominio ajeno");
+  if (!/URL_SITIO/.test(vite)) fallos.push("`vite.config.js` no usa `URL_SITIO`: el HTML y la aplicacion pueden discrepar");
 
   check("web: ninguna URL del sitio esta escrita a mano — sale de `VITE_SITE_URL`", fallos.length === 0, fallos.join(" · "));
 }
+
+
+// ------------------------------------- web: CADA PAGINA HABLA POR SI MISMA EN EL <head>
+zona("web");
+//
+// EL FALLO QUE ESTO IMPIDE, y se vio de verdad en el navegador antes de existir:
+//
+// `index.html` trae su propio `og:title`, su `og:url` y su `description` — los de la PORTADA.
+// Cuando una pagina interior añade los suyos SIN retirar aquellos, el `<head>` acaba con dos
+// etiquetas del mismo nombre. Y TODO rastreador lee LA PRIMERA.
+//
+// O sea: cada ficha de espacio le decia a WhatsApp y a Google el titulo y la direccion de la
+// portada, con los suyos escritos justo debajo sin que nadie los mirara. La pagina se ve
+// perfecta, no hay ningun error en consola, y ninguna de las cuatro puertas puede verlo.
+//
+// Hay que afirmarlo en LOS DOS SITIOS donde se compone un `<head>`: el navegador y el
+// prerender. Arreglar uno y olvidar el otro deja el fallo vivo justo donde mas duele —el HTML
+// del build es el que leen las vistas previas al compartir.
+{
+  const fallos = [];
+
+  // ── 1. En el navegador ────────────────────────────────────────────────
+  //
+  // Se recorta el cuerpo del bucle que crea las etiquetas y se afirma SOBRE EL: buscar
+  // "remove()" suelto en el archivo lo encontraria en la limpieza de los enlaces y pasaria
+  // igual aunque las metas se duplicaran.
+  const cabecera = leerCodigo("src/lib/Cabecera.jsx");
+  const bucle = entre(cabecera, "datos.metas.forEach", "datos.enlaces.forEach");
+  if (!bucle) fallos.push("no se encuentra el bucle que crea las etiquetas meta");
+  else {
+    const limpia = /querySelectorAll\([^)]*\)[\s\S]{0,80}?\.remove\(\)/.test(bucle);
+    if (!limpia) fallos.push("el bucle de metas no retira la etiqueta previa: quedarian dos y se lee la primera");
+    // El ORDEN, no la distancia. Retirar la vieja DESPUES de haber puesto la nueva se
+    // llevaria por delante justo la que acaba de crearse, y el `<head>` quedaria sin la
+    // etiqueta — que es una forma distinta del mismo desastre.
+    const iLimpia = bucle.indexOf("remove()");
+    const iCrea = bucle.indexOf("createElement");
+    if (iLimpia < 0 || iCrea < 0 || iLimpia > iCrea) {
+      fallos.push("la limpieza no ocurre ANTES de crear la nueva: el orden es lo que importa");
+    }
+  }
+
+  // ── 2. En el prerender ────────────────────────────────────────────────
+  const pre = leerCodigo("scripts/prerender.mjs");
+  const compone = entre(pre, "function componeDocumento", "function escribe");
+  if (!compone) fallos.push("no se encuentra `componeDocumento` en el prerender");
+  else {
+    if (!/cabecera\.metas\.forEach/.test(compone)) fallos.push("`componeDocumento` no recorre las metas de la ruta");
+    if (!/salida\s*=\s*salida\.replace/.test(compone)) fallos.push("`componeDocumento` no retira de la plantilla lo que va a sustituir");
+  }
+
+  // ── 3. Y el marcador se comprueba antes de sustituir ──────────────────
+  //
+  // `String.replace` sin coincidencia devuelve el original SIN ERROR. El guion llego a
+  // escribir veinte paginas con el `<head>` correcto y el cuerpo vacio porque uso su propia
+  // salida como plantilla y el marcador ya no estaba.
+  if (!/includes\(MARCADOR\)/.test(pre) || !/throw new Error/.test(compone || "")) {
+    fallos.push("el prerender no comprueba que el marcador exista: una sustitucion fallida pasaria en silencio");
+  }
+
+  check("web: cada pagina habla por si misma en el <head>, sin heredar el de la portada", fallos.length === 0, fallos.join(" · "));
+}
+
 
 
 // ---------------------------------------------------------------- salida

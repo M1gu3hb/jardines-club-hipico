@@ -108,9 +108,12 @@ export default function BarraNavegacion() {
           </nav>
 
           <div className="flex items-center gap-3">
+            {/* Visible SIEMPRE, también en móvil. Es el único elemento de la barra que genera
+                negocio; meterlo dentro de la hamburguesa lo entierra a dos toques. En pantalla
+                pequeña encoge, no desaparece. */}
             <Link
               to={cotizar.ruta}
-              className="skeu-gold-btn hidden sm:inline-flex items-center rounded-full px-5 py-2 text-[11px] font-medium tracking-[0.14em] uppercase text-[#1a1408] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/70"
+              className="skeu-gold-btn inline-flex items-center rounded-full px-4 py-2 text-[10px] sm:px-5 sm:text-[11px] font-medium tracking-[0.14em] uppercase text-[#1a1408] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/70"
             >
               Cotizar
             </Link>

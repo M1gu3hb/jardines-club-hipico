@@ -99,6 +99,21 @@ export default function Cabecera(props) {
     const creados = [];
 
     datos.metas.forEach((m) => {
+      // SE RETIRA LA QUE YA HUBIERA, y esto es lo que arregla un fallo silencioso de verdad.
+      //
+      // `index.html` trae su propio `og:url`, su `og:title` y su `description`: los de la
+      // portada. Al añadir los de esta ruta SIN quitar aquéllos, el `<head>` acaba con dos
+      // etiquetas del mismo nombre — y todo rastreador lee LA PRIMERA. O sea que cada página
+      // interior le estaba diciendo a WhatsApp y a Google el título y la URL de la portada,
+      // con la página correcta escrita justo debajo, sin verse.
+      //
+      // Se comprobó en el navegador: en `/espacios`, `og:url` seguía siendo la raíz del sitio.
+      // Ninguna de las cuatro puertas del proyecto puede cazar esto, porque no es un error.
+      const selector = m.name
+        ? `meta[name="${m.name}"]:not([${MARCA}])`
+        : `meta[property="${m.property}"]:not([${MARCA}])`;
+      document.head.querySelectorAll(selector).forEach((n) => n.remove());
+
       const el = document.createElement('meta');
       if (m.name) el.setAttribute('name', m.name);
       if (m.property) el.setAttribute('property', m.property);

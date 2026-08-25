@@ -43,7 +43,7 @@ const consulta = (clave, fn, extra = {}) => ({
  *
  * @param {any[]} clave
  * @param {() => Promise<any[]>} fn
- * @returns {{ data: any[] | undefined, isLoading: boolean, isError: boolean }}
+ * @returns {{ data: any[] | undefined, isLoading: boolean, isError: boolean, isSuccess: boolean }}
  */
 function useLista(clave, fn) {
   return /** @type {any} */ (useQuery(consulta(clave, fn)));
@@ -113,7 +113,7 @@ export const useAlimentos = () =>
  * Devuelve un objeto, no una lista, así que no puede pasar por `useLista`. Se anota igual,
  * por el mismo motivo: sin tipo, cada `config?.whatsappNumero` sería un error.
  *
- * @returns {{ data: any, isLoading: boolean, isError: boolean }}
+ * @returns {{ data: any, isLoading: boolean, isError: boolean, isSuccess: boolean }}
  */
 export const useConfigSitio = () =>
   /** @type {any} */ (

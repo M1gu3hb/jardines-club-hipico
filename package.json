@@ -5,12 +5,14 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
-    "build": "vite build",
+    "build": "vite build && node scripts/prerender.mjs",
     "lint": "eslint . --quiet",
     "lint:fix": "eslint . --fix",
     "typecheck": "tsc -p ./jsconfig.json",
     "preview": "vite preview",
-    "test:contratos": "node scripts/test-contratos-api.mjs"
+    "test:contratos": "node scripts/test-contratos-api.mjs",
+    "build:solo": "vite build",
+    "prerender": "node scripts/prerender.mjs"
   },
   "dependencies": {
     "@hello-pangea/dnd": "^17.0.0",
