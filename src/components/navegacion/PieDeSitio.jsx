@@ -1,5 +1,6 @@
 import { Link } from 'react-router-dom';
-import { MapPin, Phone, Mail, MessageCircle, LogIn } from 'lucide-react';
+import { MapPin, Phone, Mail, LogIn } from 'lucide-react';
+import CtaFinal from './CtaFinal';
 import { RUTAS, rutaPorClave } from '@/rutas';
 import { WHATSAPP, TELEFONO, CORREO, UBICACION, MAPA } from '@/config/negocio';
 
@@ -66,40 +67,7 @@ export default function PieDeSitio() {
 
   return (
     <footer className="relative mt-24 border-t border-[#C9A84C]/15 bg-[#080808]">
-      {/* Franja de conversión. Va ANTES del mapa del sitio a propósito: quien llega hasta
-          aquí ya leyó la página, y el paso siguiente tiene que estar antes que el índice. */}
-      <div className="border-b border-white/5">
-        <div className="mx-auto max-w-7xl px-5 sm:px-8 py-14 sm:py-16 text-center">
-          <p className="portal-eyebrow text-[#C9A84C]/70 text-[10px] tracking-[0.35em] uppercase">
-            El siguiente paso
-          </p>
-          <h2 className="mt-4 text-2xl sm:text-4xl font-extralight text-white/95 tracking-tight">
-            Cuéntanos qué estás planeando
-          </h2>
-          <p className="mt-4 mx-auto max-w-xl text-sm font-light leading-relaxed text-white/45">
-            Te decimos qué espacio le queda mejor a tu evento, si tu fecha está libre y
-            cuánto costaría. Sin compromiso.
-          </p>
-
-          <div className="mt-8 flex flex-col sm:flex-row items-center justify-center gap-3">
-            <Link
-              to={cotizar.ruta}
-              className="skeu-gold-btn w-full sm:w-auto rounded-full px-8 py-3.5 text-xs font-medium tracking-[0.16em] uppercase text-[#1a1408]"
-            >
-              Cotizar mi evento
-            </Link>
-            <a
-              href={waHref}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="skeu-dark-btn w-full sm:w-auto inline-flex items-center justify-center gap-2 rounded-full px-8 py-3.5 text-xs font-medium tracking-[0.16em] uppercase"
-            >
-              <MessageCircle size={14} aria-hidden="true" />
-              WhatsApp
-            </a>
-          </div>
-        </div>
-      </div>
+      <CtaFinal />
 
       <div className="mx-auto max-w-7xl px-5 sm:px-8 py-14">
         <div className="grid gap-12 sm:grid-cols-2 lg:grid-cols-[1.2fr_1fr_1fr]">

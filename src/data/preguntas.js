@@ -59,7 +59,7 @@ export const PREGUNTAS = [
   {
     tema: TEMAS.RECINTO,
     q: '¿Tienen hospedaje?',
-    a: 'Sí. Dentro del complejo hay tres bungalows —con salita, baño con regadera y un dormitorio con cama— y dos dormitorios completos de literas, uno de hombres y uno de mujeres. Se cobran por noche.',
+    a: 'Sí. Dentro del complejo hay tres bungalos —con salita, baño con regadera y un dormitorio con cama— y dos dormitorios completos de literas, uno de hombres y uno de mujeres. Se cobran por noche.',
   },
   {
     tema: TEMAS.RECINTO,

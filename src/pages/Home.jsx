@@ -6,7 +6,6 @@ import FormularioModal from "../components/FormularioModal";
 import ContactoSection from "../components/ContactoSection";
 import NoIncluyeSection from "../components/NoIncluyeSection";
 import ScrollAnimationSection from "../components/ScrollAnimationSection";
-import ProximamenteModal from "../components/ProximamenteModal";
 import Confianza from "../components/Confianza";
 import ComoFunciona from "../components/ComoFunciona";
 import FaqSection from "../components/FaqSection";
@@ -35,11 +34,28 @@ export default function Home() {
   //
   // Al portal se entra por el menú («Portal de clientes»), como a cualquier otra ruta.
 
-  const [splashDone, setSplashDone] = useState(false);
+  // EL SPLASH SE VE UNA VEZ Y YA.
+  //
+  // Palabras del dueño: «cada que regreso me sale el splash, a cada ratito. El splash es nada
+  // más cuando entra, una vez nada más». Y tiene razón: una presentación que se repite deja de
+  // presentar y pasa a estorbar — son tres segundos entre el visitante y lo que vino a ver,
+  // cobrados otra vez en cada vuelta al inicio.
+  //
+  // Se recuerda en `sessionStorage` y no en `localStorage` a propósito: dura lo que dura la
+  // visita. Quien vuelva mañana es, a efectos de esto, alguien que llega de nuevo.
+  const [splashDone, setSplashDone] = useState(() => {
+    if (typeof window === 'undefined') return false;
+    try {
+      return window.sessionStorage.getItem('jch:splash') === 'visto';
+    } catch {
+      // Navegación privada o almacenamiento bloqueado. Se enseña el splash: molesta menos que
+      // reventar la portada por no poder escribir una marca.
+      return false;
+    }
+  });
   const [tiempoAgotado, setTiempoAgotado] = useState(false);
   const [modalOpen, setModalOpen] = useState(false);
   const [preselectedSalon, setPreselectedSalon] = useState("");
-  const [proximamenteOpen, setProximamenteOpen] = useState(false);
 
   // LAS LECTURAS PASAN POR LA CACHE COMPARTIDA, no por un `useEffect` propio.
   //
@@ -116,7 +132,14 @@ export default function Home() {
       />
 
       {!splashDone && configLoaded && (
-        <SplashScreen logoUrl={config?.logoUrl} onFinish={() => setSplashDone(true)} />
+        <SplashScreen logoUrl={config?.logoUrl} onFinish={() => {
+            setSplashDone(true);
+            try {
+              window.sessionStorage.setItem('jch:splash', 'visto');
+            } catch {
+              /* Sin almacenamiento se repetirá; no es motivo para romper nada. */
+            }
+          }} />
       )}
 
       {/* EL CONTENIDO SE PINTA SIEMPRE, TAMBIEN DEBAJO DEL SPLASH.
@@ -151,12 +174,6 @@ export default function Home() {
             <HeroSection
               onFormClick={() => openForm("")}
               logoUrl={config?.logoUrl}
-              proximamenteActivo={config?.proximamenteActivo !== false}
-              proximamenteTexto={config?.proximamenteTextoBoton}
-              proximamenteImagenUrl={config?.proximamenteImagenUrl}
-              proximamenteTitulo={config?.proximamenteTitulo}
-              proximamenteDescripcion={config?.proximamenteDescripcion}
-              onProximamenteClick={() => setProximamenteOpen(true)}
             />
 
             {/* Primero POR QUÉ vienen, y solo después DÓNDE. Casi nadie llega pensando
@@ -240,13 +257,6 @@ export default function Home() {
         whatsappNumero={config?.whatsappNumero}
       />
 
-      <ProximamenteModal
-        open={proximamenteOpen}
-        onClose={() => setProximamenteOpen(false)}
-        imagenUrl={config?.proximamenteImagenUrl}
-        titulo={config?.proximamenteTitulo}
-        descripcion={config?.proximamenteDescripcion}
-      />
     </>
   );
 }

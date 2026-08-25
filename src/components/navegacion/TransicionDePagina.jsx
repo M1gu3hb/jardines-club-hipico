@@ -1,5 +1,5 @@
 import { useEffect, useRef } from 'react';
-import { useLocation } from 'react-router-dom';
+import { useLocation, useNavigationType } from 'react-router-dom';
 import { motion, useReducedMotion } from 'framer-motion';
 
 /**
@@ -42,6 +42,9 @@ import { motion, useReducedMotion } from 'framer-motion';
  */
 export default function TransicionDePagina({ children }) {
   const { pathname } = useLocation();
+  // El tipo de navegacion lo da React Router: PUSH, REPLACE o POP. Ver el comentario de abajo
+  // sobre por que la API del navegador NO sirve aqui.
+  const tipoDeNavegacion = useNavigationType();
   const menosMovimiento = useReducedMotion();
   const primeraVez = useRef(true);
 
@@ -57,11 +60,26 @@ export default function TransicionDePagina({ children }) {
 
     // Solo cuando la navegación fue hacia adelante. Al volver atrás, el navegador restaura la
     // posición y pisarla es quitarle al visitante el sitio donde estaba.
-    const tipo = window.performance?.getEntriesByType?.('navigation')?.[0]?.type;
-    if (tipo === 'back_forward') return;
+    //
+    // ── EL FALLO QUE ESTABA AQUÍ ────────────────────────────────────────────
+    //
+    // Antes esto miraba `performance.getEntriesByType('navigation')[0].type`. Esa API describe
+    // **cómo se cargó EL DOCUMENTO** —`navigate`, `reload`, `back_forward`— y en una aplicación
+    // de una sola página **el documento se carga UNA vez y ya**: la entrada se queda congelada
+    // para el resto de la visita y no sabe nada de los cambios de ruta.
+    //
+    // O sea que la condición no medía lo que decía medir. A quien hubiera llegado con el botón
+    // de atrás le salía `back_forward` para siempre y no volvía arriba NUNCA, en ninguna
+    // navegación posterior. El dueño lo dijo así: *«lo de que cambiaras entre secciones y te
+    // mandara hasta arriba, como que te valió, porque no lo pusiste»*. Sí estaba puesto —y no
+    // servía, que es peor, porque parecía hecho.
+    //
+    // Lo correcto es preguntárselo a React Router, que es quien hace la navegación: `POP` es
+    // atrás/adelante, y `PUSH`/`REPLACE` son ir a algún sitio nuevo.
+    if (tipoDeNavegacion === 'POP') return;
 
     window.scrollTo({ top: 0, left: 0, behavior: 'instant' });
-  }, [pathname]);
+  }, [pathname, tipoDeNavegacion]);
 
   if (menosMovimiento) return children;
 

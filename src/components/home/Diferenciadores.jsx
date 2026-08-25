@@ -13,7 +13,7 @@ import { Church, BedDouble, Baby, ShieldCheck } from 'lucide-react';
  * que viene de fuera? ¿qué hago con los niños? ¿está seguro esto?
  *
  * Los cuatro salen de la entrevista con el dueño y del contenido real del recinto. Ninguno es
- * una frase de agencia: la capilla existe y se puede rentar sola, los bungalows existen y se
+ * una frase de agencia: la capilla existe y se puede rentar sola, los bungalos existen y se
  * cobran por noche, el área infantil trae sus juegos incluidos, y el recinto está cerrado con
  * dos accesos y seguridad privada durante todo el evento.
  *
@@ -35,7 +35,7 @@ const COSAS = [
     icono: BedDouble,
     titulo: 'Hospedaje dentro',
     texto:
-      'Bungalows y dormitorios para quien viene de lejos o para quien no quiere manejar de regreso a las tres de la mañana.',
+      'Bungalos y dormitorios para quien viene de lejos o para quien no quiere manejar de regreso a las tres de la mañana.',
     a: '/espacios/estancias',
   },
   {

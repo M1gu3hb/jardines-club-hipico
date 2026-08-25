@@ -1,7 +1,6 @@
 import { motion } from "framer-motion";
 import { useEffect, useRef, useState } from "react";
 import { MapPin } from "lucide-react";
-import ProximamenteCartel from "./ProximamenteCartel";
 import { HERO_TEMPORAL } from "@/config/heroTemporal";
 import { isSoundEnabled, subscribeSoundEnabled } from "./soundSystem";
 
@@ -312,14 +311,7 @@ function HeroVideoTemporal() {
 export default function HeroSection({
   onFormClick,
   logoUrl,
-  proximamenteActivo,
-  proximamenteTexto,
-  proximamenteImagenUrl,
-  proximamenteTitulo,
-  proximamenteDescripcion,
-  onProximamenteClick,
 }) {
-  const showAnuncio = proximamenteActivo && !!onProximamenteClick;
 
   return (
     <section
@@ -402,17 +394,6 @@ export default function HeroSection({
               Si está activo, el bloque de confianza va DEBAJO del cartel
               (en variante compact) para no aplastarse. Si no, va en su
               posición amplia original. */}
-          {showAnuncio && (
-            <div className="mt-8 sm:mt-10 px-2 sm:px-0">
-              <ProximamenteCartel
-                imagenUrl={proximamenteImagenUrl}
-                titulo={proximamenteTitulo}
-                descripcion={proximamenteDescripcion}
-                textoEtiqueta={proximamenteTexto}
-                onClick={onProximamenteClick}
-              />
-            </div>
-          )}
         </motion.div>
       </div>
 
