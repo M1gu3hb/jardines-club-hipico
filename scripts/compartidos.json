@@ -207,14 +207,6 @@
         "portal",
         "crm"
       ]
-    },
-    {
-      "ruta": "vite.config.js",
-      "sha256": "0a99149126e8393308a9a53890f39f34a5f6b2644bfa05fa436264a10e6d3d87",
-      "tambienEn": [
-        "portal",
-        "crm"
-      ]
     }
   ],
   "propios": [
@@ -409,6 +401,54 @@
     {
       "ruta": "public/manifest.webmanifest",
       "motivo": "existe en otro repo pero ADAPTADO aqui"
+    },
+    {
+      "ruta": "rediseño-sitio-web/00-LEEME.md",
+      "motivo": "solo existe en esta aplicacion"
+    },
+    {
+      "ruta": "rediseño-sitio-web/01-AUDITORIA.md",
+      "motivo": "solo existe en esta aplicacion"
+    },
+    {
+      "ruta": "rediseño-sitio-web/02-INVENTARIO-CONTENIDO.md",
+      "motivo": "solo existe en esta aplicacion"
+    },
+    {
+      "ruta": "rediseño-sitio-web/03-ARQUITECTURA.md",
+      "motivo": "solo existe en esta aplicacion"
+    },
+    {
+      "ruta": "rediseño-sitio-web/04-SEO.md",
+      "motivo": "solo existe en esta aplicacion"
+    },
+    {
+      "ruta": "rediseño-sitio-web/05-MODELO-DATOS.md",
+      "motivo": "solo existe en esta aplicacion"
+    },
+    {
+      "ruta": "rediseño-sitio-web/06-DISENO-MOTION-RESPONSIVE.md",
+      "motivo": "solo existe en esta aplicacion"
+    },
+    {
+      "ruta": "rediseño-sitio-web/07-FASES.md",
+      "motivo": "solo existe en esta aplicacion"
+    },
+    {
+      "ruta": "rediseño-sitio-web/08-PENDIENTES-DE-MIGUEL.md",
+      "motivo": "solo existe en esta aplicacion"
+    },
+    {
+      "ruta": "rediseño-sitio-web/09-SEO-LOCAL.md",
+      "motivo": "solo existe en esta aplicacion"
+    },
+    {
+      "ruta": "rediseño-sitio-web/11-MAPEO-SERVICIOS.md",
+      "motivo": "solo existe en esta aplicacion"
+    },
+    {
+      "ruta": "rediseño-sitio-web/12-BITACORA.md",
+      "motivo": "solo existe en esta aplicacion"
     },
     {
       "ruta": "scripts/build-media.mjs",
@@ -968,6 +1008,10 @@
     },
     {
       "ruta": "vercel.json",
+      "motivo": "existe en otro repo pero ADAPTADO aqui"
+    },
+    {
+      "ruta": "vite.config.js",
       "motivo": "existe en otro repo pero ADAPTADO aqui"
     }
   ]

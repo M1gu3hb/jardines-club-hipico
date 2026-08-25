@@ -1481,6 +1481,42 @@ zona("comun");
 }
 
 
+// ---------------------------------------------------------------- la URL del sitio, en un solo sitio
+zona("web");
+{
+  // NINGUNA URL DEL SITIO ESCRITA A MANO EN `index.html`.
+  //
+  // Tenia `https://jardinesclubhipico.com` en el `og:url` y en los dos bloques de JSON-LD.
+  // Ese dominio NO ES NUESTRO: el `.com` y el `.com.mx` estan en manos de terceros y el propio
+  // no se ha comprado todavia.
+  //
+  // No es cosmetica. `og:url` y el `url` de un JSON-LD le dicen a Google cual es la casa
+  // oficial del negocio, asi que estabamos declarando que la nuestra es la de otro. Y cada vez
+  // que alguien compartia el sitio por WhatsApp, la tarjeta apuntaba ahi.
+  //
+  // El respaldo del plugin es el dominio de Vercel, que SI es nuestro: si la variable falta, el
+  // peor caso es apuntar a una URL propia, nunca a la ajena.
+  const html = leer("index.html");
+  const vite = leerCodigo("vite.config.js");
+  const fallos = [];
+
+  const ajenos = [...new Set([...html.matchAll(/https:\/\/(jardinesclubhipico\.[a-z.]+)/g)].map((m) => m[1]))];
+  if (ajenos.length) fallos.push(`\`index.html\` escribe a mano un dominio que no controlamos: ${ajenos.join(", ")}`);
+
+  // Cada `og:url`, `canonical` y `url`/`image` de JSON-LD tiene que salir del marcador.
+  const absolutas = [...html.matchAll(/(?:og:url" content=|"url":\s*|"image":\s*|rel="canonical" href=)"([^"]+)"/g)].map((m) => m[1]);
+  const sinMarcador = absolutas.filter((u) => /^https?:\/\//.test(u) && !u.startsWith("%VITE_SITE_URL%"));
+  if (sinMarcador.length) fallos.push(`URLs absolutas sin pasar por la variable: ${sinMarcador.slice(0, 2).join(" · ")}`);
+
+  if (!/transformIndexHtml/.test(vite)) fallos.push("`vite.config.js` no sustituye el marcador en el build");
+  const respaldo = (vite.match(/VITE_SITE_URL \|\| '([^']+)'/) || [])[1];
+  if (!respaldo) fallos.push("el plugin no declara un respaldo para cuando falte la variable");
+  else if (/jardinesclubhipico\./.test(respaldo)) fallos.push("el respaldo apunta al dominio ajeno");
+
+  check("web: ninguna URL del sitio esta escrita a mano — sale de `VITE_SITE_URL`", fallos.length === 0, fallos.join(" · "));
+}
+
+
 // ---------------------------------------------------------------- salida
 
 // META-CONTRATO DEL REPARTO — FASE 1, punto 5 del plan de independización.
