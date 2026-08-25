@@ -1,5 +1,31 @@
 # CHANGELOG.md
 
+## 2026-08-25 — El rediseño se publica
+
+`main`: `ad91904` → `201b39f`. **33 commits a producción.** El sitio pasa de una sola página a
+25 rutas prerenderizadas.
+
+### Lo que se arregló en la última ronda de revisión del dueño
+
+| Qué estaba mal | Causa |
+|---|---|
+| Todos los títulos invisibles | `whileInView` sobre palabras dentro de un `overflow: hidden` que las recortaba al 100 %: área visible cero, el observador nunca disparaba y la animación se trababa consigo misma |
+| «Encuentradóndecabetuevento» | El espacio entre palabras vivía DENTRO del `inline-block` que recorta, y un `inline-block` descarta el blanco sobrante al final de su contenido |
+| `/cotizar` no se podía desplazar | `useLockBodyScroll` con `open` permanente dejaba `<html>` en `overflow: hidden` sobre 2 567 px |
+| La portada entera se caía | `tipos.map()` sobre datos aún indefinidos: el prerender construye con la caché llena, así que el estado de carga nunca se ejecuta en el build |
+| La tipografía cambiaba con cada aparato | `theme.css` pedía `Inter` y **el sitio nunca la cargó**: ni `@font-face`, ni enlace, ni archivo. Ahora va auto-hospedada |
+| La galería llena de huecos negros | Una rejilla de celdas fijas siempre los deja. Sustituida por filas justificadas con las proporciones reales |
+| El collage salía uniforme | `medidasDe().proporcion` es la cadena CSS `"1024 / 576"`; `Number()` daba `NaN` y todo caía en 4:3 |
+| Los avisos «perdidos» | Estaban en `NoIncluyeSection`, un nombre que no dice lo que contiene |
+
+### Lo que se añadió
+
+- **Condiciones de contratación** en `/avisos`, todas salidas de la entrevista con el dueño.
+- **Seis ilustraciones** de tipo de evento y **una franja de anuncio** para las clases de baile.
+- **Esqueletos de carga** en todas las listas: ninguna sección aparece vacía mientras espera.
+- `/ubicacion` fundida con `/contacto`; `/nosotros` aparcada. Las dos con 301.
+
+
 ## 2026-08-24 — El rediseño: de una landing a un sitio (rama `redesign/sitio-publico-v2`)
 
 **No desplegado.** `main` sigue en `ad91904`.

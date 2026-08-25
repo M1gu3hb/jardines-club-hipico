@@ -1,9 +1,34 @@
 # ESTADO.md — dónde está el proyecto, sin optimismo
 
-> ## 🔄 REDISEÑO EN CURSO — rama `redesign/sitio-publico-v2` (2026-08-24)
+> ## ✅ REDISEÑO EN PRODUCCIÓN — 2026-08-25
 >
-> **`main` está INTACTO en `ad91904` y no se ha desplegado nada de esto.** Todo el rediseño
-> vive en su rama, tal como pidió el dueño (§86 del encargo).
+> **Desplegado.** `main` pasó de `ad91904` a `201b39f` (33 commits) por decisión expresa del
+> dueño, y `jardines-club-hipico.vercel.app` sirve el sitio nuevo desde el 2026-08-25.
+>
+> El §86 del encargo —«`main` intacto durante el rediseño»— queda **cumplido y cerrado**: se
+> respetó durante todo el trabajo y el dueño levantó la restricción para publicar.
+>
+> **Verificado en el dominio real tras el despliegue:** las 25 rutas responden 200, `/no-existe`
+> devuelve **404** de verdad, `/ubicacion` → `/contacto` y `/nosotros` → `/` con 301, `/portal`
+> redirige a la otra aplicación, `sitemap.xml` y `robots.txt` se sirven, la fuente Inter carga
+> (48 kB), y `GET /api/solicitud` responde 405 — o sea que la función del formulario está viva.
+> Cabeceras de seguridad intactas (CSP, HSTS, `X-Frame-Options: DENY`).
+>
+> **Para revertir:** rollback del despliegue en el panel de Vercel. `redesign/sitio-publico-v2`
+> se conserva.
+>
+> ### Deuda conocida que se publicó a sabiendas
+>
+> | Qué | Por qué se aceptó |
+> |---|---|
+> | `anuncio-clases-de-baile.png` pesa **1,7 MB** | Es la pieza que entregó el dueño y no hay herramienta de conversión en el proyecto. Va con `loading="lazy"` y bajo el pliegue, así que no bloquea el primer pintado. Convertida a WebP bajaría a ~200 kB |
+> | `proximamente_activo` sigue en `false` | Decisión de contenido del dueño, no un fallo |
+> | Las 69 piezas de la galería siguen sin etiquetar | Cuando se etiqueten, las fotos mandan sobre los dibujos sin tocar código |
+> | `react/jsx-no-undef` no está activo | Es un archivo compartido con los otros dos repos; ver `rediseño-sitio-web/17-PLAN-CORRECCIONES.md` |
+
+<details>
+<summary>Histórico: cómo se hizo (rama <code>redesign/sitio-publico-v2</code>)</summary>
+
 >
 > El sitio pasó de **una** página a **26 rutas prerenderizadas**. Lo que está hecho:
 >
@@ -116,6 +141,8 @@
 > El detalle histórico está en `docs/CHANGELOG.md`; los bugs, en `docs/BUGS_PENDING.md`.
 
 ---
+
+</details>
 
 ## 1. En una frase
 
