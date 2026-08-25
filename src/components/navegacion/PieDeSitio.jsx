@@ -1,4 +1,4 @@
-import { Link } from 'react-router-dom';
+import { Link, useLocation } from 'react-router-dom';
 import { MapPin, Phone, Mail, LogIn } from 'lucide-react';
 import CtaFinal from './CtaFinal';
 import { RUTAS, rutaPorClave } from '@/rutas';
@@ -56,7 +56,20 @@ function EnlacePortal() {
 }
 
 export default function PieDeSitio() {
+  const { pathname } = useLocation();
   const anio = new Date().getFullYear();
+
+  // EN LA PORTADA, LA FRANJA DE COTIZACIÓN NO SE REPITE.
+  //
+  // El pie la lleva en todas las páginas, y eso está bien: en cualquier otra ruta es la única
+  // vez que aparece. Pero la portada YA tiene la suya a media página, justo antes de la
+  // galería, y el dueño la aprobó ahí. Con las dos, el mismo titular —«¿Listo para cotizar tu
+  // evento?»— salía dos veces en la misma pantalla larga.
+  //
+  // Repetir una llamada a la acción palabra por palabra no la refuerza: la gasta, y hace que
+  // la página parezca mal armada. Se queda la de arriba, que llega cuando el visitante acaba
+  // de leer cómo funciona y todavía tiene sitio para seguir mirando.
+  const enLaPortada = pathname === '/';
   const cotizar = rutaPorClave('cotizar');
   const enElMapa = RUTAS.filter((r) => r.indexable !== false && !r.coleccion && r.clave !== 'home');
 
@@ -67,7 +80,7 @@ export default function PieDeSitio() {
 
   return (
     <footer className="relative mt-24 border-t border-[#C9A84C]/15 bg-[#080808]">
-      <CtaFinal />
+      {!enLaPortada && <CtaFinal />}
 
       <div className="mx-auto max-w-7xl px-5 sm:px-8 py-14">
         <div className="grid gap-12 sm:grid-cols-2 lg:grid-cols-[1.2fr_1fr_1fr]">

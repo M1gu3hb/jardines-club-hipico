@@ -5,7 +5,7 @@ import { ArrowRight } from 'lucide-react';
 import ParejaQueBaila from './ParejaQueBaila';
 
 /** La imagen del anuncio, auto-hospedada como todo lo demás. */
-const IMAGEN = '/media/img/anuncio-clases-de-baile.jpg';
+const IMAGEN = '/media/img/anuncio-clases-de-baile.png';
 
 /**
  * BandaClasesDeBaile — el anuncio de la academia.
@@ -52,14 +52,28 @@ export default function BandaClasesDeBaile() {
   const [falloLaImagen, setFalloLaImagen] = useState(false);
 
   return (
-    <section
-      aria-labelledby="banda-baile"
-      className="relative w-full overflow-hidden border-y border-[#C9A84C]/15 bg-[#0b0a08]"
-    >
+    <section aria-labelledby="banda-baile" className="w-full bg-[#0a0a0a] px-4 py-8 sm:px-6 sm:py-10">
+      {/* EL MARCO DORADO, EL MISMO DE LAS TARJETAS DE SALÓN.
+        *
+        * El dueño lo pidió así —*«ponle un contorno dorado como los salones, muy sutil»*— y
+        * hace falta por una razón concreta: la imagen es una fotografía oscura sobre un fondo
+        * oscuro. Sin borde, sus bordes se disuelven en la página y el anuncio deja de leerse
+        * como una pieza para parecer una mancha.
+        *
+        * Es el `boxShadow` de `TarjetaSalon`, atenuado: aquí la pieza mide el ancho de la
+        * pantalla y el mismo relieve que luce en una tarjeta pequeña resultaría pesado. */}
+      <div
+        className="relative mx-auto max-w-6xl overflow-hidden rounded-2xl"
+        style={{
+          border: '1px solid rgba(201,168,76,0.28)',
+          boxShadow:
+            '0 1px 0 rgba(255,220,140,0.08) inset, 0 -1px 0 rgba(0,0,0,0.6) inset, 0 18px 40px -20px rgba(0,0,0,0.9), 0 0 24px -12px rgba(201,168,76,0.25)',
+        }}
+      >
       {/* El hilo dorado de arriba, igual que en las tarjetas del sitio. */}
       <div
         aria-hidden="true"
-        className="absolute inset-x-0 top-0 z-10 h-px bg-gradient-to-r from-transparent via-[#C9A84C]/45 to-transparent"
+        className="pointer-events-none absolute inset-x-0 top-0 z-10 h-px bg-gradient-to-r from-transparent via-[#C9A84C]/55 to-transparent"
       />
 
       {/* El encabezado real. Está oculto a la vista porque las mismas palabras ya se leen
@@ -81,8 +95,8 @@ export default function BandaClasesDeBaile() {
             src={IMAGEN}
             alt="Próximamente: clases de baile en Jardines Club Hípico"
             /* La proporción del archivo, para que la portada no salte mientras carga. */
-            width="2000"
-            height="653"
+            width="2172"
+            height="724"
             loading="lazy"
             onError={() => setFalloLaImagen(true)}
             initial={{ opacity: 0 }}
@@ -104,6 +118,7 @@ export default function BandaClasesDeBaile() {
           />
         </span>
       </Link>
+      </div>
     </section>
   );
 }
