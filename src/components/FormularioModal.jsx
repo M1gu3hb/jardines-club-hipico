@@ -10,6 +10,43 @@ import { useServicios, useAmenidades } from "@/lib/datos";
 
 const TIPOS_EVENTO = ["Boda", "XV Años", "Cumpleaños", "Infantil", "Empresarial", "Otro"];
 
+/**
+ * EL BORRADOR SOBREVIVE A SALIR DE LA PÁGINA.
+ *
+ * El dueño pidió invitar desde aquí a ver los servicios y las amenidades. Eso significa mandar
+ * a alguien FUERA de un formulario a medio llenar, y si al volver estuviera vacío, la
+ * invitación sería una forma elegante de perder la solicitud. Peor que no invitar.
+ *
+ * `sessionStorage` y no `localStorage`, a propósito: son el nombre, el teléfono y el correo de
+ * una persona. `sessionStorage` vive solo en esa pestaña y se borra al cerrarla. `localStorage`
+ * los dejaría en el disco de un ordenador que puede ser compartido, indefinidamente.
+ *
+ * Y con caducidad de seis horas encima. Un borrador de la semana pasada relleno de golpe no es
+ * una comodidad: es un susto, y se envía sin querer.
+ */
+const CLAVE_BORRADOR = "jch_borrador_solicitud";
+const VIDA_BORRADOR = 6 * 60 * 60 * 1000;
+
+function guardaBorrador(form, interesado) {
+  try {
+    sessionStorage.setItem(CLAVE_BORRADOR, JSON.stringify({ cuando: Date.now(), form, interesado }));
+  } catch { /* sin almacenamiento: se sigue igual, solo que sin red de seguridad */ }
+}
+
+function leeBorrador() {
+  try {
+    const crudo = sessionStorage.getItem(CLAVE_BORRADOR);
+    if (!crudo) return null;
+    const d = JSON.parse(crudo);
+    if (!d?.cuando || Date.now() - d.cuando > VIDA_BORRADOR) return null;
+    return d;
+  } catch { return null; }
+}
+
+function tiraBorrador() {
+  try { sessionStorage.removeItem(CLAVE_BORRADOR); } catch { /* da igual */ }
+}
+
 /** Renglón en blanco entre lo que escribió la persona y las casillas que marcó. */
 const SEPARADOR = String.fromCharCode(10, 10);
 
@@ -80,6 +117,14 @@ const initialForm = {
   aceptoAvisoPrivacidad: false,
 };
 
+/**
+ * @param {Object}   props
+ * @param {boolean}  props.open
+ * @param {() => void} props.onClose
+ * @param {string}   [props.preselectedSalon]   Nombre del salón, no su slug.
+ * @param {string}   [props.whatsappNumero]
+ * @param {string}   [props.tipoEventoSugerido] Slug de `/eventos/{slug}`. Ver `SLUG_A_TIPO`.
+ */
 export default function FormularioModal({ open, onClose, preselectedSalon, whatsappNumero, tipoEventoSugerido }) {
   // step 0 = elegir espacio (si no viene preseleccionado), step 1 = datos
   const [step, setStep] = useState(0);
@@ -126,6 +171,18 @@ export default function FormularioModal({ open, onClose, preselectedSalon, whats
       // siempre. Preseleccionar algo inventado sería peor que no preseleccionar nada.
       const delTipo = tipoEventoSugerido ? SLUG_A_TIPO[tipoEventoSugerido] : null;
 
+      // Si hay borrador, manda ÉL sobre los valores iniciales — es lo que la persona escribió.
+      // Lo de la URL se aplica encima solo si el borrador no lo traía ya: quien viene de la
+      // ficha del Salón Encanto y había escrito otro salón, se queda con el suyo.
+      const borrador = leeBorrador();
+      if (borrador?.form) {
+        setForm({ ...initialForm, ...borrador.form, ...(borrador.form.salonSeleccionado ? {} : { salonSeleccionado: preselectedSalon || "" }) });
+        setInteresado(Array.isArray(borrador.interesado) ? borrador.interesado : []);
+        setStep(borrador.form.salonSeleccionado || preselectedSalon ? 1 : 0);
+        justSentRef.current = false;
+        return;
+      }
+
       if (preselectedSalon) {
         setForm({ ...initialForm, salonSeleccionado: preselectedSalon, ...(delTipo || {}) });
         setStep(1);
@@ -144,6 +201,13 @@ export default function FormularioModal({ open, onClose, preselectedSalon, whats
   }, []);
 
   const set = (field, val) => setForm(f => ({ ...f, [field]: val }));
+
+  // Se guarda en cada cambio mientras el formulario está abierto. No se guarda con el
+  // formulario cerrado para no reescribir el borrador al desmontarse tras un envío correcto.
+  useEffect(() => {
+    if (!open || sent) return;
+    guardaBorrador(form, interesado);
+  }, [open, sent, form, interesado]);
 
   const salonesDisponibles = salones.length > 0 ? salones.map(s => s.nombre) : [];
   const tipoEventoFinal = form.tipoEvento === "Otro" ? (form.tipoEventoOtro || "").trim() : form.tipoEvento;
@@ -210,6 +274,9 @@ export default function FormularioModal({ open, onClose, preselectedSalon, whats
       const creada = await base44.entities.SolicitudEvento.create(dataToSave);
       // Sin folio del servidor no hay registro confirmado: no se muestra éxito.
       if (!creada?.folio) throw new Error("SIN_CONFIRMACION");
+      // Enviada: el borrador ya no sirve y dejarlo rellenaría el siguiente formulario con los
+      // datos del anterior.
+      tiraBorrador();
       folioGenerado = creada.folio;
 
       // Aviso por correo al administrador. Solo viaja el id: el servidor vuelve a

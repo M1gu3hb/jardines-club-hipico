@@ -3,6 +3,7 @@ import { motion } from 'framer-motion';
 import { ArrowRight } from 'lucide-react';
 import { useServicios, useAmenidades } from '@/lib/datos';
 import { reparte, fotosDe } from '@/lib/servicios';
+import { medidasDe } from '@/lib/medidas';
 
 /**
  * Servicios y amenidades en la portada — dos invitaciones, no dos listas.
@@ -116,16 +117,24 @@ function Invitacion({ items, eyebrow, titulo, texto, enlace, cta, retraso }) {
         {asomo.length > 0 && (
           <div className="relative h-44 sm:h-52" aria-hidden="true">
             <div className="grid h-full grid-cols-4 gap-px">
-              {asomo.map((f) => (
-                <div key={f} className="overflow-hidden bg-black/40">
-                  <img
-                    src={f}
-                    alt=""
-                    loading="lazy"
-                    className="h-full w-full object-cover opacity-70 transition-all duration-700 group-hover:scale-105 group-hover:opacity-90"
-                  />
-                </div>
-              ))}
+              {asomo.map((f) => {
+                // Aquí el contenedor ya fija el alto, así que el salto no viene de la altura
+                // sino de que el navegador no sabe la proporción antes de descargar. Con las
+                // medidas puestas reserva el hueco y no recoloca nada al llegar.
+                const med = medidasDe(f);
+                return (
+                  <div key={f} className="overflow-hidden bg-black/40">
+                    <img
+                      src={f}
+                      alt=""
+                      loading="lazy"
+                      width={med ? med.ancho : undefined}
+                      height={med ? med.alto : undefined}
+                      className="h-full w-full object-cover opacity-70 transition-all duration-700 group-hover:scale-105 group-hover:opacity-90"
+                    />
+                  </div>
+                );
+              })}
             </div>
             {/* El degradado hacia el fondo hace que el mosaico se lea como un asomo y no como
                 una galería recortada a la mitad. */}

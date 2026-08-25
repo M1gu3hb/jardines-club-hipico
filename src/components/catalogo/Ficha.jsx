@@ -183,6 +183,11 @@ function Visor({ fotos, titulo, abierto, cerrar }) {
  * de qué va la página en el primer vistazo; abrir con una rejilla de tarjetas de texto la hace
  * parecer un listado administrativo.
  */
+/**
+ * @param {Object} props
+ * @param {any[]}  props.items
+ * @param {string} [props.id] Ancla de la sección, cuando hace falta enlazarla.
+ */
 export function Catalogo({ items, id }) {
   if (!items || items.length === 0) return null;
 

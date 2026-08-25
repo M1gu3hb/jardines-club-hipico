@@ -9,6 +9,32 @@ import React, { useCallback, useLayoutEffect, useRef, useState } from "react";
 import { gsap } from "gsap";
 import "./StaggeredMenu.css";
 
+/**
+ * Las props van declaradas con sus opcionales marcadas.
+ *
+ * Sin esto, TypeScript deduce que TODAS son obligatorias por estar desestructuradas —incluso
+ * las que ya tienen valor por defecto justo al lado— y quien lo use sin pasar `className`,
+ * `onMenuOpen` y `onMenuClose` sale como error de tipos. Era un error de la línea base desde
+ * que existe el componente.
+ *
+ * @param {Object} props
+ * @param {string}   [props.position]              "left" o "right". Por defecto "right".
+ * @param {string[]} [props.colors]                Capas de color que entran antes del panel.
+ * @param {any[]}    [props.items]                 `{ id, label, link, ariaLabel, esRuta }`.
+ * @param {boolean}  [props.displayItemNumbering]
+ * @param {string}   [props.className]
+ * @param {string}   [props.logoUrl]
+ * @param {string}   [props.menuButtonColor]
+ * @param {string}   [props.openMenuButtonColor]
+ * @param {string}   [props.accentColor]
+ * @param {boolean}  [props.changeMenuColorOnOpen]
+ * @param {boolean}  [props.closeOnClickAway]
+ * @param {any}      [props.headerExtra]           Va en la cabecera, fuera del panel.
+ * @param {string}   [props.activeId]              Qué item se marca como activo.
+ * @param {Function} [props.onItemClick]
+ * @param {Function} [props.onMenuOpen]
+ * @param {Function} [props.onMenuClose]
+ */
 export default function StaggeredMenu({
   position = "right",
   colors = ["#141414", "#20180a"],

@@ -1,8 +1,6 @@
 import { useState, useEffect } from "react";
 import SplashScreen from "../components/SplashScreen";
 import HeroSection from "../components/HeroSection";
-import ServiciosAmenidades from "../components/ServiciosAmenidades";
-import GaleriaSection from "../components/GaleriaSection";
 import CtaCotizacion from "../components/CtaCotizacion";
 import FormularioModal from "../components/FormularioModal";
 import ContactoSection from "../components/ContactoSection";
@@ -14,7 +12,7 @@ import ComoFunciona from "../components/ComoFunciona";
 import FaqSection from "../components/FaqSection";
 import { WHATSAPP } from "@/config/negocio";
 import { precargarVideoHero } from "@/lib/precargaHero";
-import { useGaleria, useConfigSitio } from "@/lib/datos";
+import { useConfigSitio } from "@/lib/datos";
 import Cabecera from "@/lib/Cabecera";
 import { rutaPorClave } from "@/rutas";
 import { urlAbsoluta } from "@/config/sitio";
@@ -22,6 +20,8 @@ import QueEstasPlaneando from "../components/home/QueEstasPlaneando";
 import EspaciosDestacados from "../components/home/EspaciosDestacados";
 import Diferenciadores from "../components/home/Diferenciadores";
 import BloqueAvisos from "../components/home/BloqueAvisos";
+import ServiciosYAmenidades from "../components/home/ServiciosYAmenidades";
+import GaleriaAsomo from "../components/home/GaleriaAsomo";
 import VerTodo from "../components/home/VerTodo";
 
 export default function Home() {
@@ -50,7 +50,6 @@ export default function Home() {
   // 2. **Un `useEffect` NO CORRE EN EL PRERENDER.** El HTML del build salía con la portada
   //    montada pero sin un solo salón dentro, que es justo lo que el prerender existe para
   //    evitar. Con la caché, el guion siembra los datos y el render los encuentra ya puestos.
-  const { data: galeria = [] } = useGaleria();
   const { data: config, isSuccess: configListo } = useConfigSitio();
 
   const configLoaded = configListo || tiempoAgotado;
@@ -160,9 +159,6 @@ export default function Home() {
               onProximamenteClick={() => setProximamenteOpen(true)}
             />
 
-            {/* Desaparece del documento si no hay ningún aviso publicado. */}
-            <BloqueAvisos />
-
             {/* Primero POR QUÉ vienen, y solo después DÓNDE. Casi nadie llega pensando
                 «¿dónde?»: llega pensando «¿me sirve para mi boda?». */}
             <QueEstasPlaneando />
@@ -175,12 +171,16 @@ export default function Home() {
 
             <ScrollAnimationSection />
 
-            <section id="servicios">
-              <ServiciosAmenidades />
-              <div className="pb-16">
-                <VerTodo a="/servicios">Ver todo lo que se puede contratar</VerTodo>
-              </div>
-            </section>
+            {/* DOS INVITACIONES, no dos listas.
+              *
+              * Aquí había cuatro tarjetas de cada cosa y un «ver todos» que desplegaba el resto
+              * ahí mismo. El dueño: «no tienen el protagonismo que deberían, cada uno tiene a
+              * veces más de una imagen». Y es literal: «Montajes» tiene catorce fotos y se
+              * enseñaba con una, del tamaño del trampolín.
+              *
+              * Desplegar treinta elementos dentro de la portada es lo peor de las dos opciones:
+              * ni caben bien ahí, ni llegan a su página, donde sí tendrían sitio para lucirse. */}
+            <ServiciosYAmenidades />
 
             <section id="como-funciona">
               <ComoFunciona />
@@ -191,12 +191,8 @@ export default function Home() {
 
             <CtaCotizacion onOpenForm={openForm} />
 
-            <section id="galeria">
-              <GaleriaSection galeria={galeria} />
-              <div className="pb-16">
-                <VerTodo a="/galeria">Ver la galería completa</VerTodo>
-              </div>
-            </section>
+            {/* Un corte limpio dice «esto es todo»; uno difuminado dice «hay más». */}
+            <GaleriaAsomo />
 
             <section id="faq">
               <FaqSection />
@@ -207,6 +203,16 @@ export default function Home() {
 
             <ContactoSection telefono={config?.telefonoContacto} correo={config?.correoAdmin} ubicacionTexto={config?.ubicacionTexto} ubicacionLinkMapa={config?.ubicacionLinkMapa} whatsappNumero={config?.whatsappNumero} />
             <NoIncluyeSection texto={config?.informacionServicios} />
+
+            {/* LOS AVISOS VAN HASTA ABAJO, y lo pidió el dueño así.
+              *
+              * Tiene sentido: un aviso es una novedad, no la razón por la que alguien entró.
+              * Puesto arriba interrumpe a quien viene a ver si su boda cabe; puesto al final lo
+              * encuentra quien ya leyó todo y sigue interesado.
+              *
+              * Y desaparece del documento si no hay ninguno publicado: una sección de avisos
+              * vacía dice que el negocio está parado. */}
+            <BloqueAvisos />
           </div>
 
           {/* Sticky WhatsApp button (móvil y escritorio) */}
@@ -224,11 +230,13 @@ export default function Home() {
           </div>
       </div>
 
+      {/* Aquí viajaba también `correoAdmin`, y el formulario NUNCA lo aceptó: era un no-op
+          silencioso. El correo del administrador lo resuelve `api/solicitud.js` en el servidor,
+          que es donde tiene que estar — el navegador no necesita saberlo. */}
       <FormularioModal
         open={modalOpen}
         onClose={() => setModalOpen(false)}
         preselectedSalon={preselectedSalon}
-        correoAdmin={config?.correoAdmin}
         whatsappNumero={config?.whatsappNumero}
       />
 

@@ -1,3 +1,4 @@
+import { Link } from 'react-router-dom';
 import { Check, Sparkles } from 'lucide-react';
 import { sugerenciasPara } from '@/lib/sugerencias';
 
@@ -78,6 +79,27 @@ export default function Sugerencias({ tipoEvento, personas, disponibles, elegido
           {motivo}
         </p>
       ))}
+
+      {/* LA INVITACIÓN A SALIR, que solo se puede hacer porque el formulario guarda lo escrito.
+        *
+        * El dueño la pidió: *«si no han visto, invítalos a ver los servicios y amenidades para
+        * después regresar al formulario y continuarlo»*. La parte difícil no es el enlace: es el
+        * «continuarlo». Mandar a alguien fuera de un formulario a medio llenar y que al volver
+        * esté vacío es una forma elegante de perder la solicitud.
+        *
+        * Por eso `FormularioModal` guarda el borrador en `sessionStorage` en cada cambio y lo
+        * recupera al volver. Sin eso, este enlace no debería existir. */}
+      <p className="mt-4 border-t border-white/5 pt-3 text-[11px] font-light leading-relaxed text-white/35">
+        ¿Prefieres verlas con fotos?{' '}
+        <Link to="/amenidades" className="text-[#C9A84C]/80 underline underline-offset-4">
+          Míralas todas
+        </Link>{' '}
+        o mira{' '}
+        <Link to="/servicios" className="text-[#C9A84C]/80 underline underline-offset-4">
+          los servicios
+        </Link>
+        . Guardamos lo que llevas escrito y al volver sigues donde ibas.
+      </p>
     </fieldset>
   );
 }

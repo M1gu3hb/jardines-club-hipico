@@ -3,6 +3,8 @@ import Pagina from '@/components/navegacion/Pagina';
 import BloqueTexto from '@/components/navegacion/BloqueTexto';
 import { ENTRADILLA, BLOQUES } from '@/data/textos-nosotros';
 import { urlAbsoluta } from '@/config/sitio';
+import { useSalones } from '@/lib/datos';
+import { medidasDe } from '@/lib/medidas';
 
 /**
  * /nosotros — la página que NO EXISTÍA, y que la entrevista al dueño desbloqueó.
@@ -34,6 +36,19 @@ import { urlAbsoluta } from '@/config/sitio';
  * Y le falta **el año**. El dueño no lo sabe, así que no se publica ninguno.
  */
 export default function Nosotros() {
+  const { data: salones } = useSalones();
+
+  // Las fotos salen de los ESPACIOS, no de la galería suelta. De un espacio se sabe qué
+  // enseña; de las 69 de la galería no, porque siguen sin etiquetar, y poner una al azar bajo
+  // un párrafo que habla del picadero sería afirmar que eso es el picadero sin saberlo.
+  //
+  // Se eligen los que la historia menciona, en el orden en que los menciona: el Salón Encanto
+  // (era el picadero), el de los Espejos (trae el Campo Grande) y los Jardines (el terreno).
+  const MENCIONADOS = ['salon-encanto', 'salon-de-los-espejos', 'jardines'];
+  const fotos = MENCIONADOS
+    .map((slug) => (salones || []).find((x) => x.slug === slug))
+    .filter((x) => x && x.imagenPrincipal);
+
   const jsonLd = {
     '@context': 'https://schema.org',
     '@type': 'AboutPage',
@@ -68,22 +83,29 @@ export default function Nosotros() {
           ))}
         </div>
 
+        {/* Una foto entre bloques rompe el muro de texto y enseña el sitio del que se está
+            hablando. Va con pie que la nombra: sin pie es decoración; con pie es información. */}
         <div className="mt-6 divide-y divide-white/5">
-          {BLOQUES.map((b) => (
-            <BloqueTexto key={b.id} id={b.id} titulo={b.titulo} texto={b.texto} />
+          {BLOQUES.map((b, i) => (
+            <div key={b.id}>
+              <BloqueTexto id={b.id} titulo={b.titulo} texto={b.texto} />
+              {fotos[i] && <FotoDelRecinto salon={fotos[i]} />}
+            </div>
           ))}
         </div>
 
-        {/* El hueco que queda, dicho en vez de tapado. Falta el AÑO: el dueño no lo sabe, y
-            poner uno aproximado en una página de historia es la mentira más fácil de detectar
-            y la más cara — la lee él y ve que no es su negocio. */}
-        <p className="mt-12 border-t border-white/5 pt-8 text-sm font-light leading-relaxed text-white/30">
-          Nos falta un dato para esta página: el año exacto en que empezó todo. Ni el dueño lo
-          tiene claro — «tiene muchísimos años», dice — y preferimos dejar el hueco antes que
-          inventar una fecha.
-        </p>
+        {/* AQUÍ HABÍA UN AVISO DICIENDO QUE NO SABEMOS EL AÑO. Se retiró el 2026-08-25 a
+            petición del dueño, y con razón.
+            *
+            * No publicar un dato que no se tiene es correcto. **Anunciar que no lo tienes es
+            * otra cosa**: en la página que cuenta la historia del negocio, decir «ni el dueño
+            * sabe cuándo empezó» suena a que nadie se acuerda de su propio origen. Resta en vez
+            * de sumar honestidad.
+            *
+            * La fecha sigue sin publicarse. Simplemente ya no se menciona su ausencia, que es
+            * lo que hace cualquier negocio con historia y sin archivo. */}
 
-        <div className="mt-10 flex flex-col gap-3 sm:flex-row">
+        <div className="mt-12 flex flex-col gap-3 border-t border-white/5 pt-10 sm:flex-row">
           <Link
             to="/espacios"
             className="skeu-gold-btn rounded-full px-7 py-3.5 text-center text-xs font-medium tracking-[0.16em] uppercase text-[#1a1408]"
@@ -99,5 +121,34 @@ export default function Nosotros() {
         </div>
       </article>
     </Pagina>
+  );
+}
+
+/**
+ * Una foto del recinto, con su nombre.
+ *
+ * El pie no es un adorno: sin él, la imagen bajo un párrafo que habla del picadero se lee como
+ * «esto es el picadero», y no lo es — es el salón que ocupa hoy ese lugar. Nombrarla convierte
+ * una insinuación falsa en un dato cierto.
+ */
+function FotoDelRecinto({ salon }) {
+  const med = medidasDe(salon.imagenPrincipal);
+
+  return (
+    <figure className="pb-12">
+      <div className="overflow-hidden rounded-2xl bg-black/40">
+        <img
+          src={salon.imagenPrincipal}
+          alt={salon.nombre}
+          loading="lazy"
+          width={med ? med.ancho : undefined}
+          height={med ? med.alto : undefined}
+          className="w-full object-cover transition-transform duration-700 hover:scale-[1.02]"
+        />
+      </div>
+      <figcaption className="mt-3 text-[10px] font-light tracking-[0.2em] uppercase text-white/30">
+        {salon.nombre}
+      </figcaption>
+    </figure>
   );
 }

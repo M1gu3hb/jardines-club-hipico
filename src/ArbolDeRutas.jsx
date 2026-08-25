@@ -2,6 +2,7 @@ import { Suspense } from 'react';
 import { Route, Routes } from 'react-router-dom';
 import { RUTAS } from '@/rutas';
 import Layout from '@/Layout';
+import TransicionDePagina from '@/components/navegacion/TransicionDePagina';
 import Home from '@/pages/Home';
 import NoEncontrada from '@/pages/NoEncontrada';
 
@@ -32,19 +33,24 @@ import NoEncontrada from '@/pages/NoEncontrada';
 export default function ArbolDeRutas({ paginas }) {
   return (
     <Layout>
-      <Suspense fallback={<Cargando />}>
-        <Routes>
-          <Route path="/" element={<Home />} />
+      {/* La transición envuelve a las rutas, no al revés: así se remonta en cada navegación y
+          la animación de entrada se dispara sola. Es también lo que sube el scroll arriba —ver
+          `TransicionDePagina`, que explica por qué el salto es instantáneo y la transición no. */}
+      <TransicionDePagina>
+        <Suspense fallback={<Cargando />}>
+          <Routes>
+            <Route path="/" element={<Home />} />
 
-          {RUTAS.filter((r) => r.clave !== 'home').map((r) => {
-            const Pagina = paginas[r.clave];
-            if (!Pagina) return null;
-            return <Route key={r.clave} path={r.ruta} element={<Pagina />} />;
-          })}
+            {RUTAS.filter((r) => r.clave !== 'home').map((r) => {
+              const Pagina = paginas[r.clave];
+              if (!Pagina) return null;
+              return <Route key={r.clave} path={r.ruta} element={<Pagina />} />;
+            })}
 
-          <Route path="*" element={<NoEncontrada />} />
-        </Routes>
-      </Suspense>
+            <Route path="*" element={<NoEncontrada />} />
+          </Routes>
+        </Suspense>
+      </TransicionDePagina>
     </Layout>
   );
 }
