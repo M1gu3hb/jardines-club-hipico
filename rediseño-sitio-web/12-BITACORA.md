@@ -31,15 +31,15 @@ f4169d0  FASE 1: bitacora de estado, y las cuatro respuestas del dueño
 
 | # | Punto | Estado |
 |---|---|---|
-| 1 | Corregir capacidades rotas | ✅ **hecho** en `sec_30` — ver §1.5 |
-| 2 | Migraciones `sec_30/31/32` | ✅ **aplicadas y verificadas** — ver §1.6 |
-| 3 | Routing multipágina | 🔄 **en curso** |
-| 4 | Layout base (nav, breadcrumbs, footer) | ⬜ |
-| 5 | `<head>` por ruta | ⬜ |
-| 6 | Bug del dominio ajeno | ✅ **`52647ff`** |
-| 7 | Prerender + sitemap + robots | ⬜ |
-| 8 | `rewrites` de `vercel.json` | ⬜ |
-| 9 | 404 real | ⬜ |
+| 1 | Corregir capacidades rotas | ✅ `sec_30` — ver §1.5 |
+| 2 | Migraciones `sec_30/31/32` | ✅ aplicadas y verificadas desde `anon` — §1.6 |
+| 3 | Routing multipágina con `lazy` | ✅ `ea6fb80` |
+| 4 | Layout: navegación, migas, pie-mapa | ✅ `ea6fb80` |
+| 5 | `<head>` por ruta | ✅ `ea6fb80` + `64e98cd` |
+| 6 | Bug del dominio ajeno | ✅ `52647ff` |
+| 7 | Prerender + sitemap + robots | ✅ `64e98cd` |
+| 8 | `rewrites` de `vercel.json` | ✅ `64e98cd` — atrapatodo retirado |
+| 9 | 404 real | ✅ `64e98cd` — verificado, 3 de 3 |
 
 **Los puntos 3-5 y 7-9 se pueden hacer sin la base**, con las rutas estáticas. Las dinámicas
 (`/espacios/:slug`, `/eventos/:slug`) esperan a las migraciones.
@@ -171,6 +171,40 @@ Confirma que Vero sigue en desarrollo activo sobre este mismo proyecto. No se to
 
 ---
 
+
+## 1.7 · FASE 2 CERRADA (2026-08-24)
+
+**La puerta de la fase, punto por punto:**
+
+| Comprobación | Resultado |
+|---|---|
+| Capacidades correctas y coherentes | ✅ Espejos 100-400, Eclipse 80-120, Jardines 400-600 (real 1 000) |
+| Migraciones aplicadas, tabla nueva legible por `anon` | ✅ **comprobado desde el rol `anon`**, no supuesto |
+| Una ruta devuelve HTML con contenido y metadata propia | ✅ 3 158 caracteres de texto y `<head>` propio en `/espacios/salon-encanto` |
+| `robots.txt` y `sitemap.xml` con su tipo | ✅ `text/plain` y `application/xml` |
+| Una URL inventada devuelve 404 | ✅ 3 de 3, incluida `/eventos/bodas` (sin contenido, no se publica) |
+| Ninguna URL apunta al dominio ajeno | ✅ contrato que lo vigila, validado mutando |
+| El formulario sigue funcionando | ✅ probado en el navegador: salón y tipo de evento llegan preseleccionados |
+
+### Lo que NO se pudo comprobar como pedía el plan
+
+El plan decía «sobre el Preview, con `curl`». **No se puede:** los Preview de Vercel están
+detrás de su login y responden 302 a cualquier petición sin sesión. Se verificó en su lugar
+sirviendo `dist/` con un servidor que replica las reglas de estático de Vercel — 9 de 9
+correctas. Es una comprobación equivalente para lo que se estaba afirmando, y se dice en vez
+de aparentar que se hizo lo otro.
+
+### El límite del prerender, dicho aquí para que no se olvide
+
+**El HTML se congela en el build.** Si el dueño cambia un texto en el panel, el sitio no cambia
+hasta el siguiente despliegue. Quien tenga JavaScript ve lo nuevo en cuanto la aplicación
+arranca; los rastreadores y las vistas previas ven lo congelado. Lo mismo con un salón nuevo:
+su página no existe hasta reconstruir.
+
+Lo resuelve un **Deploy Hook** — que guardar en el panel dispare un rebuild. Está preguntado al
+dueño en `13-ENTREVISTA.md` (punto 13 de `08-PENDIENTES`).
+
+---
 ## 2. Hallazgos que cambian el plan
 
 Ninguno es opinión: todos salieron de leer el código o la base.

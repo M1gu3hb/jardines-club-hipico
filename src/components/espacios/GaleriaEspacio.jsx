@@ -89,11 +89,16 @@ function Pieza({ url, alt, onAbrir, className = '', restantes = 0, prioridad = f
           className="h-full w-full object-cover transition-transform duration-700 group-hover:scale-[1.04]"
         />
       ) : (
+        // Sin `fetchpriority`. React 18 no lo reconoce en camelCase y avisa en consola por cada
+        // imagen; en minúscula sí lo pasaría al DOM, pero entonces es ESLint quien se queja,
+        // porque su regla asume React 19. Entre pelearse con las dos herramientas y perder una
+        // micro-optimización sobre una foto de galería —que no es el elemento más grande de
+        // ninguna página—, sale más a cuenta quitarla. El `loading="eager"` de abajo ya evita
+        // que la portada de la ficha entre en carga diferida, que es lo que de verdad importaba.
         <img
           src={url}
           alt={alt}
           loading={prioridad ? 'eager' : 'lazy'}
-          fetchPriority={prioridad ? 'high' : undefined}
           className="h-full w-full object-cover transition-transform duration-700 group-hover:scale-[1.04]"
         />
       )}
