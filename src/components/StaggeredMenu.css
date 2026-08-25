@@ -1,7 +1,44 @@
 /* StaggeredMenu — tema Jardines Club Hípico (oscuro + dorado #C9A84C, Inter) */
 .staggered-menu-wrapper { position: relative; width: 100%; height: 100%; z-index: 45; pointer-events: none; font-family: 'Inter', sans-serif; }
 .staggered-menu-wrapper.fixed-wrapper { position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; z-index: 45; overflow: hidden; }
-.staggered-menu-header { position: absolute; top: 0; left: 0; width: 100%; display: flex; align-items: center; justify-content: space-between; padding: 1.1em 1.4em; background: transparent; pointer-events: none; z-index: 20; }
+/* ══════════════════════════════════════════════════════════════════════════════
+   EL CUERPO DEL ENCABEZADO, EN DOS ESTADOS
+   ══════════════════════════════════════════════════════════════════════════════
+
+   ARRIBA DEL TODO. Un degradado que baja de opaco a nada. Hay cuerpo —el logotipo y los
+   enlaces se leen sobre algo, no flotando sobre un video— pero NO es una banda sólida
+   cortando el hero por la mitad. El dueño lo pidio exacto: «que se vea cuerpo completo,
+   tampoco que se vea tan sólido».
+
+   AL BAJAR. El degradado se retira y entra una superficie con desenfoque. Sus palabras:
+   «que se desvanezca el cuerpo pero no transparente, sino blur». Y funciona mejor que una
+   banda opaca por un motivo práctico: el sitio es oscuro y las fotos que pasan por debajo
+   son de todo tipo, así que un color fijo unas veces se funde y otras corta. El desenfoque
+   toma el color de lo que hay debajo y siempre separa lo justo.
+
+   `backdrop-filter` no está en todos los navegadores viejos: por eso el color de fondo lleva
+   ya su propia opacidad. Donde no haya desenfoque, se ve una banda translúcida — peor, pero
+   nunca ilegible.
+
+   `pointer-events: none` se conserva: el encabezado no debe interceptar clics dirigidos a la
+   página; sus hijos los vuelven a activar en la regla siguiente.
+   ══════════════════════════════════════════════════════════════════════════════ */
+.staggered-menu-header {
+  position: absolute; top: 0; left: 0; width: 100%;
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 1.1em 1.4em;
+  pointer-events: none;
+  z-index: 20;
+  background: linear-gradient(180deg, rgba(8,8,8,0.80) 0%, rgba(8,8,8,0.52) 48%, rgba(8,8,8,0) 100%);
+  transition: background 420ms ease, backdrop-filter 420ms ease, box-shadow 420ms ease;
+}
+
+.staggered-menu-header.con-scroll {
+  background: rgba(10,10,10,0.55);
+  -webkit-backdrop-filter: blur(16px) saturate(130%);
+  backdrop-filter: blur(16px) saturate(130%);
+  box-shadow: 0 1px 0 rgba(201,168,76,0.14), 0 10px 30px -18px rgba(0,0,0,0.9);
+}
 .staggered-menu-header > * { pointer-events: auto; }
 .sm-header-right { display: flex; align-items: center; gap: 1.1rem; }
 .sm-logo { display: flex; align-items: center; user-select: none; }
@@ -76,4 +113,35 @@
 .barra-superior { display: none; }
 @media (min-width: 768px) {
   .barra-superior { display: flex; flex: 1; justify-content: center; min-width: 0; }
+}
+
+/* ══════════════════════════════════════════════════════════════════════════════
+   EL BOTON DE MENU BRILLA
+   ══════════════════════════════════════════════════════════════════════════════
+
+   «Al boton de menu hazlo que brille un poco, que se note.» Y tiene razon de negocio: es la
+   puerta a las catorce secciones del sitio y en un telefono es la UNICA, porque ahi la barra
+   horizontal no aparece. Un boton que no se nota es un sitio que parece tener una sola pagina.
+
+   El brillo es un `drop-shadow` dorado sobre el texto y el icono, con un pulso muy lento —tres
+   segundos y medio— que sube y baja la intensidad. Lento a proposito: un parpadeo rapido
+   parece un aviso de error, y esto no avisa de nada, solo se ofrece.
+
+   Al pasar por encima sube; con `prefers-reduced-motion` el pulso se detiene pero el brillo se
+   queda, porque quien pidio menos movimiento no pidio menos contraste.
+*/
+.sm-toggle {
+  filter: drop-shadow(0 0 6px rgba(201,168,76,0.45));
+  animation: sm-latido 3.5s ease-in-out infinite;
+}
+.sm-toggle:hover,
+.sm-toggle:focus-visible {
+  filter: drop-shadow(0 0 12px rgba(201,168,76,0.85)) drop-shadow(0 0 26px rgba(201,168,76,0.35));
+}
+@keyframes sm-latido {
+  0%, 100% { filter: drop-shadow(0 0 5px rgba(201,168,76,0.35)); }
+  50%      { filter: drop-shadow(0 0 13px rgba(201,168,76,0.75)) drop-shadow(0 0 24px rgba(201,168,76,0.28)); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .sm-toggle { animation: none; filter: drop-shadow(0 0 8px rgba(201,168,76,0.6)); }
 }

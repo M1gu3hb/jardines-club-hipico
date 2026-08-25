@@ -45,7 +45,17 @@ import { RUTAS_MENU } from '@/rutas';
  * falta hace saber en qué rama del sitio estás.
  */
 
-/** Los seis destinos de la barra, por clave de `rutas.js`. El orden es el del recorrido. */
+/**
+ * INICIO ABRE LA BARRA, y no sale de `RUTAS_MENU`.
+ *
+ * La portada está marcada `menu: false` en `rutas.js` —el logotipo ya lleva a ella— y por eso
+ * faltaba. El dueño la echó en falta enseguida y con razón: el logotipo como enlace al inicio
+ * es una convención que mucha gente no conoce, y en una barra donde se leen seis secciones, no
+ * ver la que te devuelve al principio es raro.
+ */
+const INICIO = { clave: 'home', nombre: 'Inicio', ruta: '/' };
+
+/** Los destinos de la barra, por clave de `rutas.js`. El orden es el del recorrido. */
 const EN_LA_BARRA = ['espacios', 'eventos', 'servicios', 'amenidades', 'galeria', 'contacto'];
 
 export default function BarraSuperior() {
@@ -53,11 +63,17 @@ export default function BarraSuperior() {
 
   // Se leen de `RUTAS_MENU` y no se escriben a mano: si una ruta cambia de dirección o de
   // nombre, la barra se entera sola. Es la misma fuente que el menú, el pie y el sitemap.
-  const items = EN_LA_BARRA.map((clave) => RUTAS_MENU.find((r) => r.clave === clave)).filter(
-    Boolean,
-  );
+  const items = [
+    INICIO,
+    ...EN_LA_BARRA.map((clave) => RUTAS_MENU.find((r) => r.clave === clave)).filter(Boolean),
+  ];
 
-  const activa = items.find((r) => pathname === r.ruta || pathname.startsWith(`${r.ruta}/`));
+  // `Inicio` se compara por IGUALDAD y el resto por prefijo. Si `/` se comparara por prefijo,
+  // se marcaría en todas las páginas del sitio a la vez — y dos pestañas encendidas no
+  // informan de nada.
+  const activa = items.find((r) =>
+    r.ruta === '/' ? pathname === '/' : pathname === r.ruta || pathname.startsWith(`${r.ruta}/`),
+  );
 
   return (
     <nav aria-label="Secciones principales" className="barra-superior">
@@ -81,7 +97,10 @@ export default function BarraSuperior() {
                     transition={{ type: 'spring', stiffness: 380, damping: 32 }}
                   />
                 )}
-                <span className="relative">{r.nombre}</span>
+                {/* «Contacto y ubicación» es correcto como título de página pero demasiado
+                    largo para una barra: se lleva el ancho de dos pestañas. Aquí se acorta, y
+                    el nombre completo sigue en el menú, en el pie y en la propia página. */}
+                <span className="relative">{r.clave === 'contacto' ? 'Contacto' : r.nombre}</span>
               </Link>
             </li>
           );

@@ -5,7 +5,7 @@
  *  - Los items hacen SCROLL SUAVE a cada #id (no navegación de rutas): prop `onItemClick`.
  *  - Slot `headerExtra` para conservar controles existentes (p. ej. el toggle de sonido).
  */
-import React, { useCallback, useLayoutEffect, useRef, useState } from "react";
+import React, { useCallback, useLayoutEffect, useRef, useState, useEffect } from "react";
 import { gsap } from "gsap";
 import "./StaggeredMenu.css";
 
@@ -56,6 +56,27 @@ export default function StaggeredMenu({
   onMenuClose,
 }) {
   const [open, setOpen] = useState(false);
+
+  // ¿SE HA BAJADO DE LA PRIMERA PANTALLA?
+  //
+  // Gobierna el cuerpo del encabezado: arriba lleva un degradado que se desvanece hacia abajo
+  // —hay cuerpo, pero no una banda sólida cortando el hero— y en cuanto se baja se convierte
+  // en una superficie con desenfoque. Ver `.staggered-menu-header` en el CSS.
+  //
+  // El umbral son 24 px y no 0 a propósito: en un teléfono, el simple rebote elástico al
+  // llegar arriba mueve el scroll unos pocos píxeles, y con umbral cero el encabezado
+  // parpadearía entre sus dos estados sin que nadie haya hecho nada.
+  //
+  // `passive: true` porque no se llama a `preventDefault`: se lo dice al navegador para que no
+  // tenga que esperar a este manejador antes de desplazar la página.
+  const [conScroll, setConScroll] = useState(false);
+  useEffect(() => {
+    if (typeof window === 'undefined') return undefined;
+    const mirar = () => setConScroll(window.scrollY > 24);
+    mirar();
+    window.addEventListener('scroll', mirar, { passive: true });
+    return () => window.removeEventListener('scroll', mirar);
+  }, []);
   const openRef = useRef(false);
   const panelRef = useRef(null);
   const preLayersRef = useRef(null);
@@ -259,7 +280,10 @@ export default function StaggeredMenu({
           return arr.map((c, i) => <div key={i} className="sm-prelayer" style={{ background: c }} />);
         })()}
       </div>
-      <header className="staggered-menu-header" aria-label="Navegación principal">
+      <header
+        className={`staggered-menu-header${conScroll ? ' con-scroll' : ''}`}
+        aria-label="Navegación principal"
+      >
         <div className="sm-logo" aria-label="Logo">
           {logoUrl ? (
             <img src={logoUrl} alt="Jardines Club Hípico" className="sm-logo-img" draggable={false} />
