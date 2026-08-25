@@ -2,6 +2,7 @@ import { Link } from 'react-router-dom';
 import { ArrowRight, CalendarDays } from 'lucide-react';
 import { EsqueletoTexto, AvisoCargando } from '@/components/ui/Esqueleto';
 import InformacionDeServicios from '@/components/avisos/InformacionDeServicios';
+import Condiciones from '@/components/avisos/Condiciones';
 import Pagina from '@/components/navegacion/Pagina';
 import { useConfigSitio, useAnuncios } from '@/lib/datos';
 
@@ -34,6 +35,7 @@ export default function Avisos() {
   const { data: anuncios, isLoading, isError } = useAnuncios();
   const { data: config, isLoading: cargaConfig } = useConfigSitio();
   const hay = (anuncios || []).length > 0;
+  const hayInformacion = Boolean((config?.informacionServicios || '').trim());
 
   return (
     <Pagina
@@ -56,7 +58,16 @@ export default function Avisos() {
           </p>
         )}
 
-        {!isLoading && !isError && !hay && <SinAvisos />}
+        {/* LA CONTRADICCIÓN QUE HABÍA AQUÍ.
+          *
+          * Esta página decía «ahora mismo no hay avisos» y tres centímetros más abajo enseñaba
+          * un aviso: la información de servicios. El dueño lo cazó de inmediato: *«te estás
+          * contradiciendo… cuando el aviso es eso»*.
+          *
+          * El cartel de vacío solo tiene sentido si la página está VACÍA DE VERDAD. Mientras
+          * haya información de servicios publicada, no lo está — así que el cartel solo aparece
+          * cuando no hay ni anuncios ni información. */}
+        {!isLoading && !isError && !hay && !hayInformacion && <SinAvisos />}
 
         {hay && (
           <div className="space-y-8">
@@ -75,6 +86,8 @@ export default function Avisos() {
         *
         * Van aquÃ­ porque es literalmente su pÃ¡gina, y asÃ­ `/avisos` deja de poder salir vacÃ­a. */}
       <InformacionDeServicios texto={config?.informacionServicios} cargando={cargaConfig} />
+
+      <Condiciones />
 
     </Pagina>
   );

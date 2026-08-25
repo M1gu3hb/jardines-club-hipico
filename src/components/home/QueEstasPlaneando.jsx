@@ -6,6 +6,7 @@ import { useTodosLosTipos } from '@/lib/datos';
 import { construyeRuta, rutaPorClave } from '@/rutas';
 import { EsqueletoTarjetas, AvisoCargando } from '@/components/ui/Esqueleto';
 import VerTodo from './VerTodo';
+import ArteDeEvento from '@/components/eventos/ArteDeEvento';
 
 /**
  * «¿Qué estás planeando?» — el primer desvío de la portada.
@@ -74,6 +75,7 @@ export default function QueEstasPlaneando() {
           <TextoQueAparece
             como="h2"
             texto="¿Qué estás planeando?"
+            resalta="planeando?"
             className="block text-3xl font-extralight tracking-tight text-white/95 sm:text-5xl"
           />
 
@@ -123,7 +125,12 @@ function Tarjeta({ tipo }) {
       to={destino}
       className="group skeu-card skeu-card-hover flex h-full flex-col overflow-hidden rounded-2xl focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#C9A84C]/60"
     >
-      {tipo.imagenHero && (
+      {/* LA FOTO MANDA; EL DIBUJO ES EL SUPLENTE.
+        *
+        * Hoy ninguna de las seis filas tiene `imagen_hero`, así que se ven los dibujos. El día
+        * que el dueño suba una fotografía desde el panel, esa tarjeta cambia sola y sin tocar
+        * este archivo — una foto real del recinto siempre gana a una ilustración. */}
+      {tipo.imagenHero ? (
         <div className="aspect-[16/10] overflow-hidden bg-black/40">
           <img
             src={tipo.imagenHero}
@@ -132,6 +139,11 @@ function Tarjeta({ tipo }) {
             className="h-full w-full object-cover transition-transform duration-700 group-hover:scale-105"
           />
         </div>
+      ) : (
+        <ArteDeEvento
+          slug={tipo.slug}
+          className="aspect-[16/10] w-full border-b border-white/5 bg-black/20"
+        />
       )}
 
       <div className="flex flex-1 flex-col p-6 sm:p-7">

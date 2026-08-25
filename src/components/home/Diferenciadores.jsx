@@ -71,6 +71,7 @@ export default function Diferenciadores() {
         <TextoQueAparece
           como="h2"
           texto="Lo que no tiene un salón normal"
+            resalta="salón normal"
           className="mb-14 block text-center text-3xl font-extralight tracking-tight text-white/95 sm:text-4xl"
         />
 

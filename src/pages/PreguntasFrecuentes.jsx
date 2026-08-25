@@ -50,6 +50,7 @@ export default function PreguntasFrecuentes() {
       clave="preguntas-frecuentes"
       eyebrow="Sin rodeos"
       encabezado="Preguntas frecuentes"
+      acento="frecuentes"
       entradilla="Lo que más nos preguntan por WhatsApp, contestado aquí para que no tengas que preguntarlo."
       jsonLd={jsonLd}
     >

@@ -176,6 +176,18 @@ export default function Home() {
               logoUrl={config?.logoUrl}
             />
 
+            {/* LAS CIFRAS, PEGADAS AL HERO.
+              *
+              * Orden del dueño: *«lo de más de treinta años de experiencia, más de quinientos
+              * eventos realizados, ocho espacios únicos y lo de Google, eso va justo abajo del
+              * hero, arriba de los ocho espacios»*.
+              *
+              * Y es el sitio correcto. Quien acaba de leer la promesa del hero se pregunta lo
+              * mismo siempre: «¿y estos quiénes son?». Treinta años y quinientos eventos lo
+              * contestan en dos segundos, ANTES de pedirle que mire nada. Enterradas después
+              * del catálogo llegaban cuando la duda ya le había hecho cerrar la pestaña. */}
+            <Confianza />
+
             {/* EL LUGAR PRIMERO, Y LUEGO EL TIPO DE EVENTO.
               *
               * Aquí había el argumento contrario —que casi nadie llega pensando «¿dónde?» sino
@@ -191,8 +203,6 @@ export default function Home() {
             <QueEstasPlaneando />
 
             <Diferenciadores />
-
-            <Confianza />
 
             <ScrollAnimationSection />
 

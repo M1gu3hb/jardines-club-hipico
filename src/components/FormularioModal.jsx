@@ -5,7 +5,7 @@ import { playSound } from "./soundSystem";
 import useLockBodyScroll from "../hooks/useLockBodyScroll";
 import { WHATSAPP } from "@/config/negocio";
 import { comoTexto } from "@/lib/sugerencias";
-import Sugerencias from "./formulario/Sugerencias";
+import Sugerencias, { InvitacionAVer } from "./formulario/Sugerencias";
 import { useServicios, useAmenidades } from "@/lib/datos";
 
 const TIPOS_EVENTO = ["Boda", "XV Años", "Cumpleaños", "Infantil", "Empresarial", "Otro"];
@@ -145,7 +145,16 @@ export default function FormularioModal({
   const { data: amenidades = [] } = useAmenidades();
 
   const justSentRef = useRef(false);
-  useLockBodyScroll(open || sent);
+  // EL BLOQUEO DE SCROLL SOLO TIENE SENTIDO SIENDO VENTANA.
+  //
+  // Existe para que el fondo no se desplace por debajo de un modal. Dentro de `/cotizar` el
+  // formulario NO es una ventana: es la página. Y como ahí `open` vale `true` de forma
+  // permanente, el bloqueo se quedaba puesto para siempre — `<html>` con `overflow: hidden`
+  // sobre un documento de 2 566 px. El dueño lo describió tal cual: *«no se puede scrollear,
+  // no se puede ver bien el formulario»*.
+  //
+  // No era que no cupiera: era que no se podía bajar.
+  useLockBodyScroll(!enPagina && (open || sent));
 
   const handleVolverInicio = () => {
     setSent(false);
@@ -528,6 +537,19 @@ export default function FormularioModal({
               <p className="text-white/25 text-[11px] text-center mt-4">
                 Solo lo esencial. Los detalles (montaje, alimentos, servicios) los vemos juntos por WhatsApp.
               </p>
+            </div>
+          )}
+
+          {/* LA INVITACIÓN VA FUERA DE LOS DOS PASOS, A PROPÓSITO.
+            *
+            * Estuvo dentro del paso 2 y por eso el dueño no la vio: `/cotizar` abre en el paso
+            * 1 —elegir espacio— y ahí no existía. La duda «¿qué me pueden poner?» aparece al
+            * principio, no después de haber escrito el teléfono.
+            *
+            * Solo se esconde tras enviar: ahí ya no toca invitar a nada, toca confirmar. */}
+          {!sent && (
+            <div className="mt-5">
+              <InvitacionAVer />
             </div>
           )}
         </div>

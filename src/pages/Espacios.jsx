@@ -52,6 +52,7 @@ export default function Espacios() {
       clave="espacios"
       eyebrow="Ocho espacios, un recinto"
       encabezado="Encuentra dónde cabe tu evento"
+      acento="cabe tu evento"
       entradilla={
         'Jardines al aire libre, salones cerrados, una capilla, un área infantil y estancias ' +
         'para quien se queda a dormir. Todos dentro del mismo terreno, en Xochimilco.'

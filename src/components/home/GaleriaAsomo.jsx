@@ -69,6 +69,7 @@ export default function GaleriaAsomo() {
           <TextoQueAparece
             como="h2"
             texto="Míralo tú"
+            resalta="tú"
             className="block text-3xl font-extralight tracking-tight text-white/95 sm:text-5xl"
           />
           <p className="mx-auto mt-5 max-w-xl text-sm font-light leading-relaxed text-white/45 sm:text-base">

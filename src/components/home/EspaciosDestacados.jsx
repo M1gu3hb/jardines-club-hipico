@@ -78,6 +78,7 @@ export default function EspaciosDestacados() {
           <TextoQueAparece
             como="h2"
             texto="Dónde puede pasar"
+            resalta="pasar"
             className="block text-3xl font-extralight tracking-tight text-white/95 sm:text-5xl"
           />
 

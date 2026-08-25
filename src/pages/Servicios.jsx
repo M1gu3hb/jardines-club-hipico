@@ -51,6 +51,7 @@ export default function Servicios() {
       clave="servicios"
       eyebrow="Todo dentro del recinto"
       encabezado="Qué se puede contratar"
+      acento="contratar"
       entradilla={
         'Y, antes que eso, qué viene ya incluido con la renta. Es lo que más se pregunta y ' +
         'hasta hoy no estaba escrito en ninguna parte.'

@@ -38,6 +38,20 @@ export default function MenuDelSitio() {
   const cotizar = rutaPorClave('cotizar');
 
   const items = useMemo(() => {
+    // INICIO ABRE EL MENÚ, Y NO SALE DE `RUTAS_MENU`.
+    //
+    // La portada está marcada `menu: false` en `rutas.js` —el logotipo ya lleva a ella— y por
+    // eso faltaba. Pero el dueño la quiere explícita, y tiene razón: el logotipo es una
+    // convención que mucha gente no conoce, y quien abre un menú buscando «cómo vuelvo al
+    // principio» necesita leerlo, no deducirlo. Cuesta una línea y quita una duda.
+    const inicio = {
+      id: 'home',
+      label: 'Inicio',
+      link: '/',
+      ariaLabel: 'Ir al inicio',
+      esRuta: false,
+    };
+
     const delSitio = RUTAS_MENU
       // `avisos` sale de aqui y se anade al final del todo, por debajo del portal: es lo que
       // pidio el dueno, dos veces y con enfasis. Ver la nota en `rutas.js`.
@@ -50,7 +64,7 @@ export default function MenuDelSitio() {
         esRuta: false,
       }));
 
-    return delSitio.concat([{
+    return [inicio].concat(delSitio).concat([{
       // OTRA APLICACIÓN, en otro origen. La dirección sale de `VITE_URL_PORTAL` para no
       // escribirla a mano (regla R8). El respaldo `/portal` no es decorativo: si faltara la
       // variable, cae en la ruta vieja de este mismo sitio, que es un 301 hacia el portal. El
@@ -64,12 +78,20 @@ export default function MenuDelSitio() {
       // Y por debajo del portal, lo ultimo: los avisos. Solo si la ruta existe —lleva
       // `soloSiHay: 'anuncios'`, asi que desaparece del menu cuando no hay ninguno publicado,
       // en vez de llevar a una pagina vacia.
+      // AVISOS, LO ÚLTIMO DE TODO Y EN PEQUEÑO.
+      //
+      // Va con `esRuta: true`, que es el estilo discreto del portal — no porque sea otra
+      // aplicación, sino porque el dueño lo quiere abajo del todo y con el mismo peso visual:
+      // *«los avisos van hasta hasta abajo, ni siquiera abajo de portal de clientes»*.
+      //
+      // En tamaño de titular competía con Espacios y Eventos, que son las que venden. Aquí
+      // está disponible para quien la busque y no le quita sitio a nadie.
       RUTAS_MENU.filter((r) => r.clave === 'avisos').map((r) => ({
         id: r.clave,
         label: r.nombre,
         link: r.ruta,
-        ariaLabel: r.nombre,
-        esRuta: false,
+        ariaLabel: `Ir a ${r.nombre}`,
+        esRuta: true,
       })),
     );
   }, []);

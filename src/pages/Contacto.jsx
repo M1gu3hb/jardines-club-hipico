@@ -57,6 +57,7 @@ export default function Contacto() {
       clave="contacto"
       eyebrow="Estamos del otro lado"
       encabezado="Hablemos"
+      acento="Hablemos"
       entradilla="Elige por dónde te resulte más cómodo. Contestamos el mismo día en horario de oficina."
       jsonLd={jsonLd}
     >

@@ -37,6 +37,7 @@ export default function ClasesDeBaile() {
       clave="clases-de-baile"
       eyebrow="Próximamente"
       encabezado="Clases de baile"
+      acento="de baile"
       entradilla="Vamos a abrir una academia de baile en el Salón de los Espejos."
     >
       <div className="mx-auto max-w-3xl px-5 sm:px-8 pb-20">

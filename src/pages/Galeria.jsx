@@ -9,6 +9,28 @@ import { useGaleria } from '@/lib/datos';
 import { medidasDe } from '@/lib/medidas';
 
 /**
+ * Las formas del collage, en un patrón de ocho.
+ *
+ * En el teléfono (2 columnas) `col-span-2` es el ancho completo, así que la GRANDE y la ANCHA
+ * se ven enteras — una de cada cuatro fotos. De 640 px en adelante hay 4 y 6 columnas y las
+ * proporciones se reparten como en un mosaico impreso.
+ *
+ * No es aleatorio a propósito: un patrón fijo se ve compuesto y además **no cambia entre el
+ * servidor y el navegador**, que es lo que pasaría con `Math.random()` — el prerender pintaría
+ * una disposición y la hidratación otra, y las fotos saltarían de sitio al cargar.
+ */
+const FORMAS = [
+  'col-span-2 row-span-2',                    // grande
+  'col-span-1 row-span-1',
+  'col-span-1 row-span-2',                    // alta
+  'col-span-1 row-span-1',
+  'col-span-2 row-span-1',                    // ancha
+  'col-span-1 row-span-1',
+  'col-span-1 row-span-1',
+  'col-span-2 row-span-2 sm:col-span-2 sm:row-span-1',  // grande en móvil, ancha en pantalla
+];
+
+/**
  * /galeria — los 69 medios del recinto.
  *
  * ── Por qué NO hay filtros, todavía ─────────────────────────────────────────
@@ -90,31 +112,34 @@ export default function Galeria() {
             </p>
 
             {/* ══════════════════════════════════════════════════════════════════════
-              * LA REJILLA, Y POR QUÉ EN EL TELÉFONO ES DISTINTA
+              * UN COLLAGE DE VERDAD: PIEZAS DE TAMAÑOS DISTINTOS
               * ══════════════════════════════════════════════════════════════════════
               *
-              * Aquí había mampostería con columnas CSS —cada foto conservando su proporción—
-              * y sobre el papel era mejor: un jardín apaisado y una capilla vertical no se
-              * leen igual metidos en la misma caja.
+              * Palabras del dueño: *«distribúyela y hazla como un collage, unas más grandes
+              * que otras, que se vean bien, que se vean chingonas»*.
               *
-              * En un teléfono no funcionó. Palabras del dueño: *«la galería en teléfono se ve
-              * muy chiquita, para la gente mayor de plano no se ve nada, se ven de a dos»*. Y
-              * es cierto: dos columnas en una pantalla de 375 px dejan cada foto en unos 175,
-              * y ahí un salón montado con sus mesas y su iluminación no es más que una mancha.
+              * Antes eran todas del mismo tamaño y eso hace dos cosas malas a la vez: aplana
+              * —sin piezas grandes no hay dónde descansar la vista ni qué mirar primero— y
+              * empequeñece, porque el tamaño de la celda lo fija la más pequeña.
               *
-              * La solución es la del sitio original, y es buena: **dos columnas, pero con una
-              * foto a ancho completo cada tres**. El patrón es 0 y 3 de cada 6, así que un
-              * tercio de las piezas se ve grande de verdad. Eso da respiro, marca ritmo y
-              * —esto es lo que importa— hace que en cada pantalla haya al menos una foto en
-              * la que se distingue algo.
+              * Ahora hay cuatro tamaños que se repiten en un patrón de ocho: una GRANDE (dos
+              * por dos), una ANCHA, una ALTA y varias normales. El patrón se repite pero no
+              * cae siempre en el mismo sitio de la fila, así que no se ve la rejilla por
+              * debajo — que es justo lo que diferencia un collage de una tabla.
               *
-              * De 640 px para arriba ya no hace falta: tres y cuatro columnas dan tamaño de
-              * sobra, y ahí todas valen igual.
+              * `grid-auto-flow: dense` es lo que lo hace posible: cuando una pieza grande no
+              * cabe en el hueco que toca, el navegador mete ahí una pequeña en vez de dejar el
+              * agujero. Sin eso, un collage con tamaños mezclados sale lleno de vacíos.
               *
-              * El precio es que las filas tienen alto fijo y las fotos se recortan. Se paga a
-              * gusto: una foto recortada que se ve gana a una proporción exacta que no.
+              * En el teléfono son dos columnas, así que «grande» y «ancha» ocupan el ancho
+              * completo: una de cada cuatro fotos se ve a pantalla completa. Ese era el
+              * problema original —*«se ve muy chiquita, la gente mayor no ve nada»*— y así
+              * queda resuelto sin dejar de ser un collage.
               */}
-            <div className="grid grid-cols-2 auto-rows-[180px] gap-2 sm:grid-cols-3 sm:auto-rows-[220px] sm:gap-3 lg:grid-cols-4 lg:auto-rows-[210px]">
+            <div
+              className="grid grid-cols-2 auto-rows-[110px] gap-2 sm:grid-cols-4 sm:auto-rows-[130px] sm:gap-3 lg:grid-cols-6 lg:auto-rows-[140px]"
+              style={{ gridAutoFlow: 'dense' }}
+            >
               {(medios || []).map((m, i) => {
                 // EL HUECO SE RESERVA ANTES DE QUE LLEGUE LA IMAGEN.
                 //
@@ -126,9 +151,9 @@ export default function Galeria() {
                 // no de que nadie las teclee. Si una pieza no está en la lista se deja sin
                 // proporción a propósito: inventar un 4:3 sobre una foto vertical reserva un
                 // hueco equivocado y produce el mismo salto, solo que al revés.
-                // Ancho completo en el teléfono para una de cada tres. En cuanto hay sitio
-                // —640 px— vuelve a ocupar una sola columna.
-                const anchoCompleto = i % 6 === 0 || i % 6 === 3;
+                // El patrón del collage. Ocho posiciones que se repiten: una grande, una
+                // ancha, una alta y cinco normales. Ver la nota de arriba.
+                const forma = FORMAS[i % FORMAS.length];
 
                 // Las medidas reales siguen viajando al `<img>`. Ya no reservan el hueco —de eso
                 // se encarga el alto fijo de la fila— pero le dicen al navegador la proporción
@@ -141,9 +166,7 @@ export default function Galeria() {
                   type="button"
                   onClick={() => setAbierto(i)}
                   aria-label={m.alt || m.titulo || `Ampliar pieza ${i + 1} de la galería`}
-                  className={`group relative block h-full w-full overflow-hidden rounded-xl bg-black/40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#C9A84C]/60 ${
-                    anchoCompleto ? 'col-span-2 sm:col-span-1' : ''
-                  }`}
+                  className={`group relative block h-full w-full overflow-hidden rounded-xl bg-black/40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#C9A84C]/60 ${forma}`}
                 >
                   {isVideo(m.imagenUrl) ? (
                     <video

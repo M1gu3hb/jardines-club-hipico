@@ -34,6 +34,7 @@ import TextoQueAparece from '@/components/animacion/TextoQueAparece';
  * @param {string}  [props.encabezado]   Si falta, no se pinta cabecera y manda la página.
  * @param {string}  [props.entradilla]
  * @param {any}     [props.children]
+ * @param {string}  [props.acento] Trozo del titular que se pinta en serif dorada.
  */
 export default function Pagina({
   clave,
@@ -47,6 +48,8 @@ export default function Pagina({
   encabezado,
   entradilla,
   children,
+  // El trozo del titular que se pinta en serif dorada. Ver `TextoQueAparece`.
+  acento = '',
 }) {
   const def = rutaPorClave(clave);
   const ruta = slug ? construyeRuta(def.ruta, slug) : def.ruta;
@@ -83,6 +86,7 @@ export default function Pagina({
           <TextoQueAparece
             como="h1"
             texto={encabezado}
+            resalta={acento}
             className="mt-5 block text-4xl sm:text-6xl lg:text-7xl font-extralight tracking-tight text-white/95 leading-[0.95]"
           />
 

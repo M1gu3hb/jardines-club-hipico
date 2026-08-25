@@ -39,6 +39,7 @@ export default function Eventos() {
       clave="eventos"
       eyebrow="Empecemos por lo tuyo"
       encabezado="¿Qué estás planeando?"
+      acento="planeando?"
       entradilla={
         'Cada evento pide cosas distintas del mismo terreno: una boda necesita capilla y ' +
         'jardín, unos XV quieren pista y entrada, una posada de empresa quiere otra cosa.'

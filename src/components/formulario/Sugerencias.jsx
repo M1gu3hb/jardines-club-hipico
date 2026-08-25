@@ -80,26 +80,45 @@ export default function Sugerencias({ tipoEvento, personas, disponibles, elegido
         </p>
       ))}
 
-      {/* LA INVITACIÓN A SALIR, que solo se puede hacer porque el formulario guarda lo escrito.
-        *
-        * El dueño la pidió: *«si no han visto, invítalos a ver los servicios y amenidades para
-        * después regresar al formulario y continuarlo»*. La parte difícil no es el enlace: es el
-        * «continuarlo». Mandar a alguien fuera de un formulario a medio llenar y que al volver
-        * esté vacío es una forma elegante de perder la solicitud.
-        *
-        * Por eso `FormularioModal` guarda el borrador en `sessionStorage` en cada cambio y lo
-        * recupera al volver. Sin eso, este enlace no debería existir. */}
-      <p className="mt-4 border-t border-white/5 pt-3 text-[11px] font-light leading-relaxed text-white/35">
-        ¿Prefieres verlas con fotos?{' '}
-        <Link to="/amenidades" className="text-[#C9A84C]/80 underline underline-offset-4">
-          Míralas todas
-        </Link>{' '}
-        o mira{' '}
-        <Link to="/servicios" className="text-[#C9A84C]/80 underline underline-offset-4">
-          los servicios
-        </Link>
-        . Guardamos lo que llevas escrito y al volver sigues donde ibas.
-      </p>
     </fieldset>
+  );
+}
+
+/**
+ * InvitacionAVer — «mira las fotos y vuelve; no pierdes lo escrito».
+ *
+ * ══════════════════════════════════════════════════════════════════════════════
+ * POR QUÉ VIVE FUERA DE `Sugerencias` Y NO DENTRO
+ * ══════════════════════════════════════════════════════════════════════════════
+ *
+ * Porque dentro DESAPARECÍA justo cuando más falta hacía. `Sugerencias` se retira entera
+ * cuando todavía no hay nada que sugerir —antes de elegir tipo de evento, o cuando no hay
+ * coincidencias— y la invitación se iba con ella. El dueño lo notó: *«no está la parte que te
+ * invita a ver los servicios y amenidades»*. Estaba; solo que nunca en el momento en que él
+ * miró.
+ *
+ * Es un componente aparte y se pinta SIEMPRE. Lo que ofrece —ir a mirar y volver— no depende
+ * de que el algoritmo tenga algo que recomendar.
+ *
+ * ── Lo difícil no es el enlace, es el «vuelves» ─────────────────────────────
+ *
+ * Mandar a alguien fuera de un formulario a medio llenar y que al volver esté vacío es una
+ * forma elegante de perder la solicitud. Por eso `FormularioModal` guarda el borrador en
+ * `sessionStorage` en cada cambio y lo recupera al volver. **Sin eso, este enlace no debería
+ * existir.**
+ */
+export function InvitacionAVer() {
+  return (
+    <p className="rounded-2xl border border-white/5 bg-white/[0.02] px-4 py-3 text-[11px] font-light leading-relaxed text-white/40">
+      ¿Prefieres verlo con fotos antes de decidir?{' '}
+      <Link to="/amenidades" className="text-[#C9A84C]/85 underline underline-offset-4">
+        Mira las amenidades
+      </Link>{' '}
+      o{' '}
+      <Link to="/servicios" className="text-[#C9A84C]/85 underline underline-offset-4">
+        los servicios
+      </Link>
+      . Guardamos lo que llevas escrito y al volver sigues donde ibas.
+    </p>
   );
 }

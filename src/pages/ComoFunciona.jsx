@@ -41,6 +41,7 @@ export default function ComoFunciona() {
       clave="como-funciona"
       eyebrow="De la duda a la fecha"
       encabezado="Cómo funciona"
+      acento="funciona"
       entradilla="Cuánto dura, cómo se conoce el lugar, cómo se aparta una fecha y cómo se paga. Sin letra chica."
     >
       <div className="mx-auto max-w-4xl px-5 sm:px-8">

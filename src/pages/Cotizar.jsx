@@ -52,6 +52,7 @@ export default function Cotizar() {
       clave="cotizar"
       eyebrow="Sin compromiso"
       encabezado="Cuéntanos qué estás planeando"
+      acento="planeando"
       entradilla={
         nombreEspacio
           ? `Te interesa ${nombreEspacio}. Dinos la fecha y cuántos son, y te decimos si está libre.`
