@@ -92,7 +92,7 @@
     },
     {
       "ruta": "src/api/base44Client.js",
-      "sha256": "d39e08ba3dcb7123ea6c381197894d178110b4f683020bf2df577f66dc6cd585",
+      "sha256": "d91a7cc5e18b41682794e74b4b9411c02977d7346747452eed9812cce3328aeb",
       "tambienEn": [
         "portal",
         "crm"
@@ -155,14 +155,6 @@
     {
       "ruta": "src/index.css",
       "sha256": "8b3995528215d96ef6ca852d09a7677d08b62048f7b248287b883b29a0a8c80b",
-      "tambienEn": [
-        "portal",
-        "crm"
-      ]
-    },
-    {
-      "ruta": "src/lib/PageNotFound.jsx",
-      "sha256": "8edcc16f9a9c74ec3956725f67cdf8a18d6e0695090f0d7ebf1c238f15f3318c",
       "tambienEn": [
         "portal",
         "crm"
@@ -881,6 +873,10 @@
     {
       "ruta": "src/pages/Home.jsx",
       "motivo": "solo existe en esta aplicacion"
+    },
+    {
+      "ruta": "src/pages/NoEncontrada.jsx",
+      "motivo": "sustituye a src/lib/PageNotFound.jsx, que era comun a los tres. El rediseno convirtio la web en multipagina y su 404 pasa a listar las secciones del sitio, cosa que no aplica ni al portal ni al CRM. Los otros dos conservan PageNotFound.jsx intacto: la divergencia es de esta app, no de ellos"
     },
     {
       "ruta": "src/utils/index.ts",

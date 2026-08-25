@@ -31,9 +31,9 @@ f4169d0  FASE 1: bitacora de estado, y las cuatro respuestas del dueño
 
 | # | Punto | Estado |
 |---|---|---|
-| 1 | Corregir capacidades rotas | 🔄 **DESBLOQUEADO** — ver §1.5 |
-| 2 | Migraciones `sec_30/31/32` | 🔄 **AUTORIZADAS** por el dueño |
-| 3 | Routing multipágina | ⬜ siguiente |
+| 1 | Corregir capacidades rotas | ✅ **hecho** en `sec_30` — ver §1.5 |
+| 2 | Migraciones `sec_30/31/32` | ✅ **aplicadas y verificadas** — ver §1.6 |
+| 3 | Routing multipágina | 🔄 **en curso** |
 | 4 | Layout base (nav, breadcrumbs, footer) | ⬜ |
 | 5 | `<head>` por ruta | ⬜ |
 | 6 | Bug del dominio ajeno | ✅ **`52647ff`** |
@@ -143,13 +143,13 @@ verificación al salir**, y las tres pasaron su propia verificación.
 
 | Migración | Versión en la base | Qué hizo |
 |---|---|---|
-|  |  | 11 columnas en `salones`, los 8 slugs, tipo de espacio, y las 3 capacidades falsas corregidas |
-|  |  | Tabla `tipos_evento` + RLS + 4 políticas + 6 filas **apagadas** |
-|  |  | 4 columnas en `galeria` + 2 claves foráneas + 3 índices |
+| `sec_30` | `20260825035218` | 11 columnas en `salones`, los 8 slugs, tipo de espacio, y las 3 capacidades falsas corregidas |
+| `sec_31` | `20260825035353` | Tabla `tipos_evento` + RLS + 4 políticas + 6 filas **apagadas** |
+| `sec_32` | `20260825035419` | 4 columnas en `galeria` + 2 claves foráneas + 3 índices |
 
 ### El trap que casi se traga todo esto
 
-Desde  **los permisos de este esquema son por columna**. Una columna nueva nace **sin
+Desde `sec_27` **los permisos de este esquema son por columna**. Una columna nueva nace **sin
 permiso para `anon`**. El sitio la habría leído como `null` **sin un solo error en consola** —
 ni en el navegador, ni en los logs, ni en las pruebas. Habría parecido que el dato no se guardó.
 

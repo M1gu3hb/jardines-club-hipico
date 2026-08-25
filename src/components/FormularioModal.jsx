@@ -7,6 +7,25 @@ import { WHATSAPP } from "@/config/negocio";
 
 const TIPOS_EVENTO = ["Boda", "XV Años", "Cumpleaños", "Infantil", "Empresarial", "Otro"];
 
+/**
+ * Slug de `/eventos/{slug}` → la opción que este formulario entiende.
+ *
+ * Vive PEGADO a `TIPOS_EVENTO` a propósito: es la única forma de que quien edite esa lista
+ * vea que hay algo más que depende de sus valores exactos. En otro archivo, cambiar
+ * "XV Años" por "XV años" rompería la preselección sin que nadie se enterara.
+ *
+ * `nocturnos` no tiene opción propia en la lista, así que entra por "Otro" con su texto ya
+ * escrito. Es peor perder el dato que enseñar una opción que no existe.
+ */
+const SLUG_A_TIPO = {
+  bodas: { tipoEvento: "Boda" },
+  "xv-anos": { tipoEvento: "XV Años" },
+  cumpleanos: { tipoEvento: "Cumpleaños" },
+  infantiles: { tipoEvento: "Infantil" },
+  corporativos: { tipoEvento: "Empresarial" },
+  nocturnos: { tipoEvento: "Otro", tipoEventoOtro: "Evento nocturno" },
+};
+
 // Mensajes de validación que el servidor puede devolver tal cual. Es una lista
 // cerrada a propósito: cualquier otro error (violación de constraint, fallo de
 // conexión, etc.) se resume en genérico para no filtrar nombres de tablas,
@@ -55,7 +74,7 @@ const initialForm = {
   aceptoAvisoPrivacidad: false,
 };
 
-export default function FormularioModal({ open, onClose, preselectedSalon, whatsappNumero }) {
+export default function FormularioModal({ open, onClose, preselectedSalon, whatsappNumero, tipoEventoSugerido }) {
   // step 0 = elegir espacio (si no viene preseleccionado), step 1 = datos
   const [step, setStep] = useState(0);
   const [form, setForm] = useState({ ...initialForm });
@@ -89,16 +108,23 @@ export default function FormularioModal({ open, onClose, preselectedSalon, whats
       setError("");
       setFolioFinal("");
       setLoading(false);
+      // Lo que venga en la URL entra ya puesto. Un desconocido no vale nada: si el slug no
+      // está en el mapa se ignora y el usuario elige a mano, que es el comportamiento de
+      // siempre. Preseleccionar algo inventado sería peor que no preseleccionar nada.
+      const delTipo = tipoEventoSugerido ? SLUG_A_TIPO[tipoEventoSugerido] : null;
+
       if (preselectedSalon) {
-        setForm({ ...initialForm, salonSeleccionado: preselectedSalon });
+        setForm({ ...initialForm, salonSeleccionado: preselectedSalon, ...(delTipo || {}) });
         setStep(1);
       } else {
-        setForm({ ...initialForm });
+        setForm({ ...initialForm, ...(delTipo || {}) });
+        // Sin salón elegido se sigue empezando por el paso 0: el tipo de evento no sustituye
+        // a la elección de espacio, solo ahorra un campo del paso siguiente.
         setStep(0);
       }
     }
     if (!open) justSentRef.current = false;
-  }, [open, preselectedSalon]);
+  }, [open, preselectedSalon, tipoEventoSugerido]);
 
   useEffect(() => {
     base44.entities.Salon.list("orden").then(d => setSalones(d.filter(s => s.activo !== false))).catch(() => {});

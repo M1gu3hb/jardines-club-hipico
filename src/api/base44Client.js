@@ -31,6 +31,9 @@ const TABLES = {
   ItemContratado: "items_contratados",
   Perfil: "perfiles",
   SalonPlano: "salon_planos",
+  // Nace con `sec_31` (rediseño, FASE 2). Sus filas llegan APAGADAS: una página de evento
+  // sin contenido propio no se publica, así que el sitio filtra por `activo`.
+  TipoEvento: "tipos_evento",
   EventoReglasMesas: "evento_reglas_mesas",
   Mesa: "mesas",
   Invitado: "invitados",
@@ -47,7 +50,7 @@ const TABLES = {
 // Tablas con columna `orden` (para ordenar por defecto cuando no se pasa sort).
 const CON_ORDEN = new Set([
   "salones", "galeria", "servicios", "amenidades", "servicios_extra", "alimentos",
-  "resenas", "mesas", "cronograma", "items_contratados",
+  "resenas", "mesas", "cronograma", "items_contratados", "tipos_evento",
 ]);
 
 const toSnake = (s) => s.replace(/([A-Z])/g, (m) => "_" + m.toLowerCase());

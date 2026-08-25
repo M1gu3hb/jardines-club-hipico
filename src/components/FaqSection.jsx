@@ -2,40 +2,17 @@ import { useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { ChevronDown, CornerDownRight } from "lucide-react";
 
-const FAQS = [
-  {
-    q: "¿Para cuántas personas son los espacios?",
-    a: "Tenemos espacios desde 30 hasta 600 personas. Según el tamaño y tipo de tu evento te recomendamos el ideal — hemos realizado todo tipo de eventos en todos nuestros espacios.",
-  },
-  {
-    q: "¿Manejan paquetes o cotizan por separado?",
-    a: "No manejamos paquetes fijos: armamos cada evento a tu medida. Tú nos cuentas cómo lo imaginas y nosotros lo cubrimos todo por piezas — desde el espacio (lo primordial) hasta alimentos, bebidas, DJ o música en vivo, meseros, decoración, mobiliario y cualquier detalle que necesites. Cada servicio tiene su costo y se cotiza según tu evento, así pagas justo lo que necesitas.",
-  },
-  {
-    q: "¿Cuentan con estacionamiento?",
-    a: "Sí, contamos con estacionamiento amplio y acceso cómodo para tus invitados.",
-  },
-  {
-    q: "¿Tienen hospedaje?",
-    a: "Sí. Dentro del complejo tenemos bungalos (estancias) para que tú y tus invitados puedan descansar después del evento, sin necesidad de trasladarse.",
-  },
-  {
-    q: "¿Tienen capilla para la ceremonia?",
-    a: "Sí, contamos con una capilla propia. Puedes realizar la ceremonia y la recepción en el mismo lugar, o rentarla de forma independiente.",
-  },
-  {
-    q: "¿Qué tipo de eventos realizan?",
-    a: "Bodas, XV años, cumpleaños, eventos infantiles, corporativos y celebraciones nocturnas. Cada espacio se adapta a lo que necesites.",
-  },
-  {
-    q: "¿Dónde están ubicados?",
-    a: "En Sta Inés, Xochimilco, al sur de la Ciudad de México. Al enviar tu solicitud te compartimos la ubicación exacta en Google Maps.",
-  },
-  {
-    q: "¿Cómo aparto mi fecha?",
-    a: "Llena el formulario de cotización (te toma menos de 1 minuto) y nos ponemos en contacto contigo por WhatsApp para revisar disponibilidad y afinar todos los detalles de tu evento.",
-  },
-];
+// LAS PREGUNTAS YA NO VIVEN AQUÍ.
+//
+// Estaban escritas dentro de este componente, que es donde nacieron cuando el sitio era una
+// sola página. Ahora las necesitan dos sitios —esta sección y `/preguntas-frecuentes`— y dos
+// copias del mismo texto acaban SIEMPRE diciendo cosas distintas.
+//
+// La portada enseña solo las destacadas: una lista de nueve preguntas en medio de la Home
+// interrumpe el recorrido en vez de ayudarlo. Las demás están en su página, enlazada abajo.
+import { PREGUNTAS_DESTACADAS } from "@/data/preguntas";
+
+const FAQS = PREGUNTAS_DESTACADAS;
 
 function Item({ faq, isOpen, onToggle }) {
   return (
