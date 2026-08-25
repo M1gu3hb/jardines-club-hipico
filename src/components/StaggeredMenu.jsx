@@ -24,6 +24,7 @@ import "./StaggeredMenu.css";
  * @param {boolean}  [props.displayItemNumbering]
  * @param {string}   [props.className]
  * @param {string}   [props.logoUrl]
+ * @param {any}      [props.navegacion] Barra horizontal para pantallas anchas.
  * @param {string}   [props.menuButtonColor]
  * @param {string}   [props.openMenuButtonColor]
  * @param {string}   [props.accentColor]
@@ -42,6 +43,7 @@ export default function StaggeredMenu({
   displayItemNumbering = true,
   className,
   logoUrl,
+  navegacion,
   menuButtonColor = "#C9A84C",
   openMenuButtonColor = "#C9A84C",
   accentColor = "#C9A84C",
@@ -265,6 +267,11 @@ export default function StaggeredMenu({
             <span className="sm-logo-text">Jardines Club Hípico</span>
           )}
         </div>
+        {/* La navegación horizontal. Va aquí dentro y no en un elemento aparte para que
+            comparta la misma barra que el logotipo y el botón de menú: dos cabeceras
+            apiladas robarían alto de pantalla y se leerían como un fallo de maquetación.
+            Se esconde por debajo de 768 px — ver `.barra-superior` en el CSS. */}
+        {navegacion}
         <div className="sm-header-right">
           {headerExtra}
           <button

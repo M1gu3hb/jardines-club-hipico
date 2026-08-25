@@ -3,6 +3,7 @@ import { Link, useLocation, useNavigate } from 'react-router-dom';
 import StaggeredMenu from '@/components/StaggeredMenu';
 import SoundToggle from '@/components/SoundToggle';
 import { RUTAS_MENU, rutaPorClave } from '@/rutas';
+import BarraSuperior from './BarraSuperior';
 import { useConfigSitio } from '@/lib/datos';
 
 /**
@@ -121,6 +122,7 @@ export default function MenuDelSitio() {
     <StaggeredMenu
       items={items}
       logoUrl={config?.logoUrl}
+      navegacion={<BarraSuperior />}
       activeId={activo}
       onItemClick={alPulsar}
       headerExtra={

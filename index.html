@@ -73,6 +73,57 @@
     <link rel="preload" href="/fonts/inter-latin.woff2" as="font" type="font/woff2" crossorigin />
   </head>
   <body>
+    <!-- ══════════════════════════════════════════════════════════════════════════════
+         LA CORTINA. Tiene que estar AQUÍ, en el HTML, y no en React.
+         ══════════════════════════════════════════════════════════════════════════════
+
+         EL FALLO QUE ARREGLA. El splash ya se montaba primero, pero el dueño seguía viendo
+         un destello del hero antes, y el logotipo llegaba tarde: primero un círculo con
+         «JCH» y después la marca de verdad.
+
+         Las dos cosas tienen la misma causa: **el splash lo pinta React**, y React necesita
+         que se descargue el paquete de JavaScript, que se ejecute y que hidrate. Entre el
+         primer pintado del navegador y ese momento hay una ventana —corta en fibra, larga en
+         un teléfono con mala señal— en la que ya hay HTML en pantalla. Nada que viva dentro
+         de React puede tapar esa ventana, porque React todavía no existe.
+
+         Esta cortina se pinta con el HTML, sin esperar a la hoja de estilos (los estilos van
+         escritos en el propio elemento) y sin esperar a JavaScript. Cubre desde el primer
+         fotograma.
+
+         EL LOGOTIPO VA EN RUTA FIJA a propósito. El del splash de React sale de
+         `config_sitio`, que es una consulta a la base: hasta que responde no hay logotipo, y
+         de ahí el círculo «JCH» que veía el dueño. Aquí el archivo se pide con el HTML, a la
+         vez que todo lo demás.
+
+         Si algún día se cambia el logotipo desde el panel, esta ruta se queda con el anterior
+         durante los primeros milisegundos y luego React pinta el nuevo encima. Es el único
+         precio, y es invisible.
+
+         CÓMO SE QUITA, en este orden:
+           1. Si el splash ya se vio en esta sesión, el guion de abajo la borra ANTES de
+              pintar nada. Quien vuelve al inicio no ve ni un parpadeo negro.
+           2. Si no, la borra `SplashScreen` al montarse: para entonces React ya pintó su
+              propio splash debajo, idéntico, así que el relevo no se ve.
+           3. Y si React nunca llega a montar —error de JavaScript, red caída a media
+              descarga— un temporizador de 8 s la retira igual. Una cortina que se queda
+              puesta es una pantalla negra permanente, que es peor que cualquier parpadeo.
+         ══════════════════════════════════════════════════════════════════════════════ -->
+    <div id="cortina" style="position:fixed;top:0;left:0;right:0;bottom:0;z-index:100000;background:#050505;display:flex;align-items:center;justify-content:center">
+      <img src="/media/img/aMxWuH8.png" alt="" width="180" height="180"
+           style="width:180px;height:auto;object-fit:contain;filter:drop-shadow(0 0 20px rgba(201,168,76,0.5)) drop-shadow(0 0 50px rgba(201,168,76,0.2))" />
+    </div>
+    <script>
+      (function () {
+        var c = document.getElementById('cortina');
+        if (!c) return;
+        try {
+          if (sessionStorage.getItem('jch:splash') === 'visto') { c.remove(); return; }
+        } catch (e) { /* navegacion privada: se sigue con la cortina puesta */ }
+        setTimeout(function () { var d = document.getElementById('cortina'); if (d) d.remove(); }, 8000);
+      })();
+    </script>
+
     <div id="root"></div>
     <script type="module" src="/src/main.jsx"></script>
   </body>

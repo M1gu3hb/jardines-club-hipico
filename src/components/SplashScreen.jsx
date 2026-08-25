@@ -1,8 +1,11 @@
 import { useEffect, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { precargarVideoHero } from "@/lib/precargaHero";
+import { LOGO } from "@/config/marca";
 
 export default function SplashScreen({ logoUrl, onFinish }) {
+  // El de la base manda; mientras no llega, el local. Nunca el círculo de siglas: ver `LOGO`.
+  const logo = logoUrl || LOGO;
   const [visible, setVisible] = useState(true);
 
   // TEMPORAL — el video del hero se descarga AQUÍ, mientras el splash corre.
@@ -11,6 +14,17 @@ export default function SplashScreen({ logoUrl, onFinish }) {
   // estaba desaprovechado. No bloquea nada — si falla, el `<video>` descarga por
   // su cuenta igual que antes. Se apaga solo con `HERO_TEMPORAL.activo: false`.
   useEffect(() => { precargarVideoHero(); }, []);
+
+  // EL RELEVO CON LA CORTINA DEL HTML.
+  //
+  // `index.html` pinta una cortina negra con el logotipo antes de que exista React (ver la
+  // nota larga allí). Se retira AQUÍ, en el montaje: para este momento React ya ha pintado
+  // este splash debajo —mismo fondo, mismo logotipo, misma posición— así que el cambio no se
+  // ve. Quitarla antes dejaría asomar el hero; quitarla después taparía la animación.
+  useEffect(() => {
+    const cortina = typeof document !== 'undefined' && document.getElementById('cortina');
+    if (cortina) cortina.remove();
+  }, []);
 
   useEffect(() => {
     const timer = setTimeout(() => {
@@ -70,9 +84,9 @@ export default function SplashScreen({ logoUrl, onFinish }) {
             style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 28, position: "relative" }}
           >
             {/* Logo */}
-            {logoUrl ? (
+            {logo ? (
               <motion.img
-                src={logoUrl}
+                src={logo}
                 alt="Jardines Club Hípico"
                 initial={{ opacity: 0, scale: 0.9 }}
                 animate={{ opacity: 1, scale: 1 }}

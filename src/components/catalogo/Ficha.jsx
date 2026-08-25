@@ -1,9 +1,10 @@
 import { useState } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
-import { Expand, Images } from 'lucide-react';
+import { Expand, Images, Play } from 'lucide-react';
 import MediaViewer from '@/components/MediaViewer';
 import { fotosDe } from '@/lib/servicios';
 import { medidasDe } from '@/lib/medidas';
+import { isVideo } from '@/components/MediaViewer';
 
 /**
  * Ficha — un servicio o una amenidad, con el tamaño que merece.
@@ -72,10 +73,8 @@ export default function Ficha({ item, invertida = false }) {
                       aria-label={`Ver ${titulo}, fotografía ${i + 2}`}
                       className="group relative block aspect-square w-full overflow-hidden rounded-lg bg-black/40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#C9A84C]/60"
                     >
-                      <img
-                        src={f}
-                        alt=""
-                        loading="lazy"
+                      <Medio
+                        url={f}
                         className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-110"
                       />
                       {/* La última visible anuncia cuántas quedan: sin ese número nadie sospecha
@@ -138,12 +137,9 @@ function Portada({ url, alt, onAbrir, className = '', cuantas, compacta = false 
         className,
       ].join(' ')}
     >
-      <img
-        src={url}
-        alt=""
-        loading="lazy"
-        width={med ? med.ancho : undefined}
-        height={med ? med.alto : undefined}
+      <Medio
+        url={url}
+        med={med}
         className="absolute inset-0 h-full w-full object-cover transition-transform duration-700 group-hover:scale-105"
       />
       <span className="pointer-events-none absolute inset-0 bg-gradient-to-t from-black/50 to-transparent" />
@@ -228,5 +224,69 @@ export function Catalogo({ items, id }) {
         </ul>
       )}
     </div>
+  );
+}
+
+/**
+ * Medio — una foto o un video, con el mismo aspecto por fuera.
+ *
+ * ══════════════════════════════════════════════════════════════════════════════
+ * POR QUÉ HACÍA FALTA
+ * ══════════════════════════════════════════════════════════════════════════════
+ *
+ * Las fichas pintaban SIEMPRE un `<img>`. Y en `servicios` y `amenidades` hay videos, así que
+ * el navegador recibía un `.mp4` donde esperaba una imagen y dibujaba el icono de imagen rota.
+ * El dueño lo vio en su tablet: recuadros negros con el icono partido en «Variedad en Grupos
+ * Musicales» y en varias fichas más.
+ *
+ * ── El truco del `#t=0.1` ───────────────────────────────────────────────────
+ *
+ * Un `<video>` sin `poster` puede quedarse en negro hasta que alguien lo reproduce. Añadir
+ * `#t=0.1` a la dirección le pide al navegador que se coloque en el segundo 0,1 — y para
+ * hacerlo tiene que descargar y **pintar** ese fotograma. Es la forma estándar de conseguir
+ * una miniatura sin generar archivos de portada aparte.
+ *
+ * Se pide el segundo 0,1 y no el 0 porque muchos videos arrancan con un fotograma negro.
+ *
+ * Con `preload="metadata"` solo se baja la cabecera y ese fotograma, no el video entero: una
+ * página con seis videos no descarga seis videos.
+ *
+ * ── Y el botón de reproducir ────────────────────────────────────────────────
+ *
+ * Un fotograma quieto es indistinguible de una foto. El distintivo dice que ahí hay algo que
+ * se puede reproducir; al pulsarlo se abre el visor, que es donde el video suena y se ve
+ * entero.
+ */
+function Medio({ url, className, med = null, alt = '' }) {
+  if (isVideo(url)) {
+    return (
+      <>
+        <video
+          src={`${url}#t=0.1`}
+          muted
+          playsInline
+          preload="metadata"
+          tabIndex={-1}
+          aria-hidden="true"
+          className={className}
+        />
+        <span className="pointer-events-none absolute inset-0 grid place-items-center">
+          <span className="grid h-9 w-9 place-items-center rounded-full border border-white/25 bg-black/55 text-white/90 backdrop-blur-sm transition-transform duration-300 group-hover:scale-110">
+            <Play size={13} aria-hidden="true" />
+          </span>
+        </span>
+      </>
+    );
+  }
+
+  return (
+    <img
+      src={url}
+      alt={alt}
+      loading="lazy"
+      width={med ? med.ancho : undefined}
+      height={med ? med.alto : undefined}
+      className={className}
+    />
   );
 }
