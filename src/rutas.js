@@ -231,7 +231,8 @@ export const RUTAS = [
     padre: 'home',
     menu: true,
     prioridad: 0.6,
-    soloSiHay: 'anuncios',
+    // Ya NO lleva `soloSiHay`: la pÃ¡gina siempre tiene contenido, porque
+    // `informacion_servicios` vive ahÃ­ aunque la tabla `anuncios` estÃ© vacÃ­a.
     titulo: 'Avisos y novedades · Jardines Club Hípico',
     descripcion:
       'Lo que está pasando en Jardines Club Hípico: novedades del recinto, nuevos ' +

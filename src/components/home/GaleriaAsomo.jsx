@@ -89,7 +89,9 @@ export default function GaleriaAsomo() {
             </>
           )}
 
-          <div className="columns-2 gap-3 sm:columns-3 lg:columns-4 [&>*]:mb-3">
+          {/* La misma rejilla que `/galeria`: dos columnas en el teléfono con una foto a
+              ancho completo cada tres, para que se distinga algo. Ver la nota larga allí. */}
+          <div className="grid grid-cols-2 auto-rows-[150px] gap-2 sm:grid-cols-3 sm:auto-rows-[190px] sm:gap-3 lg:grid-cols-4">
             {asomo.map((m, i) => {
               const med = medidasDe(m.imagenUrl);
               return (
@@ -99,8 +101,9 @@ export default function GaleriaAsomo() {
                   whileInView={{ opacity: 1, scale: 1 }}
                   viewport={{ once: true }}
                   transition={{ duration: 0.5, delay: Math.min(i * 0.05, 0.4) }}
-                  className="overflow-hidden rounded-xl bg-black/40"
-                  style={med ? { aspectRatio: med.proporcion } : undefined}
+                  className={`overflow-hidden rounded-xl bg-black/40 ${
+                    i % 6 === 0 || i % 6 === 3 ? 'col-span-2 sm:col-span-1' : ''
+                  }`}
                 >
                   <img
                     src={m.imagenUrl}

@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
 import SplashScreen from "../components/SplashScreen";
+import InformacionDeServicios from '@/components/avisos/InformacionDeServicios';
 import HeroSection from "../components/HeroSection";
 import CtaCotizacion from "../components/CtaCotizacion";
 import FormularioModal from "../components/FormularioModal";
@@ -238,6 +239,10 @@ export default function Home() {
               * Y desaparece del documento si no hay ninguno publicado: una sección de avisos
               * vacía dice que el negocio está parado. */}
             <BloqueAvisos />
+
+            {/* Y debajo de todo, los avisos de siempre. El dueÃ±o los quiere "hasta hasta
+                abajo": son condiciones de trabajo, no argumento de venta. */}
+            <InformacionDeServicios texto={config?.informacionServicios} />
           </div>
 
           {/* Sticky WhatsApp button (móvil y escritorio) */}

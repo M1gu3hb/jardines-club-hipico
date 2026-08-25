@@ -1,8 +1,9 @@
 import { Link } from 'react-router-dom';
 import { ArrowRight, CalendarDays } from 'lucide-react';
 import { EsqueletoTexto, AvisoCargando } from '@/components/ui/Esqueleto';
+import InformacionDeServicios from '@/components/avisos/InformacionDeServicios';
 import Pagina from '@/components/navegacion/Pagina';
-import { useAnuncios } from '@/lib/datos';
+import { useConfigSitio, useAnuncios } from '@/lib/datos';
 
 /**
  * /avisos — el tablero de novedades del recinto.
@@ -31,6 +32,7 @@ import { useAnuncios } from '@/lib/datos';
  */
 export default function Avisos() {
   const { data: anuncios, isLoading, isError } = useAnuncios();
+  const { data: config, isLoading: cargaConfig } = useConfigSitio();
   const hay = (anuncios || []).length > 0;
 
   return (
@@ -64,6 +66,16 @@ export default function Avisos() {
           </div>
         )}
       </div>
+
+      {/* LOS AVISOS QUE SIEMPRE ESTUVIERON.
+        *
+        * La tabla `anuncios` es para novedades con fecha âuna apertura, un eventoâ y hoy estÃ¡
+        * vacÃ­a. Pero el sitio TENÃA avisos desde siempre, en otro sitio y con otro nombre:
+        * `config_sitio.informacion_servicios`. Al rehacer la portada se perdieron.
+        *
+        * Van aquÃ­ porque es literalmente su pÃ¡gina, y asÃ­ `/avisos` deja de poder salir vacÃ­a. */}
+      <InformacionDeServicios texto={config?.informacionServicios} cargando={cargaConfig} />
+
     </Pagina>
   );
 }

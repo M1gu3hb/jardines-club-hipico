@@ -89,10 +89,32 @@ export default function Galeria() {
               {items.length} {items.length === 1 ? 'pieza' : 'piezas'}
             </p>
 
-            {/* Rejilla de mampostería con columnas CSS: las fotos conservan su proporción en
-                vez de recortarse a cuadrados iguales. En un recinto eso importa — un jardín
-                apaisado y una capilla vertical no se leen igual metidos en la misma caja. */}
-            <div className="columns-2 gap-3 sm:columns-3 lg:columns-4 [&>*]:mb-3">
+            {/* ══════════════════════════════════════════════════════════════════════
+              * LA REJILLA, Y POR QUÉ EN EL TELÉFONO ES DISTINTA
+              * ══════════════════════════════════════════════════════════════════════
+              *
+              * Aquí había mampostería con columnas CSS —cada foto conservando su proporción—
+              * y sobre el papel era mejor: un jardín apaisado y una capilla vertical no se
+              * leen igual metidos en la misma caja.
+              *
+              * En un teléfono no funcionó. Palabras del dueño: *«la galería en teléfono se ve
+              * muy chiquita, para la gente mayor de plano no se ve nada, se ven de a dos»*. Y
+              * es cierto: dos columnas en una pantalla de 375 px dejan cada foto en unos 175,
+              * y ahí un salón montado con sus mesas y su iluminación no es más que una mancha.
+              *
+              * La solución es la del sitio original, y es buena: **dos columnas, pero con una
+              * foto a ancho completo cada tres**. El patrón es 0 y 3 de cada 6, así que un
+              * tercio de las piezas se ve grande de verdad. Eso da respiro, marca ritmo y
+              * —esto es lo que importa— hace que en cada pantalla haya al menos una foto en
+              * la que se distingue algo.
+              *
+              * De 640 px para arriba ya no hace falta: tres y cuatro columnas dan tamaño de
+              * sobra, y ahí todas valen igual.
+              *
+              * El precio es que las filas tienen alto fijo y las fotos se recortan. Se paga a
+              * gusto: una foto recortada que se ve gana a una proporción exacta que no.
+              */}
+            <div className="grid grid-cols-2 auto-rows-[180px] gap-2 sm:grid-cols-3 sm:auto-rows-[220px] sm:gap-3 lg:grid-cols-4 lg:auto-rows-[210px]">
               {(medios || []).map((m, i) => {
                 // EL HUECO SE RESERVA ANTES DE QUE LLEGUE LA IMAGEN.
                 //
@@ -104,6 +126,14 @@ export default function Galeria() {
                 // no de que nadie las teclee. Si una pieza no está en la lista se deja sin
                 // proporción a propósito: inventar un 4:3 sobre una foto vertical reserva un
                 // hueco equivocado y produce el mismo salto, solo que al revés.
+                // Ancho completo en el teléfono para una de cada tres. En cuanto hay sitio
+                // —640 px— vuelve a ocupar una sola columna.
+                const anchoCompleto = i % 6 === 0 || i % 6 === 3;
+
+                // Las medidas reales siguen viajando al `<img>`. Ya no reservan el hueco —de eso
+                // se encarga el alto fijo de la fila— pero le dicen al navegador la proporción
+                // de origen, que es lo que necesita para recortar con `object-cover` sin
+                // deformar y para decidir la calidad al escalar.
                 const med = medidasDe(m.imagenUrl);
                 return (
                 <button
@@ -111,8 +141,9 @@ export default function Galeria() {
                   type="button"
                   onClick={() => setAbierto(i)}
                   aria-label={m.alt || m.titulo || `Ampliar pieza ${i + 1} de la galería`}
-                  style={med ? { aspectRatio: med.proporcion } : undefined}
-                  className="group relative block w-full overflow-hidden rounded-xl bg-black/40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#C9A84C]/60"
+                  className={`group relative block h-full w-full overflow-hidden rounded-xl bg-black/40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#C9A84C]/60 ${
+                    anchoCompleto ? 'col-span-2 sm:col-span-1' : ''
+                  }`}
                 >
                   {isVideo(m.imagenUrl) ? (
                     <video
@@ -120,7 +151,7 @@ export default function Galeria() {
                       muted
                       playsInline
                       preload="metadata"
-                      className="w-full transition-transform duration-700 group-hover:scale-[1.04]"
+                      className="h-full w-full object-cover transition-transform duration-700 group-hover:scale-[1.04]"
                     />
                   ) : (
                     <img
