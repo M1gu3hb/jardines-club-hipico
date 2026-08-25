@@ -38,6 +38,7 @@
  * @property {boolean} [indexable] Entra en el sitemap. Por defecto sí.
  * @property {number}  [prioridad] `<priority>` del sitemap, 0-1.
  * @property {string}  [coleccion] Tabla de la que salen los hijos de una ruta dinámica.
+ * @property {string}  [soloSiHay] Solo entra en el sitemap si esa colección tiene filas.
  * @property {string}  [titulo]    `<title>`. Si falta se compone con el nombre.
  * @property {string}  [descripcion] `<meta name="description">`.
  */
@@ -138,6 +139,27 @@ export const RUTAS = [
     descripcion:
       'Fotografías y video reales del recinto: jardines, salones, capilla y áreas ' +
       'comunes de Jardines Club Hípico en Xochimilco, CDMX.',
+  },
+
+  {
+    // AVISOS. La página existe siempre, pero solo se ANUNCIA cuando hay algo que anunciar.
+    //
+    // `soloSiHay` se lo lee el prerender: si `jardines.anuncios` no tiene ninguna fila
+    // publicada, la ruta no entra en el `sitemap.xml`. Una página vacía anunciada a Google es
+    // contenido delgado, y además le dice al buscador que el sitio promete cosas que no tiene.
+    //
+    // El día que se cargue el primer aviso, entra sola en el siguiente despliegue.
+    ruta: '/avisos',
+    clave: 'avisos',
+    nombre: 'Avisos',
+    padre: 'home',
+    menu: true,
+    prioridad: 0.6,
+    soloSiHay: 'anuncios',
+    titulo: 'Avisos y novedades · Jardines Club Hípico',
+    descripcion:
+      'Lo que está pasando en Jardines Club Hípico: novedades del recinto, nuevos ' +
+      'servicios y fechas que conviene tener a mano.',
   },
 
   // ── DECIDIR Y CONTRATAR ───────────────────────────────────────────────────

@@ -194,7 +194,7 @@ async function principal() {
   const { URL_SITIO } = await import(pathToFileURL(join(RAIZ, 'src', 'config', 'sitio.js')).href);
 
   log('trayendo el contenido de la base…');
-  const { salones, tipos, siembra } = await modulo.traeDatos();
+  const { salones, tipos, anuncios, siembra } = await modulo.traeDatos();
 
   if (!salones?.length) {
     throw new Error(
@@ -211,8 +211,20 @@ async function principal() {
     tipos_evento: tipos.filter((t) => t.activo && t.slug).map((t) => ({ slug: t.slug, prioridad: 0.8 })),
   };
 
+  // `soloSiHay` decide si una ruta se ANUNCIA, no si existe.
+  //
+  // `/avisos` se prerenderiza siempre —la direccion tiene que responder— pero mientras no haya
+  // ningun anuncio publicado NO entra en el sitemap. Anunciarle a Google una pagina vacia es
+  // contenido delgado, y ademas le dice que el sitio promete cosas que no tiene.
+  const CUANTOS = { anuncios: (anuncios || []).length };
+
   const aPintar = [
-    ...RUTAS_FIJAS.map((r) => ({ ruta: r.ruta, clave: r.clave, prioridad: r.prioridad, indexable: r.indexable !== false })),
+    ...RUTAS_FIJAS.map((r) => ({
+      ruta: r.ruta,
+      clave: r.clave,
+      prioridad: r.prioridad,
+      indexable: r.indexable !== false && (!r.soloSiHay || (CUANTOS[r.soloSiHay] || 0) > 0),
+    })),
     ...RUTAS_DINAMICAS.flatMap((r) =>
       (porColeccion[r.coleccion] || []).map((x) => ({
         ruta: construyeRuta(r.ruta, x.slug),
@@ -262,6 +274,10 @@ async function principal() {
   log('404.html escrito');
 
   const hoy = new Date().toISOString().slice(0, 10);
+  const fueraDelSitemap = aPintar.filter((e) => !e.indexable).map((e) => e.ruta);
+  if (fueraDelSitemap.length) {
+    log('fuera del sitemap a proposito: ' + fueraDelSitemap.join(', '));
+  }
   escribeSitemap(aPintar.filter((e) => e.indexable), URL_SITIO, hoy);
   escribeRobots(URL_SITIO);
 

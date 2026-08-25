@@ -104,6 +104,25 @@
 20260825035218  jardines_sec_30_espacios_con_pagina_propia
 20260825035353  jardines_sec_31_tipos_de_evento
 20260825035419  jardines_sec_32_galeria_etiquetable
+
+# ── TABLERO DE ANUNCIOS (2026-08-24, pedido por el dueno el mismo dia) ─────
+20260825050519  jardines_sec_33_anuncios
+20260825050724  jardines_sec_34_anuncios_legibles_por_anon
+#
+# sec_34 CORRIGE UN FALLO DE sec_33, aplicado el mismo dia y encontrado antes de que
+# hubiera contenido. sec_33 puso una sola politica de lectura para anon y authenticated con
+# `or jardines.is_admin()`. Pero anon NO tiene EXECUTE sobre esa funcion -solo postgres,
+# service_role y authenticated- y Postgres evalua la politica entera: TODA lectura publica
+# moria con "permission denied for function is_admin". La tabla era ilegible para el sitio.
+#
+# La verificacion de sec_33 no lo vio porque corre con el rol que aplica migraciones. Salio
+# al probar la politica DESDE EL ROL anon. Segunda vez en la misma sesion que la diferencia
+# entre "lo comprobe" y "lo comprobe COMO EL VISITANTE" encuentra algo.
+#
+# El ensayo de sec_34 se ejecuto aparte contra produccion: anon ve 1 publicado y 0 de los
+# tres que no debe ver (borrador, programado a futuro, caducado). Termina en `raise
+# exception` a proposito, que es lo que garantiza que las filas de prueba no queden. Se
+# comprobo despues que la tabla sigue con 0 filas.
 #
 # Las tres llevan bloque de verificacion propio y las tres pasaron. Ademas se comprobo
 # DESDE EL ROL anon que las columnas nuevas se leen: sin GRANT explicito por columna

@@ -330,11 +330,26 @@ export default function FormularioModal({ open, onClose, preselectedSalon, whats
 
                 <Field label="Correo (opcional)" value={form.email} onChange={v => set("email", v)} type="email" />
 
+                {/* LA PREGUNTA QUE YA SE HACE EN LA CITA.
+                  *
+                  * Se llamaba «Comentarios (opcional)», que es el campo que nadie rellena porque
+                  * no pide nada concreto. Y resulta que el dueño YA tiene una pregunta, y es la
+                  * primera que hace cuando alguien llega: «¿cómo imaginas tu evento?». Porque
+                  * así como lo imaginen, así lo construyen — no hay paquetes fijos.
+                  *
+                  * Hacer aquí la misma pregunta que se hace en persona cambia lo que llega al
+                  * correo: en vez de un nombre y un número de personas, llega el evento contado
+                  * por quien lo está imaginando. Con eso, la cita empieza mucho más adelante.
+                  *
+                  * Sigue siendo opcional a propósito: obligar a escribir un párrafo para pedir
+                  * una cotización espanta a quien solo quiere saber si su fecha está libre. */}
                 <div>
-                  <label className="text-white/40 text-xs uppercase tracking-wider mb-2 block">Comentarios (opcional)</label>
-                  <textarea value={form.comentarios} onChange={e => set("comentarios", e.target.value)} rows={2}
+                  <label className="text-white/40 text-xs uppercase tracking-wider mb-2 block">
+                    ¿Cómo imaginas tu evento? (opcional)
+                  </label>
+                  <textarea value={form.comentarios} onChange={e => set("comentarios", e.target.value)} rows={3}
                     className="w-full bg-white/5 border border-white/10 text-white/80 text-sm px-4 py-3 rounded-xl outline-none focus:border-[#C9A84C]/40 resize-none placeholder:text-white/20"
-                    placeholder="Cuéntanos brevemente sobre tu evento." />
+                    placeholder="Cuéntanoslo con tus palabras. Así como lo imaginas, así lo armamos." />
                 </div>
 
                 <div className="flex items-start gap-3 pt-1">

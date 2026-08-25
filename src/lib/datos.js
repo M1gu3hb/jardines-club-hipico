@@ -93,6 +93,19 @@ export function useTipoEvento(slug) {
   return { ...q, data: q.data?.find((t) => t.slug === slug) };
 }
 
+/**
+ * Los anuncios publicados.
+ *
+ * Fíjate en que aquí NO hay filtro por `activo` ni por vigencia, y no es un olvido: **el filtro
+ * vive en la política de lectura de la base** (`sec_33`/`sec_34`). Un borrador o un aviso
+ * caducado no llega hasta aquí — no es que se descarte al pintarlo: es que `anon` no puede
+ * leerlo, ni consultando la tabla a mano.
+ *
+ * Es más seguro que filtrar en el cliente y además hace imposible el fallo clásico de olvidar
+ * el filtro en una de las dos pantallas que leen lo mismo.
+ */
+export const useAnuncios = () => useLista(['anuncios'], () => base44.entities.Anuncio.list('orden'));
+
 export const useGaleria = () => useLista(['galeria'], () => base44.entities.Galeria.list('orden'));
 
 export const useServicios = () =>

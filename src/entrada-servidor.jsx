@@ -58,23 +58,28 @@ import ArbolDeRutas from '@/ArbolDeRutas';
 export async function traeDatos() {
   const { base44 } = await import('@/api/base44Client');
 
-  const [salones, tipos, galeria, servicios, amenidades, alimentos, config] = await Promise.all([
+  const [salones, tipos, galeria, servicios, amenidades, alimentos, anuncios, config] = await Promise.all([
     base44.entities.Salon.filter({ activo: true }, 'orden'),
     base44.entities.TipoEvento.list('orden'),
     base44.entities.Galeria.list('orden'),
     base44.entities.ServicioItem.list('orden'),
     base44.entities.AmenidadItem.list('orden'),
     base44.entities.AlimentoMenu.list('orden'),
+    // Los anuncios llegan ya filtrados por la POLITICA de la base: un borrador o uno caducado
+    // no los devuelve. Aqui no hay que volver a filtrar nada.
+    base44.entities.Anuncio.list('orden'),
     base44.entities.ConfigSitio.list(),
   ]);
 
   return {
     salones,
     tipos,
+    anuncios,
     siembra: [
       { clave: ['salones'], datos: salones },
       { clave: ['tipos_evento'], datos: tipos.filter((t) => t.activo) },
       { clave: ['tipos_evento', 'todos'], datos: tipos },
+      { clave: ['anuncios'], datos: anuncios },
       { clave: ['galeria'], datos: galeria },
       { clave: ['servicios'], datos: servicios },
       { clave: ['amenidades'], datos: amenidades },

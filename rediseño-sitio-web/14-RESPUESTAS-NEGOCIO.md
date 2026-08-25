@@ -305,6 +305,39 @@ real por ese flujo — `jardines.accesos` tiene 0 filas.
 
 ---
 
+## 11.bis · «¿CÓMO IMAGINAS TU EVENTO?» — la frase que ordena todo el sitio
+
+> *«La primera pregunta que siempre le hacemos a un cliente es: ¿cómo imaginan su evento? Tal
+> cual. Porque así como lo imaginen, lo vamos a construir.»*
+
+Esto no es un eslogan que haya que inventar: **es lo que ya pasa en la cita**. Y explica el
+resto del negocio:
+
+- Por qué **no hay paquetes fijos** ni precios publicables: cada evento se arma a medida.
+- Por qué el dueño insiste tanto en **la visita**: la conversación empieza con esa pregunta.
+- Por qué *«de un tipo de evento salen mil»*: *«tenemos clientes muy creativos, muy
+  creativos. Unos XV años los hacen de una forma, las bodas de otra, y de mil maneras.»*
+
+### Dónde se aplica
+
+| Sitio | Cómo |
+|---|---|
+| **El formulario** | El campo abierto deja de llamarse «comentarios» y pasa a preguntar **literalmente lo mismo que se pregunta en la cita**. Es la pregunta que de verdad importa y la que hace que el dueño llegue a la cita sabiendo ya de qué va |
+| **La portada y el hub de eventos** | La promesa, dicha con sus palabras: como lo imagines, así se construye |
+| **Las páginas de tipo de evento** | Sirve para NO encasillar. Enseñar «así son las bodas aquí» sería justo lo contrario de lo que hace el negocio |
+
+### El flujo real de un cliente, hoy
+
+1. Ve la página.
+2. Manda la solicitud — hoy **muy sencilla**, y por eso hay que ampliarla (§10).
+3. **Todo el trato sigue por WhatsApp**, con el dueño.
+4. Se agenda la cita.
+5. En la cita, la primera pregunta es **«¿cómo imaginas tu evento?»**.
+
+El sitio tiene que empujar hacia el paso 4, no intentar sustituirlo. La visita **es** la venta.
+
+---
+
 ## 12.bis · SECCIÓN DE ANUNCIOS — pedida, y hay que dejarla LISTA Y VACÍA
 
 > *«Necesitamos una sección de avisos, de próximamente o cosas así. Una sección de publicidad
