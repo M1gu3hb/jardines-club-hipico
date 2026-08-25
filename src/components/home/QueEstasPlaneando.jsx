@@ -30,7 +30,24 @@ import VerTodo from './VerTodo';
  */
 export default function QueEstasPlaneando() {
   const { data: tipos, isLoading } = useTodosLosTipos();
-  if (!isLoading && !(tipos || []).length) return null;
+
+  // UNA SOLA LISTA, YA DEFENDIDA, PARA TODO EL COMPONENTE.
+  //
+  // Aquí hubo un fallo que tiró la portada entera. Al meter el esqueleto de carga cambié la
+  // salida temprana para que el componente siguiera vivo mientras llegan los datos —correcto—
+  // pero más abajo seguía un `tipos.map(...)`, y durante la carga `tipos` es `undefined`.
+  // Guardé la puerta y dejé el agujero.
+  //
+  // Y NO LO VIO NINGUNA DE LAS CUATRO PUERTAS, que es lo que más importa: el prerender
+  // construye las páginas con la caché de datos YA LLENA, así que el estado de carga no se
+  // ejecuta nunca en el build. Un fallo que solo existe mientras se espera a la red es
+  // invisible para un render que nunca espera.
+  //
+  // La lección: no basta con proteger el `return` temprano. La lista se normaliza UNA vez,
+  // arriba, y a partir de ahí nadie vuelve a tocar el dato crudo.
+  const lista = tipos || [];
+
+  if (!isLoading && lista.length === 0) return null;
 
   return (
     <section
@@ -76,7 +93,7 @@ export default function QueEstasPlaneando() {
         )}
 
         <ul className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-          {tipos.map((t, i) => (
+          {lista.map((t, i) => (
             <motion.li
               key={t.id}
               initial={{ opacity: 0, y: 20 }}

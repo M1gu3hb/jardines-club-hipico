@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { motion, useInView, useReducedMotion } from 'framer-motion';
+import { sePuedeAnimar } from '@/lib/animacion';
 
 /**
  * TextoQueAparece — el texto entra palabra por palabra al llegar a él.
@@ -84,7 +85,11 @@ export default function TextoQueAparece({ texto, className = '', como = 'span', 
 
   const mostrar = enVista || visibleAlCargar;
 
-  if (menosMovimiento) return <Como className={className}>{texto}</Como>;
+  // Quieto y visible en los dos casos: quien pidió menos movimiento, y la pestaña que el
+  // navegador ha congelado por estar en segundo plano. Ver `sePuedeAnimar`.
+  const [puedeAnimar] = useState(sePuedeAnimar);
+
+  if (menosMovimiento || !puedeAnimar) return <Como className={className}>{texto}</Como>;
 
   const palabras = String(texto).split(' ');
 

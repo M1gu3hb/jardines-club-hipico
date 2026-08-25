@@ -5,7 +5,6 @@ import HeroSection from "../components/HeroSection";
 import CtaCotizacion from "../components/CtaCotizacion";
 import FormularioModal from "../components/FormularioModal";
 import ContactoSection from "../components/ContactoSection";
-import NoIncluyeSection from "../components/NoIncluyeSection";
 import ScrollAnimationSection from "../components/ScrollAnimationSection";
 import Confianza from "../components/Confianza";
 import ComoFunciona from "../components/ComoFunciona";
@@ -228,7 +227,6 @@ export default function Home() {
             </section>
 
             <ContactoSection telefono={config?.telefonoContacto} correo={config?.correoAdmin} ubicacionTexto={config?.ubicacionTexto} ubicacionLinkMapa={config?.ubicacionLinkMapa} whatsappNumero={config?.whatsappNumero} />
-            <NoIncluyeSection texto={config?.informacionServicios} />
 
             {/* LOS AVISOS VAN HASTA ABAJO, y lo pidió el dueño así.
               *

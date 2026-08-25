@@ -1,6 +1,7 @@
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useLocation, useNavigationType } from 'react-router-dom';
 import { motion, useReducedMotion } from 'framer-motion';
+import { sePuedeAnimar } from '@/lib/animacion';
 
 /**
  * TransicionDePagina — sube arriba al cambiar de ruta, y hace que se note que cambió.
@@ -47,6 +48,7 @@ export default function TransicionDePagina({ children }) {
   const tipoDeNavegacion = useNavigationType();
   const menosMovimiento = useReducedMotion();
   const primeraVez = useRef(true);
+  const [puedeAnimar] = useState(sePuedeAnimar);
 
   useEffect(() => {
     // En la primera carga NO se toca el scroll. Quien llega desde Google a `/espacios#algo` o
@@ -81,7 +83,9 @@ export default function TransicionDePagina({ children }) {
     window.scrollTo({ top: 0, left: 0, behavior: 'instant' });
   }, [pathname, tipoDeNavegacion]);
 
-  if (menosMovimiento) return children;
+  // Y AQUÍ IMPORTA EL DOBLE: esto envuelve la página ENTERA. Si arranca en `opacity: 0` y no
+  // hay fotogramas que lo suban, no es un título el que no se ve — es todo el sitio.
+  if (menosMovimiento || !puedeAnimar) return children;
 
   return (
     <motion.div
