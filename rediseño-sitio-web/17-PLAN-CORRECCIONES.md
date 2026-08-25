@@ -94,8 +94,8 @@ Cada uno termina con su auditoría. `[ ]` pendiente · `[x]` hecho y auditado.
       CTA de texto plano que hay hoy al pie.
 - **Auditoría:** comprobarlo en seis rutas distintas y en teléfono.
 
-### PASO 8 · La galería en teléfono
-- [ ] Recuperar la distribución del sitio actual. Hoy salen minúsculas y no se ven.
+### PASO 8 · La galería en teléfono  ✅
+- [x] Recuperar la distribución del sitio actual. Hoy salen minúsculas y no se ven.
 - **Auditoría:** 375 px de ancho. Que se distinga lo que hay en la foto.
 
 ### PASO 9 · Menos secciones  ✅
@@ -104,8 +104,8 @@ Cada uno termina con su auditoría. `[ ]` pendiente · `[x]` hecho y auditado.
 - [x] En el menú, **Avisos va al final del todo**, por debajo de Portal de clientes.
 - **Auditoría:** que ningún enlace del sitio apunte a algo que ya no existe.
 
-### PASO 10 · Los avisos que SÍ existían
-- [ ] El sitio actual tenía avisos —información importante, información de servicios—. Buscarlos
+### PASO 10 · Los avisos que SÍ existían  ✅
+- [x] El sitio actual tenía avisos —información importante, información de servicios—. Buscarlos
       en `main` y traerlos.
 - **Auditoría:** que `/avisos` no salga vacía.
 
@@ -114,14 +114,14 @@ Cada uno termina con su auditoría. `[ ]` pendiente · `[x]` hecho y auditado.
       y bebidas / lo que se suma aparte».
 - **Auditoría:** leer la página de arriba abajo y ver si se entiende sin preguntar nada.
 
-### PASO 12 · La capilla, con las preguntas que le faltan
-- [ ] No está atada a una religión: se adapta a lo que crea la gente. Sirve también como espacio
+### PASO 12 · La capilla, con las preguntas que le faltan  ✅
+- [x] No está atada a una religión: se adapta a lo que crea la gente. Sirve también como espacio
       de eventos. Se renta sola. Añadir esas y las que falten.
 - **Auditoría:** contar preguntas por tema y ver que ninguna quede coja.
 
-### PASO 13 · Cotizar es una PÁGINA
-- [ ] Formulario completo, por pasos, con dirección propia. Deja de ser una ventana que se abre.
-- [ ] El botón de «Cotizar» del encabezado lleva ahí.
+### PASO 13 · Cotizar es una PÁGINA  ✅
+- [x] Formulario completo, por pasos, con dirección propia. Deja de ser una ventana que se abre.
+- [x] El botón de «Cotizar» del encabezado lleva ahí.
 - **Auditoría:** completar una solicitud de principio a fin y comprobar que llega el correo.
 
 ### PASO 14 · Ortografía y detalle

@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react';
+import { useMemo } from 'react';
 import { useSearchParams, Link } from 'react-router-dom';
 import { MessageCircle, Phone, Clock, ShieldCheck } from 'lucide-react';
 import Pagina from '@/components/navegacion/Pagina';
@@ -32,7 +32,6 @@ export default function Cotizar() {
   const [params] = useSearchParams();
   const { data: salones } = useSalones();
   const { data: config } = useConfigSitio();
-  const [abierto, setAbierto] = useState(true);
 
   const slugEspacio = params.get('espacio');
   const slugEvento = params.get('evento');
@@ -60,7 +59,32 @@ export default function Cotizar() {
       }
     >
       <div className="mx-auto max-w-7xl px-5 sm:px-8 pb-20">
-        <div className="grid gap-10 lg:grid-cols-[1.3fr_1fr]">
+        {/* EL FORMULARIO ES LA PÁGINA, NO UNA VENTANA ENCIMA DE ELLA.
+          *
+          * Antes esta página existía, sí, pero solo para abrir un modal: el contenido de
+          * debajo quedaba tapado por un fondo oscuro y el formulario, dentro de una caja
+          * estrecha con su propia barra de desplazamiento.
+          *
+          * El dueño pidió lo contrario: *«que sea tal cual un formulario así en grande, una
+          * página con todas las preguntas… pero igual por pasos»*. Y tiene sentido: quien
+          * llega aquí YA decidió cotizar. Ponerle una ventana delante es meter una puerta
+          * donde ya no hace falta ninguna.
+          *
+          * Los pasos se conservan. Lo que se va es el marco. */}
+        <div className="grid gap-10 lg:grid-cols-[1.4fr_1fr]">
+
+          <div>
+            <FormularioModal
+              enPagina
+              open
+              onClose={() => {}}
+              preselectedSalon={nombreEspacio}
+              whatsappNumero={config?.whatsappNumero || WHATSAPP}
+              tipoEventoSugerido={slugEvento || undefined}
+            />
+          </div>
+
+          <div className="space-y-10">
 
           <div className="skeu-card rounded-2xl p-8">
             <h2 className="text-xl font-light text-white/90">Qué pasa cuando lo envías</h2>
@@ -79,15 +103,6 @@ export default function Cotizar() {
               </Paso>
             </ol>
 
-            {!abierto && (
-              <button
-                type="button"
-                onClick={() => setAbierto(true)}
-                className="skeu-gold-btn mt-8 w-full rounded-full px-6 py-4 text-xs font-medium tracking-[0.16em] uppercase text-[#1a1408]"
-              >
-                Abrir el formulario
-              </button>
-            )}
 
             <ul className="mt-8 space-y-3 border-t border-white/5 pt-6">
               <Garantia icono={Clock}>Contestamos el mismo día en horario de oficina.</Garantia>
@@ -134,16 +149,9 @@ export default function Cotizar() {
               — el formulario te espera.
             </p>
           </aside>
+          </div>
         </div>
       </div>
-
-      <FormularioModal
-        open={abierto}
-        onClose={() => setAbierto(false)}
-        preselectedSalon={nombreEspacio}
-        whatsappNumero={config?.whatsappNumero || WHATSAPP}
-        tipoEventoSugerido={slugEvento || undefined}
-      />
     </Pagina>
   );
 }

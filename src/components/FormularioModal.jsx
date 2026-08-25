@@ -124,8 +124,12 @@ const initialForm = {
  * @param {string}   [props.preselectedSalon]   Nombre del salón, no su slug.
  * @param {string}   [props.whatsappNumero]
  * @param {string}   [props.tipoEventoSugerido] Slug de `/eventos/{slug}`. Ver `SLUG_A_TIPO`.
+ * @param {boolean}  [props.enPagina] `true` en `/cotizar`: se pinta dentro del documento en
+ *                                    vez de como ventana. Ver la nota del envoltorio.
  */
-export default function FormularioModal({ open, onClose, preselectedSalon, whatsappNumero, tipoEventoSugerido }) {
+export default function FormularioModal({
+  // `enPagina` lo enciende `/cotizar`: ver la nota junto al envoltorio, abajo.
+  enPagina = false, open, onClose, preselectedSalon, whatsappNumero, tipoEventoSugerido }) {
   // step 0 = elegir espacio (si no viene preseleccionado), step 1 = datos
   const [step, setStep] = useState(0);
   const [form, setForm] = useState({ ...initialForm });
@@ -335,21 +339,70 @@ export default function FormularioModal({ open, onClose, preselectedSalon, whats
     );
   }
 
-  if (!open) return null;
+  // En una página no hay nada que abrir ni cerrar: el formulario ES la página.
+  if (!enPagina && !open) return null;
 
+  /* ═══════════════════════════════════════════════════════════════════════
+   * EL MISMO FORMULARIO, DOS ENVOLTORIOS
+   * ═══════════════════════════════════════════════════════════════════════
+   *
+   * Palabras del dueño: *«lo que ya no quería era que cotizar sea una ventana que se abre,
+   * sino que sea tal cual un formulario así en grande, una página con todas las preguntas.
+   * Pero igual por pasos»*.
+   *
+   * En `/cotizar` (`enPagina`) el formulario ocupa la página: sin fondo oscuro, sin botón de
+   * cerrar, más ancho y dejándose desplazar con el documento en vez de dentro de una caja con
+   * su propia barra. Desde cualquier otro sitio sigue abriendo como ventana, que ahí es lo
+   * correcto —no arranca a nadie de la página que estaba leyendo—.
+   *
+   * ── Y por qué NO se ha duplicado el componente ────────────────────────────
+   *
+   * Porque este archivo **es el camino que da de comer**: valida, llama a la RPC, genera el
+   * folio en el servidor y dispara el correo. Dos copias significan que el día que se arregle
+   * un fallo de validación, se arregla en una y sigue vivo en la otra —y el síntoma sería
+   * solicitudes que se pierden en silencio—. Cambia el marco; el motor es el mismo.
+   *
+   * Los pasos, el borrador que se guarda, el envío y el mensaje de éxito no se tocan. */
   return (
-    <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
-      <div className="absolute inset-0 bg-black/80 backdrop-blur-sm" onClick={onClose} />
-      <div className="relative z-10 bg-[#0a0a0a] border border-[#C9A84C]/20 w-full max-w-lg max-h-[90vh] overflow-y-auto rounded-2xl shadow-2xl shadow-black">
+    <div
+      className={
+        enPagina
+          ? 'relative w-full'
+          : 'fixed inset-0 z-[100] flex items-center justify-center p-4'
+      }
+    >
+      {!enPagina && (
+        <div className="absolute inset-0 bg-black/80 backdrop-blur-sm" onClick={onClose} />
+      )}
+      <div
+        className={
+          enPagina
+            ? 'relative z-10 mx-auto w-full max-w-2xl rounded-2xl border border-[#C9A84C]/20 bg-[#0a0a0a]'
+            : 'relative z-10 bg-[#0a0a0a] border border-[#C9A84C]/20 w-full max-w-lg max-h-[90vh] overflow-y-auto rounded-2xl shadow-2xl shadow-black'
+        }
+      >
         {/* Header */}
-        <div className="sticky top-0 bg-[#0a0a0a] border-b border-[#C9A84C]/10 px-6 py-5 flex items-center justify-between z-10 rounded-t-2xl">
+        <div
+          className={`bg-[#0a0a0a] border-b border-[#C9A84C]/10 px-6 py-5 flex items-center justify-between z-10 rounded-t-2xl ${
+            enPagina ? '' : 'sticky top-0'
+          }`}
+        >
           <div>
-            <h2 className="text-white font-light tracking-wide text-lg">Cotiza tu evento</h2>
+            {/* En la página, el título grande ya lo pone `Pagina.jsx`. Repetirlo aquí como
+                `<h2>` dejaría dos encabezados diciendo lo mismo seguidos, así que baja a
+                `<p>`: se ve igual y el esquema del documento queda limpio. */}
+            {enPagina ? (
+              <p className="text-white font-light tracking-wide text-lg">Cotiza tu evento</p>
+            ) : (
+              <h2 className="text-white font-light tracking-wide text-lg">Cotiza tu evento</h2>
+            )}
             <p className="text-white/30 text-xs mt-0.5">Sin costo · Te respondemos en menos de 24h</p>
           </div>
-          <button onClick={() => { try { playSound("close"); } catch (e) {} onClose(); }} className="text-white/30 hover:text-white transition-colors">
-            <X size={20} />
-          </button>
+          {!enPagina && (
+            <button onClick={() => { try { playSound("close"); } catch (e) {} onClose(); }} className="text-white/30 hover:text-white transition-colors">
+              <X size={20} />
+            </button>
+          )}
         </div>
 
         <div className="px-6 py-6">

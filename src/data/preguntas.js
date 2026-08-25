@@ -49,7 +49,39 @@ export const PREGUNTAS = [
   {
     tema: TEMAS.ESPACIOS,
     q: '¿Tienen capilla para la ceremonia?',
-    a: 'Sí, contamos con una capilla propia. Puedes realizar la ceremonia y la recepción en el mismo lugar, o rentarla de forma independiente.',
+    a: 'Sí, contamos con una capilla propia dentro del recinto. Puedes hacer la ceremonia y la fiesta en el mismo terreno, sin que nadie tenga que subirse al coche entre una cosa y la otra.',
+  },
+  {
+    // LAS CINCO DE ABAJO NACEN DE UNA CORRECCIÓN DEL DUEÑO (2026-08-25):
+    // «la capilla tiene muy pocas preguntas… ponle que se adapta a lo que crea la gente,
+    // puede servir como espacio de eventos, etcétera. Agrégale más preguntas».
+    //
+    // Y es la duda que más calla la gente: quien no se casa por la iglesia da por hecho que
+    // una capilla no es para él y descarta el recinto entero sin preguntar. Decirlo por
+    // escrito recupera a esa persona.
+    tema: TEMAS.ESPACIOS,
+    q: '¿La capilla es de alguna religión en concreto?',
+    a: 'No está atada a un culto. Es un espacio de ceremonia que se adapta a lo que ustedes crean y a cómo quieran celebrarlo. Cuéntanos qué tienes en mente y lo montamos así.',
+  },
+  {
+    tema: TEMAS.ESPACIOS,
+    q: '¿Se puede usar la capilla para una ceremonia civil?',
+    a: 'Sí. Ceremonia civil, renovación de votos, una bendición o el momento simbólico que quieran: el espacio sirve igual. No hace falta que sea una ceremonia religiosa.',
+  },
+  {
+    tema: TEMAS.ESPACIOS,
+    q: '¿Podemos traer a nuestro propio oficiante?',
+    a: 'Comentánoslo al cotizar y lo vemos contigo. La capilla es el espacio; quién oficia y cómo se lleva la ceremonia lo deciden ustedes.',
+  },
+  {
+    tema: TEMAS.ESPACIOS,
+    q: '¿Se puede rentar solo la capilla, sin la fiesta?',
+    a: 'Sí, se renta de forma independiente. Si solo necesitas el espacio para la ceremonia, se puede.',
+  },
+  {
+    tema: TEMAS.ESPACIOS,
+    q: '¿Y si no queremos ceremonia? ¿La capilla estorba?',
+    a: 'Para nada: se queda cerrada y no se cobra. Cada espacio del recinto se renta por separado, así que pagas lo que vas a usar.',
   },
   {
     tema: TEMAS.RECINTO,
