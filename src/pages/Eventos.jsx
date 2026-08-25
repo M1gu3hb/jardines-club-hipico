@@ -1,5 +1,6 @@
 import { Link } from 'react-router-dom';
 import { ArrowRight } from 'lucide-react';
+import { EsqueletoTarjetas, AvisoCargando } from '@/components/ui/Esqueleto';
 import Pagina from '@/components/navegacion/Pagina';
 import { useTodosLosTipos, useSalones } from '@/lib/datos';
 import { construyeRuta, rutaPorClave } from '@/rutas';
@@ -44,7 +45,12 @@ export default function Eventos() {
       }
     >
       <section className="mx-auto max-w-7xl px-5 sm:px-8 pb-14" aria-label="Tipos de evento">
-        {isLoading && <p className="py-16 text-center text-sm font-light text-white/35">Cargando…</p>}
+        {isLoading && (
+          <>
+            <AvisoCargando que="los tipos de evento" />
+            <EsqueletoTarjetas cuantas={6} columnas="sm:grid-cols-2 lg:grid-cols-3" />
+          </>
+        )}
 
         {!isLoading && (
           <ul className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">

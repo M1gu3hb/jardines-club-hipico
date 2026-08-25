@@ -1,5 +1,6 @@
 import { Link } from 'react-router-dom';
 import { Car, Trees, ShieldCheck, Bath } from 'lucide-react';
+import { EsqueletoTarjetas, AvisoCargando } from '@/components/ui/Esqueleto';
 import Pagina from '@/components/navegacion/Pagina';
 import { Catalogo } from '@/components/catalogo/Ficha';
 import { useServicios, useAmenidades } from '@/lib/datos';
@@ -60,6 +61,12 @@ export default function Amenidades() {
           </p>
         )}
 
+        {cargando && (
+          <>
+            <AvisoCargando que="las amenidades" />
+            <EsqueletoTarjetas cuantas={6} columnas="sm:grid-cols-2 lg:grid-cols-3" />
+          </>
+        )}
         <Catalogo items={amenidades} id="catalogo" />
       </div>
 

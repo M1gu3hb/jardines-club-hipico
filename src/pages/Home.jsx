@@ -176,11 +176,19 @@ export default function Home() {
               logoUrl={config?.logoUrl}
             />
 
-            {/* Primero POR QUÉ vienen, y solo después DÓNDE. Casi nadie llega pensando
-                «¿dónde?»: llega pensando «¿me sirve para mi boda?». */}
-            <QueEstasPlaneando />
-
+            {/* EL LUGAR PRIMERO, Y LUEGO EL TIPO DE EVENTO.
+              *
+              * Aquí había el argumento contrario —que casi nadie llega pensando «¿dónde?» sino
+              * «¿me sirve para mi boda?»— y el dueño lo corrigió: *«en el inicio me gustaría
+              * que los espacios se vieran antes que los tipos de evento»*.
+              *
+              * Manda él, y además tiene razón sobre este negocio concreto: lo que hace distinto
+              * a Jardines no es tener una página de bodas —eso lo tiene cualquiera— sino tener
+              * OCHO espacios en dos hectáreas. Enseñar eso primero es enseñar el argumento, y
+              * los tipos de evento se entienden mejor cuando ya se sabe dónde caben. */}
             <EspaciosDestacados />
+
+            <QueEstasPlaneando />
 
             <Diferenciadores />
 

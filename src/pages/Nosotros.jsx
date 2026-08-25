@@ -1,3 +1,22 @@
+/* ══════════════════════════════════════════════════════════════════════════════
+ * APARCADA — no está enrutada. 2026-08-25.
+ * ══════════════════════════════════════════════════════════════════════════════
+ *
+ * El dueño la retiró del sitio: *«la de nosotros quítala, porque pusiste mucha información
+ * que sí es, pero como que no me gusta que esto esté en línea. Ya después yo te diré si la
+ * agregas y cómo, y te diré bien, bien, bien, cómo la vendemos»*.
+ *
+ * NO SE BORRA el archivo porque la decisión no es «esto está mal» sino «esto lo cuento yo,
+ * cuando toque». Son ~570 palabras salidas de la entrevista —el club ecuestre, el picadero,
+ * el negocio familiar— y volver a redactarlas costaría lo mismo que la primera vez.
+ *
+ * `/nosotros` responde hoy con un 301 a la portada (`vercel.json`), así que ningún enlace
+ * viejo se cae. Para revivirla: devolver su entrada a `src/rutas.js` y a `ArbolDeRutas.jsx`,
+ * y quitar esa redirección.
+ *
+ * Ojo: al no estar enrutada, ni el `lint` ni los contratos la recorren. Si algo de lo que
+ * importa cambia de nombre, este archivo se entera el día que se reactive.
+ * ══════════════════════════════════════════════════════════════════════════════ */
 import { Link } from 'react-router-dom';
 import Pagina from '@/components/navegacion/Pagina';
 import BloqueTexto from '@/components/navegacion/BloqueTexto';

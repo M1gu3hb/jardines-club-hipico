@@ -141,26 +141,6 @@ export const RUTAS = [
       'comunes de Jardines Club Hípico en Xochimilco, CDMX.',
   },
 
-  {
-    // AVISOS. La página existe siempre, pero solo se ANUNCIA cuando hay algo que anunciar.
-    //
-    // `soloSiHay` se lo lee el prerender: si `jardines.anuncios` no tiene ninguna fila
-    // publicada, la ruta no entra en el `sitemap.xml`. Una página vacía anunciada a Google es
-    // contenido delgado, y además le dice al buscador que el sitio promete cosas que no tiene.
-    //
-    // El día que se cargue el primer aviso, entra sola en el siguiente despliegue.
-    ruta: '/avisos',
-    clave: 'avisos',
-    nombre: 'Avisos',
-    padre: 'home',
-    menu: true,
-    prioridad: 0.6,
-    soloSiHay: 'anuncios',
-    titulo: 'Avisos y novedades · Jardines Club Hípico',
-    descripcion:
-      'Lo que está pasando en Jardines Club Hípico: novedades del recinto, nuevos ' +
-      'servicios y fechas que conviene tener a mano.',
-  },
 
   // ── DECIDIR Y CONTRATAR ───────────────────────────────────────────────────
   {
@@ -188,28 +168,16 @@ export const RUTAS = [
       'Las dudas que más nos preguntan, resueltas.',
   },
   {
-    ruta: '/ubicacion',
-    clave: 'ubicacion',
-    nombre: 'Ubicación',
-    padre: 'home',
-    menu: true,
-    prioridad: 0.8,
-    titulo: 'Cómo llegar · Jardines Club Hípico, Xochimilco CDMX',
-    descripcion:
-      'Duraznos S/N, Santa Inés, Xochimilco, 16810 CDMX. Mapa, referencias y ' +
-      'estacionamiento dentro del recinto.',
-  },
-  {
     ruta: '/contacto',
     clave: 'contacto',
-    nombre: 'Contacto',
+    nombre: 'Contacto y ubicación',
     padre: 'home',
     menu: true,
     prioridad: 0.7,
-    titulo: 'Contacto · Jardines Club Hípico',
+    titulo: 'Contacto y ubicación · Jardines Club Hípico, Xochimilco CDMX',
     descripcion:
-      'Teléfono, WhatsApp y correo de Jardines Club Hípico. Atendemos dudas sobre ' +
-      'disponibilidad, capacidades y visitas al recinto.',
+      'Teléfono, WhatsApp, correo y cómo llegar a Jardines Club Hípico: Duraznos S/N, ' +
+      'Santa Inés, Xochimilco, 16810 CDMX. Estacionamiento dentro del recinto.',
   },
   {
     // Existe y funciona, pero no aporta nada en un buscador: nadie busca «formulario de
@@ -223,27 +191,6 @@ export const RUTAS = [
     descripcion: 'Cuéntanos qué estás planeando y te respondemos con una cotización.',
   },
   // ── ESPERA CONTENIDO ──────────────────────────────────────────────────────
-  {
-    // NACIÓ EL 2026-08-24, y hasta ese día era la única página que no podía existir: no había
-    // ni un párrafo de historia real en ninguna parte, y no se iba a inventar una.
-    //
-    // Ahora tiene ~570 palabras salidas de la entrevista al dueño, y cuentan algo que ningún
-    // directorio del sector puede copiar porque no lo sabe: esto era un club ecuestre, y de ahí
-    // viene el nombre que hoy hace que la gente pregunte por shows de caballos.
-    //
-    // Entra en el sitemap. Le faltan fotografías propias —las 69 de la galería siguen sin
-    // etiquetar— pero eso no es motivo para esconder una página que contesta una duda real.
-    ruta: '/nosotros',
-    clave: 'nosotros',
-    nombre: 'Nosotros',
-    padre: 'home',
-    menu: true,
-    prioridad: 0.6,
-    titulo: 'Nosotros: de club ecuestre a salón de eventos',
-    descripcion:
-      'Jardines Club Hípico fue un club ecuestre donde se daban clases de equitación. ' +
-      'Un negocio familiar de más de dos hectáreas en Xochimilco, CDMX.',
-  },
 
   {
     // CLASES DE BAILE — anunciada, sin contenido todavía.
@@ -263,6 +210,32 @@ export const RUTAS = [
     indexable: false,
     titulo: 'Clases de baile · Jardines Club Hípico',
     descripcion: 'Próximamente, academia de baile en el Salón de los Espejos, en Xochimilco.',
+  },
+  // AVISOS VA AL FINAL DE TODO, POR DEBAJO INCLUSO DEL PORTAL.
+  //
+  // Orden del dueno, y repetido: "los avisos van hasta hasta abajo, ni siquiera abajo de portal
+  // de clientes, hasta hasta abajo". Es una seccion de novedades, no una parada del recorrido
+  // de compra: quien llega buscando recinto no viene a leer anuncios, y ponerla arriba le roba
+  // sitio a lo que si vende. El menu la coloca despues del portal (ver `MenuDelSitio`).
+  {
+    // AVISOS. La página existe siempre, pero solo se ANUNCIA cuando hay algo que anunciar.
+    //
+    // `soloSiHay` se lo lee el prerender: si `jardines.anuncios` no tiene ninguna fila
+    // publicada, la ruta no entra en el `sitemap.xml`. Una página vacía anunciada a Google es
+    // contenido delgado, y además le dice al buscador que el sitio promete cosas que no tiene.
+    //
+    // El día que se cargue el primer aviso, entra sola en el siguiente despliegue.
+    ruta: '/avisos',
+    clave: 'avisos',
+    nombre: 'Avisos',
+    padre: 'home',
+    menu: true,
+    prioridad: 0.6,
+    soloSiHay: 'anuncios',
+    titulo: 'Avisos y novedades · Jardines Club Hípico',
+    descripcion:
+      'Lo que está pasando en Jardines Club Hípico: novedades del recinto, nuevos ' +
+      'servicios y fechas que conviene tener a mano.',
   },
 ];
 

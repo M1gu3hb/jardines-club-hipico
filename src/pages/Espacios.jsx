@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { Users, ArrowRight, Search } from 'lucide-react';
+import { EsqueletoTarjetas, AvisoCargando } from '@/components/ui/Esqueleto';
 import Pagina from '@/components/navegacion/Pagina';
 import { useSalones } from '@/lib/datos';
 import { AJUSTE, ordenaPorAjuste, rangoTexto, topeReal, ETIQUETA_TIPO } from '@/lib/capacidad';
@@ -109,7 +110,12 @@ export default function Espacios() {
       </section>
 
       <section className="mx-auto max-w-7xl px-5 sm:px-8 py-14" aria-label="Listado de espacios">
-        {isLoading && <p className="py-16 text-center text-sm font-light text-white/35">Cargando los espacios…</p>}
+        {isLoading && (
+          <>
+            <AvisoCargando que="los espacios" />
+            <EsqueletoTarjetas cuantas={6} columnas="sm:grid-cols-2 lg:grid-cols-3" />
+          </>
+        )}
 
         {isError && (
           <p className="py-16 text-center text-sm font-light text-white/50">

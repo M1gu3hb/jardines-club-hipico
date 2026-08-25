@@ -1,5 +1,6 @@
 import { Link } from 'react-router-dom';
 import { ArrowRight, CalendarDays } from 'lucide-react';
+import { EsqueletoTexto, AvisoCargando } from '@/components/ui/Esqueleto';
 import Pagina from '@/components/navegacion/Pagina';
 import { useAnuncios } from '@/lib/datos';
 
@@ -40,7 +41,12 @@ export default function Avisos() {
       entradilla="Novedades del recinto, fechas que conviene tener a mano y lo que vamos abriendo."
     >
       <div className="mx-auto max-w-6xl px-5 sm:px-8 pb-20">
-        {isLoading && <p className="py-20 text-center text-sm font-light text-white/35">Cargando…</p>}
+        {isLoading && (
+          <>
+            <AvisoCargando que="los avisos" />
+            <EsqueletoTexto lineas={4} className="py-10" />
+          </>
+        )}
 
         {isError && (
           <p className="py-20 text-center text-sm font-light text-white/50">

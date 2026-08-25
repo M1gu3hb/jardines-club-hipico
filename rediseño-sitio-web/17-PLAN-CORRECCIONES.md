@@ -71,16 +71,16 @@ Cada uno termina con su auditoría. `[ ]` pendiente · `[x]` hecho y auditado.
       no la navegación del SPA, así que no cambia nunca y la condición es falsa siempre.
 - **Auditoría:** bajar al pie de una sección, cambiar por el menú, comprobar que se llega arriba.
 
-### PASO 4 · Skeleton loaders en todo lo que carga
-- [ ] Un componente de esqueleto reutilizable, con la forma de lo que va a llegar.
-- [ ] Aplicado a: espacios, tipos de evento, servicios, amenidades, galería, avisos, preguntas.
-- [ ] Ninguna pantalla en blanco: hoy `if (isLoading) return null` deja el hueco vacío.
+### PASO 4 · Skeleton loaders en todo lo que carga  ✅
+- [x] Un componente de esqueleto reutilizable, con la forma de lo que va a llegar.
+- [x] Aplicado a: espacios, tipos de evento, servicios, amenidades, galería, avisos, preguntas.
+- [x] Ninguna pantalla en blanco: hoy `if (isLoading) return null` deja el hueco vacío.
 - **Auditoría:** con la red frenada, recorrer las rutas y comprobar que ninguna sale vacía.
 
-### PASO 5 · El orden de la portada
-- [ ] Los espacios ANTES que los tipos de evento.
-- [ ] Los cuatro destacados: Espejos, Encanto, Jardines y **el área infantil** (sale Eclipse).
-- [ ] En «lo que no tiene un salón normal», «Recinto cerrado» → **«Área nocturna»** (a Eclipse),
+### PASO 5 · El orden de la portada  ✅
+- [x] Los espacios ANTES que los tipos de evento.
+- [x] Los cuatro destacados: Espejos, Encanto, Jardines y **el área infantil** (sale Eclipse).
+- [x] En «lo que no tiene un salón normal», «Recinto cerrado» → **«Área nocturna»** (a Eclipse),
       porque el que había mandaba a `/amenidades` y rompía el patrón de los otros tres.
 - **Auditoría:** recorrer la portada entera y comprobar orden, enlaces y destinos.
 
@@ -98,10 +98,10 @@ Cada uno termina con su auditoría. `[ ]` pendiente · `[x]` hecho y auditado.
 - [ ] Recuperar la distribución del sitio actual. Hoy salen minúsculas y no se ven.
 - **Auditoría:** 375 px de ancho. Que se distinga lo que hay en la foto.
 
-### PASO 9 · Menos secciones
-- [ ] Ubicación + Contacto = **una sola página**. Redirección de la que desaparece.
-- [ ] `/nosotros` se retira por ahora (decisión del dueño: la historia se venderá después, bien).
-- [ ] En el menú, **Avisos va al final del todo**, por debajo de Portal de clientes.
+### PASO 9 · Menos secciones  ✅
+- [x] Ubicación + Contacto = **una sola página**. Redirección de la que desaparece.
+- [x] `/nosotros` se retira por ahora (decisión del dueño: la historia se venderá después, bien).
+- [x] En el menú, **Avisos va al final del todo**, por debajo de Portal de clientes.
 - **Auditoría:** que ningún enlace del sitio apunte a algo que ya no existe.
 
 ### PASO 10 · Los avisos que SÍ existían
@@ -109,8 +109,8 @@ Cada uno termina con su auditoría. `[ ]` pendiente · `[x]` hecho y auditado.
       en `main` y traerlos.
 - **Auditoría:** que `/avisos` no salga vacía.
 
-### PASO 11 · Servicios, en el orden que se explica solo
-- [ ] Primero LOS SERVICIOS. Después «qué incluye la renta». Y al final «cómo se cobra alimentos
+### PASO 11 · Servicios, en el orden que se explica solo  ✅
+- [x] Primero LOS SERVICIOS. Después «qué incluye la renta». Y al final «cómo se cobra alimentos
       y bebidas / lo que se suma aparte».
 - **Auditoría:** leer la página de arriba abajo y ver si se entiende sin preguntar nada.
 

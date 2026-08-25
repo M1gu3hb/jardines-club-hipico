@@ -5,6 +5,7 @@ import { ArrowRight } from 'lucide-react';
 import { useSalones } from '@/lib/datos';
 import { rangoTexto, topeReal, ETIQUETA_TIPO } from '@/lib/capacidad';
 import { construyeRuta, rutaPorClave } from '@/rutas';
+import { EsqueletoTarjetas, AvisoCargando } from '@/components/ui/Esqueleto';
 import VerTodo from './VerTodo';
 
 const SIN_FOTO = '/media/img/dGg8Xxh.jpg';
@@ -34,9 +35,15 @@ export default function EspaciosDestacados() {
   const { data: salones, isLoading, isError } = useSalones();
 
   // Los cuatro que enseñan mejor la variedad del recinto: el salón principal, el que gusta por
-  // su temática, el jardín grande y el nocturno. No son los cuatro primeros por orden: son
-  // cuatro tipos de evento distintos, para que se vea que aquí cabe más de una cosa.
-  const preferidos = ['salon-de-los-espejos', 'salon-encanto', 'jardines', 'eclipse'];
+  // su temática, el jardín grande y el área de los niños. No son los cuatro primeros por orden:
+  // son cuatro cosas distintas, para que se vea que aquí cabe más de una.
+  //
+  // El cuarto era Eclipse y lo cambió el dueño: *«en vez del Eclipse, que se vea el pony, el
+  // infantil»*. Es la elección correcta —el área infantil es de lo poco que NINGÚN salón de
+  // ciudad puede ofrecer, y resuelve la objeción de quien viene con niños—, mientras que
+  // Eclipse se parece a lo que ya enseñan los otros tres. Eclipse no desaparece: sigue en
+  // `/espacios` y ahora entra en el bloque de diferenciadores como «área nocturna».
+  const preferidos = ['salon-de-los-espejos', 'salon-encanto', 'jardines', 'area-infantil-pony'];
   const lista = (salones || [])
     .filter((s) => preferidos.includes(s.slug))
     .sort((a, b) => preferidos.indexOf(a.slug) - preferidos.indexOf(b.slug));
@@ -47,7 +54,6 @@ export default function EspaciosDestacados() {
     ? lista
     : [...lista, ...(salones || []).filter((s) => !preferidos.includes(s.slug) && s.tipoEspacio !== 'hospedaje')].slice(0, 4);
 
-  if (isLoading) return null;
 
   return (
     <section
@@ -83,7 +89,12 @@ export default function EspaciosDestacados() {
           </p>
         </motion.div>
 
-        {isError ? (
+        {isLoading ? (
+          <>
+            <AvisoCargando que="los espacios" />
+            <EsqueletoTarjetas cuantas={4} columnas="sm:grid-cols-2" />
+          </>
+        ) : isError ? (
           <p className="py-10 text-center text-sm font-light text-white/45">
             No pudimos cargar los espacios ahora mismo.{' '}
             <Link to="/contacto" className="text-[#C9A84C] underline underline-offset-4">

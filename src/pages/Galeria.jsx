@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { AnimatePresence } from 'framer-motion';
 import { Link } from 'react-router-dom';
 import { Play, Expand } from 'lucide-react';
+import { EsqueletoMosaico, AvisoCargando } from '@/components/ui/Esqueleto';
 import Pagina from '@/components/navegacion/Pagina';
 import MediaViewer, { isVideo } from '@/components/MediaViewer';
 import { useGaleria } from '@/lib/datos';
@@ -46,7 +47,12 @@ export default function Galeria() {
       entradilla="Fotografías y video reales del recinto. Ninguna es de banco de imágenes ni de otro lugar."
     >
       <div className="mx-auto max-w-7xl px-5 sm:px-8 pb-16">
-        {isLoading && <p className="py-20 text-center text-sm font-light text-white/35">Cargando la galería…</p>}
+        {isLoading && (
+          <>
+            <AvisoCargando que="la galería" />
+            <EsqueletoMosaico cuantas={12} />
+          </>
+        )}
 
         {isError && (
           <p className="py-20 text-center text-sm font-light text-white/50">

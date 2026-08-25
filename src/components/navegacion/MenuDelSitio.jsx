@@ -39,7 +39,9 @@ export default function MenuDelSitio() {
 
   const items = useMemo(() => {
     const delSitio = RUTAS_MENU
-      .filter((r) => r.clave !== 'home')
+      // `avisos` sale de aqui y se anade al final del todo, por debajo del portal: es lo que
+      // pidio el dueno, dos veces y con enfasis. Ver la nota en `rutas.js`.
+      .filter((r) => r.clave !== 'home' && r.clave !== 'avisos')
       .map((r) => ({
         id: r.clave,
         label: r.nombre,
@@ -58,7 +60,18 @@ export default function MenuDelSitio() {
       link: import.meta.env.VITE_URL_PORTAL || '/portal',
       ariaLabel: 'Entrar al portal de clientes',
       esRuta: true,
-    }]);
+    }]).concat(
+      // Y por debajo del portal, lo ultimo: los avisos. Solo si la ruta existe —lleva
+      // `soloSiHay: 'anuncios'`, asi que desaparece del menu cuando no hay ninguno publicado,
+      // en vez de llevar a una pagina vacia.
+      RUTAS_MENU.filter((r) => r.clave === 'avisos').map((r) => ({
+        id: r.clave,
+        label: r.nombre,
+        link: r.ruta,
+        ariaLabel: r.nombre,
+        esRuta: false,
+      })),
+    );
   }, []);
 
   /**

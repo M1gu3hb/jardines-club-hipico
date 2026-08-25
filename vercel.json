@@ -15,6 +15,26 @@
       "source": "/invitacion/:token",
       "destination": "https://jch-portal-cliente.vercel.app/invitacion/:token",
       "statusCode": 301
+    },
+    {
+      "source": "/ubicacion",
+      "destination": "/contacto",
+      "statusCode": 301
+    },
+    {
+      "source": "/ubicacion/",
+      "destination": "/contacto",
+      "statusCode": 301
+    },
+    {
+      "source": "/nosotros",
+      "destination": "/",
+      "statusCode": 301
+    },
+    {
+      "source": "/nosotros/",
+      "destination": "/",
+      "statusCode": 301
     }
   ],
   "headers": [

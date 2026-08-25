@@ -4,6 +4,7 @@ import TextoQueAparece from '@/components/animacion/TextoQueAparece';
 import { ArrowRight } from 'lucide-react';
 import { useGaleria } from '@/lib/datos';
 import { medidasDe } from '@/lib/medidas';
+import { EsqueletoMosaico, AvisoCargando } from '@/components/ui/Esqueleto';
 import { isVideo } from '@/components/MediaViewer';
 
 /**
@@ -35,10 +36,9 @@ import { isVideo } from '@/components/MediaViewer';
  */
 export default function GaleriaAsomo() {
   const { data: medios, isLoading } = useGaleria();
-  if (isLoading) return null;
 
   const fotos = (medios || []).filter((m) => m.imagenUrl && !isVideo(m.imagenUrl));
-  if (fotos.length === 0) return null;
+  if (!isLoading && fotos.length === 0) return null;
 
   // `destacada` manda en cuanto alguien la use; mientras tanto, el orden del panel.
   const destacadas = fotos.filter((m) => m.destacada);
@@ -82,6 +82,13 @@ export default function GaleriaAsomo() {
           convierte «se acabó» en «hay más». */}
       <div className="relative mx-auto w-full max-w-6xl">
         <div className="max-h-[26rem] overflow-hidden sm:max-h-[34rem]">
+          {isLoading && (
+            <>
+              <AvisoCargando que="la galería" />
+              <EsqueletoMosaico cuantas={8} />
+            </>
+          )}
+
           <div className="columns-2 gap-3 sm:columns-3 lg:columns-4 [&>*]:mb-3">
             {asomo.map((m, i) => {
               const med = medidasDe(m.imagenUrl);

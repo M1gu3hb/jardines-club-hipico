@@ -4,6 +4,7 @@ import TextoQueAparece from '@/components/animacion/TextoQueAparece';
 import { ArrowRight } from 'lucide-react';
 import { useTodosLosTipos } from '@/lib/datos';
 import { construyeRuta, rutaPorClave } from '@/rutas';
+import { EsqueletoTarjetas, AvisoCargando } from '@/components/ui/Esqueleto';
 import VerTodo from './VerTodo';
 
 /**
@@ -29,7 +30,7 @@ import VerTodo from './VerTodo';
  */
 export default function QueEstasPlaneando() {
   const { data: tipos, isLoading } = useTodosLosTipos();
-  if (isLoading || !(tipos || []).length) return null;
+  if (!isLoading && !(tipos || []).length) return null;
 
   return (
     <section
@@ -66,6 +67,13 @@ export default function QueEstasPlaneando() {
             tipo de evento salen mil formas distintas.
           </p>
         </motion.div>
+
+        {isLoading && (
+          <>
+            <AvisoCargando que="los tipos de evento" />
+            <EsqueletoTarjetas cuantas={6} columnas="sm:grid-cols-2 lg:grid-cols-3" />
+          </>
+        )}
 
         <ul className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
           {tipos.map((t, i) => (

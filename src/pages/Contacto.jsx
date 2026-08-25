@@ -1,6 +1,7 @@
 import { Link } from 'react-router-dom';
 import { MessageCircle, Phone, Mail, MapPin } from 'lucide-react';
 import Pagina from '@/components/navegacion/Pagina';
+import ComoLlegar from '@/components/contacto/ComoLlegar';
 import { useConfigSitio } from '@/lib/datos';
 import { WHATSAPP, TELEFONO, CORREO, UBICACION, MAPA } from '@/config/negocio';
 import { urlAbsoluta } from '@/config/sitio';
@@ -110,6 +111,33 @@ export default function Contacto() {
           </Link>
         </div>
       </div>
+
+      {/* LA UBICACION VIVE AQUI DESDE 2026-08-25.
+        *
+        * Era `/ubicacion`, una pagina propia. El dueno pidio fundirlas y la ruta vieja quedo
+        * como redireccion 301 en `vercel.json` —no como salto de cliente— porque un 301 es
+        * lo unico que traslada a Google las senales que la direccion ya tuviera. */}
+      <section aria-labelledby="como-llegar" className="border-t border-white/5">
+        <div className="mx-auto max-w-7xl px-5 sm:px-8 pt-16">
+          <div className="flex items-center gap-4">
+            <span className="h-px w-10 bg-gradient-to-r from-[#C9A84C]/60 to-transparent" />
+            <span className="text-[10px] font-light tracking-[0.32em] uppercase text-[#C9A84C]/75">
+              Donde estamos
+            </span>
+          </div>
+          <h2
+            id="como-llegar"
+            className="mt-5 text-2xl sm:text-4xl font-extralight tracking-tight text-white/95"
+          >
+            Cómo llegar
+          </h2>
+          <p className="mt-4 max-w-2xl text-base font-light leading-relaxed text-white/50">
+            Estamos en Xochimilco, con estacionamiento dentro del recinto.
+          </p>
+        </div>
+        <ComoLlegar />
+      </section>
+
     </Pagina>
   );
 }

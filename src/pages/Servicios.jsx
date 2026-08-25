@@ -1,4 +1,5 @@
 import { Link } from 'react-router-dom';
+import { EsqueletoTarjetas, AvisoCargando } from '@/components/ui/Esqueleto';
 import Pagina from '@/components/navegacion/Pagina';
 import BloqueTexto from '@/components/navegacion/BloqueTexto';
 import { Catalogo } from '@/components/catalogo/Ficha';
@@ -55,6 +56,53 @@ export default function Servicios() {
         'hasta hoy no estaba escrito en ninguna parte.'
       }
     >
+      {/* EL ORDEN LO DECIDIO EL DUEÑO, Y ES EL CORRECTO.
+        *
+        * Antes esta pagina abria con tres bloques de prosa —que incluye la renta, como se
+        * cobra, lo que se suma aparte— y el catalogo quedaba debajo del todo.
+        *
+        * Quien entra aqui viene a ver QUE HAY. Recibirlo con las condiciones de contratacion
+        * es contestarle una pregunta que todavia no ha hecho, y hacerle bajar media pagina
+        * para llegar a la que si trae. Primero el catalogo; las condiciones despues, que es
+        * cuando de verdad importan. */}
+      <section aria-labelledby="catalogo-h" className="border-t border-white/5 bg-[#080808]">
+        <div className="mx-auto max-w-7xl px-5 sm:px-8 py-16">
+          <div className="flex items-center gap-4">
+            <span className="h-px w-10 bg-gradient-to-r from-[#C9A84C]/60 to-transparent" />
+            <span className="text-[10px] font-light tracking-[0.32em] uppercase text-[#C9A84C]/75">
+              El catálogo
+            </span>
+          </div>
+
+          <h2 id="catalogo-h" className="mt-5 text-2xl sm:text-4xl font-extralight tracking-tight text-white/95">
+            {cargando ? 'Servicios' : `${servicios.length} servicios para tu evento`}
+          </h2>
+          <p className="mt-5 max-w-2xl text-base font-light leading-relaxed text-white/50">
+            Van aparte de la renta y tienen precio fijo. Y no hace falta contratarlos aquí: si
+            ya tienes tus proveedores, también se puede hablar.
+          </p>
+
+          {cargando && (
+            <div className="mt-10">
+              <AvisoCargando que="los servicios" />
+              <EsqueletoTarjetas cuantas={4} columnas="sm:grid-cols-2" />
+            </div>
+          )}
+
+          {!cargando && servicios.length === 0 && (
+            <p className="py-16 text-center text-sm font-light text-white/50">
+              No pudimos cargar el catálogo ahora mismo.{' '}
+              <Link to="/contacto" className="text-[#C9A84C] underline underline-offset-4">Escríbenos</Link>{' '}
+              y te lo contamos.
+            </p>
+          )}
+
+          <div className="mt-10">
+            <Catalogo items={servicios} id="catalogo" />
+          </div>
+        </div>
+      </section>
+
       <div className="mx-auto max-w-4xl px-5 sm:px-8 divide-y divide-white/5">
         <BloqueTexto id="que-incluye" titulo="Qué incluye la renta" texto={QUE_INCLUYE} />
         <BloqueTexto id="como-se-cobra" titulo="Cómo se cobra" texto={COMO_SE_COBRA} />
@@ -74,39 +122,6 @@ export default function Servicios() {
         </BloqueTexto>
         <BloqueTexto id="extras" titulo="Lo que se suma aparte" texto={EXTRAS} />
       </div>
-
-      <section aria-labelledby="catalogo-h" className="border-t border-white/5 bg-[#080808]">
-        <div className="mx-auto max-w-7xl px-5 sm:px-8 py-16">
-          <div className="flex items-center gap-4">
-            <span className="h-px w-10 bg-gradient-to-r from-[#C9A84C]/60 to-transparent" />
-            <span className="text-[10px] font-light tracking-[0.32em] uppercase text-[#C9A84C]/75">
-              El catálogo
-            </span>
-          </div>
-
-          <h2 id="catalogo-h" className="mt-5 text-2xl sm:text-4xl font-extralight tracking-tight text-white/95">
-            {cargando ? 'Servicios' : `${servicios.length} servicios para tu evento`}
-          </h2>
-          <p className="mt-5 max-w-2xl text-base font-light leading-relaxed text-white/50">
-            Van aparte de la renta y tienen precio fijo. Y no hace falta contratarlos aquí: si
-            ya tienes tus proveedores, también se puede hablar.
-          </p>
-
-          {cargando && <p className="py-16 text-center text-sm font-light text-white/35">Cargando…</p>}
-
-          {!cargando && servicios.length === 0 && (
-            <p className="py-16 text-center text-sm font-light text-white/50">
-              No pudimos cargar el catálogo ahora mismo.{' '}
-              <Link to="/contacto" className="text-[#C9A84C] underline underline-offset-4">Escríbenos</Link>{' '}
-              y te lo contamos.
-            </p>
-          )}
-
-          <div className="mt-10">
-            <Catalogo items={servicios} id="catalogo" />
-          </div>
-        </div>
-      </section>
 
       {/* El puente a la otra página. Sin él, quien llega buscando inflables se va pensando que
           no hay, porque esta página no habla de eso en ningún momento. */}

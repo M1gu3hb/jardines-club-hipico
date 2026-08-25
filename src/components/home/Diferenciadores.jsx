@@ -1,7 +1,7 @@
 import { Link } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import TextoQueAparece from '@/components/animacion/TextoQueAparece';
-import { Church, BedDouble, Baby, ShieldCheck } from 'lucide-react';
+import { Church, BedDouble, Baby, Moon } from 'lucide-react';
 
 /**
  * Diferenciadores — las cuatro cosas que un salón normal no tiene.
@@ -46,11 +46,18 @@ const COSAS = [
     a: '/espacios/area-infantil-pony',
   },
   {
-    icono: ShieldCheck,
-    titulo: 'Recinto cerrado',
+    // Este era «Recinto cerrado» y llevaba a `/amenidades`. Lo cambió el dueño: *«mejor cambia
+    // el recinto cerrado por el área nocturna, porque ese te manda a las amenidades»*.
+    //
+    // Y el motivo es bueno: los otros tres llevan cada uno a SU espacio, y ese rompía el patrón
+    // mandando a una lista. Cuatro promesas que se comportan igual se leen como un sistema;
+    // una que se comporta distinta se lee como un despiste. Lo del recinto cerrado no se
+    // pierde — sigue contado en `/amenidades` y en las preguntas frecuentes.
+    icono: Moon,
+    titulo: 'Área nocturna',
     texto:
-      'Dos accesos, seguridad privada durante el evento y estacionamiento adentro. Los niños salen al patio sin salir de ningún lado.',
-    a: '/amenidades',
+      'Eclipse: el espacio para cuando la fiesta cambia de tono. Otra iluminación, otro ambiente, sin mover a nadie del recinto.',
+    a: '/espacios/eclipse',
   },
 ];
 
