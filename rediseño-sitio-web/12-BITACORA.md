@@ -205,6 +205,54 @@ Lo resuelve un **Deploy Hook** — que guardar en el panel dispare un rebuild. E
 dueño en `13-ENTREVISTA.md` (punto 13 de `08-PENDIENTES`).
 
 ---
+
+## 1.8 · FASE 3 y el tablero de anuncios (2026-08-24)
+
+### La portada, reconstruida como distribuidor
+
+Enlaza **20 rutas distintas**. Antes enlazaba cero: los ocho salones se abrían en un overlay
+sin dirección propia. Título y `canonical` propios, y el orden de las secciones cambia a
+propósito — **primero por qué vienen, después dónde**, porque casi nadie llega pensando
+«¿dónde?».
+
+### Una sola navegación, y dos cosas que casi se pierden en la mudanza
+
+El menú de anclas se retiró. Con él se habrían ido, sin que nadie lo notara:
+
+1. **El interruptor de sonido.** El sitio seguiría haciendo sonidos —el formulario los hace—
+   sin ninguna forma de callarlos. Ahora vive en la barra: disponible desde cualquier página.
+2. **El acceso al portal de clientes.** El portal se habría quedado **sin ninguna puerta**
+   desde el sitio público. Lo cazó su contrato, que existía justo para eso.
+
+### Tablero de anuncios: `sec_33` y `sec_34`
+
+Pedido por el dueño el mismo día. Nace **vacío**, ni una fila de ejemplo. Viene una academia de
+baile en el Salón de los Espejos, pero **no se publica todavía**: faltan horarios y precios.
+
+**La decisión de diseño:** el filtro de publicación vive en la **política de lectura**, no en
+el frontend. Un borrador puede llevar una promoción sin cerrar; con el filtro en el cliente,
+cualquiera podría leerlo consultando la tabla.
+
+**Y ahí mismo metí un fallo que `sec_34` corrige.** La política llamaba a
+`jardines.is_admin()` para que el panel viera los borradores, pero `anon` **no tiene EXECUTE**
+sobre esa función, y Postgres evalúa la política entera: toda lectura pública moría con
+`permission denied for function is_admin`. **La tabla era ilegible para el sitio.**
+
+La verificación de `sec_33` no lo vio porque corre con el rol que aplica migraciones. Salió al
+probarlo **desde el rol `anon`**.
+
+> **El patrón que ya lleva tres aciertos en esta sesión:** verificar con el rol privilegiado da
+> verde sobre cosas rotas. Las tres veces que algo apareció fue mirándolo **como lo mira el
+> visitante** — `anon` en la base, y el navegador sin JavaScript en el prerender.
+
+### El formulario, en dos frentes
+
+- El campo libre deja de llamarse «Comentarios» y pregunta **«¿Cómo imaginas tu evento?»**,
+  que es literalmente la primera pregunta que el dueño hace en la cita.
+- **Sugiere amenidades según el tipo de evento**, en orden comercial. Los nombres salen de la
+  base; lo único que aporta el código es el criterio de a qué evento le pega cada uno.
+
+---
 ## 2. Hallazgos que cambian el plan
 
 Ninguno es opinión: todos salieron de leer el código o la base.

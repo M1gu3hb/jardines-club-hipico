@@ -133,7 +133,7 @@ Los cuatro tienen que pasar:
 npm run lint            # 0 problemas
 npm run build           # exit 0
 npm run test:contratos  # 59/59
-npm run typecheck       # 9 errores = línea base de ESTE repo tras la FASE 6, no debe SUBIR
+npm run typecheck       # 7 errores = línea base de ESTE repo, no debe SUBIR (bajó de 9 en el rediseño)
 ```
 
 Si tocaste SQL, además corre `supabase/tests/seguridad.sql` (va en
