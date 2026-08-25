@@ -57,6 +57,19 @@ export default function EventoDetalle() {
     .map((s) => (salones || []).find((x) => x.slug === s))
     .filter(Boolean);
 
+  /**
+   * La imagen para compartir, cuando el tipo de evento no tiene la suya.
+   *
+   * Todavía no hay fotografías etiquetadas por tipo de evento —las 69 de la galería están sin
+   * etiquetar— así que estas páginas no tienen foto propia. Sin ninguna, el enlace compartido
+   * por WhatsApp sale como una línea de texto gris, que en la práctica es no compartirlo.
+   *
+   * Se usa la del PRIMER espacio recomendado. No es una foto de una boda: es una foto del
+   * lugar donde se hacen, y la página la presenta como lo que es, un espacio. Enseñar el
+   * recinto de verdad es honesto; buscar una foto de boda de banco de imágenes no lo sería.
+   */
+  const imagenCompartir = tipo.ogImage || tipo.imagenHero || recomendados[0]?.imagenPrincipal;
+
   const jsonLd = preguntas.length
     ? {
         '@context': 'https://schema.org',
@@ -81,7 +94,7 @@ export default function EventoDetalle() {
       nombreFinal={tipo.nombre}
       titulo={tipo.seoTitle || `${tipo.nombre} en Xochimilco · Jardines Club Hípico`}
       descripcion={tipo.seoDescription || tipo.descripcionCorta}
-      imagen={tipo.ogImage || tipo.imagenHero}
+      imagen={imagenCompartir}
       jsonLd={jsonLd}
       eyebrow="Tu evento, aquí"
       encabezado={tipo.nombre}
