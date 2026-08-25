@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
 import SplashScreen from "../components/SplashScreen";
+import BandaClasesDeBaile from '@/components/anuncios/BandaClasesDeBaile';
 import InformacionDeServicios from '@/components/avisos/InformacionDeServicios';
 import HeroSection from "../components/HeroSection";
 import CtaCotizacion from "../components/CtaCotizacion";
@@ -175,6 +176,10 @@ export default function Home() {
               onFormClick={() => openForm("")}
               logoUrl={config?.logoUrl}
             />
+
+            {/* El anuncio de la academia, en franja fina. Va justo aquí por orden del
+                dueño: después del hero y antes de las cifras. Ver `BandaClasesDeBaile`. */}
+            <BandaClasesDeBaile />
 
             {/* LAS CIFRAS, PEGADAS AL HERO.
               *

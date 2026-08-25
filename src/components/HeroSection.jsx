@@ -354,7 +354,7 @@ export default function HeroSection({
               transition={{ duration: 0.8, delay: 0.3 }}
               className="flex justify-center mb-6 sm:mb-8"
             >
-              <img src={logoUrl} alt="Jardines Club Hípico" className="h-20 sm:h-24 md:h-32 w-auto object-contain drop-shadow-2xl" style={{ maxWidth: "260px" }} />
+              <img src={logoUrl} alt="Jardines Club Hípico" className="h-28 sm:h-32 md:h-40 w-auto object-contain drop-shadow-2xl" style={{ maxWidth: "320px" }} />
             </motion.div>
           )}
 

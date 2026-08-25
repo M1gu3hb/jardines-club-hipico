@@ -5,30 +5,10 @@ import { Play, Expand } from 'lucide-react';
 import { EsqueletoMosaico, AvisoCargando } from '@/components/ui/Esqueleto';
 import Pagina from '@/components/navegacion/Pagina';
 import MediaViewer, { isVideo } from '@/components/MediaViewer';
-import { useGaleria } from '@/lib/datos';
 import { medidasDe } from '@/lib/medidas';
+import MosaicoJustificado from '@/components/galeria/MosaicoJustificado';
+import { useGaleria } from '@/lib/datos';
 
-/**
- * Las formas del collage, en un patrón de ocho.
- *
- * En el teléfono (2 columnas) `col-span-2` es el ancho completo, así que la GRANDE y la ANCHA
- * se ven enteras — una de cada cuatro fotos. De 640 px en adelante hay 4 y 6 columnas y las
- * proporciones se reparten como en un mosaico impreso.
- *
- * No es aleatorio a propósito: un patrón fijo se ve compuesto y además **no cambia entre el
- * servidor y el navegador**, que es lo que pasaría con `Math.random()` — el prerender pintaría
- * una disposición y la hidratación otra, y las fotos saltarían de sitio al cargar.
- */
-const FORMAS = [
-  'col-span-2 row-span-2',                    // grande
-  'col-span-1 row-span-1',
-  'col-span-1 row-span-2',                    // alta
-  'col-span-1 row-span-1',
-  'col-span-2 row-span-1',                    // ancha
-  'col-span-1 row-span-1',
-  'col-span-1 row-span-1',
-  'col-span-2 row-span-2 sm:col-span-2 sm:row-span-1',  // grande en móvil, ancha en pantalla
-];
 
 /**
  * /galeria — los 69 medios del recinto.
@@ -112,61 +92,34 @@ export default function Galeria() {
             </p>
 
             {/* ══════════════════════════════════════════════════════════════════════
-              * UN COLLAGE DE VERDAD: PIEZAS DE TAMAÑOS DISTINTOS
+              * FILAS JUSTIFICADAS, NO REJILLA
               * ══════════════════════════════════════════════════════════════════════
               *
-              * Palabras del dueño: *«distribúyela y hazla como un collage, unas más grandes
-              * que otras, que se vean bien, que se vean chingonas»*.
+              * Aquí hubo primero mampostería por columnas y después un collage de celdas
+              * fijas. Los dos fallaban por el mismo sitio: una rejilla de celdas **siempre**
+              * deja huecos, porque cuando la pieza que toca no cabe en el espacio que queda,
+              * la celda se queda negra. El dueño lo vio: *«tiene muchísimos espacios negros
+              * vacíos»*.
               *
-              * Antes eran todas del mismo tamaño y eso hace dos cosas malas a la vez: aplana
-              * —sin piezas grandes no hay dónde descansar la vista ni qué mirar primero— y
-              * empequeñece, porque el tamaño de la celda lo fija la más pequeña.
+              * Y había un daño peor: las celdas fijas RECORTAN. Una foto vertical metida en
+              * una celda apaisada se enseñaba a medias — *«cuando abres la foto, en realidad
+              * no es toda la foto»*.
               *
-              * Ahora hay cuatro tamaños que se repiten en un patrón de ocho: una GRANDE (dos
-              * por dos), una ANCHA, una ALTA y varias normales. El patrón se repite pero no
-              * cae siempre en el mismo sitio de la fila, así que no se ve la rejilla por
-              * debajo — que es justo lo que diferencia un collage de una tabla.
-              *
-              * `grid-auto-flow: dense` es lo que lo hace posible: cuando una pieza grande no
-              * cabe en el hueco que toca, el navegador mete ahí una pequeña en vez de dejar el
-              * agujero. Sin eso, un collage con tamaños mezclados sale lleno de vacíos.
-              *
-              * En el teléfono son dos columnas, así que «grande» y «ancha» ocupan el ancho
-              * completo: una de cada cuatro fotos se ve a pantalla completa. Ese era el
-              * problema original —*«se ve muy chiquita, la gente mayor no ve nada»*— y así
-              * queda resuelto sin dejar de ser un collage.
+              * `MosaicoJustificado` calcula cada fila para que mida exactamente el ancho
+              * disponible, usando las proporciones reales de los archivos. Cero huecos por
+              * construcción, ningún recorte, y la variedad de tamaños la pone el contenido en
+              * vez de un patrón inventado. La explicación completa está en ese archivo.
               */}
-            <div
-              className="grid grid-cols-2 auto-rows-[110px] gap-2 sm:grid-cols-4 sm:auto-rows-[130px] sm:gap-3 lg:grid-cols-6 lg:auto-rows-[140px]"
-              style={{ gridAutoFlow: 'dense' }}
-            >
-              {(medios || []).map((m, i) => {
-                // EL HUECO SE RESERVA ANTES DE QUE LLEGUE LA IMAGEN.
-                //
-                // Sin esto, cada foto ocupa cero alto hasta que carga y al cargar empuja todo lo
-                // que tiene debajo: la página entera moviéndose durante segundos, justo mientras
-                // alguien intenta tocar una foto — y acabando en otra.
-                //
-                // Las medidas salen de leer el archivo en el build (`scripts/medidas-medios.mjs`),
-                // no de que nadie las teclee. Si una pieza no está en la lista se deja sin
-                // proporción a propósito: inventar un 4:3 sobre una foto vertical reserva un
-                // hueco equivocado y produce el mismo salto, solo que al revés.
-                // El patrón del collage. Ocho posiciones que se repiten: una grande, una
-                // ancha, una alta y cinco normales. Ver la nota de arriba.
-                const forma = FORMAS[i % FORMAS.length];
-
-                // Las medidas reales siguen viajando al `<img>`. Ya no reservan el hueco —de eso
-                // se encarga el alto fijo de la fila— pero le dicen al navegador la proporción
-                // de origen, que es lo que necesita para recortar con `object-cover` sin
-                // deformar y para decidir la calidad al escalar.
-                const med = medidasDe(m.imagenUrl);
-                return (
+            <MosaicoJustificado
+              piezas={medios || []}
+              pinta={(m, i, tam) => (
                 <button
                   key={m.id}
                   type="button"
                   onClick={() => setAbierto(i)}
                   aria-label={m.alt || m.titulo || `Ampliar pieza ${i + 1} de la galería`}
-                  className={`group relative block h-full w-full overflow-hidden rounded-xl bg-black/40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#C9A84C]/60 ${forma}`}
+                  style={{ width: tam.ancho, height: tam.alto, flex: '0 0 auto' }}
+                  className="group relative block overflow-hidden rounded-xl bg-black/40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#C9A84C]/60"
                 >
                   {isVideo(m.imagenUrl) ? (
                     <video
@@ -181,9 +134,17 @@ export default function Galeria() {
                       src={m.imagenUrl}
                       alt={m.alt || ''}
                       loading={i < 8 ? 'eager' : 'lazy'}
-                      width={med ? med.ancho : undefined}
-                      height={med ? med.alto : undefined}
-                      className="w-full transition-transform duration-700 group-hover:scale-[1.04]"
+                      /* Las medidas reales del archivo. El hueco ya lo reserva el botón con su
+                         alto y ancho calculados, pero estos atributos le dicen al navegador la
+                         proporción de origen antes de descargar nada — y son lo que buscan las
+                         comprobaciones de estabilidad visual. */
+                      width={medidasDe(m.imagenUrl)?.ancho}
+                      height={medidasDe(m.imagenUrl)?.alto}
+                      /* `object-cover` sigue puesto como red de seguridad: la fila se calcula
+                         con la proporción real, así que no debería recortar nada — pero si una
+                         pieza no estuviera en la lista de medidas y entrara como 4:3, es
+                         preferible un recorte mínimo a una foto deformada. */
+                      className="h-full w-full object-cover transition-transform duration-700 group-hover:scale-[1.04]"
                     />
                   )}
 
@@ -192,9 +153,8 @@ export default function Galeria() {
                     {isVideo(m.imagenUrl) ? <Play size={12} aria-hidden="true" /> : <Expand size={12} aria-hidden="true" />}
                   </span>
                 </button>
-                );
-              })}
-            </div>
+              )}
+            />
           </>
         )}
       </div>

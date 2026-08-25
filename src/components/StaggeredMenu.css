@@ -5,7 +5,10 @@
 .staggered-menu-header > * { pointer-events: auto; }
 .sm-header-right { display: flex; align-items: center; gap: 1.1rem; }
 .sm-logo { display: flex; align-items: center; user-select: none; }
-.sm-logo-img { display: block; height: 34px; width: auto; object-fit: contain; }
+/* El logotipo del encabezado sube de 34 px a 46 px por peticion del dueno: en un
+   telefono en vertical, 34 px es una marca que se adivina mas que se lee. */
+.sm-logo-img { display: block; height: 46px; width: auto; object-fit: contain; }
+@media (min-width: 768px) { .sm-logo-img { height: 52px; } }
 .sm-logo-text { color: #fff; font-size: 0.8rem; letter-spacing: 0.12em; text-transform: uppercase; font-weight: 300; }
 
 .sm-toggle { position: relative; display: inline-flex; align-items: center; gap: 0.4rem; background: transparent; border: none; cursor: pointer; color: #C9A84C; font-weight: 500; line-height: 1; overflow: visible; font-size: 0.9rem; letter-spacing: 0.02em; }

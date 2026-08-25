@@ -2,6 +2,7 @@ import { Link } from 'react-router-dom';
 import { ArrowRight } from 'lucide-react';
 import { EsqueletoTarjetas, AvisoCargando } from '@/components/ui/Esqueleto';
 import Pagina from '@/components/navegacion/Pagina';
+import ArteDeEvento from '@/components/eventos/ArteDeEvento';
 import { useTodosLosTipos, useSalones } from '@/lib/datos';
 import { construyeRuta, rutaPorClave } from '@/rutas';
 import { rangoTexto } from '@/lib/capacidad';
@@ -124,7 +125,16 @@ function TarjetaTipo({ tipo }) {
         to={destino}
         className="group skeu-card skeu-card-hover flex h-full flex-col overflow-hidden rounded-2xl focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#C9A84C]/60"
       >
-        {tipo.imagenHero && (
+        {/* MISMA REGLA QUE EN LA PORTADA: la foto manda, el dibujo es el suplente.
+          *
+          * Los dibujos estaban solo en el inicio y aquí —que ES la página dedicada a los
+          * eventos— las seis tarjetas seguían siendo texto sobre negro. El dueño lo cazó:
+          * *«las imágenes que pusiste a cada tipo de evento están perfectas, pero en la
+          * sección de eventos no las pusiste»*.
+          *
+          * Aquí el recorte es 16/9 en vez de 16/10 porque estas tarjetas son más anchas; el
+          * dibujo se adapta solo, que para eso lleva `preserveAspectRatio`. */}
+        {tipo.imagenHero ? (
           <div className="aspect-[16/9] overflow-hidden bg-black/40">
             <img
               src={tipo.imagenHero}
@@ -133,6 +143,11 @@ function TarjetaTipo({ tipo }) {
               className="h-full w-full object-cover transition-transform duration-700 group-hover:scale-105"
             />
           </div>
+        ) : (
+          <ArteDeEvento
+            slug={tipo.slug}
+            className="aspect-[16/9] w-full border-b border-white/5 bg-black/20"
+          />
         )}
 
         <div className="flex flex-1 flex-col p-6">

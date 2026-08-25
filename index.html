@@ -66,6 +66,11 @@
       ]
     }
     </script>
+      <!-- La fuente del sitio, precargada. Va aqui y no solo en el CSS porque el navegador
+         no descubre una fuente hasta que ha leido la hoja de estilos Y ha calculado que algun
+         texto la necesita: precargarla adelanta ese descubrimiento y evita el parpadeo en el
+         que el titulo se dibuja con la fuente de respaldo y salta al llegar la buena. -->
+    <link rel="preload" href="/fonts/inter-latin.woff2" as="font" type="font/woff2" crossorigin />
   </head>
   <body>
     <div id="root"></div>

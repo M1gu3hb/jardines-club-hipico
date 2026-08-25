@@ -6,6 +6,7 @@ import { useGaleria } from '@/lib/datos';
 import { medidasDe } from '@/lib/medidas';
 import { EsqueletoMosaico, AvisoCargando } from '@/components/ui/Esqueleto';
 import { isVideo } from '@/components/MediaViewer';
+import MosaicoJustificado from '@/components/galeria/MosaicoJustificado';
 
 /**
  * GaleriaAsomo — un cacho de la galería, cortado con degradado.
@@ -90,10 +91,19 @@ export default function GaleriaAsomo() {
             </>
           )}
 
-          {/* La misma rejilla que `/galeria`: dos columnas en el teléfono con una foto a
-              ancho completo cada tres, para que se distinga algo. Ver la nota larga allí. */}
-          <div className="grid grid-cols-2 auto-rows-[150px] gap-2 sm:grid-cols-3 sm:auto-rows-[190px] sm:gap-3 lg:grid-cols-4">
-            {asomo.map((m, i) => {
+          {/* Las mismas filas justificadas de `/galeria`, con el alto un poco menor porque
+              esto es un asomo y no la galería entera. Ver `MosaicoJustificado`. */}
+          {isLoading && (
+            <>
+              <AvisoCargando que="la galería" />
+              <EsqueletoMosaico cuantas={8} />
+            </>
+          )}
+
+          <MosaicoJustificado
+            piezas={asomo}
+            hueco={8}
+            pinta={(m, i, tam) => {
               const med = medidasDe(m.imagenUrl);
               return (
                 <motion.div
@@ -102,9 +112,8 @@ export default function GaleriaAsomo() {
                   whileInView={{ opacity: 1, scale: 1 }}
                   viewport={{ once: true }}
                   transition={{ duration: 0.5, delay: Math.min(i * 0.05, 0.4) }}
-                  className={`overflow-hidden rounded-xl bg-black/40 ${
-                    i % 6 === 0 || i % 6 === 3 ? 'col-span-2 sm:col-span-1' : ''
-                  }`}
+                  style={{ width: tam.ancho, height: tam.alto, flex: '0 0 auto' }}
+                  className="overflow-hidden rounded-xl bg-black/40"
                 >
                   <img
                     src={m.imagenUrl}
@@ -116,8 +125,8 @@ export default function GaleriaAsomo() {
                   />
                 </motion.div>
               );
-            })}
-          </div>
+            }}
+          />
         </div>
 
         {/* El degradado va POR ENCIMA y sin recibir clics, para no bloquear las fotos que

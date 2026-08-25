@@ -1,0 +1,64 @@
+/* ══════════════════════════════════════════════════════════════════════════════
+   POR QUÉ ESTO NO ESTÁ EN `theme.css`
+   ══════════════════════════════════════════════════════════════════════════════
+
+   Porque `theme.css` es **copia byte a byte en los tres repos** —web, portal y CRM— y hay
+   un contrato que lo vigila (`scripts/compartidos.json`). Meter aquí las declaraciones de
+   fuente lo haría divergir, que es justo la deuda que ese contrato existe para evitar.
+
+   Y además no tiene sentido compartirlo: los archivos `.woff2` viven en el `public/` de
+   ESTE repositorio. Una declaración que apunta a `/fonts/inter-latin.woff2` solo es cierta
+   donde ese archivo existe.
+
+   El día que el portal o el CRM quieran la misma fuente, copian los dos `.woff2` y este
+   archivo. Hasta entonces, cada uno con lo suyo.
+   ══════════════════════════════════════════════════════════════════════════════ */
+
+/* ══════════════════════════════════════════════════════════════════════════════
+   INTER, AUTO-HOSPEDADA. 2026-08-25.
+   ══════════════════════════════════════════════════════════════════════════════
+
+   EL FALLO QUE ARREGLA. Este archivo pedía `font-family: 'Inter'` desde siempre y el
+   sitio NUNCA cargó esa fuente: no había ni un `@font-face`, ni un enlace, ni un solo
+   archivo `.woff2` en el proyecto. Así que cada visitante veía la primera fuente de la
+   lista de respaldo que su aparato tuviera: San Francisco en un iPhone, Roboto en un
+   Android, Arial en un Windows viejo.
+
+   El dueño lo describió sin conocer el código: «la tipografía del título cambia con cada
+   dispositivo… creo que pusiste que agarrara las letras del dispositivo». Exactamente eso
+   pasaba, y llevaba pasando desde el primer día.
+
+   POR QUÉ AUTO-HOSPEDADA Y NO DESDE GOOGLE. La política de seguridad del sitio solo
+   admite recursos de este mismo origen. Enlazar a `fonts.googleapis.com` obligaría a
+   abrirla a dos dominios de terceros en TODAS las páginas — y además metería una petición
+   a un servidor ajeno en el camino crítico del primer pintado.
+
+   QUÉ SE DESCARGA DE VERDAD. Los dos archivos son variables: cubren todos los grosores
+   entre 200 y 600 sin pedir una descarga por peso. Y el navegador solo trae el subconjunto
+   cuyos caracteres aparecen en la página, así que un sitio en español baja `latin` (48 kB)
+   y NUNCA `latin-ext`.
+
+   `font-display: swap` para que el texto se lea desde el primer momento con la fuente de
+   respaldo y cambie al llegar la buena. Nunca una pantalla en blanco esperando una fuente.
+   ══════════════════════════════════════════════════════════════════════════════ */
+@font-face {
+  font-family: 'Inter';
+  font-style: normal;
+  font-weight: 200 600;
+  font-display: swap;
+  src: url('/fonts/inter-latin.woff2') format('woff2');
+  unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC,
+    U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215,
+    U+FEFF, U+FFFD;
+}
+@font-face {
+  font-family: 'Inter';
+  font-style: normal;
+  font-weight: 200 600;
+  font-display: swap;
+  src: url('/fonts/inter-latin-ext.woff2') format('woff2');
+  unicode-range: U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+0304,
+    U+0308, U+0329, U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C0,
+    U+2113, U+2C60-2C7F, U+A720-A7FF;
+}
+
