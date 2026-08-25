@@ -1,11 +1,6 @@
 import { useState, useEffect } from "react";
-import { useNavigate } from "react-router-dom";
 import SplashScreen from "../components/SplashScreen";
-import StaggeredMenu from "../components/StaggeredMenu";
-import SoundToggle from "../components/SoundToggle";
-import { playSound } from "../components/soundSystem";
 import HeroSection from "../components/HeroSection";
-import SalonesSection from "../components/SalonesSection";
 import ServiciosAmenidades from "../components/ServiciosAmenidades";
 import GaleriaSection from "../components/GaleriaSection";
 import CtaCotizacion from "../components/CtaCotizacion";
@@ -19,49 +14,17 @@ import ComoFunciona from "../components/ComoFunciona";
 import FaqSection from "../components/FaqSection";
 import { WHATSAPP } from "@/config/negocio";
 import { precargarVideoHero } from "@/lib/precargaHero";
-import { useSalones, useGaleria, useConfigSitio } from "@/lib/datos";
-
-// Orden = orden real del <main> de abajo. `como-funciona` y `faq` existen en el
-// DOM desde hace tiempo pero faltaban aquí: eran dos secciones de conversión
-// inalcanzables desde el menú, y el indicador de sección activa se quedaba
-// pegado al pasar por ellas porque el observer no las miraba.
-const SECTIONS = [
-  "inicio", "salones", "servicios", "amenidades", "como-funciona",
-  "galeria", "faq", "contacto", "no-incluye",
-];
-
-const MENU_ITEMS = [
-  { id: "inicio", label: "Inicio" },
-  { id: "salones", label: "Salones" },
-  { id: "servicios", label: "Servicios" },
-  { id: "amenidades", label: "Amenidades" },
-  { id: "como-funciona", label: "Cómo funciona" },
-  { id: "galeria", label: "Galería" },
-  { id: "faq", label: "Preguntas" },
-  { id: "contacto", label: "Contacto" },
-  { id: "no-incluye", label: "Avisos" },
-]
-  // `esRuta: false` no es adorno: iguala la forma de los dos lados del `concat` de abajo,
-  // que es lo que TypeScript comprueba. Y es cierto — estos items son anclas, no rutas.
-  .map((i) => ({ ...i, link: `#${i.id}`, ariaLabel: `Ir a ${i.label}`, esRuta: false }))
-  // Acceso al portal de clientes: SOLO dentro del menú (no visible en la página).
-  //
-  // DESDE LA FASE 4 EL PORTAL ES OTRA APLICACIÓN, en otro origen. La URL sale de
-  // `VITE_URL_PORTAL` para que no quede escrita a mano en el código (regla R8).
-  //
-  // El respaldo `/portal` no es decorativo: si la variable faltara, el enlace cae en la
-  // ruta vieja de este mismo sitio, que la FASE 4 convirtió en un 301 hacia el portal.
-  // O sea que el peor caso es un salto de más, no un enlace roto.
-  .concat([{
-    id: "portal",
-    label: "Portal de clientes",
-    link: import.meta.env.VITE_URL_PORTAL || "/portal",
-    ariaLabel: "Entrar al portal de clientes",
-    esRuta: true,
-  }]);
+import { useGaleria, useConfigSitio } from "@/lib/datos";
+import Cabecera from "@/lib/Cabecera";
+import { rutaPorClave } from "@/rutas";
+import { urlAbsoluta } from "@/config/sitio";
+import QueEstasPlaneando from "../components/home/QueEstasPlaneando";
+import EspaciosDestacados from "../components/home/EspaciosDestacados";
+import Diferenciadores from "../components/home/Diferenciadores";
+import BloqueAvisos from "../components/home/BloqueAvisos";
+import VerTodo from "../components/home/VerTodo";
 
 export default function Home() {
-  const navigate = useNavigate();
   // AQUÍ VIVÍA EL AUTO-REDIRECT AL PORTAL. Se retiró en la FASE 1 de la separación
   // (`docs/PLAN-INDEPENDIZACION.md` §3, acoplamiento A7).
   //
@@ -76,7 +39,6 @@ export default function Home() {
   const [tiempoAgotado, setTiempoAgotado] = useState(false);
   const [modalOpen, setModalOpen] = useState(false);
   const [preselectedSalon, setPreselectedSalon] = useState("");
-  const [activeSection, setActiveSection] = useState("inicio");
   const [proximamenteOpen, setProximamenteOpen] = useState(false);
 
   // LAS LECTURAS PASAN POR LA CACHE COMPARTIDA, no por un `useEffect` propio.
@@ -88,11 +50,10 @@ export default function Home() {
   // 2. **Un `useEffect` NO CORRE EN EL PRERENDER.** El HTML del build salía con la portada
   //    montada pero sin un solo salón dentro, que es justo lo que el prerender existe para
   //    evitar. Con la caché, el guion siembra los datos y el render los encuentra ya puestos.
-  const { data: salones = [], isSuccess: salonesListos } = useSalones();
   const { data: galeria = [] } = useGaleria();
   const { data: config, isSuccess: configListo } = useConfigSitio();
 
-  const configLoaded = configListo || salonesListos || tiempoAgotado;
+  const configLoaded = configListo || tiempoAgotado;
 
   useEffect(() => {
     // TEMPORAL — la descarga del video del hero arranca AQUÍ, en el montaje, no
@@ -122,50 +83,39 @@ export default function Home() {
     return () => clearTimeout(t);
   }, [configLoaded]);
 
-  useEffect(() => {
-    const observer = new IntersectionObserver(
-      (entries) => {
-        entries.forEach((entry) => {
-          if (entry.isIntersecting) setActiveSection(entry.target.id);
-        });
-      },
-      { threshold: 0.3 }
-    );
-    SECTIONS.forEach((id) => {
-      const el = document.getElementById(id);
-      if (el) observer.observe(el);
-    });
-    return () => observer.disconnect();
-  }, [splashDone]);
-
   const openForm = (salon) => {
     setPreselectedSalon(salon || "");
     setModalOpen(true);
   };
 
-  const scrollToSection = (item) => {
-    playSound("click");
-    // El item "Portal de clientes" navega a la ruta del portal.
-    //
-    // El `removeItem` de abajo alimentaba al auto-redirect que se retiró con A7, así que hoy no
-    // lo lee nadie: `jch_ver_sitio` solo lo escribe `PortalShell` («Ver sitio»). Se conserva
-    // porque R4 prohíbe retirar nada del repo actual antes de que el portal esté desplegado y
-    // validado; se decide qué hacer con él cuando `PortalShell` se mude en la FASE 2.
-    if (item.esRuta) {
-      try { sessionStorage.removeItem("jch_ver_sitio"); } catch { /* sin storage */ }
-      // Una URL absoluta es OTRA aplicación: hay que salir del router, no navegar dentro.
-      // El `#entrar=` de un enlace viejo sobrevive al salto: el fragmento no viaja al
-      // servidor y el navegador lo arrastra al destino.
-      if (/^https?:[/][/]/.test(item.link)) { window.location.href = item.link; return; }
-      navigate(item.link);
-      return;
-    }
-    const el = document.getElementById(item.id);
-    if (el) el.scrollIntoView({ behavior: "smooth", block: "start" });
-  };
+  const def = rutaPorClave('home');
 
   return (
     <>
+      {/* La portada tenía su `<head>` sólo en `index.html`, sin `canonical`. Al pasar por aquí
+          gana el suyo propio y, sobre todo, gana el mismo tratamiento que el resto: una sola
+          etiqueta de cada cosa, sin heredar nada por accidente. */}
+      <Cabecera
+        titulo={def.titulo}
+        descripcion={def.descripcion}
+        ruta="/"
+        jsonLd={{
+          '@context': 'https://schema.org',
+          '@type': 'EventVenue',
+          name: 'Jardines Club Hípico',
+          url: urlAbsoluta('/'),
+          description: def.descripcion,
+          address: {
+            '@type': 'PostalAddress',
+            streetAddress: 'Duraznos S/N',
+            addressLocality: 'Santa Inés, Xochimilco',
+            addressRegion: 'Ciudad de México',
+            postalCode: '16810',
+            addressCountry: 'MX',
+          },
+        }}
+      />
+
       {!splashDone && configLoaded && (
         <SplashScreen logoUrl={config?.logoUrl} onFinish={() => setSplashDone(true)} />
       )}
@@ -184,15 +134,20 @@ export default function Home() {
          * nada. Ahora el splash se superpone —tapa igual, la animacion no cambia, N1 intacto—
          * y debajo hay un documento completo desde el primer byte. */}
       <div className="min-h-screen bg-[#0a0a0a]">
-          <StaggeredMenu
-            items={MENU_ITEMS}
-            logoUrl={config?.logoUrl}
-            activeId={activeSection}
-            onItemClick={scrollToSection}
-            headerExtra={<SoundToggle />}
-          />
-
-          {/* Main content — NO overflow-x:hidden aquí (rompería sticky de la animación). El recorte horizontal se controla en html/body desde el Layout. El menú (StaggeredMenu) es un overlay fijo, por eso ya no hay margen de sidebar. */}
+          {/* LA PORTADA YA NO ES EL SITIO: ES SU PUERTA.
+            *
+            * Antes esta página era todo. Cada sección traía el catálogo entero y los salones se
+            * abrían en un overlay sin dirección propia: imposible de compartir e invisible para
+            * Google. Ahora cada sección enseña una muestra y manda a la página que tiene el
+            * asunto completo, que es lo que pedía el encargo — menos información por camino y
+            * mucha más disponible en total.
+            *
+            * El menú de anclas (`StaggeredMenu`) se retiró de aquí: la barra del sitio, que
+            * gobierna las otras catorce direcciones, gobierna también ésta. Dos menús con dos
+            * ideas distintas de qué es navegar era peor que perder una animación.
+            *
+            * El HERO no se toca (N1): los videos, la intro y la dirección artística siguen
+            * exactamente como estaban. */}
           <main className="w-full min-w-0">
             <HeroSection
               onFormClick={() => openForm("")}
@@ -204,23 +159,54 @@ export default function Home() {
               proximamenteDescripcion={config?.proximamenteDescripcion}
               onProximamenteClick={() => setProximamenteOpen(true)}
             />
+
+            {/* Desaparece del documento si no hay ningún aviso publicado. */}
+            <BloqueAvisos />
+
+            {/* Primero POR QUÉ vienen, y solo después DÓNDE. Casi nadie llega pensando
+                «¿dónde?»: llega pensando «¿me sirve para mi boda?». */}
+            <QueEstasPlaneando />
+
+            <EspaciosDestacados />
+
+            <Diferenciadores />
+
             <Confianza />
-            <SalonesSection salones={salones} onSelectSalon={openForm} />
+
             <ScrollAnimationSection />
-            <ServiciosAmenidades />
-            <ComoFunciona />
+
+            <section id="servicios">
+              <ServiciosAmenidades />
+              <div className="pb-16">
+                <VerTodo a="/servicios">Ver todo lo que se puede contratar</VerTodo>
+              </div>
+            </section>
+
+            <section id="como-funciona">
+              <ComoFunciona />
+              <div className="pb-16">
+                <VerTodo a="/como-funciona">Cómo se aparta una fecha</VerTodo>
+              </div>
+            </section>
+
             <CtaCotizacion onOpenForm={openForm} />
-            <GaleriaSection galeria={galeria} />
-            <FaqSection />
+
+            <section id="galeria">
+              <GaleriaSection galeria={galeria} />
+              <div className="pb-16">
+                <VerTodo a="/galeria">Ver la galería completa</VerTodo>
+              </div>
+            </section>
+
+            <section id="faq">
+              <FaqSection />
+              <div className="pb-16">
+                <VerTodo a="/preguntas-frecuentes">Todas las preguntas frecuentes</VerTodo>
+              </div>
+            </section>
+
             <ContactoSection telefono={config?.telefonoContacto} correo={config?.correoAdmin} ubicacionTexto={config?.ubicacionTexto} ubicacionLinkMapa={config?.ubicacionLinkMapa} whatsappNumero={config?.whatsappNumero} />
             <NoIncluyeSection texto={config?.informacionServicios} />
-
-            {/* Footer (el acceso al portal de clientes vive en el MENÚ, no aquí) */}
-            <footer className="bg-[#080808] border-t border-white/5 py-8 px-6 text-center">
-              <p className="text-white/20 text-xs tracking-widest uppercase">
-                © {new Date().getFullYear()} Jardines Club Hípico · Ciudad de México
-              </p>
-            </footer>
           </main>
 
           {/* Sticky WhatsApp button (móvil y escritorio) */}

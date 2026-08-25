@@ -1,5 +1,5 @@
 import { Link } from 'react-router-dom';
-import { MapPin, Phone, Mail, MessageCircle } from 'lucide-react';
+import { MapPin, Phone, Mail, MessageCircle, LogIn } from 'lucide-react';
 import { RUTAS, rutaPorClave } from '@/rutas';
 import { WHATSAPP, TELEFONO, CORREO, UBICACION, MAPA } from '@/config/negocio';
 
@@ -23,6 +23,37 @@ import { WHATSAPP, TELEFONO, CORREO, UBICACION, MAPA } from '@/config/negocio';
  * un formulario no es contenido. `/nosotros` tampoco, mientras siga sin un párrafo escrito:
  * enlazar a una página vacía desde las veinte páginas del sitio es multiplicar el problema.
  */
+/**
+ * El portal es OTRA aplicación, en otro origen.
+ *
+ * La dirección sale de `VITE_URL_PORTAL` para no escribirla a mano (regla R8). El respaldo
+ * `/portal` no es decorativo: si la variable faltara, el enlace cae en la ruta vieja de este
+ * mismo sitio, que la FASE 4 convirtió en un 301 hacia el portal. El peor caso es un salto de
+ * más, no un enlace roto.
+ */
+function EnlacePortal() {
+  const destino = import.meta.env.VITE_URL_PORTAL || '/portal';
+  const esOtraApp = /^https?:[/][/]/.test(destino);
+  const clases =
+    'inline-flex items-center gap-2 text-[10px] font-light tracking-[0.2em] uppercase text-white/30 transition-colors hover:text-[#C9A84C] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#C9A84C]/60 rounded-sm';
+
+  // Una URL absoluta es otra aplicación: hay que SALIR del enrutador, no navegar dentro de él.
+  if (esOtraApp) {
+    return (
+      <a href={destino} className={clases}>
+        <LogIn size={12} aria-hidden="true" />
+        Portal de clientes
+      </a>
+    );
+  }
+  return (
+    <Link to={destino} className={clases}>
+      <LogIn size={12} aria-hidden="true" />
+      Portal de clientes
+    </Link>
+  );
+}
+
 export default function PieDeSitio() {
   const anio = new Date().getFullYear();
   const cotizar = rutaPorClave('cotizar');
@@ -132,10 +163,21 @@ export default function PieDeSitio() {
           </div>
         </div>
 
-        <div className="mt-12 border-t border-white/5 pt-6">
+        <div className="mt-12 flex flex-col gap-4 border-t border-white/5 pt-6 sm:flex-row sm:items-center sm:justify-between">
           <p className="text-[10px] font-light tracking-[0.14em] text-white/25">
             © {anio} Jardines Club Hípico · Xochimilco, Ciudad de México
           </p>
+
+          {/* EL ACCESO AL PORTAL DE CLIENTES.
+            *
+            * Vivia dentro del menu de la portada, que se retiro al unificar la navegacion. Si no
+            * se movia aqui, el portal se quedaba SIN NINGUNA PUERTA desde el sitio publico: un
+            * cliente con evento contratado no tendria por donde entrar.
+            *
+            * Va en el pie y no en la barra a proposito. No es una seccion del sitio: es una
+            * puerta de servicio para quien YA contrato, y en la barra competiria con las
+            * catorce que si le interesan a quien esta decidiendo. */}
+          <EnlacePortal />
         </div>
       </div>
     </footer>

@@ -1,4 +1,3 @@
-import { useLocation } from 'react-router-dom';
 import BarraNavegacion from '@/components/navegacion/BarraNavegacion';
 import PieDeSitio from '@/components/navegacion/PieDeSitio';
 
@@ -8,24 +7,25 @@ import PieDeSitio from '@/components/navegacion/PieDeSitio';
  * Los estilos globales (Inter, tokens skeu, scrollbar) viven en `src/styles/theme.css`,
  * importado en `main.jsx`, porque también los necesitan pantallas que no pasan por aquí.
  *
- * ── Por qué la Home queda fuera del marco, DE MOMENTO ───────────────────────
+ * ── UNA SOLA NAVEGACIÓN, TAMBIÉN EN LA PORTADA ──────────────────────────────
  *
- * La Home todavía es la landing de una sola página: trae su propio `StaggeredMenu`, que va a
- * anclas internas, y un hero a pantalla completa. Montarle encima la barra del sitio pondría
- * DOS botones de menú en la misma esquina, cada uno con una idea distinta de qué es navegar.
+ * Durante la FASE 2 la Home quedó fuera de este marco, porque traía su propio menú
+ * (`StaggeredMenu`) y montarle encima la barra del sitio ponía dos botones de menú en la misma
+ * esquina, cada uno con una idea distinta de qué es navegar.
  *
- * Se resuelve en la FASE 3, cuando la Home se convierta en distribuidor y sus secciones dejen
- * de ser el sitio entero para pasar a ser resúmenes que enlazan a las páginas de verdad.
- * Hasta entonces esto es una excepción **declarada y con fecha**, no un olvido.
+ * La FASE 3 lo resuelve por el lado correcto: **la barra del sitio también gobierna la
+ * portada.** El motivo no es de gusto. El sitio pasó de tener una dirección a tener catorce, y
+ * un menú de hamburguesa las esconde todas detrás de un clic. En escritorio, una navegación
+ * visible es la diferencia entre que alguien descubra que existe `/espacios` o no lo descubra
+ * nunca — y el encargo entero va de que haya MUCHA más información disponible.
+ *
+ * El hero no se toca: la barra es transparente arriba y solo se vuelve sólida al bajar, así
+ * que los videos siguen entrando a pantalla completa como estaban.
+ *
+ * `StaggeredMenu` se queda en el repositorio, sin usar, hasta que el dueño decida. Es una
+ * pieza con carácter y retirarla es una decisión suya, no mía.
  */
 export default function Layout({ children }) {
-  const { pathname } = useLocation();
-  const esHome = pathname === '/';
-
-  if (esHome) {
-    return <div className="min-h-screen bg-[#0a0a0a]">{children}</div>;
-  }
-
   return (
     <div className="min-h-screen bg-[#0a0a0a] flex flex-col">
       {/* Salto directo al contenido. Quien navega con teclado no debería tener que pasar por

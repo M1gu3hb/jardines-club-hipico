@@ -1309,26 +1309,41 @@ zona("web");
 
 zona("web");
 {
-  // EL ENLACE DEL MENÚ SALE DE UNA VARIABLE, no escrito a mano (R8). Atado al item del menú
-  // Y al manejador: si solo se mirase el item, cambiar el manejador para que hiciera
-  // `navigate()` sobre una URL absoluta rompería el enlace y el contrato pasaría igual.
-  const home = leerCodigo("src/pages/Home.jsx");
-  const item = entre(home, '.concat([{', '}]);');
-  // OJO CON EL RECORTE: `entre(home, "if (item.esRuta) {", "}")` corta en la llave del
-  // `catch { }` de sessionStorage, ANTES de la linea que importa, y el contrato acusaba a un
-  // codigo correcto. Se ata al cuerpo entero del manejador, hasta la rama que NO es ruta.
-  const manejador = entre(home, "const scrollToSection", "const el = document.getElementById");
+  // EL ENLACE AL PORTAL SALE DE UNA VARIABLE, no escrito a mano (R8), y sabe que el portal es
+  // OTRA APLICACION: una URL absoluta hay que abrirla saliendo del enrutador, no navegando
+  // dentro de el. Con `<Link to="https://...">` el enrutador intenta tratarla como ruta interna
+  // y el cliente acaba en un 404 de este sitio en vez de en su portal.
+  //
+  // ── DONDE VIVE, Y POR QUE CAMBIO ──────────────────────────────────────────
+  //
+  // Estaba en el menu de anclas de la portada. La FASE 3 unifico la navegacion y ese menu se
+  // retiro, asi que el enlace se mudo al PIE — donde ademas esta mejor: no es una seccion del
+  // sitio, es una puerta de servicio para quien ya contrato.
+  //
+  // Este contrato existe justamente para que esa mudanza no perdiera el enlace por el camino.
+  // Sin el, el portal se habria quedado sin ninguna puerta desde el sitio publico y nadie se
+  // habria enterado hasta que un cliente preguntara por donde entra.
+  const pie = leerCodigo("src/components/navegacion/PieDeSitio.jsx");
+  const fn = entre(pie, "function EnlacePortal", "export default function PieDeSitio");
   const fallos = [];
-  if (!item) fallos.push("no se encuentra el item del portal en el menú");
+
+  if (!fn) fallos.push("no se encuentra el enlace al portal en el pie");
   else {
-    if (!/import\.meta\.env\.VITE_URL_PORTAL/.test(item)) fallos.push("el enlace no sale de `VITE_URL_PORTAL`");
-    if (!/\|\|\s*"\/portal"/.test(item)) fallos.push("no queda respaldo a la ruta vieja si falta la variable");
+    if (!/import\.meta\.env\.VITE_URL_PORTAL/.test(fn)) fallos.push("el enlace no sale de `VITE_URL_PORTAL`");
+    // El respaldo `/portal` no es decorativo: si faltara la variable, cae en la ruta vieja de
+    // este sitio, que la FASE 4 convirtio en un 301 hacia el portal. El peor caso es un salto
+    // de mas, no un enlace roto.
+    if (!/\|\|\s*'\/portal'/.test(fn)) fallos.push("no queda respaldo a la ruta vieja si falta la variable");
+    // Y la parte que de verdad importa: distinguir absoluta de interna, y salir del enrutador.
+    if (!/https\?:/.test(fn)) fallos.push("no distingue una URL absoluta de una ruta interna");
+    if (!/<a\s+href=\{destino\}/.test(fn)) fallos.push("no sale del enrutador para una URL absoluta: un `Link` la trataria como ruta interna");
   }
-  if (!manejador) fallos.push("no se encuentra el manejador del menú");
-  else if (!/window\.location\.href\s*=\s*item\.link/.test(manejador)) {
-    fallos.push("el manejador no sale del router para una URL absoluta");
-  }
-  check("web: el portal del menú sale de una variable y el manejador sabe salir del router", fallos.length === 0, fallos.join(" · "));
+
+  // Y que alguien lo pinte de verdad. Una funcion perfecta que nadie renderiza es un enlace
+  // que no existe, y este contrato afirmaria una propiedad sobre codigo muerto.
+  if (!/<EnlacePortal\s*\/>/.test(pie)) fallos.push("`EnlacePortal` esta definido pero no se pinta");
+
+  check("web: el portal se alcanza desde el sitio, sale de una variable y abre fuera del router", fallos.length === 0, fallos.join(" · "));
 }
 
 zona("comun");

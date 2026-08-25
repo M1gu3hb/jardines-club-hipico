@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { Menu, X } from 'lucide-react';
 import { RUTAS_MENU, rutaPorClave } from '@/rutas';
+import SoundToggle from '@/components/SoundToggle';
 
 /**
  * BarraNavegacion — la navegación persistente del sitio.
@@ -13,9 +14,11 @@ import { RUTAS_MENU, rutaPorClave } from '@/rutas';
  * esté siempre, que diga dónde estás, y que funcione igual llegando desde Google a una
  * página interior que entrando por la portada.
  *
- * El menú anterior no se tira: sigue viviendo en la Home para recorrer sus secciones. Son
- * dos cosas distintas —recorrer una página y moverse por el sitio— y confundirlas es lo que
- * deja al visitante sin saber si está bajando o cambiando de sitio.
+ * En la FASE 3 esta barra pasó a gobernar TAMBIÉN la portada, y el menú de anclas
+ * (`StaggeredMenu`) se retiró de ella. Dos menús en el mismo sitio, con dos ideas distintas de
+ * qué significa navegar, dejaban al visitante sin saber si estaba bajando o cambiando de
+ * página. El componente sigue en el repositorio, sin usar, hasta que el dueño decida qué hacer
+ * con él: es una pieza con carácter y retirarla del todo es decisión suya.
  *
  * ── Decisiones ──────────────────────────────────────────────────────────────
  *
@@ -108,6 +111,14 @@ export default function BarraNavegacion() {
           </nav>
 
           <div className="flex items-center gap-3">
+            {/* EL INTERRUPTOR DE SONIDO VIVE AQUI DESDE LA FASE 3.
+              *
+              * Estaba dentro del menu de la portada, que se retiro al unificar la navegacion.
+              * Sin moverlo, el sitio seguiria haciendo sonidos —el formulario los hace— sin
+              * ninguna forma de callarlos. Un sonido que no se puede apagar es peor que no
+              * tener sonido, y ahora ademas se puede apagar desde cualquier pagina. */}
+            <SoundToggle />
+
             {/* Visible SIEMPRE, también en móvil. Es el único elemento de la barra que genera
                 negocio; meterlo dentro de la hamburguesa lo entierra a dos toques. En pantalla
                 pequeña encoge, no desaparece. */}
