@@ -122,6 +122,41 @@
         } catch (e) { /* navegacion privada: se sigue con la cortina puesta */ }
         setTimeout(function () { var d = document.getElementById('cortina'); if (d) d.remove(); }, 8000);
       })();
+
+      /* ══════════════════════════════════════════════════════════════════════════════
+         EL ESTADO DE SCROLL DEL ENCABEZADO, FUERA DE REACT
+         ══════════════════════════════════════════════════════════════════════════════
+
+         Marca `<html class="con-scroll">` en cuanto se baja de 24 px, y el CSS del encabezado
+         reacciona: arriba lleva un degradado que se desvanece; al bajar, una superficie con
+         desenfoque.
+
+         POR QUÉ AQUÍ Y NO EN EL COMPONENTE. Primero se hizo con estado de React y no
+         funcionaba: comprobado en producción, con `scrollY` en 800 y React vivo, la clase no
+         llegaba a aplicarse ni disparando el evento a mano. En vez de seguir persiguiendo por
+         qué, se saca del todo — y resulta ser la solución mejor por dos motivos independientes:
+
+           · **No provoca ningún re-render.** Con estado, cada vez que se cruza el umbral React
+             vuelve a dibujar el menú entero. Aquí solo se toca una clase.
+           · **No depende de que React haya montado.** Funciona desde que se lee el HTML, igual
+             que la cortina del splash. Es el mismo principio: lo que tiene que responder antes
+             de que exista React, no puede vivir dentro de React.
+
+         `passive: true` porque no se llama a `preventDefault`, y así el navegador no espera a
+         este manejador para desplazar la página.
+
+         El umbral son 24 px y no 0: en un teléfono, el rebote elástico al llegar arriba mueve
+         el scroll unos píxeles, y con umbral cero el encabezado parpadearía solo.
+         ══════════════════════════════════════════════════════════════════════════════ */
+      (function () {
+        var raiz = document.documentElement;
+        var mirar = function () {
+          if (window.scrollY > 24) raiz.classList.add('con-scroll');
+          else raiz.classList.remove('con-scroll');
+        };
+        mirar();
+        window.addEventListener('scroll', mirar, { passive: true });
+      })();
     </script>
 
     <div id="root"></div>

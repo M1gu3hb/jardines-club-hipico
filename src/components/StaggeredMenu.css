@@ -22,6 +22,11 @@
 
    `pointer-events: none` se conserva: el encabezado no debe interceptar clics dirigidos a la
    página; sus hijos los vuelven a activar en la regla siguiente.
+
+   LA CLASE `con-scroll` VA EN `<html>`, no en el encabezado, y la pone un guion de
+   `index.html` — no React. El motivo está explicado allí: con estado de React no llegaba a
+   aplicarse, y sacarlo además evita un re-render del menú entero cada vez que se cruza el
+   umbral.
    ══════════════════════════════════════════════════════════════════════════════ */
 .staggered-menu-header {
   position: absolute; top: 0; left: 0; width: 100%;
@@ -33,7 +38,7 @@
   transition: background 420ms ease, backdrop-filter 420ms ease, box-shadow 420ms ease;
 }
 
-.staggered-menu-header.con-scroll {
+html.con-scroll .staggered-menu-header {
   background: rgba(10,10,10,0.55);
   -webkit-backdrop-filter: blur(16px) saturate(130%);
   backdrop-filter: blur(16px) saturate(130%);
