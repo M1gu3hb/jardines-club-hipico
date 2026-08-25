@@ -222,7 +222,6 @@ export const RUTAS = [
     titulo: 'Cotiza tu evento · Jardines Club Hípico',
     descripcion: 'Cuéntanos qué estás planeando y te respondemos con una cotización.',
   },
-
   // ── ESPERA CONTENIDO ──────────────────────────────────────────────────────
   {
     // NACIÓ EL 2026-08-24, y hasta ese día era la única página que no podía existir: no había
@@ -244,6 +243,26 @@ export const RUTAS = [
     descripcion:
       'Jardines Club Hípico fue un club ecuestre donde se daban clases de equitación. ' +
       'Un negocio familiar de más de dos hectáreas en Xochimilco, CDMX.',
+  },
+
+  {
+    // CLASES DE BAILE — anunciada, sin contenido todavía.
+    //
+    // Va a abrir una academia de baile en el Salón de los Espejos: hay profesores y hay
+    // logística, pero **no hay horarios ni precios**. El dueño pidió el 2026-08-24 que el
+    // item aparezca ya en el menú y que, de momento, lleve a un «próximamente».
+    //
+    // `indexable: false` mientras no haya horarios: una página que anuncia clases y no dice
+    // ni cuándo ni cómo apuntarse genera preguntas que nadie puede contestar. Y por eso
+    // tampoco sale en el mapa del pie, que solo lista lo que es contenido de verdad.
+    ruta: '/clases-de-baile',
+    clave: 'clases-de-baile',
+    nombre: 'Clases de baile',
+    padre: 'home',
+    menu: true,
+    indexable: false,
+    titulo: 'Clases de baile · Jardines Club Hípico',
+    descripcion: 'Próximamente, academia de baile en el Salón de los Espejos, en Xochimilco.',
   },
 ];
 

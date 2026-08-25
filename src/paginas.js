@@ -29,6 +29,7 @@ export const CARGADORES = {
   amenidades: () => import('@/pages/Amenidades'),
   galeria: () => import('@/pages/Galeria'),
   avisos: () => import('@/pages/Avisos'),
+  'clases-de-baile': () => import('@/pages/ClasesDeBaile'),
   'como-funciona': () => import('@/pages/ComoFunciona'),
   'preguntas-frecuentes': () => import('@/pages/PreguntasFrecuentes'),
   ubicacion: () => import('@/pages/Ubicacion'),

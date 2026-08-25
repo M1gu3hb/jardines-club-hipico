@@ -1,46 +1,58 @@
 /**
- * servicios.js — el reparto de servicios y amenidades a su sitio de verdad.
+ * servicios.js — el reparto de las dos tablas a su sitio de verdad.
  *
  * ══════════════════════════════════════════════════════════════════════════════
  * LAS DOS TABLAS ESTÁN CRUZADAS
  * ══════════════════════════════════════════════════════════════════════════════
  *
  * `jardines.servicios` y `jardines.amenidades` **no contienen lo que sus nombres prometen**.
- * Medido fila por fila el 2026-08-24 (ver `rediseño-sitio-web/11-MAPEO-SERVICIOS.md`):
+ * Medido fila por fila (ver `rediseño-sitio-web/11-MAPEO-SERVICIOS.md`):
  *
- *   · `amenidades` no tiene ni una amenidad: tiene inflables, magos, cámaras 360, pantallas
- *     led y grupos musicales. Eso son **atracciones contratables**.
- *   · `servicios` sí tiene amenidades: sanitarios, estacionamiento, jardines, área de bar.
- *     Eso son **características del recinto**.
- *
- * Si `/amenidades` se construyera leyendo la tabla `amenidades`, sería una página de
- * inflables y magos. Y `/servicios` sería una página sobre baños. Las dos dirían justo lo
- * contrario de lo que su dirección promete, y quien busque «¿tienen estacionamiento?» no lo
- * encontraría donde tiene que estar.
+ *   · `amenidades` guarda inflables, magos, cámaras 360, pantallas led y grupos musicales.
+ *   · `servicios` guarda sanitarios, estacionamiento, jardines y área de bar — que son
+ *     características del recinto, no servicios— **junto a** los servicios de verdad.
  *
  * **La regla: cada fila va donde le toca por LO QUE ES, no por la tabla en la que nació.**
  *
+ * ══════════════════════════════════════════════════════════════════════════════
+ * Y «AMENIDAD» SIGNIFICA LO QUE EL DUEÑO DICE QUE SIGNIFICA
+ * ══════════════════════════════════════════════════════════════════════════════
+ *
+ * La primera versión de este archivo mandaba las atracciones a `/servicios` y dejaba en
+ * `/amenidades` solo las características del recinto, con el argumento de que una página
+ * llamada «amenidades» no debería ser una lista de inflables.
+ *
+ * **Ese argumento estaba mal.** El dueño le llama amenidades a las atracciones —inflables,
+ * cámara 360, mago, pista pixel led—, el panel se lo llama, y sobre todo **es lo que oye el
+ * cliente cuando habla con él por WhatsApp**. Cuando alguien llega a la web después de esa
+ * conversación y busca «amenidades», busca eso. Imponer un vocabulario más correcto pero ajeno
+ * es hacer que el sitio hable un idioma distinto al del negocio.
+ *
+ * Así que el reparto quedó en tres, no en dos:
+ *
+ *   · **SERVICIOS** — lo que se contrata para que el evento SALGA: montaje, mesa de honor,
+ *     asesoría, coordinación, seguridad, sala de conferencias.
+ *   · **AMENIDADES** — lo que se contrata para que el evento sea MEJOR: las atracciones.
+ *   · **DEL RECINTO** — lo que ya está ahí sin contratar nada: bar, jardines, sanitarios,
+ *     estacionamiento. Va al final de `/amenidades`, como contraste: «esto lo sumas tú, esto
+ *     ya viene». Y así quien busca «¿tienen estacionamiento?» lo encuentra.
+ *
  * ── Por qué no se renombran las tablas y ya ─────────────────────────────────
  *
- * Porque el panel del CRM —que es otro repositorio, con su propio despliegue— escribe en
- * ellas por su nombre. Renombrarlas obligaría a coordinar dos despliegues sobre una base de
- * producción compartida para arreglar algo que aquí se arregla sin tocar nada. Resolverlo en
- * el código es aditivo y reversible; renombrar no lo es.
+ * Porque el panel del CRM —otro repositorio, otro despliegue— escribe en ellas por su nombre.
+ * Renombrarlas obligaría a coordinar dos despliegues sobre una base de producción compartida
+ * para arreglar algo que aquí se arregla sin tocar nada.
  *
  * ── Lo que NUNCA hace este archivo ──────────────────────────────────────────
  *
- * Tirar filas. Una fila cuyo título no reconozca cae en «Otros servicios» y se enseña igual.
- * Si se descartaran las desconocidas, el dueño añadiría un servicio desde el panel y no
- * aparecería nunca en el sitio, sin ningún error que lo delatara.
+ * Tirar filas. Una fila cuyo título no reconozca cae en «Otros» y se enseña igual. Si se
+ * descartaran las desconocidas, el dueño añadiría algo desde el panel y no aparecería nunca en
+ * el sitio, sin ningún error que lo delatara.
  */
 
-/** Sin acentos, sin mayúsculas y sin espacios de sobra: los títulos se escriben a mano. */
-// El rango de marcas combinantes (U+0300–U+036F) se construye, no se escribe.
-//
-// Escrito como literal dentro de la expresión regular serían dos caracteres INVISIBLES en el
-// editor, y cualquier herramienta que reescriba o normalice el archivo puede comérselos sin
-// dejar rastro: la expresión seguiría siendo válida, solo que ya no quitaría acentos. Y
-// entonces «Cámara 360» dejaría de encontrar su familia, en silencio.
+// El rango de marcas combinantes (U+0300–U+036F) se construye, no se escribe: como literal
+// serían dos caracteres INVISIBLES, y cualquier herramienta que normalice el archivo puede
+// comérselos. La expresión seguiría siendo válida y dejaría de quitar acentos, en silencio.
 const ACENTOS = new RegExp(
   '[' + String.fromCharCode(0x300) + '-' + String.fromCharCode(0x36f) + ']',
   'g',
@@ -49,48 +61,11 @@ const ACENTOS = new RegExp(
 const normaliza = (s = '') =>
   s.normalize('NFD').replace(ACENTOS, '').toLowerCase().replace(/\s+/g, ' ').trim();
 
-export const FAMILIAS = [
-  {
-    clave: 'alimentos',
-    nombre: 'Alimentos y bebidas',
-    entradilla:
-      'El menú de tres tiempos es el que más se contrata, pero no es el único camino: ' +
-      'hay taquiza, buffet, barbacoa y servicio formal o informal según cómo quieras la fiesta.',
-  },
-  {
-    clave: 'experiencias',
-    nombre: 'Experiencias y entretenimiento',
-    entradilla:
-      'Es lo que separa a un recinto de un salón: aquí hay cosas que hacer, no solo un ' +
-      'lugar donde sentarse.',
-  },
-  {
-    clave: 'decoracion',
-    nombre: 'Decoración y mobiliario',
-    entradilla: 'El montaje se adapta al evento, no al revés.',
-  },
-  {
-    clave: 'musica',
-    nombre: 'Música, audio e iluminación',
-    entradilla: 'Desde la pantalla led hasta el grupo en vivo.',
-  },
-  {
-    clave: 'coordinacion',
-    nombre: 'Coordinación y personal',
-    entradilla:
-      'La parte que nadie ve y que decide si el evento sale bien: quién monta, quién ' +
-      'coordina y quién cuida la puerta.',
-  },
-  {
-    clave: 'otros',
-    nombre: 'Otros servicios',
-    entradilla: null,
-  },
-];
-
-/** Destinos que NO son una familia de `/servicios`. */
+/** A dónde va cada fila. */
 export const DESTINO = {
+  SERVICIO: 'servicio',
   AMENIDAD: 'amenidad',
+  DEL_RECINTO: 'del-recinto',
   COMO_FUNCIONA: 'como-funciona',
   FUERA: 'fuera',
 };
@@ -98,84 +73,96 @@ export const DESTINO = {
 /**
  * Título normalizado → destino.
  *
- * Los títulos son los reales de producción. Un cambio de redacción en el panel hace que la
- * fila caiga en «Otros servicios»: sigue viéndose, solo pierde su agrupación. Ese es el modo
- * de fallo que se eligió a propósito — degradar, nunca desaparecer.
+ * Un cambio de redacción en el panel hace que la fila caiga en «Otros»: sigue viéndose, solo
+ * pierde su agrupación. Ese es el modo de fallo elegido a propósito — degradar, nunca
+ * desaparecer.
  */
 const MAPA = {
-  // ── De la tabla `servicios` ───────────────────────────────────────────────
-  'actividades recreativas': 'experiencias',
-  'entretenimiento para tu evento': 'experiencias',
-  'mesa de honor personalizada': 'decoracion',
-  'montajes hermosos y personalizables': 'decoracion',
-  'asesoria en decoracion y logistica': 'coordinacion',
-  'coordinacion de montaje y desmontaje': 'coordinacion',
-  'seguridad privada durante el evento': 'coordinacion',
+  // ── SERVICIOS: lo que hace que el evento salga ────────────────────────────
+  'montajes hermosos y personalizables para tu evento': DESTINO.SERVICIO,
+  'mesa de honor personalizada': DESTINO.SERVICIO,
+  'asesoria en decoracion y logistica': DESTINO.SERVICIO,
+  'coordinacion de montaje y desmontaje': DESTINO.SERVICIO,
+  'seguridad privada durante el evento': DESTINO.SERVICIO,
+  // El dueño zanjó que la sala para conferencias «no vive como salón, vive como servicio».
+  'sala para conferencias': DESTINO.SERVICIO,
 
-  // El dueño zanjó el 2026-08-24 que la sala para conferencias «no vive como salón, vive
-  // como servicio». Así que no es un noveno espacio: es lo que se ofrece a una empresa.
-  'sala para conferencias': 'coordinacion',
+  // ── AMENIDADES: lo que hace que el evento sea mejor ───────────────────────
+  alberca: DESTINO.AMENIDAD,
+  'inflables infantiles': DESTINO.AMENIDAD,
+  'futbolito inflable': DESTINO.AMENIDAD,
+  gladiador: DESTINO.AMENIDAD,
+  aereobonji: DESTINO.AMENIDAD,
+  trampolin: DESTINO.AMENIDAD,
+  mago: DESTINO.AMENIDAD,
+  chinelo: DESTINO.AMENIDAD,
+  'auto clasico': DESTINO.AMENIDAD,
+  'set fotografico': DESTINO.AMENIDAD,
+  'camara 360': DESTINO.AMENIDAD,
+  'mega pantalla led': DESTINO.AMENIDAD,
+  'pista pixel led': DESTINO.AMENIDAD,
+  'variedad en grupos musicales': DESTINO.AMENIDAD,
+  'mesa de dulces personalizada': DESTINO.AMENIDAD,
+  'actividades recreativas': DESTINO.AMENIDAD,
+  'entretenimiento para tu evento': DESTINO.AMENIDAD,
 
-  // Características del recinto que nacieron en la tabla equivocada.
-  'area de bar': DESTINO.AMENIDAD,
-  'jardines naturales y vegetacion ornamental': DESTINO.AMENIDAD,
-  'sanitarios amplios y limpios': DESTINO.AMENIDAD,
-  'estacionamiento amplio para invitados': DESTINO.AMENIDAD,
+  // ── DEL RECINTO: ya está ahí, sin contratar nada ──────────────────────────
+  'area de bar': DESTINO.DEL_RECINTO,
+  'jardines naturales y vegetacion ornamental': DESTINO.DEL_RECINTO,
+  'sanitarios amplios y limpios': DESTINO.DEL_RECINTO,
+  'estacionamiento amplio para invitados': DESTINO.DEL_RECINTO,
 
-  // Una política de la casa, no un servicio. Su sitio es la página que explica cómo se contrata.
+  // ── Ni servicio ni amenidad ───────────────────────────────────────────────
+  // Una política de la casa. Su sitio es la página que explica cómo se contrata.
   'flexibilidad de horarios segun tu evento': DESTINO.COMO_FUNCIONA,
-
-  // Un tipo de evento, no un servicio. Vive en `/eventos/nocturnos`, cuando esa página tenga
-  // contenido propio; hasta entonces no se enseña en un listado que promete servicios.
+  // Un tipo de evento, no un servicio. Vive en `/eventos/nocturnos`.
   'eventos nocturnos armalos a tu gusto': DESTINO.FUERA,
-
-  // ── De la tabla `amenidades`, que en realidad son atracciones ─────────────
-  alberca: 'experiencias',
-  'inflables infantiles': 'experiencias',
-  'futbolito inflable': 'experiencias',
-  'set fotografico': 'experiencias',
-  'camara 360': 'experiencias',
-  gladiador: 'experiencias',
-  aereobonji: 'experiencias',
-  trampolin: 'experiencias',
-  mago: 'experiencias',
-  chinelo: 'experiencias',
-  'auto clasico': 'experiencias',
-
-  'mega pantalla led': 'musica',
-  'pista pixel led': 'musica',
-  'variedad en grupos musicales': 'musica',
-
-  'mesa de dulces personalizada': 'alimentos',
 };
 
-/** A dónde va una fila. */
-export const destinoDe = (fila) => MAPA[normaliza(fila?.titulo || fila?.nombre || '')] || 'otros';
+/** A dónde va una fila. Lo desconocido cae en servicios, que es el cajón menos raro. */
+export const destinoDe = (fila) =>
+  MAPA[normaliza(fila?.titulo || fila?.nombre || '')] || DESTINO.SERVICIO;
 
 /**
  * Reparte todo lo que hay en las dos tablas.
- * @returns {{familias: Array, amenidades: Array, politicas: Array}}
+ *
+ * Dentro de cada grupo se ordena por **cuántas imágenes tiene**, de más a menos. No es
+ * cosmético: lo que se enseña primero es lo que tiene con qué enseñarse. Un servicio con
+ * catorce fotos merece la pieza grande; uno sin ninguna se vería como un hueco arriba del todo.
+ *
+ * @returns {{servicios: any[], amenidades: any[], delRecinto: any[], politicas: any[]}}
  */
 export function reparte(servicios = [], amenidades = []) {
-  const todo = [...servicios, ...amenidades];
+  const grupos = { servicios: [], amenidades: [], delRecinto: [], politicas: [] };
 
-  const porFamilia = new Map(FAMILIAS.map((f) => [f.clave, []]));
-  const enAmenidades = [];
-  const politicas = [];
-
-  todo.forEach((fila) => {
-    const destino = destinoDe(fila);
-    if (destino === DESTINO.AMENIDAD) enAmenidades.push(fila);
-    else if (destino === DESTINO.COMO_FUNCIONA) politicas.push(fila);
-    else if (destino === DESTINO.FUERA) { /* su sitio es otra página */ }
-    else porFamilia.get(destino)?.push(fila);
+  [...servicios, ...amenidades].forEach((fila) => {
+    const d = destinoDe(fila);
+    if (d === DESTINO.AMENIDAD) grupos.amenidades.push(fila);
+    else if (d === DESTINO.DEL_RECINTO) grupos.delRecinto.push(fila);
+    else if (d === DESTINO.COMO_FUNCIONA) grupos.politicas.push(fila);
+    else if (d === DESTINO.SERVICIO) grupos.servicios.push(fila);
+    // `FUERA` no se pierde: vive en su propia página.
   });
 
-  return {
-    familias: FAMILIAS
-      .map((f) => ({ ...f, items: porFamilia.get(f.clave) || [] }))
-      .filter((f) => f.items.length > 0),
-    amenidades: enAmenidades,
-    politicas,
-  };
+  const porFotos = (a, b) => cuantasFotos(b) - cuantasFotos(a);
+  grupos.servicios.sort(porFotos);
+  grupos.amenidades.sort(porFotos);
+  grupos.delRecinto.sort(porFotos);
+
+  return grupos;
 }
+
+/**
+ * Todas las imágenes de una fila, sin repetir.
+ *
+ * **La columna se llama `imagenes_url`, no `imagenes`.** El shim la entrega como
+ * `imagenesUrl`, y leerla con el nombre equivocado devuelve `undefined` sin ningún error: las
+ * tarjetas enseñaban una sola foto aunque la fila tuviera catorce. Pasó, y no se notó hasta
+ * mirar las columnas de la tabla.
+ */
+export function fotosDe(fila) {
+  const extra = Array.isArray(fila?.imagenesUrl) ? fila.imagenesUrl : [];
+  return [fila?.imagenUrl, ...extra].filter(Boolean).filter((u, i, a) => a.indexOf(u) === i);
+}
+
+export const cuantasFotos = (fila) => fotosDe(fila).length;

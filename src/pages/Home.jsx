@@ -133,7 +133,7 @@ export default function Home() {
          * O sea que la pagina que mas se comparte de un recinto de eventos se compartia sin
          * nada. Ahora el splash se superpone —tapa igual, la animacion no cambia, N1 intacto—
          * y debajo hay un documento completo desde el primer byte. */}
-      <div className="min-h-screen bg-[#0a0a0a]">
+      <div className="w-full">
           {/* LA PORTADA YA NO ES EL SITIO: ES SU PUERTA.
             *
             * Antes esta página era todo. Cada sección traía el catálogo entero y los salones se
@@ -148,7 +148,7 @@ export default function Home() {
             *
             * El HERO no se toca (N1): los videos, la intro y la dirección artística siguen
             * exactamente como estaban. */}
-          <main className="w-full min-w-0">
+          <div className="w-full min-w-0">
             <HeroSection
               onFormClick={() => openForm("")}
               logoUrl={config?.logoUrl}
@@ -207,7 +207,7 @@ export default function Home() {
 
             <ContactoSection telefono={config?.telefonoContacto} correo={config?.correoAdmin} ubicacionTexto={config?.ubicacionTexto} ubicacionLinkMapa={config?.ubicacionLinkMapa} whatsappNumero={config?.whatsappNumero} />
             <NoIncluyeSection texto={config?.informacionServicios} />
-          </main>
+          </div>
 
           {/* Sticky WhatsApp button (móvil y escritorio) */}
           <div className="fixed bottom-5 right-5 z-50">
