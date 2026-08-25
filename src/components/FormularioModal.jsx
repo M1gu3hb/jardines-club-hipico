@@ -4,8 +4,14 @@ import { base44 } from "@/api/base44Client";
 import { playSound } from "./soundSystem";
 import useLockBodyScroll from "../hooks/useLockBodyScroll";
 import { WHATSAPP } from "@/config/negocio";
+import { comoTexto } from "@/lib/sugerencias";
+import Sugerencias from "./formulario/Sugerencias";
+import { useServicios, useAmenidades } from "@/lib/datos";
 
 const TIPOS_EVENTO = ["Boda", "XV Años", "Cumpleaños", "Infantil", "Empresarial", "Otro"];
+
+/** Renglón en blanco entre lo que escribió la persona y las casillas que marcó. */
+const SEPARADOR = String.fromCharCode(10, 10);
 
 /**
  * Slug de `/eventos/{slug}` → la opción que este formulario entiende.
@@ -84,6 +90,11 @@ export default function FormularioModal({ open, onClose, preselectedSalon, whats
   const [error, setError] = useState("");
   const [salones, setSalones] = useState([]);
 
+  // LO QUE LE INTERESA, no lo que contrata. Ver `src/lib/sugerencias.js`.
+  const [interesado, setInteresado] = useState([]);
+  const { data: servicios = [] } = useServicios();
+  const { data: amenidades = [] } = useAmenidades();
+
   const justSentRef = useRef(false);
   useLockBodyScroll(open || sent);
 
@@ -108,6 +119,8 @@ export default function FormularioModal({ open, onClose, preselectedSalon, whats
       setError("");
       setFolioFinal("");
       setLoading(false);
+      // Sin esto, quien manda una solicitud y abre otra se encuentra marcado lo de la anterior.
+      setInteresado([]);
       // Lo que venga en la URL entra ya puesto. Un desconocido no vale nada: si el slug no
       // está en el mapa se ignora y el usuario elige a mano, que es el comportamiento de
       // siempre. Preseleccionar algo inventado sería peor que no preseleccionar nada.
@@ -177,7 +190,14 @@ export default function FormularioModal({ open, onClose, preselectedSalon, whats
         tipoEvento: tipoEventoFinal || "",
         fechaTentativa: form.fechaTentativa || "",
         numeroPersonas: Number(form.numeroPersonas) || 0,
-        comentarios: form.comentarios || "",
+        // El interes se AÑADE a lo que escribio la persona, no lo sustituye. Sus palabras son
+        // lo mas valioso que trae la solicitud; las casillas son un complemento.
+        //
+        // Va dentro del campo libre a proposito, de momento: `solicitudes` no admite INSERT
+        // directo -solo la RPC `solicitud_crear`- asi que una columna nueva obligaria a tocar
+        // la RPC y el trigger de saneo, que son la unica via de escritura publica que existe.
+        // Se hara bien despues; mientras tanto el dueño recibe el dato desde el primer dia.
+        comentarios: [form.comentarios || "", comoTexto(interesado)].filter(Boolean).join(SEPARADOR),
         aceptoAvisoPrivacidad: true,
         horaEnvio,
         fechaEnvio,
@@ -329,6 +349,16 @@ export default function FormularioModal({ open, onClose, preselectedSalon, whats
                 </div>
 
                 <Field label="Correo (opcional)" value={form.email} onChange={v => set("email", v)} type="email" />
+
+                <Sugerencias
+                  tipoEvento={form.tipoEvento}
+                  personas={Number(form.numeroPersonas) || 0}
+                  disponibles={[...servicios, ...amenidades]}
+                  elegidos={interesado}
+                  onToggle={(titulo) => setInteresado(prev =>
+                    prev.includes(titulo) ? prev.filter(x => x !== titulo) : [...prev, titulo]
+                  )}
+                />
 
                 {/* LA PREGUNTA QUE YA SE HACE EN LA CITA.
                   *
