@@ -225,15 +225,25 @@ export const RUTAS = [
 
   // ── ESPERA CONTENIDO ──────────────────────────────────────────────────────
   {
-    // Hoy no existe ni un párrafo de historia real, y no se inventa. La ruta está declarada
-    // para que el día que haya material solo haya que quitar el `indexable: false`.
+    // NACIÓ EL 2026-08-24, y hasta ese día era la única página que no podía existir: no había
+    // ni un párrafo de historia real en ninguna parte, y no se iba a inventar una.
+    //
+    // Ahora tiene ~570 palabras salidas de la entrevista al dueño, y cuentan algo que ningún
+    // directorio del sector puede copiar porque no lo sabe: esto era un club ecuestre, y de ahí
+    // viene el nombre que hoy hace que la gente pregunte por shows de caballos.
+    //
+    // Entra en el sitemap. Le faltan fotografías propias —las 69 de la galería siguen sin
+    // etiquetar— pero eso no es motivo para esconder una página que contesta una duda real.
     ruta: '/nosotros',
     clave: 'nosotros',
     nombre: 'Nosotros',
     padre: 'home',
-    indexable: false,
-    titulo: 'Nosotros · Jardines Club Hípico',
-    descripcion: 'La historia de Jardines Club Hípico, en Xochimilco.',
+    menu: true,
+    prioridad: 0.6,
+    titulo: 'Nosotros: de club ecuestre a salón de eventos',
+    descripcion:
+      'Jardines Club Hípico fue un club ecuestre donde se daban clases de equitación. ' +
+      'Un negocio familiar de más de dos hectáreas en Xochimilco, CDMX.',
   },
 ];
 

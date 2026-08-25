@@ -97,9 +97,24 @@ export default function SplashScreen({ logoUrl, onFinish }) {
               transition={{ delay: 0.5, duration: 0.9, ease: "easeOut" }}
               style={{ textAlign: "center" }}
             >
-              <h1 style={{ color: "#ffffff", fontSize: "clamp(18px, 4vw, 24px)", fontWeight: 200, letterSpacing: "0.4em", textTransform: "uppercase", marginBottom: 12, textShadow: "0 0 40px rgba(255,255,255,0.1)" }}>
+              {/* ES UN `<p>`, NO UN `<h1>`, y ese cambio importa desde la FASE 3.
+                *
+                * Mientras el contenido de la portada vivía DENTRO de `{splashDone && ...}`, este
+                * era el único encabezado del documento y no competía con nadie. Ahora la página
+                * se pinta debajo del splash desde el primer byte, así que había DOS `<h1>` a la
+                * vez: éste y el del hero, los dos diciendo «Jardines Club Hípico».
+                *
+                * Dos `<h1>` en un documento estropean dos cosas: un lector de pantalla anuncia
+                * dos títulos de página distintos, y el buscador deja de tener claro de qué va.
+                *
+                * El splash es una animación de entrada: es decoración, no la estructura del
+                * documento. `aria-hidden` lo saca además del árbol de accesibilidad, para que
+                * quien navega con lector no oiga el nombre del sitio dos veces seguidas.
+                *
+                * Se conservan TODOS los estilos: visualmente no cambia nada. */}
+              <p aria-hidden="true" style={{ color: "#ffffff", fontSize: "clamp(18px, 4vw, 24px)", fontWeight: 200, letterSpacing: "0.4em", textTransform: "uppercase", marginBottom: 12, textShadow: "0 0 40px rgba(255,255,255,0.1)" }}>
                 Jardines Club Hípico
-              </h1>
+              </p>
               <div style={{ display: "flex", alignItems: "center", gap: 12, justifyContent: "center" }}>
                 <div style={{ height: 1, width: 40, background: "linear-gradient(to right, transparent, rgba(201,168,76,0.7))" }} />
                 <span style={{ color: "rgba(201,168,76,0.7)", fontSize: 10, letterSpacing: "0.35em", textTransform: "uppercase" }}>Salón de Eventos</span>

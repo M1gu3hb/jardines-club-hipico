@@ -5,6 +5,7 @@ import { Play, Expand } from 'lucide-react';
 import Pagina from '@/components/navegacion/Pagina';
 import MediaViewer, { isVideo } from '@/components/MediaViewer';
 import { useGaleria } from '@/lib/datos';
+import { medidasDe } from '@/lib/medidas';
 
 /**
  * /galeria — los 69 medios del recinto.
@@ -67,12 +68,25 @@ export default function Galeria() {
                 vez de recortarse a cuadrados iguales. En un recinto eso importa — un jardín
                 apaisado y una capilla vertical no se leen igual metidos en la misma caja. */}
             <div className="columns-2 gap-3 sm:columns-3 lg:columns-4 [&>*]:mb-3">
-              {(medios || []).map((m, i) => (
+              {(medios || []).map((m, i) => {
+                // EL HUECO SE RESERVA ANTES DE QUE LLEGUE LA IMAGEN.
+                //
+                // Sin esto, cada foto ocupa cero alto hasta que carga y al cargar empuja todo lo
+                // que tiene debajo: la página entera moviéndose durante segundos, justo mientras
+                // alguien intenta tocar una foto — y acabando en otra.
+                //
+                // Las medidas salen de leer el archivo en el build (`scripts/medidas-medios.mjs`),
+                // no de que nadie las teclee. Si una pieza no está en la lista se deja sin
+                // proporción a propósito: inventar un 4:3 sobre una foto vertical reserva un
+                // hueco equivocado y produce el mismo salto, solo que al revés.
+                const med = medidasDe(m.imagenUrl);
+                return (
                 <button
                   key={m.id}
                   type="button"
                   onClick={() => setAbierto(i)}
                   aria-label={m.alt || m.titulo || `Ampliar pieza ${i + 1} de la galería`}
+                  style={med ? { aspectRatio: med.proporcion } : undefined}
                   className="group relative block w-full overflow-hidden rounded-xl bg-black/40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#C9A84C]/60"
                 >
                   {isVideo(m.imagenUrl) ? (
@@ -88,6 +102,8 @@ export default function Galeria() {
                       src={m.imagenUrl}
                       alt={m.alt || ''}
                       loading={i < 8 ? 'eager' : 'lazy'}
+                      width={med ? med.ancho : undefined}
+                      height={med ? med.alto : undefined}
                       className="w-full transition-transform duration-700 group-hover:scale-[1.04]"
                     />
                   )}
@@ -97,7 +113,8 @@ export default function Galeria() {
                     {isVideo(m.imagenUrl) ? <Play size={12} aria-hidden="true" /> : <Expand size={12} aria-hidden="true" />}
                   </span>
                 </button>
-              ))}
+                );
+              })}
             </div>
           </>
         )}

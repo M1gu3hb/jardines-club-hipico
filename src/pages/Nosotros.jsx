@@ -24,12 +24,14 @@ import { urlAbsoluta } from '@/config/sitio';
  * conversación menos por WhatsApp — y de paso, es contenido que ningún directorio del sector
  * puede copiar, porque no lo sabe.
  *
- * ── Sigue con `indexable: false` ────────────────────────────────────────────
+ * ── Lo que le falta, dicho ──────────────────────────────────────────────────
  *
- * Y eso hay que decidirlo, no dejarlo pasar. Le falta una cosa: **fotografías**. Una página de
- * historia con caballerizas, un picadero y un campo ovalado pide verlos, y las 69 fotos de la
- * galería siguen sin etiquetar. En cuanto haya cuatro imágenes suyas, se quita el `noindex` en
- * `rutas.js` y entra en el sitemap.
+ * **Fotografías.** Una página que habla de caballerizas, de un picadero y de un campo ovalado
+ * pide verlos, y las 69 fotos de la galería siguen sin etiquetar. Aun así entra en el sitemap:
+ * esconder una página que contesta una duda real —«¿dan shows de caballos?»— por no tener foto
+ * sería cambiar un problema por otro peor.
+ *
+ * Y le falta **el año**. El dueño no lo sabe, así que no se publica ninguno.
  */
 export default function Nosotros() {
   const jsonLd = {
