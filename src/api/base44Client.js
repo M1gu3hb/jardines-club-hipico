@@ -143,7 +143,7 @@ async function runQueryEstricto(table, { sort, filter }) {
  *
  * @param {string} table
  * @param {Object} opciones
- * @param {Object|null} [opciones.filter]
+ * @param {Object|null} [opciones.filter]  Un valor de array se traduce a `in`; el resto, a `eq`.
  * @param {string|null} [opciones.sort]
  * @param {string[]|null} [opciones.columnas]  En camelCase, como el resto del shim. `null` = todas.
  * @param {number} [opciones.pagina]      Empieza en 1.
@@ -165,7 +165,17 @@ async function runPagina(table, { filter = null, sort = null, columnas = null, p
     : "*";
 
   let q = supabase.from(table).select(cols, { count: "exact" });
-  if (filter) for (const k in filter) q = q.eq(toSnake(k), filter[k]);
+  // Un valor de ARRAY se traduce a `in`, no a `eq`. Es lo que permite pedir «los eventos de
+  // estas veinticinco solicitudes» en vez de traer la tabla entera para cruzarla en memoria —
+  // que era el peor sobre-fetch del panel. Un array vacío se deja pasar a `in`, que devuelve
+  // cero filas: es la respuesta correcta a «ninguno de estos», y evita el `if` que quien
+  // llama olvidaría.
+  if (filter) {
+    for (const k in filter) {
+      const v = filter[k];
+      q = Array.isArray(v) ? q.in(toSnake(k), v) : q.eq(toSnake(k), v);
+    }
+  }
   if (sort) { const { col, ascending } = sortColumn(sort); q = q.order(col, { ascending, nullsFirst: false }); }
   else if (CON_ORDEN.has(table)) q = q.order("orden", { ascending: true, nullsFirst: false });
 
