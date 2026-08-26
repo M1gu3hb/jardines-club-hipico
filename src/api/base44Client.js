@@ -322,6 +322,68 @@ function makeEntity(name) {
       if (!data || data.length === 0) throw escrituraSinEfecto("delete", table);
       return { success: true };
     },
+
+    /**
+     * Un solo `UPDATE` para muchas filas.
+     *
+     * ══════════════════════════════════════════════════════════════════════════
+     * POR QUÉ HACÍA FALTA
+     * ══════════════════════════════════════════════════════════════════════════
+     *
+     * «Marcar todas como leídas» disparaba **hasta 120 `UPDATE` en un `Promise.all`**. No es
+     * solo lento: son 120 peticiones que pueden fallar **por separado**, así que el estado
+     * intermedio —sesenta marcadas y sesenta no— es alcanzable y nadie lo maneja. Con un solo
+     * `UPDATE` o se aplica a todas o a ninguna.
+     *
+     * ── Devuelve CUÁNTAS filas tocó, y eso es lo importante ────────────────
+     *
+     * No `{ success: true }`. RLS puede dejar la escritura en menos filas de las pedidas sin
+     * dar error —es J-02— y quien llama necesita poder comparar: pedí 40, se cambiaron 40.
+     * Un booleano no permite esa comprobación, y es justo la que evita afirmar «listo» sobre
+     * un cambio a medias.
+     *
+     * ── Lanza si no tocó NINGUNA ───────────────────────────────────────────
+     *
+     * Cero filas sobre una lista no vacía significa que ninguna se pudo escribir: eso es un
+     * fallo, no un caso normal. Que toque menos de las pedidas sí puede ser normal —alguna se
+     * borró entre la lectura y la escritura— y por eso se devuelve el número en vez de lanzar.
+     *
+     * @param {string[]} ids
+     * @param {Object} patch
+     * @returns {Promise<{tocadas: number, pedidas: number}>}
+     */
+    async updateMuchos(ids, patch) {
+      const lista = [...new Set((ids || []).filter(Boolean))];
+      // Lista vacía: no es un error, es que no había nada que hacer. Lanzar aquí obligaría a
+      // todos los sitios de llamada a un `if` previo que alguno olvidaría.
+      if (lista.length === 0) return { tocadas: 0, pedidas: 0 };
+
+      const { data, error } = await supabase
+        .from(table).update(objToRow(patch)).in("id", lista).select("id");
+      if (error) { console.error("[shim] updateMuchos", table, error.message); throw error; }
+
+      const tocadas = (data || []).length;
+      if (tocadas === 0) throw escrituraSinEfecto("update", table);
+      return { tocadas, pedidas: lista.length };
+    },
+
+    /**
+     * Un solo `DELETE` para muchas filas. Mismo criterio que `updateMuchos`.
+     *
+     * @param {string[]} ids
+     * @returns {Promise<{tocadas: number, pedidas: number}>}
+     */
+    async borrarMuchos(ids) {
+      const lista = [...new Set((ids || []).filter(Boolean))];
+      if (lista.length === 0) return { tocadas: 0, pedidas: 0 };
+
+      const { data, error } = await supabase.from(table).delete().in("id", lista).select("id");
+      if (error) { console.error("[shim] borrarMuchos", table, error.message); throw error; }
+
+      const tocadas = (data || []).length;
+      if (tocadas === 0) throw escrituraSinEfecto("delete", table);
+      return { tocadas, pedidas: lista.length };
+    },
   };
 }
 
