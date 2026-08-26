@@ -226,10 +226,6 @@
       "motivo": "solo existe en esta aplicacion"
     },
     {
-      "ruta": "api/_lib/telefono.js",
-      "motivo": "solo existe en esta aplicacion"
-    },
-    {
       "ruta": "api/solicitud.js",
       "motivo": "solo existe en esta aplicacion"
     },
