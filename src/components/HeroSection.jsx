@@ -19,13 +19,26 @@ import { isSoundEnabled, subscribeSoundEnabled } from "./soundSystem";
  * enseñando el viejo a quien ya hubiera pasado por aquí. Nombre nuevo, archivo nuevo, y todos
  * lo ven a la primera.
  *
- * `maxTime` NO se toca: el jardín sigue cediendo el paso a los 3.5 s, igual que siempre. Su
- * archivo dura ahora 3.7 s en vez de 8 —solo se usaban los primeros segundos, el resto eran
- * cuatro megas que nadie llegaba a ver nunca—.
+ * ── POR QUÉ EL JARDÍN YA NO LLEVA `maxTime` ────────────────────────────────
+ *
+ * Su original de 8 s son DOS tomas encadenadas: el camino entre los setos y, después, una
+ * arboleda cerrada. En medio hay un fundido de unos 0.7 s. Lo único que se quiere enseñar es
+ * el camino.
+ *
+ * Dónde termina exactamente el camino no se decidió a ojo: se midió la energía de bordes
+ * fotograma a fotograma, porque mezclar dos tomas lava los contornos. Es plana hasta el
+ * fotograma 86 (t = 3.583 s) y a partir del 87 empieza a caer —hasta el 73 % en t = 4.0—. Ahí
+ * arranca la mezcla. El archivo se corta justo en ese punto: 87 fotogramas, 3.625 s.
+ *
+ * Y una vez cortado ahí, `maxTime` sobra: el vídeo **termina** donde tiene que terminar y es
+ * `onEnded` quien pasa el turno, igual que hace el salón. El número mágico desaparece del
+ * código y la decisión vive donde se tomó, en el propio archivo. Además `timeupdate` solo
+ * avisa unas cuatro veces por segundo, así que un `maxTime` de 3.5 disparaba en cualquier
+ * momento entre 3.5 y 3.75; el final del archivo es exacto.
  */
 const VIDEOS = [
   { src: "/media/img/hero-salon-720.mp4", maxTime: null },
-  { src: "/media/img/hero-jardin-720.mp4", maxTime: 3.5 },
+  { src: "/media/img/hero-jardin-720.mp4", maxTime: null },
 ];
 
 function HeroVideoBg() {

@@ -5,6 +5,7 @@ import { ArrowRight } from 'lucide-react';
 import { useTodosLosTipos } from '@/lib/datos';
 import { construyeRuta, rutaPorClave } from '@/rutas';
 import { EsqueletoTarjetas, AvisoCargando } from '@/components/ui/Esqueleto';
+import { REJILLA_CENTRADA, CELDA_CENTRADA, arranqueCentrado } from '@/lib/rejilla';
 import VerTodo from './VerTodo';
 import ArteDeEvento from '@/components/eventos/ArteDeEvento';
 import Foto from '@/components/ui/Foto';
@@ -97,10 +98,15 @@ export default function QueEstasPlaneando() {
           />
 
           {/* La promesa, con las palabras del dueño: la primera pregunta que hace en la cita
-              es «¿cómo lo imaginas?», porque así como lo imaginen, así lo construyen. */}
+            * es «¿cómo lo imaginas?», porque así como lo imaginen, así lo construyen.
+            *
+            * Y desde esta ronda dice además que la lista es abierta. Es corrección suya y va
+            * al fondo del asunto: una lista de tipos se lee como un catálogo cerrado, y aquí
+            * se han hecho cosas que no caben en ninguna de las categorías. Decirlo aquí
+            * cuesta una línea; no decirlo cuesta las visitas que no se ven reflejadas. */}
           <p className="mx-auto mt-5 max-w-xl text-sm font-light leading-relaxed text-white/45 sm:text-base">
-            Aquí no hay paquetes cerrados. Como lo imagines, así lo armamos — y de un mismo
-            tipo de evento salen mil formas distintas.
+            Aquí no hay paquetes cerrados. Como lo imagines, así lo armamos — y lo de abajo son
+            ejemplos, no una lista de lo único que se puede hacer.
           </p>
         </motion.div>
 
@@ -126,10 +132,16 @@ export default function QueEstasPlaneando() {
           * tipos siempre habrá, pero si algún día el dueño deja cinco o menos, la sección se
           * cierra limpia en vez de insinuar un contenido que no existe. */}
         <div className={quedanMas ? 'relative' : undefined}>
-          <ul className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+          {/* LA ÚLTIMA FILA VA CENTRADA.
+            *
+            * Cinco tarjetas en tres columnas dejaban dos pegadas a la izquierda y un hueco a
+            * la derecha. El dueño: *«que no se vean así como que falta uno»*. Y es exactamente
+            * lo que parecía. El porqué del truco de las seis columnas está en `lib/rejilla.js`. */}
+          <ul className={REJILLA_CENTRADA}>
             {asomo.map((t, i) => (
               <motion.li
                 key={t.id}
+                className={`${CELDA_CENTRADA} ${arranqueCentrado(i, asomo.length)}`}
                 initial={{ opacity: 0, y: 20 }}
                 whileInView={{ opacity: 1, y: 0 }}
                 viewport={{ once: true }}
@@ -148,12 +160,21 @@ export default function QueEstasPlaneando() {
           )}
         </div>
 
-        {/* El botón se mete DENTRO del degradado con margen negativo, como en la galería:
-            así queda claro que es la salida de ese corte y no un enlace suelto debajo. Y dice
-            cuántos hay en total, porque «ver todos» sin número no promete nada concreto. */}
+        {/* El botón se mete DENTRO del degradado con margen negativo, como en la galería: así
+          * queda claro que es la salida de ese corte y no un enlace suelto debajo.
+          *
+          * ── EL BOTÓN YA NO DICE CUÁNTOS SON ──────────────────────────────────
+          *
+          * Decía «Ver los 14 tipos de evento». El dueño lo hizo quitar y el motivo es de
+          * negocio, no de estilo: *«estás limitando a que nada más podemos manejar catorce
+          * eventos, y no — podemos manejar lo que se imagine la gente»*.
+          *
+          * Un número es una promesa cerrada. Quien busca algo que no está entre esos catorce
+          * lee el número y concluye que aquí no se hace. Sin él, la lista se lee por lo que
+          * es: ejemplos. */}
         <div className={quedanMas ? '-mt-10 sm:-mt-12' : undefined}>
           <VerTodo a="/eventos">
-            {quedanMas ? `Ver los ${lista.length} tipos de evento` : 'Ver todos los eventos'}
+            {quedanMas ? 'Ver los tipos de evento que hacemos' : 'Ver todos los eventos'}
           </VerTodo>
         </div>
       </div>

@@ -3,7 +3,8 @@ import { ArrowRight } from 'lucide-react';
 import { EsqueletoTarjetas, AvisoCargando } from '@/components/ui/Esqueleto';
 import Pagina from '@/components/navegacion/Pagina';
 import Foto from '@/components/ui/Foto';
-import ArteDeEvento from '@/components/eventos/ArteDeEvento';
+import ArteDeEvento, { TelonDeCualquierEvento } from '@/components/eventos/ArteDeEvento';
+import { REJILLA_CENTRADA, CELDA_CENTRADA, arranqueCentrado } from '@/lib/rejilla';
 import { useTodosLosTipos, useSalones } from '@/lib/datos';
 import { construyeRuta, rutaPorClave } from '@/rutas';
 import { rangoTexto } from '@/lib/capacidad';
@@ -44,7 +45,8 @@ export default function Eventos() {
       acento="planeando?"
       entradilla={
         'Cada evento pide cosas distintas del mismo terreno: una boda necesita capilla y ' +
-        'jardín, unos XV quieren pista y entrada, una posada de empresa quiere otra cosa.'
+        'jardín, unos XV quieren pista y entrada, una posada de empresa quiere otra cosa. ' +
+        'Los de abajo son los que más se piden — no son los únicos que se pueden hacer aquí.'
       }
     >
       <section className="mx-auto max-w-7xl px-5 sm:px-8 pb-14" aria-label="Tipos de evento">
@@ -56,10 +58,50 @@ export default function Eventos() {
         )}
 
         {!isLoading && (
-          <ul className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-            {(tipos || []).map((t) => (
-              <TarjetaTipo key={t.id} tipo={t} />
+          <ul className={REJILLA_CENTRADA}>
+            {(tipos || []).map((t, i) => (
+              <TarjetaTipo key={t.id} tipo={t} clase={arranqueCentrado(i, (tipos || []).length)} />
             ))}
+
+            {/* ══════════════════════════════════════════════════════════════
+              * EL TELÓN, A LO ANCHO DE LAS TRES COLUMNAS
+              * ══════════════════════════════════════════════════════════════
+              *
+              * Lo pidió el dueño con esta forma exacta: *«pon otro que esté en horizontal, que
+              * abarque los tres espacios, y que dé alusión a que puedes hacer aquí lo que se te
+              * ocurra»*.
+              *
+              * Y la forma ES el argumento. Una tarjeta más, del mismo tamaño que las demás,
+              * sería el tipo dieciséis: una casilla más de la misma lista. Rompiendo la rejilla
+              * a lo ancho deja de ser un elemento de la lista y pasa a ser lo que se dice DE la
+              * lista — que no la agota.
+              *
+              * No cuenta para el centrado a propósito: ocupa la fila entera, así que no puede
+              * dejar hueco. Por eso `arranqueCentrado` se calcula solo sobre los tipos. */}
+            <li className="sm:col-span-4 lg:col-span-6">
+              <Link
+                to="/cotizar"
+                className="group relative flex min-h-[168px] flex-col items-center justify-center overflow-hidden rounded-2xl border border-[#C9A84C]/20 bg-[#0b0a08] px-6 py-10 text-center transition-colors hover:border-[#C9A84C]/45 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#C9A84C]/60"
+              >
+                <TelonDeCualquierEvento />
+                <div className="relative">
+                  <p className="text-[10px] font-light tracking-[0.3em] uppercase text-[#C9A84C]/75">
+                    ¿No ves el tuyo aquí?
+                  </p>
+                  <h2 className="mt-3 max-w-2xl text-xl font-extralight leading-snug text-white/90 sm:text-2xl">
+                    Los de arriba son los más pedidos, no los únicos. El recinto se ha usado
+                    para formatos que no aparecen en ninguna lista.
+                  </h2>
+                  <p className="mx-auto mt-3 max-w-xl text-sm font-light leading-relaxed text-white/45">
+                    Cuéntanos qué tienes en mente y te decimos qué espacio le queda mejor.
+                  </p>
+                  <span className="mt-5 inline-flex items-center gap-2 text-[10px] font-light tracking-[0.2em] uppercase text-[#C9A84C]/80 transition-colors group-hover:text-[#C9A84C]">
+                    Cuéntanos tu idea
+                    <ArrowRight size={13} className="transition-transform duration-300 group-hover:translate-x-1" aria-hidden="true" />
+                  </span>
+                </div>
+              </Link>
+            </li>
           </ul>
         )}
       </section>
@@ -112,14 +154,14 @@ export default function Eventos() {
   );
 }
 
-function TarjetaTipo({ tipo }) {
+function TarjetaTipo({ tipo, clase = '' }) {
   const tienePagina = Boolean(tipo.activo);
   const destino = tienePagina
     ? construyeRuta(rutaPorClave('evento').ruta, tipo.slug)
     : `/cotizar?evento=${encodeURIComponent(tipo.slug)}`;
 
   return (
-    <li>
+    <li className={`${CELDA_CENTRADA} ${clase}`}>
       <Link
         to={destino}
         className="group skeu-card skeu-card-hover flex h-full flex-col overflow-hidden rounded-2xl focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#C9A84C]/60"

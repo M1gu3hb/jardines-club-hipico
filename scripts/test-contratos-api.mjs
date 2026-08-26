@@ -1708,6 +1708,89 @@ zona("web");
 }
 
 
+zona("web");
+{
+  // EL BOTÓN DE LOS TIPOS DE EVENTO NO PROMETE UN NÚMERO.
+  //
+  // Decía «Ver los 14 tipos de evento». El dueño lo hizo quitar por un motivo de negocio, no
+  // de estilo: *«estás limitando a que nada más podemos manejar catorce eventos, y no —
+  // podemos manejar lo que se imagine la gente»*. Un número es una promesa cerrada, y quien
+  // busca algo que no está entre esos catorce lee el número y se va.
+  //
+  // Es exactamente la clase de regresión que vuelve sola: `lista.length` sigue a mano ahí al
+  // lado, y «poner cuántos hay» parece una mejora hasta que se recuerda por qué se quitó.
+  const home = leerCodigo("src/components/home/QueEstasPlaneando.jsx")
+    .replace(/\/\*[\s\S]*?\*\//g, "")
+    .replace(/^\s*\/\/.*$/gm, "");
+  const fallos = [];
+
+  // Se recorta el BOTÓN, no el archivo: `lista.length` es legítimo en otros sitios del
+  // componente —de hecho decide si el degradado se pinta— y buscarlo suelto daría un falso
+  // positivo eterno.
+  const boton = entre(home, "<VerTodo", "</VerTodo>");
+  if (!boton) fallos.push("no se encuentra el botón `<VerTodo>` de la sección de eventos");
+  else {
+    if (/\.length/.test(boton)) fallos.push("el botón vuelve a interpolar un recuento (`.length`)");
+    if (/\d/.test(boton)) fallos.push("el botón vuelve a llevar un número escrito");
+    if (!/tipos de evento/.test(boton)) fallos.push("el botón ya no dice a dónde lleva");
+  }
+
+  check(
+    "web: el botón de los tipos de evento no promete un número cerrado",
+    fallos.length === 0,
+    fallos.join(" · "),
+  );
+}
+
+zona("web");
+{
+  // CADA TIPO DE EVENTO QUE ENTRA POR MIGRACIÓN TRAE SU DIBUJO.
+  //
+  // Las tarjetas caen a «solo texto» cuando no hay escena, y esa red está puesta a propósito
+  // para los tipos que el dueño cree desde el panel. Pero un tipo que llega en una migración
+  // lo añadimos nosotros, y ahí olvidarse del dibujo no es un caso previsto: es una tarjeta
+  // desnuda en medio de catorce ilustradas, y nadie la ve hasta que está en producción.
+  //
+  // Se cruzan dos artefactos reales —el SQL aplicado y el mapa de escenas— en vez de afirmar
+  // sobre una lista escrita a mano, que se quedaría vieja sola.
+  const sqls = leerDir("supabase/migrations")
+    .filter((f) => f.endsWith(".sql") && /tipo/.test(f))
+    .map((f) => leer(`supabase/migrations/${f}`))
+    .join("\n");
+  // TRES FORMAS DE NOMBRAR UN SLUG, porque las migraciones usan las tres. Al escribir esto
+  // solo se leía la primera y el contrato cubría 9 de 15 diciendo que los cubría todos —que
+  // es peor que no tenerlo—. Los seis originales no se INSERTAN en ninguna migración: nacieron
+  // en el seed y las migraciones solo los ACTUALIZAN, así que hay que leerlos del `WHERE`.
+  const enInsert = [...sqls.matchAll(/INSERT INTO jardines\.tipos_evento[\s\S]*?VALUES\s*\(\s*'([a-z0-9-]+)'/g)]
+    .map((m) => m[1]);
+  const enTupla = [...sqls.matchAll(/\(\s*'([a-z0-9-]+)',\s*'[^']*',\s*\$\$/g)].map((m) => m[1]);
+  const enUpdate = [...sqls.matchAll(/WHERE\s+slug\s*=\s*'([a-z0-9-]+)'/gi)].map((m) => m[1]);
+  const slugs = [...new Set([...enInsert, ...enTupla, ...enUpdate])];
+
+  const escenas = leerCodigo("src/components/eventos/arte/escenas.jsx");
+  const mapa = entre(escenas, "export const POR_SLUG = {", "};");
+  const fallos = [];
+
+  if (!mapa) fallos.push("no se encuentra `POR_SLUG` en `arte/escenas.jsx`");
+  if (slugs.length === 0) fallos.push("no se pudo leer ningún slug de las migraciones de tipos_evento");
+
+  for (const slug of slugs) {
+    // La clave puede ir con o sin comillas según lleve guion. Se acepta cualquiera de las dos.
+    const suelta = new RegExp(`(^|[{,\\s])${slug.replace(/-/g, "\\-")}\\s*:`, "m");
+    const entrecomillada = new RegExp(`['"]${slug}['"]\\s*:`);
+    if (!suelta.test(mapa) && !entrecomillada.test(mapa)) {
+      fallos.push(`el tipo \`${slug}\` no tiene escena en \`POR_SLUG\`: su tarjeta saldría sin dibujo`);
+    }
+  }
+
+  check(
+    `web: los ${slugs.length} tipos de evento de las migraciones tienen su escena dibujada`,
+    fallos.length === 0,
+    fallos.join(" · "),
+  );
+}
+
+
 // ---------------------------------------------------------------- salida
 
 // META-CONTRATO DEL REPARTO — FASE 1, punto 5 del plan de independización.
