@@ -110,6 +110,71 @@ async function runQueryEstricto(table, { sort, filter }) {
 }
 
 /**
+ * Una PÁGINA de una tabla, con el total real.
+ *
+ * ══════════════════════════════════════════════════════════════════════════════
+ * POR QUÉ HACÍA FALTA
+ * ══════════════════════════════════════════════════════════════════════════════
+ *
+ * `runQuery` y `runQueryEstricto` hacen `select("*")` sin límite: **traen la tabla entera y
+ * todas sus columnas, siempre**. Con 13 solicitudes y 2 eventos no se nota, y ese es justo el
+ * problema — no se va a notar hasta que haya datos, y para entonces está en veintitrés
+ * pantallas.
+ *
+ * El PRS §12A lo marca BLOCKER por partida doble: *«paginación real»* y *«nunca `SELECT *`»*.
+ * Con `eventos` a 31 columnas y `salones` a 24, varias de texto largo, no es teoría.
+ *
+ * ── Es ADITIVO: no toca `list`, `filter` ni sus variantes estrictas ─────────
+ *
+ * Las veintitrés pantallas siguen funcionando igual. Quien necesite paginar, la usa; el resto
+ * no se entera. Ese orden importa porque este archivo es **copia byte a byte** con el sitio
+ * público y el portal: un cambio que rompiera la firma anterior los rompería a los tres.
+ *
+ * ── Por qué LANZA en vez de devolver una página vacía ───────────────────────
+ *
+ * Mismo motivo que `runQueryEstricto`, y aquí es peor: una lista paginada que devuelve `[]` al
+ * fallar no solo dice «no hay nada» — dice **«no hay nada en la página 3»**, y quien lo lee
+ * concluye que se acabaron los datos. J-02 con un disfraz mejor.
+ *
+ * ── El total viene del SERVIDOR ─────────────────────────────────────────────
+ *
+ * `count: "exact"` lo calcula Postgres sobre el filtro aplicado. Contar en el cliente exigiría
+ * traer todo, que es exactamente lo que se está evitando.
+ *
+ * @param {string} table
+ * @param {Object} opciones
+ * @param {Object|null} [opciones.filter]
+ * @param {string|null} [opciones.sort]
+ * @param {string[]|null} [opciones.columnas]  En camelCase, como el resto del shim. `null` = todas.
+ * @param {number} [opciones.pagina]      Empieza en 1.
+ * @param {number} [opciones.porPagina]
+ * @returns {Promise<{filas: any[], total: number}>}
+ */
+async function runPagina(table, { filter = null, sort = null, columnas = null, pagina = 1, porPagina = 25 } = {}) {
+  // Se saneen los dos números antes de tocar la consulta: un `pagina` a 0 o negativo produce
+  // un `range` inválido que PostgREST rechaza con un error que no dice nada útil.
+  const p = Math.max(1, Math.floor(Number(pagina) || 1));
+  const n = Math.min(200, Math.max(1, Math.floor(Number(porPagina) || 25)));
+  const desde = (p - 1) * n;
+
+  // Las columnas viajan en camelCase por coherencia con el resto del shim y se traducen aquí.
+  // `id` va SIEMPRE aunque no se pida: es la clave de React y la que usan las escrituras, y
+  // olvidarla produce listas que se repintan enteras o botones que no saben a qué fila apuntan.
+  const cols = columnas && columnas.length
+    ? [...new Set(["id", ...columnas])].map(toSnake).join(",")
+    : "*";
+
+  let q = supabase.from(table).select(cols, { count: "exact" });
+  if (filter) for (const k in filter) q = q.eq(toSnake(k), filter[k]);
+  if (sort) { const { col, ascending } = sortColumn(sort); q = q.order(col, { ascending, nullsFirst: false }); }
+  else if (CON_ORDEN.has(table)) q = q.order("orden", { ascending: true, nullsFirst: false });
+
+  const { data, error, count } = await q.range(desde, desde + n - 1);
+  if (error) { console.error("[shim] pagina", table, error.message); throw error; }
+  return { filas: (data || []).map(rowToObj), total: count ?? 0 };
+}
+
+/**
  * El error de "la escritura no tocó ninguna fila".
  *
  * Lleva `code` para que una pantalla pueda distinguirlo de un fallo de red, y un `message` en
@@ -154,6 +219,18 @@ function makeEntity(name) {
      * acaba diciendo "no hay nada todavía" cuando lo cierto es que la lectura se cayó.
      */
     async listEstricto(sort) { return runQueryEstricto(table, { sort, filter: null }); },
+    /**
+     * Una PÁGINA, con el total real del servidor.
+     *
+     * Devuelve `{ filas, total }` — que es exactamente lo que consume `ui/Tabla.jsx`.
+     *
+     * Es la vía correcta para cualquier listado que pueda crecer: solicitudes, eventos,
+     * auditoría, galería y pagos. `list` y `filter` se quedan para las listas acotadas por
+     * naturaleza (los 8 salones, los 15 tipos de evento), donde paginar solo estorba.
+     *
+     * **Lanza si falla**, nunca devuelve una página vacía: ver `runPagina`.
+     */
+    async pagina(opciones) { return runPagina(table, opciones); },
     async get(id) { const { data } = await supabase.from(table).select("*").eq("id", id).maybeSingle(); return rowToObj(data); },
     async create(data) {
       // Las solicitudes del formulario público ya no se insertan directo: pasan por
