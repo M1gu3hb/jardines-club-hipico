@@ -48,6 +48,22 @@ export default function QueEstasPlaneando() {
   // arriba, y a partir de ahí nadie vuelve a tocar el dato crudo.
   const lista = tipos || [];
 
+  // ══════════════════════════════════════════════════════════════════════════
+  // LA PORTADA ENSEÑA CINCO. LOS CATORCE ESTÁN EN SU PÁGINA.
+  // ══════════════════════════════════════════════════════════════════════════
+  //
+  // Con catorce tarjetas, esta sección se comía la portada entera y dejaba a `/eventos` sin
+  // razón de existir. El dueño lo dijo al verlo: *«en el inicio no muestres todas, para eso
+  // está el botón de ver todos los tipos de evento»*.
+  //
+  // Cinco es el número correcto por dos motivos. Uno, que en la rejilla de tres columnas
+  // llenan una fila y dejan la segunda a medias — y una fila incompleta se lee como «hay
+  // más», no como «se acabó». Y dos, que son los cinco que el dueño puso primero: `orden` lo
+  // controla él desde el panel, así que elegirlos yo por «cuál vende mejor» sería sustituir
+  // su criterio por el mío.
+  const asomo = lista.slice(0, 5);
+  const quedanMas = lista.length > asomo.length;
+
   if (!isLoading && lista.length === 0) return null;
 
   return (
@@ -94,21 +110,51 @@ export default function QueEstasPlaneando() {
           </>
         )}
 
-        <ul className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-          {lista.map((t, i) => (
-            <motion.li
-              key={t.id}
-              initial={{ opacity: 0, y: 20 }}
-              whileInView={{ opacity: 1, y: 0 }}
-              viewport={{ once: true }}
-              transition={{ duration: 0.5, delay: Math.min(i * 0.06, 0.3) }}
-            >
-              <Tarjeta tipo={t} />
-            </motion.li>
-          ))}
-        </ul>
+        {/* EL CORTE DIFUMINADO, EL MISMO DE LA GALERÍA.
+          *
+          * El dueño lo pidió así de explícito: *«en el quinto que pase lo que tiene la
+          * galería, que se corte como con blur, para dar indicio de darle al botón»*.
+          *
+          * Y es el mismo recurso, que funciona por el mismo motivo: **un corte limpio dice
+          * "esto es todo"; un corte deshecho dice "hay más"**. Cinco tarjetas terminadas en
+          * una línea recta parecen el catálogo completo; cinco disolviéndose en el fondo
+          * empujan al botón sin tener que escribir «hay nueve más».
+          *
+          * El degradado va POR ENCIMA y sin recibir clics, para no bloquear las tarjetas que
+          * todavía se ven enteras arriba. Y solo aparece si de verdad quedan más: con catorce
+          * tipos siempre habrá, pero si algún día el dueño deja cinco o menos, la sección se
+          * cierra limpia en vez de insinuar un contenido que no existe. */}
+        <div className={quedanMas ? 'relative' : undefined}>
+          <ul className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+            {asomo.map((t, i) => (
+              <motion.li
+                key={t.id}
+                initial={{ opacity: 0, y: 20 }}
+                whileInView={{ opacity: 1, y: 0 }}
+                viewport={{ once: true }}
+                transition={{ duration: 0.5, delay: Math.min(i * 0.06, 0.3) }}
+              >
+                <Tarjeta tipo={t} />
+              </motion.li>
+            ))}
+          </ul>
 
-        <VerTodo a="/eventos">Ver todos los eventos</VerTodo>
+          {quedanMas && (
+            <div
+              aria-hidden="true"
+              className="pointer-events-none absolute inset-x-0 bottom-0 h-40 bg-gradient-to-t from-[#0a0a0a] via-[#0a0a0a]/80 to-transparent sm:h-48"
+            />
+          )}
+        </div>
+
+        {/* El botón se mete DENTRO del degradado con margen negativo, como en la galería:
+            así queda claro que es la salida de ese corte y no un enlace suelto debajo. Y dice
+            cuántos hay en total, porque «ver todos» sin número no promete nada concreto. */}
+        <div className={quedanMas ? '-mt-10 sm:-mt-12' : undefined}>
+          <VerTodo a="/eventos">
+            {quedanMas ? `Ver los ${lista.length} tipos de evento` : 'Ver todos los eventos'}
+          </VerTodo>
+        </div>
       </div>
     </section>
   );
