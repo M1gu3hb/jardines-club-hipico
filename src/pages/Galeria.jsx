@@ -7,6 +7,7 @@ import Pagina from '@/components/navegacion/Pagina';
 import MediaViewer, { isVideo } from '@/components/MediaViewer';
 import MosaicoJustificado from '@/components/galeria/MosaicoJustificado';
 import Foto from '@/components/ui/Foto';
+import { piezasParaVisor } from '@/lib/imagen';
 import { useGaleria } from '@/lib/datos';
 
 
@@ -145,7 +146,20 @@ export default function Galeria() {
                       url={m.imagenUrl}
                       alt={m.alt || ''}
                       prioridad={i < 8}
-                      sizes="(min-width: 1280px) 25vw, (min-width: 640px) 33vw, 100vw"
+                      /* EL ANCHO EXACTO, EN PIXELES. NO UNA SUPOSICION.
+                       *
+                       * Aquí ponía `25vw` y fue el fallo que arruinó la calidad: en una ventana
+                       * de 1280 px eso son 320, así que el navegador servía 320 A TODAS —
+                       * midieran 252 o 455—. Las grandes salían AMPLIADAS, o sea borrosas. Y en
+                       * un teléfono, que necesita el doble o el triple de píxeles por su
+                       * densidad de pantalla, el resultado era directamente pixelado.
+                       *
+                       * `sizes` en `vw` solo sirve cuando todas las piezas de una rejilla miden
+                       * lo mismo. Este mosaico es justificado: CADA foto tiene su ancho, y el
+                       * componente que lo reparte ya lo ha calculado. Pasarlo en píxeles le
+                       * quita al navegador toda necesidad de adivinar — y con la densidad de
+                       * pantalla ya se apaña él, que para eso multiplica por su cuenta. */
+                      sizes={`${Math.round(tam.ancho)}px`}
                       claseContenedor="h-full w-full"
                       className="h-full w-full object-cover transition-transform duration-700 group-hover:scale-[1.04]"
                     />
@@ -191,8 +205,10 @@ export default function Galeria() {
       </section>
 
       <AnimatePresence>
+        {/* Las piezas se le pasan YA OPTIMIZADAS: el visor recibía la dirección del original
+            y abría un JPEG de varios megas. Ver `piezasParaVisor` en `lib/imagen.js`. */}
         {abierto !== null && (
-          <MediaViewer items={items} startIdx={abierto} onClose={() => setAbierto(null)} />
+          <MediaViewer items={piezasParaVisor(items)} startIdx={abierto} onClose={() => setAbierto(null)} />
         )}
       </AnimatePresence>
     </Pagina>

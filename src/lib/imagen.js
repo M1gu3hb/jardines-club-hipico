@@ -72,10 +72,24 @@ function ADAPTADOR(url, ancho, calidad) {
  * Los anchos que se ofrecen. Coinciden con `images.sizes` de `vercel.json`: pedir uno que no
  * esté en esa lista devuelve un error del borde, no una imagen.
  */
-export const ANCHOS = [320, 640, 960, 1280, 1920, 2560];
+export const ANCHOS = [256, 384, 512, 640, 768, 1024, 1280, 1600, 1920, 2560];
 
-/** Calidad por defecto. 72 en AVIF/WebP es indistinguible de 100 a tamaño de pantalla. */
-export const CALIDAD = 72;
+/**
+ * Calidad por defecto: ALTA.
+ *
+ * Empezó en 72 y fue un error. El dueño lo vio antes que ninguna medición: *«todo se ve muy
+ * pixelado, desde la miniatura, que es como la mayoría lo ve»*.
+ *
+ * Y lo que costaba bajarla era casi nada. Medido en producción sobre la misma foto:
+ *
+ *   · w=1280 con q=72 → 38 kB
+ *   · w=960  con q=90 → 37 kB
+ *
+ * O sea: **subir la calidad a 90 cuesta lo mismo que servir un ancho mayor a 72**. En una
+ * fotografía, donde el producto ES la imagen, esa elección no admite duda. Los 2 MB del
+ * original siguen siendo dos órdenes de magnitud más, así que el ahorro se conserva entero.
+ */
+export const CALIDAD = 90;
 
 // ─────────────────────────────────────────────────────────────────────────────
 
@@ -188,4 +202,42 @@ export function atributosDeImagen(url, opciones = {}) {
     width: med ? med.ancho : undefined,
     height: med ? med.alto : undefined,
   };
+}
+
+/**
+ * Prepara las piezas de una galería para el visor a pantalla completa.
+ *
+ * ══════════════════════════════════════════════════════════════════════════════
+ * POR QUÉ ESTO EXISTE EN VEZ DE ARREGLAR EL VISOR
+ * ══════════════════════════════════════════════════════════════════════════════
+ *
+ * `MediaViewer` es **copia byte a byte en los tres repositorios** y hay un contrato que lo
+ * vigila. Tocarlo aquí crearía la divergencia que ese contrato existe para evitar.
+ *
+ * Pero el problema no está en el visor: está en lo que se le da. Recibía la dirección del
+ * ORIGINAL, así que abría un JPEG de dos a ocho megas. Palabras del dueño: *«cambio de imagen
+ * y sale todo sin nada, y se pinta de arriba hacia abajo y tarda como tres segundos»*. Eso es
+ * exactamente lo que se ve descargando ocho megas por una conexión normal.
+ *
+ * La solución no necesita tocar el visor: **se le entregan las direcciones ya optimizadas**. A
+ * 1600 px y calidad 95, una foto de cámara pasa de megas a unos cien kilobytes, y a pantalla
+ * completa es indistinguible del original.
+ *
+ * ── Por qué 1600 y no 2560 ──────────────────────────────────────────────────
+ *
+ * Porque el visor no ocupa la pantalla entera: deja márgenes y la imagen cabe con
+ * `object-contain`. En una pantalla de portátil normal el hueco real ronda los 1 200 px, y en
+ * una grande los 1 600. Pedir 2560 sería descargar el doble para dibujar lo mismo.
+ *
+ * Y la calidad sube a 95, no 90: aquí la foto se mira de cerca y a tamaño grande, que es
+ * justo donde un artefacto de compresión sí se nota.
+ *
+ * @param {Array} piezas  Cada una con `url`. El resto de campos se conserva.
+ */
+export function piezasParaVisor(piezas) {
+  if (!Array.isArray(piezas)) return piezas;
+  return piezas.map((pieza) => {
+    if (!pieza || !sePuedeOptimizar(pieza.url)) return pieza;
+    return { ...pieza, url: fuenteDe(pieza.url, 1600, 95) };
+  });
 }

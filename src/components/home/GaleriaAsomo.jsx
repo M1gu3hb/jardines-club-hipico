@@ -120,7 +120,8 @@ export default function GaleriaAsomo() {
                     url={m.imagenUrl}
                     alt={m.alt || ''}
                     prioridad={i < 3}
-                    sizes="(min-width: 1280px) 25vw, (min-width: 640px) 33vw, 100vw"
+                    /* Ancho exacto, igual que en `/galeria`. Ver la nota de allí. */
+                    sizes={`${Math.round(tam.ancho)}px`}
                     claseContenedor="h-full w-full"
                     className="h-full w-full object-cover"
                   />

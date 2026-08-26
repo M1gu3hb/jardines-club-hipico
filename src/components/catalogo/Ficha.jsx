@@ -4,6 +4,7 @@ import { Expand, Images, Play } from 'lucide-react';
 import MediaViewer from '@/components/MediaViewer';
 import { fotosDe } from '@/lib/servicios';
 import Foto from '@/components/ui/Foto';
+import { piezasParaVisor } from '@/lib/imagen';
 import { medidasDe } from '@/lib/medidas';
 import { isVideo } from '@/components/MediaViewer';
 
@@ -166,7 +167,7 @@ function Visor({ fotos, titulo, abierto, cerrar }) {
     <AnimatePresence>
       {abierto !== null && fotos.length > 0 && (
         <MediaViewer
-          items={fotos.map((url) => ({ url, titulo }))}
+          items={piezasParaVisor(fotos.map((url) => ({ url, titulo })))}
           startIdx={abierto}
           onClose={cerrar}
         />
