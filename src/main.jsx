@@ -4,6 +4,7 @@ import App from '@/App.jsx'
 import '@/index.css'
 import '@/styles/fuente.css'
 import '@/styles/theme.css'
+import '@/styles/propio.css'
 
 ReactDOM.createRoot(document.getElementById('root')).render(
   <App />

@@ -1,9 +1,9 @@
 import { useState } from 'react';
 import { AnimatePresence } from 'framer-motion';
 import { Expand, Play } from 'lucide-react';
-import MediaViewer, { isVideo } from '@/components/MediaViewer';
+import { isVideo } from '@/components/MediaViewer';
 import Foto from '@/components/ui/Foto';
-import { piezasParaVisor } from '@/lib/imagen';
+import VisorDeFotos from '@/components/galeria/VisorDeFotos';
 
 /**
  * GaleriaEspacio — las fotos de una ficha de espacio.
@@ -66,7 +66,12 @@ export default function GaleriaEspacio({ principal, imagenes = [], nombre }) {
       <AnimatePresence>
         {/* Ya optimizadas: ver `piezasParaVisor` en `lib/imagen.js`. */}
         {abierto !== null && (
-          <MediaViewer items={piezasParaVisor(items)} startIdx={abierto} onClose={() => setAbierto(null)} />
+          <VisorDeFotos
+            piezas={items}
+            indice={abierto}
+            onCerrar={() => setAbierto(null)}
+            onCambiar={setAbierto}
+          />
         )}
       </AnimatePresence>
     </section>

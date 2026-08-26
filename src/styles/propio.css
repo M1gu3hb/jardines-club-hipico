@@ -1,0 +1,55 @@
+/* ══════════════════════════════════════════════════════════════════════════════
+   ESTILOS PROPIOS DEL SITIO PÚBLICO
+   ══════════════════════════════════════════════════════════════════════════════
+
+   Aquí va lo que NO puede ir en `theme.css`, porque ese archivo es copia byte a byte en los
+   tres repositorios y un contrato lo vigila.
+
+   Es la quinta vez que aparece este reparto —pasó con `eslint.config.js`, con `theme.css`, con
+   `negocio.js` y con `MediaViewer.jsx`— y la regla ya está clara: **si solo tiene sentido en la
+   web pública, no es compartible.** Los controles del visor son de aquí: el portal y el CRM no
+   tienen galería que recorrer.
+   ══════════════════════════════════════════════════════════════════════════════ */
+
+/* ══════════════════════════════════════════════════════════════════════════════
+   LOS CONTROLES DEL VISOR DE FOTOS
+   ══════════════════════════════════════════════════════════════════════════════
+
+   «La flecha más llamativa, y la equis para cerrar más llamativa, que brillen.»
+
+   Y no es capricho: los de antes eran gris sobre la foto, así que en una imagen clara
+   desaparecían. Un visor del que no se ve cómo salir se siente una trampa, y quien se siente
+   atrapado cierra la pestaña entera.
+
+   El fondo oscuro con desenfoque garantiza contraste SEA CUAL SEA la foto que haya debajo —
+   que es lo único que hace un control fiable. El resplandor dorado los hace encontrar sin
+   buscarlos, y crece al pasar por encima para confirmar que se puede pulsar. */
+.visor-control {
+  display: grid;
+  place-items: center;
+  width: 2.75rem;
+  height: 2.75rem;
+  border-radius: 9999px;
+  color: #C9A84C;
+  background: rgba(10, 10, 10, 0.62);
+  border: 1px solid rgba(201, 168, 76, 0.42);
+  -webkit-backdrop-filter: blur(8px);
+  backdrop-filter: blur(8px);
+  box-shadow: 0 0 16px -4px rgba(201, 168, 76, 0.45), 0 6px 18px -8px rgba(0, 0, 0, 0.9);
+  transition: background 250ms ease, border-color 250ms ease, box-shadow 250ms ease,
+    transform 250ms ease, color 250ms ease;
+  z-index: 10;
+}
+@media (min-width: 640px) {
+  .visor-control { width: 3.25rem; height: 3.25rem; }
+}
+.visor-control:hover,
+.visor-control:focus-visible {
+  color: #F0DFA6;
+  background: rgba(201, 168, 76, 0.16);
+  border-color: rgba(201, 168, 76, 0.9);
+  box-shadow: 0 0 26px -2px rgba(201, 168, 76, 0.75), 0 0 60px -12px rgba(201, 168, 76, 0.4);
+  transform: scale(1.08);
+  outline: none;
+}
+.visor-control:active { transform: scale(0.96); }

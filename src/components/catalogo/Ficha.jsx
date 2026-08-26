@@ -1,12 +1,11 @@
 import { useState } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
 import { Expand, Images, Play } from 'lucide-react';
-import MediaViewer from '@/components/MediaViewer';
 import { fotosDe } from '@/lib/servicios';
 import Foto from '@/components/ui/Foto';
-import { piezasParaVisor } from '@/lib/imagen';
 import { medidasDe } from '@/lib/medidas';
 import { isVideo } from '@/components/MediaViewer';
+import VisorDeFotos from '@/components/galeria/VisorDeFotos';
 
 /**
  * Ficha — un servicio o una amenidad, con el tamaño que merece.
@@ -166,10 +165,11 @@ function Visor({ fotos, titulo, abierto, cerrar }) {
   return (
     <AnimatePresence>
       {abierto !== null && fotos.length > 0 && (
-        <MediaViewer
-          items={piezasParaVisor(fotos.map((url) => ({ url, titulo })))}
-          startIdx={abierto}
-          onClose={cerrar}
+        <VisorDeFotos
+          piezas={fotos.map((url) => ({ url, titulo }))}
+          indice={abierto}
+          onCerrar={cerrar}
+          onCambiar={() => {}}
         />
       )}
     </AnimatePresence>

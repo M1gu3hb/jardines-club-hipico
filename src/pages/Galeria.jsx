@@ -4,11 +4,11 @@ import { Link } from 'react-router-dom';
 import { Play, Expand } from 'lucide-react';
 import { EsqueletoMosaico, AvisoCargando } from '@/components/ui/Esqueleto';
 import Pagina from '@/components/navegacion/Pagina';
-import MediaViewer, { isVideo } from '@/components/MediaViewer';
+import { isVideo } from '@/components/MediaViewer';
 import MosaicoJustificado from '@/components/galeria/MosaicoJustificado';
 import Foto from '@/components/ui/Foto';
-import { piezasParaVisor } from '@/lib/imagen';
 import { useGaleria } from '@/lib/datos';
+import VisorDeFotos from '@/components/galeria/VisorDeFotos';
 
 
 /**
@@ -208,7 +208,12 @@ export default function Galeria() {
         {/* Las piezas se le pasan YA OPTIMIZADAS: el visor recibía la dirección del original
             y abría un JPEG de varios megas. Ver `piezasParaVisor` en `lib/imagen.js`. */}
         {abierto !== null && (
-          <MediaViewer items={piezasParaVisor(items)} startIdx={abierto} onClose={() => setAbierto(null)} />
+          <VisorDeFotos
+            piezas={items}
+            indice={abierto}
+            onCerrar={() => setAbierto(null)}
+            onCambiar={setAbierto}
+          />
         )}
       </AnimatePresence>
     </Pagina>
