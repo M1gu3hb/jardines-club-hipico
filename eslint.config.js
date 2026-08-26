@@ -41,6 +41,12 @@ export default [
       // Antes esta regla NO estaba activa: este bloque `rules` sobrescribe por
       // completo el `rules` que trae pluginJs.configs.recommended al hacer spread.
       "no-undef": "error",
+      // Y su equivalente para JSX, que `no-undef` NO cubre: `<Foo />` se compila a
+      // `React.createElement(Foo)` en una fase posterior, asi que para esta regla
+      // `Foo` no es todavia un identificador. Sin esta linea, un componente que no
+      // existe pasaba el lint en silencio y solo lo cazaban el typecheck o el build
+      // — por suerte, y ya dejo pasar dos fallos reales (un `Play` sin importar).
+      "react/jsx-no-undef": "error",
       "no-unused-vars": "off",
       "react/jsx-uses-vars": "error",
       "react/jsx-uses-react": "error",

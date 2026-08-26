@@ -69,7 +69,7 @@
     },
     {
       "ruta": "eslint.config.js",
-      "sha256": "f6a5fa2161526635bb8fe2489ca6e00e63d413f5eae5f287bc5ba18a62fd5c37",
+      "sha256": "a64b79de2b9e8b696d314afd7cc76d68426098d43821de5531f8972b0d5ff976",
       "tambienEn": [
         "portal",
         "crm"

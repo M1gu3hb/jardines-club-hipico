@@ -49,21 +49,49 @@ const SSR = join(RAIZ, '.prerender');
 
 const log = (msg) => console.log('  ' + msg);
 
-/** Fuera de todo buscador: no aportan nada en resultados o no son contenido. */
+/**
+ * El `robots.txt`.
+ *
+ * ══════════════════════════════════════════════════════════════════════════════
+ * POR QUÉ AQUÍ NO SE PROHÍBE NADA
+ * ══════════════════════════════════════════════════════════════════════════════
+ *
+ * Antes había tres `Disallow`: `/cotizar`, `/portal` y `/invitacion/`. Los tres se quitaron, y
+ * no por descuido — **prohibir el rastreo hacía justo lo contrario de lo que se buscaba.**
+ *
+ * ── `/cotizar` ──────────────────────────────────────────────────────────────
+ *
+ * Lleva `noindex`, que es la etiqueta correcta y **se queda**. Pero `Disallow` y `noindex`
+ * juntos se estorban: `Disallow` impide DESCARGAR la página, y el `noindex` va DENTRO de la
+ * página. Un buscador al que se le prohíbe entrar nunca llega a leer la orden de no indexar.
+ *
+ * El resultado real de ponerlos juntos es el peor de los dos mundos: si alguien enlaza
+ * `/cotizar` desde fuera, Google puede indexar la URL igualmente —conoce su existencia por el
+ * enlace— y como no ha podido abrirla, la lista sin título ni descripción. Sin `Disallow`,
+ * entra, lee el `noindex` y la deja fuera de verdad.
+ *
+ * ── `/portal` y `/invitacion/` ──────────────────────────────────────────────
+ *
+ * Son redirecciones **301** a las otras dos aplicaciones (ver `vercel.json`). Un 301 existe
+ * para que el buscador lo siga y traslade las señales a su destino, y para eso tiene que poder
+ * pedir la URL. Prohibirle el paso deja el 301 sin procesar: las señales que esas rutas tenían
+ * ganadas se quedan colgando en una dirección que ya no lleva a ningún sitio.
+ *
+ * ── La regla, para no repetirlo ─────────────────────────────────────────────
+ *
+ * `Disallow` sirve para AHORRAR RASTREO en zonas enormes y sin valor. Para «que esto no
+ * aparezca» la herramienta es `noindex`, y para «esto se mudó» es el 301 — y las dos necesitan
+ * que el buscador pueda entrar.
+ */
 const escribeRobots = (urlSitio) => {
   const cuerpo = [
     '# Jardines Club Hipico',
     '# Generado por scripts/prerender.mjs. No editar a mano: se sobrescribe en cada build.',
     '',
+    '# Sin Disallow a proposito. /cotizar se excluye con noindex, y /portal e /invitacion/',
+    '# son 301: las tres necesitan que el buscador pueda entrar para obedecerlas.',
     'User-agent: *',
     'Allow: /',
-    '',
-    '# El formulario no aporta nada en resultados de busqueda y diluiria el resto.',
-    'Disallow: /cotizar',
-    '',
-    '# Rutas que se fueron a otras aplicaciones y aqui solo son redirecciones 301.',
-    'Disallow: /portal',
-    'Disallow: /invitacion/',
     '',
     'Sitemap: ' + urlSitio + '/sitemap.xml',
     '',
@@ -96,6 +124,37 @@ function escribeSitemap(entradas, urlSitio, hoy) {
 }
 
 const MARCADOR = '<div id="root"></div>';
+
+/**
+ * El 404, que es el ÚNICO documento del sitio sin dirección propia.
+ *
+ * ══════════════════════════════════════════════════════════════════════════════
+ * POR QUÉ HAY QUE QUITARLE EL `og:url`
+ * ══════════════════════════════════════════════════════════════════════════════
+ *
+ * `componeDocumento` retira de la plantilla solo las etiquetas que la ruta SUSTITUYE. Y el
+ * 404 no declara `og:url` —no puede: se sirve desde cualquier dirección equivocada—, así que
+ * el de la plantilla, que es el de la PORTADA, sobrevivía intacto.
+ *
+ * El efecto era concreto y feo: al pegar en WhatsApp o Facebook un enlace roto del sitio, la
+ * tarjeta que se genera **decía ser la portada**. La red social no lee la dirección que
+ * pediste, lee la que el documento declara ser.
+ *
+ * Y para un buscador es peor: `og:url` es una señal de dirección canónica. Una pantalla de
+ * error que afirma ser la portada invita a confundir las dos.
+ *
+ * `canonical` se quita por lo mismo, aunque hoy la plantilla no traiga ninguno: el día que
+ * alguien le ponga uno a la portada, este archivo lo heredaría en silencio.
+ *
+ * **Lo que SÍ se queda es `noindex, follow`**, que es la etiqueta correcta: no la indexes,
+ * pero sigue los enlaces que tiene para volver al sitio.
+ */
+function componeDocumentoDe404(plantilla, pintado) {
+  const documento = componeDocumento(plantilla, pintado.html, pintado.cabecera);
+  return documento
+    .replace(/[ \t]*<meta[^>]*property=["']og:url["'][^>]*>\r?\n?/gi, '')
+    .replace(/[ \t]*<link[^>]*rel=["']canonical["'][^>]*>\r?\n?/gi, '');
+}
 
 /** Mete el HTML pintado y el `<head>` de la ruta dentro de la plantilla del build. */
 function componeDocumento(plantilla, html, cabecera) {
@@ -266,11 +325,7 @@ async function principal() {
   // El 404 se pinta desde una direccion que con seguridad no existe, para que caiga en el
   // comodin y salga la pantalla de verdad.
   const noEncontrada = await modulo.pinta('/__no-existe__', siembra);
-  writeFileSync(
-    join(DIST, '404.html'),
-    componeDocumento(plantilla, noEncontrada.html, noEncontrada.cabecera),
-    'utf8',
-  );
+  writeFileSync(join(DIST, '404.html'), componeDocumentoDe404(plantilla, noEncontrada), 'utf8');
   log('404.html escrito');
 
   const hoy = new Date().toISOString().slice(0, 10);

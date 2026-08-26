@@ -111,6 +111,7 @@
 20260826003702  jardines_sec_35a_tipos_evento_arreglos
 20260826003901  jardines_sec_35b_tipos_evento_nuevos
 20260826040736  jardines_sec_36_tipo_renta_de_espacio
+20260826151634  jardines_sec_37_separador_unico_en_titulos
 #
 # sec_34 CORRIGE UN FALLO DE sec_33, aplicado el mismo dia y encontrado antes de que
 # hubiera contenido. sec_33 puso una sola politica de lectura para anon y authenticated con

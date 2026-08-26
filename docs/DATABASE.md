@@ -93,6 +93,11 @@ medias**: existe para recoger a quien busca algo que no está en la lista, y ah�
 página que escribir — lo valioso es que cuente qué tiene en mente. De paso, quince tarjetas
 llenan cinco filas de tres exactas y quitan el hueco que quedaba al final de `/eventos`.
 
+`seo_title` lo normaliza `componeTitulo()` en `src/lib/Cabecera.jsx` antes de publicarlo:
+seis filas guardaban «… | Jardines Club Hípico» frente a las veintiocho rutas con «… · …».
+`sec_37` arregló lo guardado, pero **el que aguanta es el del código**, porque estos títulos se
+escriben desde el panel.
+
 Cada slug necesita su escena dibujada en `src/components/eventos/arte/escenas.jsx`. Lo vigila
 el contrato 65: un tipo añadido por migración sin dibujo saldría como una tarjeta desnuda en
 medio de catorce ilustradas.

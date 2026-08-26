@@ -1791,6 +1791,131 @@ zona("web");
 }
 
 
+zona("web");
+{
+  // EL `robots.txt` NO PROHIBE NADA, Y ESO ES DELIBERADO.
+  //
+  // Tenía tres `Disallow`: `/cotizar`, `/portal` e `/invitacion/`. Los tres hacían lo
+  // contrario de lo que se buscaba, y los tres son fáciles de reponer «para arreglar» algo:
+  //
+  //   · `/cotizar` lleva `noindex`, que va DENTRO de la página. Prohibir el rastreo impide
+  //     leerla, así que la orden de no indexar nunca llega — y si alguien la enlaza desde
+  //     fuera, Google puede listar la URL sin título ni descripción.
+  //   · `/portal` e `/invitacion/` son 301. Un 301 existe para que el buscador lo siga.
+  //
+  // Se afirma sobre el CUERPO de `escribeRobots`, no sobre el archivo: la palabra `Disallow`
+  // aparece también en el comentario que explica por qué no está, y buscarla suelta haría
+  // fallar el contrato por su propia documentación.
+  const prerender = leer("scripts/prerender.mjs");
+  const cuerpo = entre(prerender, "const escribeRobots = (urlSitio) => {", "};");
+  const fallos = [];
+
+  if (!cuerpo) fallos.push("no se encuentra el cuerpo de `escribeRobots`");
+  else {
+    const conDisallow = (cuerpo.match(/['"]Disallow:/g) || []).length;
+    if (conDisallow > 0) fallos.push(`el robots.txt vuelve a llevar ${conDisallow} \`Disallow\``);
+    if (!/Sitemap: /.test(cuerpo)) fallos.push("el robots.txt ya no anuncia el sitemap");
+    if (!/Allow: \//.test(cuerpo)) fallos.push("el robots.txt ya no permite el rastreo");
+  }
+
+  // Y LA OTRA MITAD DE LA PAREJA: el `noindex` de /cotizar SE QUEDA.
+  //
+  // Las dos afirmaciones van juntas en un mismo contrato a propósito, porque la seguridad de
+  // quitar el `Disallow` DEPENDE de que el `noindex` siga puesto. Separarlas dejaría pasar la
+  // combinación que de verdad hace daño: sin prohibición y sin noindex, el formulario se
+  // indexa y diluye al resto.
+  //
+  // La entrada vive en `src/rutas.js`, no en `src/paginas.js` —que solo mapea la carga
+  // perezosa—. Al escribir esto miré el archivo equivocado y el contrato falló por eso, que
+  // es justo para lo que sirve.
+  const rutas = leerCodigo("src/rutas.js");
+  const cotizar = entre(rutas, "ruta: '/cotizar'", "},");
+  if (!cotizar) fallos.push("no se encuentra la entrada `/cotizar` en `src/rutas.js`");
+  else if (!/indexable:\s*false/.test(cotizar)) {
+    fallos.push("/cotizar dejó de ser `indexable: false`: sin Disallow y sin noindex, se indexa");
+  }
+
+  check(
+    "web: el robots.txt no prohíbe rastrear, y /cotizar conserva su noindex",
+    fallos.length === 0,
+    fallos.join(" · "),
+  );
+}
+
+zona("web");
+{
+  // EL 404 NO DECLARA SER OTRA PAGINA.
+  //
+  // `componeDocumento` solo retira de la plantilla las etiquetas que la ruta SUSTITUYE, y el
+  // 404 no puede declarar `og:url` —se sirve desde cualquier dirección equivocada—, así que
+  // heredaba el de la portada. Al pegar un enlace roto en WhatsApp, la tarjeta decía ser la
+  // home.
+  //
+  // La regresión que este contrato vigila es concreta: que alguien «simplifique» el 404
+  // volviendo a llamar a `componeDocumento` directamente. Por eso se afirma sobre la LLAMADA,
+  // no sobre la existencia de la función auxiliar: la función podría seguir ahí sin usarse.
+  const prerender = leer("scripts/prerender.mjs");
+  const fallos = [];
+
+  const escritura = entre(prerender, "writeFileSync(join(DIST, '404.html')", ");");
+  if (!escritura) fallos.push("no se encuentra la escritura de `404.html`");
+  else if (!/componeDocumentoDe404\(/.test(escritura)) {
+    fallos.push("el 404 volvió a componerse con `componeDocumento`: heredaría el og:url de la portada");
+  }
+
+  const auxiliar = entre(prerender, "function componeDocumentoDe404(", "\n}");
+  if (!auxiliar) fallos.push("no se encuentra `componeDocumentoDe404`");
+  else {
+    if (!/og:url/.test(auxiliar)) fallos.push("`componeDocumentoDe404` ya no retira el `og:url`");
+    if (!/canonical/.test(auxiliar)) fallos.push("`componeDocumentoDe404` ya no retira el `canonical`");
+  }
+
+  check(
+    "web: el 404 se compone quitándole el og:url y el canonical de la portada",
+    fallos.length === 0,
+    fallos.join(" · "),
+  );
+}
+
+zona("web");
+{
+  // UN SOLO SEPARADOR EN LOS TITULOS.
+  //
+  // Seis páginas firmaban con `|` y veintiocho con `·`. El arreglo de la base fue un UPDATE,
+  // pero el que aguanta es este: `componeTitulo` es el embudo de `<title>`, `og:title` y
+  // `twitter:title`, y el dueño escribe los `seo_title` desde el panel — nada le impide
+  // teclear una barra mañana.
+  //
+  // La regresión real es volver al `return titulo` a secas cuando el título ya trae la marca,
+  // que es lo que dejaba pasar el separador ajeno. Se afirma sobre el CUERPO de la función.
+  const cabecera = leerCodigo("src/lib/Cabecera.jsx");
+  const cuerpo = entre(cabecera, "function componeTitulo(titulo) {", "\n}");
+  const fallos = [];
+
+  if (!cuerpo) fallos.push("no se encuentra `componeTitulo`");
+  else {
+    if (!/SEPARADOR/.test(cuerpo)) fallos.push("`componeTitulo` ya no usa la constante `SEPARADOR`");
+    // Lo que de verdad normaliza: recortar el separador que trajera el título antes de la marca.
+    if (!/replace\(/.test(cuerpo)) {
+      fallos.push("`componeTitulo` ya no recorta el separador previo: un `seo_title` con `|` volvería a publicarse tal cual");
+    }
+    if (!/indexOf\(NOMBRE_SITIO\)/.test(cuerpo)) {
+      fallos.push("`componeTitulo` ya no localiza la marca dentro del título");
+    }
+  }
+
+  const sep = entre(cabecera, "const SEPARADOR =", ";");
+  if (!sep) fallos.push("no se encuentra la constante `SEPARADOR`");
+  else if (/\|/.test(sep)) fallos.push("el separador volvió a ser una barra");
+
+  check(
+    "web: los títulos se firman con un separador único, venga el texto de donde venga",
+    fallos.length === 0,
+    fallos.join(" · "),
+  );
+}
+
+
 // ---------------------------------------------------------------- salida
 
 // META-CONTRATO DEL REPARTO — FASE 1, punto 5 del plan de independización.

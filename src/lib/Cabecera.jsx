@@ -33,10 +33,51 @@ export const ContextoCabecera = createContext(null);
 
 const MARCA = 'data-cabecera';
 
-/** Compone el `<title>` firmando con el nombre del negocio, sin repetirlo si ya viene. */
+/**
+ * El separador entre el título de la página y el nombre del negocio.
+ *
+ * Uno solo, y aquí: se usaban DOS. Seis páginas decían «… | Jardines Club Hípico» y
+ * veintiocho «… · Jardines Club Hípico». No es un detalle de gusto — el título es lo primero
+ * que se ve en un resultado de búsqueda, y dos formatos distintos delatan dos tandas de
+ * redacción en un sitio que debería leerse escrito de una vez.
+ */
+const SEPARADOR = ' · ';
+
+/**
+ * Compone el `<title>` firmando con el nombre del negocio.
+ *
+ * ══════════════════════════════════════════════════════════════════════════════
+ * POR QUÉ SE NORMALIZA AQUÍ Y NO SOLO EN LA BASE
+ * ══════════════════════════════════════════════════════════════════════════════
+ *
+ * Los seis títulos con `|` venían de `seo_title` en `tipos_evento` y `salones`, no del
+ * código. Se podrían haber corregido con un `UPDATE` y ya —y se corrigen, para que el panel
+ * enseñe lo mismo que se publica— pero eso no arregla el problema, solo lo aplaza: **el dueño
+ * escribe esos títulos desde el panel** y nada le impide teclear `|` mañana.
+ *
+ * Esta función es el embudo por el que pasan los tres títulos de cada página —`<title>`,
+ * `og:title` y `twitter:title`—, así que normalizando aquí el separador es uno para siempre,
+ * venga el texto de donde venga.
+ *
+ * ── Solo se toca el separador que precede a la MARCA ────────────────────────
+ *
+ * No se sustituye cualquier `|` del título: solo el que está justo antes del nombre del
+ * negocio. Un título con una barra por otro motivo se queda como está.
+ *
+ * Y se conserva lo que vaya DETRÁS de la marca: `/contacto` firma «Jardines Club Hípico,
+ * Xochimilco CDMX» y esa coma final tiene que sobrevivir.
+ */
 function componeTitulo(titulo) {
   if (!titulo) return NOMBRE_SITIO;
-  return titulo.includes(NOMBRE_SITIO) ? titulo : `${titulo} · ${NOMBRE_SITIO}`;
+
+  const i = titulo.indexOf(NOMBRE_SITIO);
+  if (i === -1) return `${titulo}${SEPARADOR}${NOMBRE_SITIO}`;
+
+  // Ya trae la marca: se recorta lo de delante, se le quita el separador que traiga —sea cual
+  // sea— y se vuelve a unir con el nuestro.
+  const antes = titulo.slice(0, i).replace(/[\s|·\-–—]+$/, '');
+  const desdeLaMarca = titulo.slice(i);
+  return antes ? `${antes}${SEPARADOR}${desdeLaMarca}` : desdeLaMarca;
 }
 
 /**

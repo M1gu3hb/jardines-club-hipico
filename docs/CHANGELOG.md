@@ -1,5 +1,78 @@
 # CHANGELOG.md
 
+## 2026-08-26 — Publicar lo que ya estaba escrito, y cuatro arreglos de SEO
+
+`main`: `e9b823f` -> segundo deploy. Ademas `portal` `21c2ee3` y `crm` `7a7c546`.
+
+### El contenido estaba en la base y no se veia
+
+El sitio es prerenderizado: las 8 descripciones reescritas y las 9 meta-description aplicadas a
+`jardines.tipos_evento` llevaban horas en la base **sin verse**, porque el HTML servido seguia
+siendo el del build anterior. Se desplegaron SOLAS, sin un cambio de codigo, para que si algo
+fallaba supieramos que era el prerender.
+
+Medido sobre el HTML SERVIDO, antes y despues:
+
+| | antes | despues |
+|---|---|---|
+| «La renta incluye el espacio…» | 10 paginas | 3 |
+| «Son seis horas en total, cinco activas» | 8 | 0 |
+| Frases del dueño en el contenido | 5 | 0 |
+| meta-description | 9 en NULL | 14, de 138 a 156 caracteres |
+
+### Cuatro arreglos
+
+| Que | Por que |
+|---|---|
+| Fuera los tres `Disallow` | `Disallow` + `noindex` se estorban: prohibir el rastreo impide LEER el noindex, que va dentro de la pagina. Y `/portal` e `/invitacion/` son 301: un 301 hay que dejarlo rastrear para que se procese |
+| Fuera el `og:url` del 404 | Heredaba el de la portada, asi que al pegar un enlace roto en WhatsApp la tarjeta decia ser la home |
+| Un solo separador | 6 titulos con `\|` y 28 con `·`. Arreglado en `componeTitulo()` —el embudo de los tres titulos— y de paso en la base con `sec_37` |
+| `react/jsx-no-undef` | `no-undef` no cubre el JSX: un componente inexistente pasaba el lint en silencio |
+
+### Dos correcciones al documento de trabajo
+
+Contar sobre el `dist` en vez de fiarse del texto cambio dos cifras: los titulos con barra eran
+**6 y no 5** —uno era de espacios, `salon-de-los-espejos`, que no estaba en la lista— y las rutas
+con titulo son **34 y no 25**.
+
+### Lo que NO era lo que parecia
+
+Buscar «dueño» en el HTML servido devuelve **14 paginas y ninguna es contenido**: salen de un
+comentario HTML de `index.html` que viaja en todas. Queda anotado como deuda —son bytes en cada
+visita y notas internas a la vista— pero no se toco, porque es la intro y estaba fuera del encargo.
+
+### El separador se arregla en DOS sitios a proposito
+
+`sec_37` normaliza lo guardado para que el panel enseñe lo mismo que se publica. Pero el que
+aguanta es `componeTitulo()`: el dueño escribe esos titulos desde el panel y nada le impide
+teclear una barra mañana. Arreglar solo la base habria sido aplazar el problema.
+
+### `jsx-no-undef` toco los tres repos
+
+`eslint.config.js` es copia byte a byte entre jardines, portal y crm y un contrato vigila su
+sha256, asi que cambiarlo en uno solo lo habria hecho divergir. Mismo contenido y manifiesto
+actualizado en los tres; **lint 0 en los tres**, o sea que la regla no destapo deuda existente.
+
+En portal y crm quedo sin tocar un `src/api/base44Client.js` modificado que ya estaba ahi antes
+y que hace fallar su contrato de compartidos. No es de esta sesion y no se commiteo.
+
+### Contratos 66, 67 y 68
+
+Los tres validados mutando, y cada uno cae solo:
+
+| Contrato | Regresion real que lo tumba |
+|---|---|
+| el robots.txt no prohibe, y /cotizar conserva su noindex | reponer un `Disallow`, **o** quitarle el `indexable: false` a /cotizar |
+| el 404 se compone sin og:url ni canonical | volver a llamar a `componeDocumento` directamente |
+| los titulos llevan separador unico | que `componeTitulo` devuelva el titulo tal cual |
+
+El primero afirma las DOS mitades en un solo contrato a proposito: quitar el `Disallow` solo es
+seguro mientras el `noindex` siga puesto, y separarlas dejaria pasar la combinacion que hace daño.
+
+Al escribirlo mire `src/paginas.js` en vez de `src/rutas.js` y el contrato fallo por eso — que es
+exactamente para lo que sirve.
+
+
 ## 2026-08-25 (noche) — Los dibujos de eventos, y la rejilla que parecia rota
 
 `main`: `5a94105` -> `802b291`.
