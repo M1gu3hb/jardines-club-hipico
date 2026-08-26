@@ -44,6 +44,13 @@
       ]
     },
     {
+      "ruta": "api/_lib/telefono.js",
+      "sha256": "80926c0d933e429494c13efa99536bc1fc450c32b9060a55867d2cb4724eb3e2",
+      "tambienEn": [
+        "crm"
+      ]
+    },
+    {
       "ruta": "api/_lib/urls.js",
       "sha256": "7f8f151fd04f944bc80ea862cacce9beba5433f9f01ae9b5f0559e952c638013",
       "tambienEn": [

@@ -12,9 +12,13 @@
  *
  * ── LO QUE ESCRIBE LA GENTE DE VERDAD ───────────────────────────────────────
  *
- * Medido sobre las 11 solicitudes que hay en producción: **las 11 traen exactamente 10 dígitos**,
- * sin lada de país y sin separadores. El formulario no valida el formato —solo que no esté
- * vacío— así que el resto de formas son posibles y se cubren, pero ese es el caso normal.
+ * Medido sobre las 13 solicitudes que hay en producción: **12 traen exactamente 10 dígitos**,
+ * sin lada de país y sin separadores. Ese es el caso normal, y el formulario no valida el
+ * formato —solo que no esté vacío—, así que el resto de formas son posibles y se cubren.
+ *
+ * La decimotercera trae 12 dígitos que NO empiezan por 52, y esta función devuelve `null` para
+ * ella: no se adivina de dónde es. O sea que la rama del `null` no es teórica — ya se cumple en
+ * producción, y quien pinte un botón con esto tiene que saber pintar la fila SIN botón.
  */
 
 /**
