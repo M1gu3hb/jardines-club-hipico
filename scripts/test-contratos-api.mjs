@@ -1945,14 +1945,37 @@ zona("web");
   // `textContent` no entra aquí a propósito: asignar a `textContent` no reinterpreta marcado,
   // así que `Cabecera.jsx` está a salvo sin escapar nada.
   const fallos = [];
-  for (const ruta of leerDirRec("src").filter((f) => /\.jsx?$/.test(f))) {
+  // Se barre `scripts/` ADEMAS de `src/`, y no es un detalle: el mismo agujero estaba en
+  // `scripts/prerender.mjs`, que es el que produce el HTML SERVIDO a todo el que entre. La
+  // primera version de este contrato solo miraba `src/`: arreglo el camino del cliente y dejo
+  // abierto el peor.
+  //
+  // Y la condicion NO es «usa dangerouslySetInnerHTML». Esa era la segunda version, y tampoco
+  // valia: `prerender.mjs` no lo usa, monta la cadena HTML a mano. Vigilar el MECANISMO deja
+  // fuera cualquier forma nueva de hacer lo mismo. La propiedad es: **si un archivo serializa
+  // JSON-LD y lo mete en una etiqueta <script>, tiene que escapar `<`**. Da igual como la meta.
+  //
+  // `textContent` queda exento con razon: asignar a `textContent` NO reinterpreta marcado, asi
+  // que `Cabecera.jsx` esta a salvo sin escapar nada. Se distingue por que ese camino crea el
+  // elemento con `createElement` y nunca escribe la etiqueta como texto.
+  for (const ruta of [...leerDirRec("src"), ...leerDirRec("scripts")].filter((f) => /\.(jsx?|mjs)$/.test(f))) {
+    // Esta misma suite queda fuera: contiene las cadenas como PATRONES de busqueda, no como
+    // codigo que inyecte nada. Sin esto, el contrato se acusa a si mismo.
+    if (ruta.endsWith("test-contratos-api.mjs")) continue;
     const s = leerCodigo(ruta);
     if (!s.includes("application/ld+json")) continue;
-    if (!s.includes("dangerouslySetInnerHTML")) continue;
+    if (!/JSON\.stringify/.test(s)) continue;
+
+    // ¿Escribe la etiqueta como TEXTO? Eso es lo peligroso, venga por React o por plantilla.
+    const laEscribeComoTexto =
+      s.includes("dangerouslySetInnerHTML") || /<script[^>]*application\/ld\+json/.test(s);
+    if (!laEscribeComoTexto) continue;
+
     if (!/replace\(\s*\/<\/g\s*,\s*["']\\\\u003c["']\s*\)/.test(s)) {
-      fallos.push(`${ruta} inyecta JSON-LD como HTML sin escapar \`<\` con barra doble`);
+      fallos.push(`${ruta} mete JSON-LD en un <script> sin escapar \`<\` con barra doble`);
     }
   }
+
   check(
     "web: todo JSON-LD inyectado como HTML escapa `<`, para que un nombre del CMS no cierre el <script>",
     fallos.length === 0,

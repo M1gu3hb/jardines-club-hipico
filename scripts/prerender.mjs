@@ -209,7 +209,15 @@ function componeDocumento(plantilla, html, cabecera) {
     ),
     ...cabecera.enlaces.map((l) => `    <link rel="${l.rel}" href="${escapaXml(l.href)}" />`),
     ...(cabecera.jsonLd
-      ? [`    <script type="application/ld+json">${JSON.stringify(cabecera.jsonLd)}</script>`]
+      // `<` ESCAPADO. `JSON.stringify` escapa comillas pero no `<`, y aqui dentro viajan
+      // nombres que salen de la base y se editan desde el CRM: el de un salon, el de un
+      // tipo de evento. Un nombre con `</script>` cierra la etiqueta antes de tiempo y lo
+      // de detras se ejecuta.
+      //
+      // Este camino es PEOR que el del cliente: lo que sale de aqui es el HTML servido a
+      // todo el que entre, incluidos los buscadores. El mismo agujero se arreglo en
+      // `Migas.jsx` y se habia quedado abierto aqui porque el contrato solo barria `src/`.
+      ? [`    <script type="application/ld+json">${JSON.stringify(cabecera.jsonLd).replace(/</g, '\\u003c')}</script>`]
       : []),
   ].join('\n');
 
