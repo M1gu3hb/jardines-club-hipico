@@ -26,29 +26,39 @@ import { medidasDe } from '@/lib/medidas';
  *   · TTFB .................... 110-920 ms
  *   · BLOQUEADO EN COLA ....... media 1 780 ms, máximo 4 725 ms
  *
- * **El peso ya no era el problema: lo era el número de peticiones.** Un archivo estático del
- * CDN empieza a responder en unos 30 ms; el endpoint de optimización, aun acertando en caché,
- * tarda entre 110 y 920 ms. Con setenta imágenes y un navegador que abre unas seis conexiones
- * a la vez, esa diferencia se multiplica: 70 ÷ 6 × medio segundo son los cuatro y cinco
- * segundos de espera que él veía.
+ * **El peso ya no era el problema.** Pero mi primera explicación de POR QUÉ tampoco era
+ * correcta, y conviene dejarla corregida en vez de borrada. Escribí aquí que un archivo
+ * estático responde «en unos 30 ms» frente a los 110-920 del optimizador. **Es falso**, y se
+ * midió: petición a petición hay PARIDAD (81 · 90 · 130 ms el estático; 74 · 95 · 100 ms el
+ * optimizador). Migrar a estáticos no compra ni un milisegundo de TTFB.
  *
- * Y por eso decía que «antes cargaban mejor»: antes eran archivos estáticos. Pesaban veinte
- * veces más, pero empezaban a llegar de inmediato.
+ * **Lo que sí compra es poder cachear.** El optimizador servía `Cache-Control: max-age=0,
+ * must-revalidate` en cada variante, y un `304 Not Modified` de cero bytes cuesta entre 350 y
+ * 530 ms. Multiplicado por sesenta y nueve fotos, **en cada visita** y en cada vuelta atrás
+ * desde el visor. Un archivo propio lleva la cabecera que uno quiera: `max-age=31536000,
+ * immutable`.
  *
- * **Solución actual: archivos estáticos, pero del tamaño correcto.** Las variantes se generan
- * una vez con `scripts/variantes-imagenes.mjs` y se sirven como cualquier otro archivo del
- * sitio. Se conservan las dos mitades buenas —TTFB bajo y multiplexado del CDN, más el peso
- * pequeño— y se pierde la única mala.
+ * Medido en producción, misma galería, antes y después:
+ *
+ *   · en cola, primera visita ... 1 780 ms de mediana  →  734 ms
+ *   · total por imagen .......... 2 087 ms de media    →  1 089 ms
+ *   · SEGUNDA VISITA ............ las 69 revalidando   →  69 de 69 desde caché,
+ *                                                          1 ms en cola, 21 ms de mediana
+ *
+ * Esa última fila es el premio de verdad, y no tiene nada que ver con el tamaño de los archivos.
  *
  * Es lo que hacen los sitios donde la fotografía es el producto: **no transforman bajo demanda,
- * pre-generan**.
+ * pre-generan** — y así son dueños de su caché.
  *
  * ── La lección, que vale para el próximo proyecto ───────────────────────────
  *
- * «Menos kilobytes» no es lo mismo que «más rápido». En una galería, el coste dominante no es
- * el tamaño de cada imagen sino **cuántas peticiones hay y cuánto tarda cada una en empezar**.
- * Optimizar el peso e ignorar la latencia empeoró el resultado midiendo mejor en la métrica
- * equivocada.
+ * «Menos kilobytes» no es lo mismo que «más rápido». En una galería el coste dominante no es el
+ * tamaño de cada imagen, sino **cuántas veces hay que volver a pedirla**. La versión que pesaba
+ * veinte veces menos se sentía peor porque había que revalidarla entera en cada visita.
+ *
+ * Y la lección de método, que es la que más caro sale: **medí la mejora y acerté, expliqué el
+ * porqué y fallé**. Un número redondo que no se ha medido —«unos 30 ms»— parece dato y es
+ * suposición. Si va a quedar escrito, que salga de una medición o que se diga que no lo es.
  *
  * ══════════════════════════════════════════════════════════════════════════════
  * PENSADO PARA REUTILIZARSE

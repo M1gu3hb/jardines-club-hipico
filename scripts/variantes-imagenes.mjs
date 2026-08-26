@@ -18,19 +18,33 @@
  *   · BLOQUEADO EN COLA ....... media 1 780 ms, máximo 4 725 ms
  *   · total por imagen ........ 2 087 ms de media
  *
- * O sea: **el peso ya no era el problema. El problema era el número de peticiones.**
+ * O sea: **el peso ya no era el problema.**
  *
- * Un archivo estático servido por el CDN responde en unos 30 ms. El endpoint de optimización,
- * aun con acierto de caché, tarda entre 110 y 920 ms en empezar a responder. Con setenta
- * imágenes y un navegador que abre unas seis conexiones a la vez, esa diferencia se multiplica:
- * 70 ÷ 6 × medio segundo son los cuatro y cinco segundos de espera que el dueño veía.
+ * La razón, corregida después de medirla de verdad: NO es que el estático tenga mejor TTFB. Se
+ * comprobó petición a petición y hay paridad (81 · 90 · 130 ms el estático contra 74 · 95 ·
+ * 100 ms el optimizador). Lo que cambia es **quién manda en la caché**: el optimizador servía
+ * `Cache-Control: max-age=0, must-revalidate`, y un `304` vacío cuesta de 350 a 530 ms — por 69
+ * fotos, en cada visita. Un archivo propio lleva `max-age=31536000, immutable` y la segunda
+ * visita no pide nada.
  *
- * Y por eso decía, con razón, que «cargaban mejor antes»: antes eran archivos estáticos. Pesaban
- * veinte veces más, pero empezaban a llegar de inmediato y el navegador los multiplexaba.
+ * Medido antes y después, misma galería en producción: en cola 1 780 → 734 ms de mediana en la
+ * primera visita; y en la segunda, 69 de 69 desde caché con 21 ms de mediana.
  *
- * **La solución conserva las dos mitades buenas**: archivos estáticos —TTFB bajo, multiplexado—
- * PERO del tamaño correcto. Es lo que hacen los sitios donde la fotografía es el producto: no
- * transforman bajo demanda, pre-generan.
+ * Es lo que hacen los sitios donde la fotografía es el producto: no transforman bajo demanda,
+ * pre-generan — y así son dueños de su caché.
+ *
+ * ══════════════════════════════════════════════════════════════════════════════
+ * LA TRAMPA AL REEMPLAZAR UNA FOTO — leer antes de sustituir nada en `public/media/`
+ * ══════════════════════════════════════════════════════════════════════════════
+ *
+ * Este script **salta lo que ya existe**, y las variantes se sirven con caché de un año marcada
+ * `immutable`. Las dos cosas juntas significan que **cambiar un archivo de `public/media/` sin
+ * cambiarle el nombre no surte efecto**: no se regeneran sus variantes, y las que ya estén en el
+ * navegador de alguien seguirán ahí durante un año.
+ *
+ * Para reemplazar una foto: dale un nombre distinto, o borra a mano sus variantes de dentro de
+ * `public/v/` —hay una por cada ancho— antes de volver a lanzar el script. Añadir fotos nuevas
+ * no tiene este problema.
  *
  * ══════════════════════════════════════════════════════════════════════════════
  * POR QUÉ WEBP Y NO AVIF

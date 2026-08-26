@@ -1648,6 +1648,65 @@ zona("web");
 }
 
 
+zona("web");
+{
+  // UNA FOTO DESCARGADA NO PUEDE QUEDARSE INVISIBLE.
+  //
+  // `onLoad` no se dispara si la imagen ya estaba completa cuando React enganchó el manejador,
+  // y eso pasa con casi todas las que vienen de la caché del navegador. Medido en producción:
+  // 7 de 69 fotos de la galería se quedaban en `opacity: 0` para siempre, descargadas y
+  // decodificadas, con su marcador de «cargando» encima. Ninguna petición falló.
+  //
+  // El contrato mira el RENDER y el EFECTO a la vez, que es lo que exige la regla: saca del
+  // render quién es el manejador que enseña la foto, y exige que el efecto de rescate llame a
+  // ESE. Buscar `naturalWidth` suelto por el archivo no serviría — aparecería igual en un
+  // comentario.
+  // Se afirma sobre el CÓDIGO, sin comentarios. Este mismo contrato falló al escribirlo porque
+  // la prosa que explica el arreglo también dice «naturalWidth», y el recorte la encontraba a
+  // ella en vez de al efecto. Un contrato que se conforma con ver la palabra escrita en algún
+  // sitio no comprueba nada: sobreviviría a borrar el código y dejar el comentario.
+  const foto = leerCodigo("src/components/ui/Foto.jsx")
+    .replace(/\/\*[\s\S]*?\*\//g, "")
+    .replace(/^\s*\/\/.*$/gm, "");
+  const fallos = [];
+
+  // Se recorta la ETIQUETA `<img>`, no el archivo: es donde vive el manejador de verdad.
+  // (Un primer intento recortó `entre(foto, "export default function Foto(", "\n}")` y se quedó
+  //  con la lista de props, porque el `\n}` que la cierra llega antes que el del final.)
+  const etiqueta = entre(foto, "<img", "/>");
+  if (!etiqueta) fallos.push("no se encuentra la etiqueta `<img>` de `Foto`");
+
+  const manejador = (etiqueta.match(/onLoad=\{(\w+)\}/) || [])[1];
+  if (!manejador) fallos.push("el `<img>` ya no tiene `onLoad`: nada marca la foto como lista");
+
+  // Se recorta el efecto concreto: desde su `useEffect(` hasta el cierre de su lista de
+  // dependencias. Así lo que se afirma es el efecto, no «algún sitio del archivo».
+  const trozo = foto.split("useEffect(").find((b) => /naturalWidth/.test(b));
+  const rescate = trozo ? trozo.split("]);")[0] : "";
+
+  if (!rescate) {
+    fallos.push(
+      "ningún `useEffect` mira `naturalWidth`: si `onLoad` no llega —imagen ya en caché— la foto queda invisible para siempre",
+    );
+  } else {
+    if (!/\.complete\s*&&\s*\w+\.naturalWidth\s*>\s*0/.test(rescate)) {
+      fallos.push("el efecto de rescate no comprueba `complete` Y `naturalWidth > 0` juntos");
+    }
+    if (manejador && !new RegExp(`\\b${manejador}\\s*\\(`).test(rescate)) {
+      fallos.push(`el efecto de rescate no llama a \`${manejador}\`, que es lo que el render usa para enseñar la foto`);
+    }
+    if (!/\[\s*src\b/.test(rescate)) {
+      fallos.push("el efecto de rescate no depende de `src`: al cambiar de foto no volvería a comprobarlo");
+    }
+  }
+
+  check(
+    "web: una foto ya descargada se enseña aunque `onLoad` no llegue nunca",
+    fallos.length === 0,
+    fallos.join(" · "),
+  );
+}
+
 
 // ---------------------------------------------------------------- salida
 

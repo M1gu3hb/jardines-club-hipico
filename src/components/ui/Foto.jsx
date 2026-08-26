@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { ImageOff } from 'lucide-react';
 import { atributosDeImagen } from '@/lib/imagen';
 
@@ -136,7 +136,7 @@ export default function Foto({
    * `decode()` también puede rechazar si la imagen salió del documento mientras tanto. Ese
    * caso se traga en silencio: no es un fallo de carga.
    */
-  const alDescargar = async () => {
+  const alDescargar = useCallback(async () => {
     const el = imgRef.current;
     if (!el) return;
 
@@ -147,7 +147,31 @@ export default function Foto({
     }
 
     if (vivo.current) setEstado('lista');
-  };
+  }, []);
+
+  /**
+   * ══════════════════════════════════════════════════════════════════════════
+   * EL EVENTO QUE NUNCA LLEGA — la causa real de «hay fotos que no cargan»
+   * ══════════════════════════════════════════════════════════════════════════
+   *
+   * `onLoad` **no se dispara si la imagen ya estaba completa antes de que React
+   * enganchara el manejador**, y eso pasa constantemente con las que vienen de la caché del
+   * navegador: se resuelven en el mismo instante en que se les pone el `src`, antes de que el
+   * componente termine de montarse. El evento se pierde, `estado` se queda en «cargando» y la
+   * foto permanece en `opacity: 0` — descargada, decodificada y **para siempre invisible**.
+   *
+   * Medido en producción sobre la galería, con la caché ya caliente: **7 de 69 fotos** se
+   * quedaban así. Sin nada roto en la red: las 69 peticiones acabaron bien.
+   *
+   * Por eso aquí no se espera al evento, se PREGUNTA por el estado. `complete` con
+   * `naturalWidth > 0` significa que los píxeles ya están; que además llegara el aviso es
+   * indiferente. Es la misma regla que rige el resto del sitio: **si algo falla, tiene que
+   * fallar hacia «se ve», no hacia «no se ve»** — y esperar un evento es confiar en que llegue.
+   */
+  useEffect(() => {
+    const el = imgRef.current;
+    if (el && el.complete && el.naturalWidth > 0) alDescargar();
+  }, [src, intento, alDescargar]);
 
   const alFallar = () => {
     if (intento < REINTENTOS) {
@@ -165,11 +189,17 @@ export default function Foto({
     <span className={`relative block overflow-hidden bg-white/[0.04] ${claseContenedor}`}>
       {/* EL MARCADOR. Neutro a propósito: NO es una miniatura borrosa de la propia foto.
           Una miniatura que después se sustituye es exactamente el salto de calidad que el
-          dueño no quiere ver. Esto solo dice «aquí va una imagen» y desaparece. */}
+          dueño no quiere ver.
+
+          Y QUIETO, no parpadeante. Antes latía con `animate-pulse`, y eso trabajaba contra el
+          objetivo declarado —«que nunca se note que las imágenes tienen que cargar»—: un
+          rectángulo que late es una animación cuyo único mensaje es «estoy cargando». Llama la
+          atención justo hacia lo que no debería verse. Una superficie quieta se lee como parte
+          del fondo y la foto simplemente aparece encima. */}
       {estado === 'cargando' && (
         <span
           aria-hidden="true"
-          className="absolute inset-0 animate-pulse bg-gradient-to-br from-white/[0.05] via-white/[0.02] to-transparent"
+          className="absolute inset-0 bg-gradient-to-br from-white/[0.05] via-white/[0.02] to-transparent"
         />
       )}
 
@@ -194,9 +224,11 @@ export default function Foto({
           width={width}
           height={height}
           loading={prioridad ? 'eager' : 'lazy'}
-          // `sync` en las prioritarias evita que el navegador aplace el decodificado de lo
-          // primero que se ve; `async` en el resto no bloquea el hilo principal al desplazarse.
-          decoding={prioridad ? 'sync' : 'async'}
+          // Siempre `async`. `sync` en las prioritarias pedía bloquear el hilo principal hasta
+          // decodificar, que es lo CONTRARIO de lo que hace el `decode()` de arriba: ese ya
+          // espera al decodificado sin congelar la página, y con él la foto entra entera igual.
+          // Pedir las dos cosas solo añadía un tirón al pintar lo primero que se ve.
+          decoding="async"
           fetchPriority={prioridad ? 'high' : 'auto'}
           onLoad={alDescargar}
           onError={alFallar}
