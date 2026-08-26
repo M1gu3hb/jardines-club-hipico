@@ -63,6 +63,15 @@ const REINTENTOS = 2;
 const ESPERA_BASE = 700;
 
 /**
+ * Cuánto se espera como máximo a que `decode()` resuelva antes de enseñar la imagen igual.
+ *
+ * Medio segundo es de sobra para decodificar cualquier foto ya descargada —el trabajo es de
+ * milisegundos— así que en la práctica este plazo nunca se agota. Está para el caso en que
+ * `decode()` se quede colgado: ver la nota de `alDescargar`.
+ */
+const ESPERA_DECODE = 500;
+
+/**
  * @param {Object}  props
  * @param {string}  props.url              Ruta del original.
  * @param {string}  [props.alt]            Vacío para decorativas.
@@ -109,17 +118,34 @@ export default function Foto({
   /**
    * Cuando el navegador dice que descargó, se espera además a que decodifique.
    *
-   * `decode()` puede rechazar si la imagen ya no está en el documento —al desmontar el
-   * componente a mitad—, así que ese caso se traga en silencio: no es un fallo de carga.
+   * ── LA RED DE SEGURIDAD, Y POR QUÉ NO ES OPCIONAL ───────────────────────
+   *
+   * `decode()` NO garantiza resolverse siempre. En una pestaña que el navegador no está
+   * dibujando —en segundo plano, o minimizada— puede quedarse pendiente indefinidamente,
+   * porque no hay nada que pintar. Y si se espera a esa promesa para enseñar la foto, la foto
+   * **no aparece nunca**.
+   *
+   * Ese fallo ya se cometió una vez en este sitio, con el splash: algo que solo se veía si una
+   * animación llegaba a ejecutarse. La regla que salió de ahí vale igual aquí: **si algo
+   * falla, tiene que fallar hacia «se ve», no hacia «no se ve»**.
+   *
+   * Así que se compite `decode()` contra un temporizador. Lo normal es que gane `decode()` en
+   * unos milisegundos y la foto entre completa, que es todo el objetivo. Si no gana, se enseña
+   * igual: en el peor caso se ve pintarse — molesto — en vez de no verse — inaceptable.
+   *
+   * `decode()` también puede rechazar si la imagen salió del documento mientras tanto. Ese
+   * caso se traga en silencio: no es un fallo de carga.
    */
   const alDescargar = async () => {
     const el = imgRef.current;
     if (!el) return;
-    try {
-      if (typeof el.decode === 'function') await el.decode();
-    } catch {
-      /* Desmontado a mitad, o formato que el navegador decodifica solo al pintar. */
+
+    if (typeof el.decode === 'function') {
+      const decodificada = el.decode().catch(() => {});
+      const plazo = new Promise((resolver) => setTimeout(resolver, ESPERA_DECODE));
+      await Promise.race([decodificada, plazo]);
     }
+
     if (vivo.current) setEstado('lista');
   };
 
