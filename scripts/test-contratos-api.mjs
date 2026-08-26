@@ -1923,6 +1923,44 @@ zona("web");
 // Etiquetar sin comprobar la etiqueta es decorar. Si mañana se añade una sección sin
 // `zona(...)`, sus contratos heredarían en silencio la zona de la sección anterior y la
 // FASE 6 repartiría archivos con un mapa equivocado. Esto lo convierte en un fallo ruidoso.
+zona("web");
+{
+  // EL JSON-LD NO PUEDE CERRAR SU PROPIA ETIQUETA.
+  //
+  // `JSON.stringify` escapa comillas y barras invertidas, pero NO escapa `<`. Y dentro del
+  // JSON-LD viajan nombres que salen de la base y se editan desde el CRM: el de un salón, el
+  // de un tipo de evento. Un nombre que contenga `</script>` cierra la etiqueta antes de
+  // tiempo, y lo que venga detrás lo ejecuta el navegador.
+  //
+  // No es teórico, y no se queda en la sesión de quien lo escribió: el sitio se prerenderiza,
+  // así que ese HTML se sirve a todo el que entre. Se comprobó contando cierres — sin escape
+  // el navegador ve DOS `</script>` donde debería haber uno.
+  //
+  // EL DETALLE QUE CASI SE COLÓ, y que es la razón de que este contrato exija barra DOBLE:
+  // escribir `'\u003c'` en el fuente no sirve de nada. JavaScript resuelve ese escape al
+  // leer el literal, así que la cadena que queda es el carácter `<` y el `replace` cambia `<`
+  // por `<`. Un no-op con aspecto de arreglo, que además pasa cualquier revisión por encima.
+  // La versión de una barra ES la regresión que esto persigue, no una variante aceptable.
+  //
+  // `textContent` no entra aquí a propósito: asignar a `textContent` no reinterpreta marcado,
+  // así que `Cabecera.jsx` está a salvo sin escapar nada.
+  const fallos = [];
+  for (const ruta of leerDirRec("src").filter((f) => /\.jsx?$/.test(f))) {
+    const s = leerCodigo(ruta);
+    if (!s.includes("application/ld+json")) continue;
+    if (!s.includes("dangerouslySetInnerHTML")) continue;
+    if (!/replace\(\s*\/<\/g\s*,\s*["']\\\\u003c["']\s*\)/.test(s)) {
+      fallos.push(`${ruta} inyecta JSON-LD como HTML sin escapar \`<\` con barra doble`);
+    }
+  }
+  check(
+    "web: todo JSON-LD inyectado como HTML escapa `<`, para que un nombre del CMS no cierre el <script>",
+    fallos.length === 0,
+    fallos.join(" · "),
+  );
+}
+
+
 zona("comun");
 const sinZona = casos.filter((c) => !c.zona).map((c) => c.nombre);
 check(

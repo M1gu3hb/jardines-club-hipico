@@ -47,7 +47,19 @@ export default function Migas({ clave, nombreFinal }) {
 
   return (
     <nav aria-label="Ruta de navegación" className="mx-auto max-w-7xl px-5 sm:px-8 pt-24 sm:pt-28">
-      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }} />
+      {/* `JSON.stringify` escapa comillas y barras invertidas, pero NO escapa `<`. Y el
+          `name` del último eslabón sale de la base —el nombre del salón, el del tipo de
+          evento—, que se edita desde el CRM. Un nombre que contenga `</script>` cierra esta
+          etiqueta antes de tiempo y lo que venga detrás se ejecuta como HTML: probado, el
+          navegador ve dos cierres donde debería haber uno.
+
+          Con el sitio prerenderizado eso no queda en la sesión de quien lo escribió — viaja
+          en el HTML servido a todo el que entre. Escapar `<` como `<` lo cierra: sigue
+          siendo JSON válido y el nombre llega intacto al buscador, byte a byte. */}
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd).replace(/</g, '\\u003c') }}
+      />
       <ol className="flex flex-wrap items-center gap-1 text-[10px] font-light tracking-[0.18em] uppercase">
         {eslabones.map((r, i) => {
           const ultimo = i === eslabones.length - 1;
