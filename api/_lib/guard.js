@@ -414,7 +414,15 @@ export async function auditar(admin, accion, resultado, extra = {}) {
     await admin.rpc("api_auditar", {
       p_accion: accion, p_resultado: resultado,
       p_entidad: extra.entidad ?? null, p_entidad_id: extra.entidadId ?? null,
-      p_evento_id: extra.eventoId ?? null, p_detalle: extra.detalle ?? {},
+      p_evento_id: extra.eventoId ?? null,
+      // `origen` viaja DENTRO del detalle y no como parámetro propio.
+      //
+      // `jardines.api_auditar` tiene seis parámetros y es la RPC que ya llaman las cinco
+      // funciones serverless; añadirle uno séptimo es exactamente lo que rompió la auditoría en
+      // `sec_41` — `CREATE OR REPLACE` con otra aridad crea una SOBRECARGA, no un reemplazo, y
+      // todas las llamadas cortas se vuelven ambiguas. Como el dato cabe en el `jsonb` que ya
+      // se manda, no hace falta pagar ese riesgo por una etiqueta.
+      p_detalle: { ...(extra.detalle ?? {}), ...(extra.origen ? { origen: extra.origen } : {}) },
     });
   } catch { /* la auditoría nunca tumba la operación */ }
 }
