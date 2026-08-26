@@ -30,29 +30,36 @@ los dos casos el **uso peligroso** ya está cerrado en código; lo que sigue abi
 
 ## Abiertos
 
-### J-14 — La invitación digital del cliente no puede guardarse *(P0; mitigado en fase A, no resuelto)*
+### ~~J-14~~ — La invitación digital del cliente **RESUELTA** · 2026-08-26
 
-`PortalInvitacion` es el **único** escritor de `invitacion_token`, `invitacion_activa`,
-`invitacion_mensaje` e `invitacion_dress_code` en todo el repo, y solo se monta para el rol
-`cliente`. `eventos_upd` es `using (jardines.is_admin()) with check (jardines.is_admin())`, así
-que ese UPDATE **nunca ha tocado una fila**: `select count(invitacion_token) from
-jardines.eventos` = **0**, verificado contra producción.
+Se deja el historial entero porque explica un fallo que duró meses y su forma de esconderse, pero
+**la afirmación central de este apartado ya no es cierta y por eso se reescribe en vez de dejarle
+un banner encima.**
 
-Duró meses porque fallaba en silencio por partida doble: el shim daba por bueno un UPDATE de
-cero filas (J-02 del lado de la escritura, cerrado en fase A con `updateEstricto`), y el panel
-le decía al dueño «El cliente aún no activó su invitación digital», atribuyéndole al cliente
-una causa falsa.
+**Lo que decía:** que `eventos_upd` exige `is_admin()`, que por tanto el UPDATE de la invitación
+*«nunca ha tocado una fila»*, y que `select count(invitacion_token) from jardines.eventos` daba
+**0** contra producción.
 
-- **Mitigado**: la pantalla ya no miente ni ofrece compartir un enlace muerto, y el panel dice
-  lo que de verdad pasa.
-- **No resuelto**: la función sigue sin poder funcionar. Exige **las dos cosas**: `sec_26`
-  aplicada **y** que la pantalla la llame. La primera versión de este arreglo escribió la
-  migración y **no enchufó nada**, así que aplicar `sec_26` sola habría dado exactamente el
-  mismo error de permisos y habría hecho descartar la vía correcta. Hoy `PortalInvitacion` ya
-  llama a `jardines.invitacion_guardar` y falla con un mensaje propio («todavía no está
-  habilitada») mientras la migración no se aplique.
-- La alternativa sigue abierta: mover la activación al panel. Si se elige esa, `sec_26` **sobra
-  entera** — `is_my_event` es solo `auth_user_id = auth.uid()` y no cubre a un admin.
+**Lo que dice la base hoy** (2026-08-26, misma consulta): **1 evento con token, 1 con
+`invitacion_activa` y 1 con mensaje**. La función escribe.
+
+Se cerró por **las dos vías a la vez**, que era justo lo que este apartado decía que hacía falta:
+
+- **`sec_26` está aplicada** desde el 2026-08-05, con lo que `PortalInvitacion` puede llamar a
+  `jardines.invitacion_guardar` y el cliente activa su invitación desde su portal.
+- **Y la activación también está en el panel**, que era la alternativa que este apartado dejaba
+  abierta. `EventoDatos` tiene el interruptor y acuña el token si falta, en el mismo UPDATE —
+  porque `info_invitacion` busca la página *por* el token, así que activar sin token habría sido
+  otro estado que parece resuelto y no lo está.
+
+Las dos vías conviven a propósito: `is_my_event` es solo `auth_user_id = auth.uid()` y no cubre a
+un admin, así que la RPC sirve al cliente y el UPDATE directo al dueño.
+
+**Lo que queda de este apartado, y merece releerse:** el fallo duró meses porque se escondía por
+partida doble. El shim daba por bueno un UPDATE de cero filas, y el panel le decía al dueño «El
+cliente aún no activó su invitación digital» — atribuyéndole al cliente una causa falsa. Esa
+segunda mitad es la peor: un mensaje de estado que inventa una explicación plausible impide
+buscar la verdadera.
 
 ### J-16 — Siete RPC concedidas al navegador que nadie invoca
 
