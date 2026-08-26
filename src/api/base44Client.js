@@ -37,6 +37,13 @@ const TABLES = {
   // Nace con `sec_33`. Aquí el filtro de publicación NO lo pone el frontend: lo pone la
   // política de lectura, así que un borrador no es legible ni consultando la tabla a mano.
   Anuncio: "anuncios",
+  // Nace con `sec_39`. Es un libro APPEND-ONLY: la base impide editar un asiento y no
+  // concede DELETE a nadie, asi que `Pago.update` solo puede tocar las columnas de anulacion
+  // y `Pago.delete` fallara siempre — eso es deliberado, no un fallo del shim.
+  Pago: "pagos",
+  // Vista agregada (`sec_39`). SOLO LECTURA: escribir en ella no tiene sentido y la base lo
+  // rechaza. Existe para que el saldo salga de UNA consulta y no de sumar en el navegador.
+  PagoPorEvento: "pagos_por_evento",
   EventoReglasMesas: "evento_reglas_mesas",
   Mesa: "mesas",
   Invitado: "invitados",
