@@ -76,13 +76,26 @@ que se hizo el seed inicial (histórico). **Si Supabase no responde, el sitio se
 
 ## A.bis Lo que añadió el rediseño (2026-08-24)
 
-### `jardines.tipos_evento` — nueva (`sec_31`)
+### `jardines.tipos_evento` — nueva (`sec_31`, ampliada por `sec_35a/b` y `sec_36`)
 
 Una fila por tipo de evento. Alimenta `/eventos` y `/eventos/{slug}`.
 
-`activo` es la pieza clave: **una fila apagada no se enlaza ni entra en el sitemap**. Se
-enciende cuando tiene contenido propio real. Hoy hay 5 encendidas (bodas, xv-anos, infantiles,
-corporativos, nocturnos) y `cumpleanos` apagada, porque no se escribió su contenido.
+**15 filas: 14 encendidas y 1 apagada.** Las seis primeras nacieron con `sec_31`; `sec_35a`
+rellenó y encendió `cumpleanos`, y `sec_35b` añadió ocho más (bautizos, presentaciones,
+graduaciones, baby-showers, despedidas, aniversarios, posadas, reuniones).
+
+`activo` es la pieza clave y hace **dos** cosas: una fila apagada no entra en el sitemap, y su
+tarjeta lleva al formulario con el tipo ya puesto en vez de a una página propia
+(`src/pages/Eventos.jsx`).
+
+La única apagada es `renta-de-espacio` (`sec_36`, orden 15) y **lo está a propósito, no a
+medias**: existe para recoger a quien busca algo que no está en la lista, y ahí no hay una
+página que escribir — lo valioso es que cuente qué tiene en mente. De paso, quince tarjetas
+llenan cinco filas de tres exactas y quitan el hueco que quedaba al final de `/eventos`.
+
+Cada slug necesita su escena dibujada en `src/components/eventos/arte/escenas.jsx`. Lo vigila
+el contrato 65: un tipo añadido por migración sin dibujo saldría como una tarjeta desnuda en
+medio de catorce ilustradas.
 
 ### `jardines.anuncios` — nueva (`sec_33`, corregida por `sec_34`)
 

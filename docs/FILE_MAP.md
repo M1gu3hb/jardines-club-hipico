@@ -56,6 +56,19 @@ cualquier texto del sitio**.
 
 ---
 
+## Los dibujos de los tipos de evento (2026-08-25)
+
+| Archivo | Qué es |
+|---|---|
+| `src/components/eventos/arte/piezas.jsx` | El lenguaje visual: degradados, `Pieza` (canto + cara + filo), `aro`, `disco`, `globo`, `Suelo`, `Chispas`, `Guirnalda` |
+| `src/components/eventos/arte/escenas.jsx` | Las 15 escenas y el mapa `POR_SLUG` |
+| `src/components/eventos/ArteDeEvento.jsx` | El montaje: lienzo, halo, viñeta y prefijo de degradados. Exporta además `TelonDeCualquierEvento`, el fondo ancho del banner de `/eventos` |
+| `src/lib/rejilla.js` | Que la última fila de una rejilla quede centrada, con el porqué del truco de las seis columnas |
+
+> **Al añadir un tipo de evento por migración, añade su escena en `escenas.jsx`.** Lo vigila el
+> contrato 65. Los tipos creados desde el panel no la necesitan: la tarjeta cae sola en su
+> versión de solo texto.
+
 ## El sistema de imagenes (2026-08-25)
 
 | Archivo | Qué es |

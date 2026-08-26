@@ -1,5 +1,67 @@
 # CHANGELOG.md
 
+## 2026-08-25 (noche) — Los dibujos de eventos, y la rejilla que parecia rota
+
+`main`: `5a94105` -> `802b291`.
+
+### Los quince dibujos, rehechos de cero
+
+*"No se nota bien que son, alguien a primera vista no lo va a entender."* El cambio es de
+TECNICA, no de dibujo: una silueta rellena se reconoce antes que un contorno. `Pieza` dibuja
+cada figura tres veces —canto oscuro desplazado, cara con degradado metalico, filo claro— y esa
+sola regla da bulto a las quince y las mantiene hermanas.
+
+Dos no se entendian: los XV eran un triangulo que se leia como una letra **A**, y corporativos
+una pantalla con un paisaje dentro, o sea un marco de fotos. Ahora son tiara y grafica de barras.
+
+Y cuatro fallos que solo aparecieron **al mirar el render**, no leyendo el codigo:
+
+| Que salia | Por que |
+|---|---|
+| La piñata parecia un SOL | Picos cortos y anchos, y flecos por todo el borde que parecian patas |
+| La pista nocturna, en negativo | Los haces iban DEBAJO del suelo: salian mas oscuros que lo que iluminaban |
+| La diadema, un cuenco | Bajaba 16 unidades en el centro con 10 de canto |
+| Las butacas, cajas tiradas | Rectangulos redondeados sin respaldo |
+
+Para verlos hubo que sacarlos del HTML prerenderizado y rasterizarlos con `sharp`: el panel del
+navegador no puede capturar pantalla en esta sesion.
+
+### La rejilla
+
+Cinco tarjetas en tres columnas dejaban un hueco a la derecha que se lee como *"aqui falta
+algo"*. No se pueden centrar dos elementos entre tres columnas —haria falta empezar en la 1.5—
+asi que la rejilla pasa a **seis** columnas y cada tarjeta ocupa dos (`src/lib/rejilla.js`).
+
+El detalle que muerde: `sm:` no se apaga solo en `lg`. Hay que cancelarlo con
+`lg:col-start-auto` o el arreglo de un tamaño rompe el otro.
+
+### La lista deja de parecer cerrada
+
+| Cambio | Motivo |
+|---|---|
+| El boton pierde el "14" | *"Estas limitando a que nada mas podemos manejar catorce eventos, y no."* |
+| Tipo nuevo `renta-de-espacio` (`sec_36`) | Recoge a quien busca algo que no esta en la lista. `activo=false` a proposito: eso manda la tarjeta al formulario |
+| Telon horizontal en `/eventos` | A lo ancho de las tres columnas. La forma ES el argumento: una tarjeta mas seria el tipo dieciseis; rompiendo la rejilla deja de ser un elemento de la lista y pasa a ser lo que se dice DE ella |
+| Textos de portada y `/eventos` | Dicen que son ejemplos, no el catalogo entero |
+
+El telon no lleva ningun motivo dibujado: cualquier objeto lo contradice —una piñata diria
+"posadas", unas copas dirian "fiesta"—. Solo luces colgadas y un suelo iluminado, vacio.
+
+### El video del jardin, otra vez
+
+El corte de 3.7 s se eligio a ojo y ya se comia un pedazo del fundido a la segunda toma. Se
+midio la energia de bordes fotograma a fotograma —mezclar dos tomas lava los contornos—: plana
+hasta el fotograma 86 (t = 3.583 s) y cayendo hasta el 73 % en t = 4.0. El archivo se corta en
+3.625 s, y `maxTime` **desaparece**: el video termina donde tiene que terminar y `onEnded` pasa
+el turno. El numero magico sale del codigo y la decision vive en el propio archivo.
+
+### Contratos 64 y 65
+
+Los dos validados mutando. El 65 cubria **9 de 15** diciendo que los cubria todos —peor que no
+tenerlo—: los seis originales no se INSERTAN en ninguna migracion, nacieron en el seed y solo se
+ACTUALIZAN, asi que hay que leer tambien el `WHERE slug =`.
+
+
 ## 2026-08-25 (tarde) — Las imagenes, y por que "mas ligero" no era "mas rapido"
 
 `main`: `82facf6` -> `5a94105`. Cuatro commits.
