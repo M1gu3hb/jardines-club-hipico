@@ -276,6 +276,14 @@ export default function FormularioModal({
         // Se hara bien despues; mientras tanto el dueño recibe el dato desde el primer dia.
         comentarios: [form.comentarios || "", comoTexto(interesado)].filter(Boolean).join(SEPARADOR),
         aceptoAvisoPrivacidad: true,
+        // De qué página salió esta solicitud. Es la respuesta a «¿qué página del sitio
+        // trae clientes?», que es la única pregunta que justifica seguir escribiendo
+        // contenido. Antes se perdía: llegaba el lead y no se sabía de dónde.
+        //
+        // Solo la ruta, nunca la URL entera: la cadena de consulta puede llevar lo que
+        // sea —un correo pegado, un identificador de campaña con datos dentro— y esto
+        // acaba guardado en la base sin que nadie lo revise.
+        paginaOrigen: typeof window !== "undefined" ? window.location.pathname : null,
         horaEnvio,
         fechaEnvio,
         estatus: "Nueva",

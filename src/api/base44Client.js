@@ -264,6 +264,16 @@ function makeEntity(name) {
           p_numero_personas: Number(data.numeroPersonas) || null,
           p_comentarios: data.comentarios || null,
           p_acepto: data.aceptoAvisoPrivacidad === true,
+          // De qué página del sitio salió el formulario (`sec_45`). Es OPCIONAL en la RPC:
+          // si no viaja, la fila se guarda con `pagina_origen` en NULL y no pasa nada. Ese
+          // orden —primero la base lo acepta, después el sitio lo manda— es la receta del
+          // `07-DATOS.md` §4, y existe porque esta RPC es la ÚNICA vía de escritura pública
+          // que tiene el proyecto: si se rompe, se cae el formulario.
+          //
+          // Solo lo manda la web. El CRM y el portal comparten este archivo pero no crean
+          // solicitudes desde el navegador (comprobado: cero usos), así que ahí llega
+          // `undefined` y se convierte en null.
+          p_pagina_origen: data.paginaOrigen || null,
         });
         if (error) { console.error("[shim] create solicitudes", error.message); throw error; }
         return rowToObj(res);
