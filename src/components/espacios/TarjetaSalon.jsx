@@ -2,6 +2,7 @@ import { Link } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { Users, ArrowRight } from 'lucide-react';
 import { rangoTexto, topeReal, ETIQUETA_TIPO, AJUSTE } from '@/lib/capacidad';
+import Foto from '@/components/ui/Foto';
 import { construyeRuta, rutaPorClave } from '@/rutas';
 
 const SIN_FOTO = '/media/img/dGg8Xxh.jpg';
@@ -114,12 +115,10 @@ export default function TarjetaSalon({ salon, indice = 0, ajuste = null, nota = 
               boxShadow: '0 2px 6px rgba(0,0,0,0.8) inset, 0 0 0 1px rgba(201,168,76,0.2) inset',
             }}
           >
-            <img
-              src={foto}
-              alt=""
-              loading="lazy"
-              width="700"
-              height="440"
+            <Foto
+              url={foto}
+              sizes="(min-width: 1024px) 33vw, (min-width: 640px) 50vw, 100vw"
+              claseContenedor="h-full w-full"
               className="h-full w-full object-cover transition-transform duration-700 group-hover:scale-110"
             />
             <div

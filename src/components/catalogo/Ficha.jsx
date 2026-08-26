@@ -3,6 +3,7 @@ import { AnimatePresence, motion } from 'framer-motion';
 import { Expand, Images, Play } from 'lucide-react';
 import MediaViewer from '@/components/MediaViewer';
 import { fotosDe } from '@/lib/servicios';
+import Foto from '@/components/ui/Foto';
 import { medidasDe } from '@/lib/medidas';
 import { isVideo } from '@/components/MediaViewer';
 
@@ -75,6 +76,8 @@ export default function Ficha({ item, invertida = false }) {
                     >
                       <Medio
                         url={f}
+                        /* Miniatura de un cuarto de tarjeta: nunca hace falta mas de 320 px. */
+                        sizes="120px"
                         className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-110"
                       />
                       {/* La última visible anuncia cuántas quedan: sin ese número nadie sospecha
@@ -257,7 +260,7 @@ export function Catalogo({ items, id }) {
  * se puede reproducir; al pulsarlo se abre el visor, que es donde el video suena y se ve
  * entero.
  */
-function Medio({ url, className, med = null, alt = '' }) {
+function Medio({ url, className, med = null, alt = '', sizes = undefined }) {
   if (isVideo(url)) {
     return (
       <>
@@ -280,12 +283,11 @@ function Medio({ url, className, med = null, alt = '' }) {
   }
 
   return (
-    <img
-      src={url}
+    <Foto
+      url={url}
       alt={alt}
-      loading="lazy"
-      width={med ? med.ancho : undefined}
-      height={med ? med.alto : undefined}
+      sizes={sizes || '(min-width: 1024px) 50vw, 100vw'}
+      claseContenedor="h-full w-full"
       className={className}
     />
   );

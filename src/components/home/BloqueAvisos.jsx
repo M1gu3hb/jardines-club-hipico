@@ -2,6 +2,7 @@ import { Link } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { ArrowRight } from 'lucide-react';
 import { useAnuncios } from '@/lib/datos';
+import Foto from '@/components/ui/Foto';
 
 /**
  * BloqueAvisos — las novedades, en la portada.
@@ -63,13 +64,11 @@ export default function BloqueAvisos() {
                 className="group skeu-card skeu-card-hover flex h-full gap-5 overflow-hidden rounded-2xl p-5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#C9A84C]/60"
               >
                 {a.imagenUrl && (
-                  <img
-                    src={a.imagenUrl}
-                    alt=""
-                    loading="lazy"
-                    width="120"
-                    height="120"
-                    className="h-24 w-24 shrink-0 rounded-xl object-cover sm:h-28 sm:w-28"
+                  <Foto
+                    url={a.imagenUrl}
+                    sizes="112px"
+                    claseContenedor="h-24 w-24 shrink-0 rounded-xl sm:h-28 sm:w-28"
+                    className="h-full w-full object-cover"
                   />
                 )}
                 <span className="min-w-0 self-center">

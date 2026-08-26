@@ -2,6 +2,7 @@ import { Link } from 'react-router-dom';
 import { ArrowRight } from 'lucide-react';
 import { EsqueletoTarjetas, AvisoCargando } from '@/components/ui/Esqueleto';
 import Pagina from '@/components/navegacion/Pagina';
+import Foto from '@/components/ui/Foto';
 import ArteDeEvento from '@/components/eventos/ArteDeEvento';
 import { useTodosLosTipos, useSalones } from '@/lib/datos';
 import { construyeRuta, rutaPorClave } from '@/rutas';
@@ -86,12 +87,10 @@ export default function Eventos() {
                   className="group block overflow-hidden rounded-xl border border-white/5 transition-colors hover:border-[#C9A84C]/25 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#C9A84C]/60"
                 >
                   <div className="aspect-[4/3] overflow-hidden bg-black/40">
-                    <img
-                      src={s.imagenPrincipal || '/media/img/dGg8Xxh.jpg'}
-                      alt=""
-                      loading="lazy"
-                      width="400"
-                      height="300"
+                    <Foto
+                      url={s.imagenPrincipal || '/media/img/dGg8Xxh.jpg'}
+                      sizes="(min-width: 1024px) 25vw, 50vw"
+                      claseContenedor="h-full w-full"
                       className="h-full w-full object-cover transition-transform duration-700 group-hover:scale-105"
                     />
                   </div>
@@ -136,10 +135,10 @@ function TarjetaTipo({ tipo }) {
           * dibujo se adapta solo, que para eso lleva `preserveAspectRatio`. */}
         {tipo.imagenHero ? (
           <div className="aspect-[16/9] overflow-hidden bg-black/40">
-            <img
-              src={tipo.imagenHero}
-              alt=""
-              loading="lazy"
+            <Foto
+              url={tipo.imagenHero}
+              sizes="(min-width: 1024px) 33vw, (min-width: 640px) 50vw, 100vw"
+              claseContenedor="h-full w-full"
               className="h-full w-full object-cover transition-transform duration-700 group-hover:scale-105"
             />
           </div>

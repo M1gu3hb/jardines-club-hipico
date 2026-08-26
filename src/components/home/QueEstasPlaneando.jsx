@@ -7,6 +7,7 @@ import { construyeRuta, rutaPorClave } from '@/rutas';
 import { EsqueletoTarjetas, AvisoCargando } from '@/components/ui/Esqueleto';
 import VerTodo from './VerTodo';
 import ArteDeEvento from '@/components/eventos/ArteDeEvento';
+import Foto from '@/components/ui/Foto';
 
 /**
  * «¿Qué estás planeando?» — el primer desvío de la portada.
@@ -178,10 +179,10 @@ function Tarjeta({ tipo }) {
         * este archivo — una foto real del recinto siempre gana a una ilustración. */}
       {tipo.imagenHero ? (
         <div className="aspect-[16/10] overflow-hidden bg-black/40">
-          <img
-            src={tipo.imagenHero}
-            alt=""
-            loading="lazy"
+          <Foto
+            url={tipo.imagenHero}
+            sizes="(min-width: 1024px) 33vw, (min-width: 640px) 50vw, 100vw"
+            claseContenedor="h-full w-full"
             className="h-full w-full object-cover transition-transform duration-700 group-hover:scale-105"
           />
         </div>

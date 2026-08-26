@@ -5,6 +5,7 @@ import InformacionDeServicios from '@/components/avisos/InformacionDeServicios';
 import Condiciones from '@/components/avisos/Condiciones';
 import Pagina from '@/components/navegacion/Pagina';
 import { useConfigSitio, useAnuncios } from '@/lib/datos';
+import Foto from '@/components/ui/Foto';
 
 /**
  * /avisos — el tablero de novedades del recinto.
@@ -113,11 +114,12 @@ function Aviso({ aviso, invertido }) {
     >
       {aviso.imagenUrl && (
         <div className={`relative aspect-[16/10] lg:aspect-auto lg:min-h-[22rem] bg-black/40 ${invertido ? 'lg:order-2' : ''}`}>
-          <img
-            src={aviso.imagenUrl}
+          <Foto
+            url={aviso.imagenUrl}
             alt={aviso.titulo}
-            loading="lazy"
-            className="absolute inset-0 h-full w-full object-cover"
+            sizes="(min-width: 1024px) 50vw, 100vw"
+            claseContenedor="absolute inset-0 h-full w-full"
+            className="h-full w-full object-cover"
           />
           <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent lg:bg-gradient-to-r lg:from-transparent lg:to-black/40" />
         </div>

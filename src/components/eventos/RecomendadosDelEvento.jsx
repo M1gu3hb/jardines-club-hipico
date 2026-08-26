@@ -6,6 +6,7 @@ import { rangoTexto, ETIQUETA_TIPO } from '@/lib/capacidad';
 import { fotosDe } from '@/lib/servicios';
 import { construyeRuta, rutaPorClave } from '@/rutas';
 import TextoQueAparece from '@/components/animacion/TextoQueAparece';
+import Foto from '@/components/ui/Foto';
 import { EsqueletoTarjetas, AvisoCargando } from '@/components/ui/Esqueleto';
 
 const SIN_FOTO = '/media/img/dGg8Xxh.jpg';
@@ -113,12 +114,10 @@ export default function RecomendadosDelEvento({ tipo, espacios = [] }) {
                     className="group skeu-card skeu-card-hover block h-full overflow-hidden rounded-2xl focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#C9A84C]/60"
                   >
                     <div className="relative aspect-[16/10] overflow-hidden bg-black/40">
-                      <img
-                        src={s.imagenPrincipal || SIN_FOTO}
-                        alt=""
-                        loading="lazy"
-                        width="600"
-                        height="375"
+                      <Foto
+                        url={s.imagenPrincipal || SIN_FOTO}
+                        sizes="(min-width: 1024px) 33vw, (min-width: 640px) 50vw, 100vw"
+                        claseContenedor="h-full w-full"
                         className="h-full w-full object-cover transition-transform duration-700 group-hover:scale-105"
                       />
                       <div
@@ -194,13 +193,11 @@ export default function RecomendadosDelEvento({ tipo, espacios = [] }) {
                       className="skeu-card flex items-center gap-4 overflow-hidden rounded-2xl p-3"
                     >
                       {foto ? (
-                        <img
-                          src={foto}
-                          alt=""
-                          loading="lazy"
-                          width="88"
-                          height="88"
-                          className="h-20 w-20 shrink-0 rounded-xl object-cover"
+                        <Foto
+                          url={foto}
+                          sizes="80px"
+                          claseContenedor="h-20 w-20 shrink-0 rounded-xl"
+                          className="h-full w-full object-cover"
                         />
                       ) : (
                         <span

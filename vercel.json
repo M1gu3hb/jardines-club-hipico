@@ -1,5 +1,32 @@
 {
   "$schema": "https://openapi.vercel.sh/vercel.json",
+  "images": {
+    "sizes": [
+      320,
+      640,
+      960,
+      1280,
+      1920,
+      2560
+    ],
+    "formats": [
+      "image/avif",
+      "image/webp"
+    ],
+    "qualities": [
+      50,
+      72,
+      90
+    ],
+    "minimumCacheTTL": 31536000,
+    "localPatterns": [
+      {
+        "pathname": "^/media/.*$",
+        "search": ""
+      }
+    ],
+    "dangerouslyAllowSVG": false
+  },
   "redirects": [
     {
       "source": "/portal",

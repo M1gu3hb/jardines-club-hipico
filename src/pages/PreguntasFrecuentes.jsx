@@ -4,6 +4,7 @@ import Pagina from '@/components/navegacion/Pagina';
 import Acordeon from '@/components/navegacion/Acordeon';
 import { porTema, PREGUNTAS } from '@/data/preguntas';
 import { useSalones } from '@/lib/datos';
+import Foto from '@/components/ui/Foto';
 
 /**
  * /preguntas-frecuentes — el índice completo, agrupado por tema.
@@ -85,10 +86,11 @@ export default function PreguntasFrecuentes() {
                 {fotos[i] && (
                   <figure className="mt-6 hidden lg:block">
                     <div className="aspect-[4/3] overflow-hidden rounded-2xl bg-black/40">
-                      <img
-                        src={fotos[i].imagenPrincipal}
+                      <Foto
+                        url={fotos[i].imagenPrincipal}
                         alt={fotos[i].nombre}
-                        loading="lazy"
+                        sizes="(min-width: 1024px) 25vw, 50vw"
+                        claseContenedor="h-full w-full"
                         className="h-full w-full object-cover opacity-70 transition-opacity duration-500 hover:opacity-100"
                       />
                     </div>

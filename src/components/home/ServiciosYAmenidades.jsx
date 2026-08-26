@@ -3,6 +3,7 @@ import { motion } from 'framer-motion';
 import { ArrowRight } from 'lucide-react';
 import { useServicios, useAmenidades } from '@/lib/datos';
 import { reparte, fotosDe } from '@/lib/servicios';
+import Foto from '@/components/ui/Foto';
 import { medidasDe } from '@/lib/medidas';
 import NumeroQueCuenta from '@/components/animacion/NumeroQueCuenta';
 import TextoQueAparece from '@/components/animacion/TextoQueAparece';
@@ -128,12 +129,10 @@ function Invitacion({ items, eyebrow, cantidad, sustantivo, texto, enlace, cta, 
                 const med = medidasDe(f);
                 return (
                   <div key={f} className="overflow-hidden bg-black/40">
-                    <img
-                      src={f}
-                      alt=""
-                      loading="lazy"
-                      width={med ? med.ancho : undefined}
-                      height={med ? med.alto : undefined}
+                    <Foto
+                      url={f}
+                      sizes="(min-width: 1024px) 25vw, 50vw"
+                      claseContenedor="h-full w-full"
                       className="h-full w-full object-cover opacity-70 transition-all duration-700 group-hover:scale-105 group-hover:opacity-90"
                     />
                   </div>

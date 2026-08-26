@@ -8,6 +8,7 @@ import { construyeRuta, rutaPorClave } from '@/rutas';
 import { urlAbsoluta } from '@/config/sitio';
 import { UBICACION } from '@/config/negocio';
 import GaleriaEspacio from '@/components/espacios/GaleriaEspacio';
+import Foto from '@/components/ui/Foto';
 
 /**
  * /espacios/{slug} — la ficha de un espacio.
@@ -255,13 +256,11 @@ export default function EspacioDetalle() {
                       to={construyeRuta(rutaPorClave('espacio').ruta, o.slug)}
                       className="group flex items-center gap-4 rounded-xl border border-white/5 p-3 transition-colors hover:border-[#C9A84C]/25 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#C9A84C]/60"
                     >
-                      <img
-                        src={o.imagenPrincipal || '/media/img/dGg8Xxh.jpg'}
-                        alt=""
-                        loading="lazy"
-                        width="80"
-                        height="80"
-                        className="h-16 w-16 shrink-0 rounded-lg object-cover"
+                      <Foto
+                        url={o.imagenPrincipal || '/media/img/dGg8Xxh.jpg'}
+                        sizes="64px"
+                        claseContenedor="h-16 w-16 shrink-0 rounded-lg"
+                        className="h-full w-full object-cover"
                       />
                       <span className="min-w-0">
                         <span className="block truncate text-sm font-light text-white/80 transition-colors group-hover:text-[#C9A84C]">

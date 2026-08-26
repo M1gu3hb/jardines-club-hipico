@@ -5,6 +5,7 @@ import { ArrowRight } from 'lucide-react';
 import { useGaleria } from '@/lib/datos';
 import { medidasDe } from '@/lib/medidas';
 import { EsqueletoMosaico, AvisoCargando } from '@/components/ui/Esqueleto';
+import Foto from '@/components/ui/Foto';
 import { isVideo } from '@/components/MediaViewer';
 import MosaicoJustificado from '@/components/galeria/MosaicoJustificado';
 
@@ -115,12 +116,12 @@ export default function GaleriaAsomo() {
                   style={{ width: tam.ancho, height: tam.alto, flex: '0 0 auto' }}
                   className="overflow-hidden rounded-xl bg-black/40"
                 >
-                  <img
-                    src={m.imagenUrl}
+                  <Foto
+                    url={m.imagenUrl}
                     alt={m.alt || ''}
-                    loading="lazy"
-                    width={med ? med.ancho : undefined}
-                    height={med ? med.alto : undefined}
+                    prioridad={i < 3}
+                    sizes="(min-width: 1280px) 25vw, (min-width: 640px) 33vw, 100vw"
+                    claseContenedor="h-full w-full"
                     className="h-full w-full object-cover"
                   />
                 </motion.div>

@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { AnimatePresence } from 'framer-motion';
 import { Expand, Play } from 'lucide-react';
 import MediaViewer, { isVideo } from '@/components/MediaViewer';
+import Foto from '@/components/ui/Foto';
 
 /**
  * GaleriaEspacio — las fotos de una ficha de espacio.
@@ -95,10 +96,13 @@ function Pieza({ url, alt, onAbrir, className = '', restantes = 0, prioridad = f
         // micro-optimización sobre una foto de galería —que no es el elemento más grande de
         // ninguna página—, sale más a cuenta quitarla. El `loading="eager"` de abajo ya evita
         // que la portada de la ficha entre en carga diferida, que es lo que de verdad importaba.
-        <img
-          src={url}
+        <Foto
+          url={url}
           alt={alt}
-          loading={prioridad ? 'eager' : 'lazy'}
+          prioridad={prioridad}
+          /* La principal ocupa media pantalla en escritorio; las de la tira, un cuarto. */
+          sizes="(min-width: 1024px) 50vw, 100vw"
+          claseContenedor="h-full w-full"
           className="h-full w-full object-cover transition-transform duration-700 group-hover:scale-[1.04]"
         />
       )}

@@ -5,8 +5,8 @@ import { Play, Expand } from 'lucide-react';
 import { EsqueletoMosaico, AvisoCargando } from '@/components/ui/Esqueleto';
 import Pagina from '@/components/navegacion/Pagina';
 import MediaViewer, { isVideo } from '@/components/MediaViewer';
-import { medidasDe } from '@/lib/medidas';
 import MosaicoJustificado from '@/components/galeria/MosaicoJustificado';
+import Foto from '@/components/ui/Foto';
 import { useGaleria } from '@/lib/datos';
 
 
@@ -130,20 +130,23 @@ export default function Galeria() {
                       className="h-full w-full object-cover transition-transform duration-700 group-hover:scale-[1.04]"
                     />
                   ) : (
-                    <img
-                      src={m.imagenUrl}
+                    /* LAS OCHO PRIMERAS SON PRIORITARIAS Y EL RESTO PEREZOSAS.
+                     *
+                     * Esa división es lo que arregla el «unas cargan y otras no»: sin ella, las
+                     * sesenta y nueve salen a pedirse a la vez y se pelean por el mismo ancho
+                     * de banda, así que ninguna termina pronto y algunas mueren por el camino.
+                     *
+                     * `sizes` describe el hueco REAL que ocupa cada foto en este mosaico
+                     * justificado: en pantalla ancha cada fila lleva cuatro o cinco, así que
+                     * ronda el 25 % del ancho; en un teléfono, una sola por fila. Sin este dato
+                     * el navegador supondría el ancho completo de la ventana y elegiría la
+                     * variante más grande, tirando por tierra media optimización. */
+                    <Foto
+                      url={m.imagenUrl}
                       alt={m.alt || ''}
-                      loading={i < 8 ? 'eager' : 'lazy'}
-                      /* Las medidas reales del archivo. El hueco ya lo reserva el botón con su
-                         alto y ancho calculados, pero estos atributos le dicen al navegador la
-                         proporción de origen antes de descargar nada — y son lo que buscan las
-                         comprobaciones de estabilidad visual. */
-                      width={medidasDe(m.imagenUrl)?.ancho}
-                      height={medidasDe(m.imagenUrl)?.alto}
-                      /* `object-cover` sigue puesto como red de seguridad: la fila se calcula
-                         con la proporción real, así que no debería recortar nada — pero si una
-                         pieza no estuviera en la lista de medidas y entrara como 4:3, es
-                         preferible un recorte mínimo a una foto deformada. */
+                      prioridad={i < 8}
+                      sizes="(min-width: 1280px) 25vw, (min-width: 640px) 33vw, 100vw"
+                      claseContenedor="h-full w-full"
                       className="h-full w-full object-cover transition-transform duration-700 group-hover:scale-[1.04]"
                     />
                   )}
