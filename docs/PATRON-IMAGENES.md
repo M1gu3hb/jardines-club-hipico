@@ -45,17 +45,69 @@ también en tiempo de ejecución.
 
 | | A favor | En contra |
 |---|---|---|
-| **Variantes en el build** (`sharp`) | Control total, cero coste por petición, portable | ~4 archivos por imagen; en 449 son ~1 800. Minutos de build por despliegue y repositorio mucho mayor |
-| **Optimizador del borde** (`/_vercel/image`) | Sin archivos nuevos, sin tiempo de build, **negocia AVIF/WebP con el navegador**, cacheado un año | Medido y atado al proveedor |
+| **Variantes pre-generadas** (`sharp`, una vez, versionadas) | Control total, cero coste por petición, portable, **y la cabecera de caché es tuya** | ~4 archivos por imagen; en 449 son 1 816 y 99 MB en el repositorio |
+| **Optimizador del borde** (`/_vercel/image`) | Sin archivos nuevos, sin tiempo de build, negocia AVIF/WebP con el navegador | **Sirve `max-age=0`: hay que revalidar TODAS las fotos en cada visita.** Y ata al proveedor |
 | **CDN de imágenes** (imgix, Cloudinary) | Lo mismo, más transformaciones | Dominio de terceros: hay que abrir la CSP |
 
-**Aquí se eligió el borde**, y el criterio fue: 86 archivos problemáticos no justifican 1 800
-archivos generados, y la negociación de formato es un ahorro que la generación estática solo
-da triplicando el número de variantes.
+> ### ⚠️ AQUÍ SE ELIGIÓ PRIMERO EL BORDE, Y FUE UN ERROR
+>
+> Este documento recomendaba el optimizador del borde. **Se desplegó y el sitio quedó peor**,
+> hasta el punto de que el dueño lo dijo sin que hiciera falta preguntarle. La recomendación
+> está corregida abajo; se deja escrito el error porque el motivo es lo más útil de la página.
 
-**Para el fotógrafo la respuesta puede ser otra.** Si sus fotos son 2 000 y todas de 6 000 px,
-el coste por imagen origen manda: conviene comprobar el plan antes. Y si el sitio tiene que
-poder mudarse de proveedor, la generación en build gana por portabilidad.
+### Por qué el borde falló, medido
+
+Con la caché del borde **ya caliente** (552 variantes pre-calentadas, 0 fallos), la galería de
+69 fotos daba esto:
+
+| | |
+|---|---|
+| Tamaño por imagen | 8-19 kB |
+| Tiempo de **descarga** | **0 ms** |
+| TTFB | 110-920 ms |
+| **Bloqueado en cola** | **media 1 780 ms, máximo 4 725 ms** |
+
+La primera explicación que escribí fue «el estático responde en 30 ms y el optimizador en
+110-920». **Era falsa, y medirla la desmintió**: petición a petición hay paridad (81 · 90 ·
+130 ms el estático contra 74 · 95 · 100 ms el optimizador).
+
+**La causa real es la cacheabilidad.** El optimizador sirve cada variante con
+`Cache-Control: max-age=0, must-revalidate`. Un `304 Not Modified` de cero bytes cuesta entre
+350 y 530 ms. Por 69 fotos, **en cada visita** y en cada vuelta desde el visor. Un archivo
+propio lleva la cabecera que uno quiera:
+
+```json
+{ "source": "/v/(.*)", "headers": [
+  { "key": "Cache-Control", "value": "public, max-age=31536000, immutable" } ] }
+```
+
+Resultado del cambio, misma galería en producción:
+
+| | Antes (borde) | Después (estáticas) |
+|---|---|---|
+| En cola, primera visita | 1 780 ms | **734 ms** |
+| Total por imagen | 2 087 ms | **1 089 ms** |
+| **Segunda visita** | las 69 revalidando | **69 de 69 desde caché · 21 ms** |
+
+Esa última fila es el premio, y **no tiene nada que ver con el tamaño de los archivos**.
+
+### La recomendación corregida
+
+**Para un sitio de fotografía: pre-genera y sé dueño de tu caché.** Es lo que hacen los sitios
+donde la foto es el producto. El coste —archivos en el repositorio— se paga una vez; la
+revalidación se paga en cada visita de cada visitante.
+
+Dos condiciones que hacen que funcione:
+
+1. **No regenerar en cada build.** El script salta lo que ya existe. Reprocesar 449 imágenes en
+   cada despliegue son minutos para producir exactamente lo mismo.
+2. **Un manifiesto de qué anchos existen** (`src/data/variantes.json`, 20 kB). El navegador no
+   puede mirar el disco: sin él, `srcset` ofrecería direcciones que quizá no existen, o sea
+   404, o sea imágenes rotas.
+
+**La trampa que trae la caché larga:** con `immutable` a un año y un generador que salta lo
+existente, **cambiar una foto sin cambiarle el nombre no surte efecto**. Nombre nuevo, o borrar
+sus variantes a mano. Escríbelo donde se lea, porque muerde meses después.
 
 **Por eso todo lo específico del proveedor vive en UNA función.** En `src/lib/imagen.js`:
 
@@ -120,6 +172,37 @@ const alDescargar = async () => {
 ```
 
 Manteniéndola invisible hasta ese momento, **nunca se la ve pintarse**: aparece entera.
+
+### ⚠️ Y aquí hay una trampa que deja fotos invisibles PARA SIEMPRE
+
+El fragmento de arriba, tal cual, tiene un fallo grave. **`onLoad` no se dispara si la imagen
+ya estaba completa cuando React enganchó el manejador** — y eso pasa constantemente con las que
+vienen de la caché del navegador: se resuelven en el mismo instante en que se les pone el `src`,
+antes de que el componente termine de montarse.
+
+El evento se pierde, el estado se queda en «cargando» y la foto permanece en `opacity: 0`:
+descargada, decodificada, con sus píxeles en memoria, y **para siempre invisible**.
+
+Medido en producción sobre esta galería: **7 de 69 fotos** con la caché caliente, y **60 de 69**
+en el peor caso. Ninguna petición había fallado: las 69 acabaron bien. Es decir, buena parte de
+«hay fotos que no cargan» **nunca fue la red**. Y es irónico —cuanto mejor va la caché, más
+fotos se pierden el evento—, lo que explica por qué el fallo aparece justo después de optimizar.
+
+El arreglo no espera al evento: **pregunta por el estado.**
+
+```jsx
+useEffect(() => {
+  const el = imgRef.current;
+  if (el && el.complete && el.naturalWidth > 0) alDescargar();
+}, [src, intento, alDescargar]);
+```
+
+`complete` con `naturalWidth > 0` significa que los píxeles ya están; que además llegara el
+aviso es indiferente. `naturalWidth` importa porque `complete` también es `true` cuando la
+imagen falló.
+
+**La regla general, que vale para todo lo demás de esta página:** si algo falla, tiene que
+fallar hacia «se ve», no hacia «no se ve». Esperar un evento es confiar en que llegue.
 
 ---
 

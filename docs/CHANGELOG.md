@@ -1,5 +1,68 @@
 # CHANGELOG.md
 
+## 2026-08-25 (tarde) — Las imagenes, y por que "mas ligero" no era "mas rapido"
+
+`main`: `82facf6` -> `5a94105`. Cuatro commits.
+
+### El error que se corrigio a si mismo
+
+Se migraron las 449 imagenes al optimizador del borde (`/_vercel/image`). El peso por foto cayo
+de 2 MB a 20 kB **y el sitio quedo peor**. El dueño: *"esta muchisimo peor, cargan igual de mal"*.
+
+La medicion, con la cache del borde YA caliente, explico por que: descarga 0 ms, pero
+**1 780 ms de mediana bloqueado en cola** y hasta 4 725 ms.
+
+Primero lo atribui a que el estatico tiene mejor TTFB. **Falso**, y medirlo lo desmintio: hay
+paridad (81/90/130 ms contra 74/95/100 ms). La causa real es que el optimizador sirve
+`Cache-Control: max-age=0, must-revalidate`, o sea **69 revalidaciones de ~400 ms en cada
+visita**. Un archivo propio lleva `max-age=31536000, immutable`.
+
+| | Antes | Despues |
+|---|---|---|
+| En cola, primera visita | 1 780 ms | **734 ms** |
+| Total por imagen | 2 087 ms | **1 089 ms** |
+| Segunda visita | las 69 revalidando | **69 de 69 desde cache, 21 ms** |
+
+### Y el fallo que la medicion destapo de paso
+
+**Siete de 69 fotos se quedaban invisibles para siempre** (60 en el peor caso): descargadas,
+decodificadas y en `opacity: 0`. Ninguna peticion habia fallado.
+
+`onLoad` no se dispara si la imagen ya estaba completa cuando React engancho el manejador, y eso
+pasa con casi todas las que vienen de cache. **Buena parte de "las fotos no cargan" nunca fue la
+red** — y cuanto mejor va la cache, mas fotos se pierden el evento. Ahora el componente no espera
+al evento: pregunta por `complete && naturalWidth > 0`.
+
+### Los videos del hero
+
+Iban a 854x480; los originales son 1280x720. De tanto pasar de un sitio a otro habian perdido la
+mitad de la resolucion. Se re-codificaron desde los masters (versionados en `vid img/`).
+Fidelidad SSIM contra el original: salon 0.970 -> 0.994, jardin 0.953 -> 0.991. El jardin se
+recorto a 3.7 s porque solo se usaban los primeros 3.5. Peso total del hero: +503 kB (+7 %).
+
+Nombres nuevos, no sobrescritos: `/media/` ahora se sirve con cache de 30 dias.
+
+### Tambien
+
+| Cambio | Motivo |
+|---|---|
+| `/media/(.*)` con `max-age=2592000` | Estaba en `max-age=0`: cada visita revalidaba los videos del hero y los originales |
+| Marcador de carga sin `animate-pulse` | Un rectangulo que late es una animacion que grita "estoy cargando", justo lo contrario del objetivo |
+| `decoding="async"` siempre | `sync` pedia bloquear el hilo, lo contrario que el `decode()` de al lado |
+| Contrato 63 | Una foto ya descargada se enseña aunque `onLoad` no llegue. Validado mutando |
+| `docs/PATRON-IMAGENES.md` corregido | Recomendaba el borde. Ahora recomienda pre-generar, con el porque medido |
+
+### Deuda que queda
+
+- El corte del jardin en 3.708 s deja congelado su ultimo fotograma **0.392 s** del fundido de
+  0.6 s (con opacidad ya bajo 0.47). Cortando en 4.3 s desaparece, y cuesta 872 kB. **Decision
+  del dueño.**
+- **67 de 207 fotos** tienen el original por debajo de 1280 px (17 por debajo de 800). Ningun
+  codec lo arregla: hay que reexportarlas o sacarlas de la galeria.
+- Los `.mp4` viejos del hero (`NBa3E9g`, `uykWsK9`, 6.9 MB) ya no los cita nadie. Retirarlos
+  cuando el nuevo hero lleve unos dias en pie.
+
+
 ## 2026-08-25 — El rediseño se publica
 
 `main`: `ad91904` → `201b39f`. **33 commits a producción.** El sitio pasa de una sola página a

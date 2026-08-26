@@ -55,6 +55,25 @@ cualquier texto del sitio**.
 > la navegación. Es una pieza con carácter y retirarla del todo es decisión del dueño.
 
 ---
+
+## El sistema de imagenes (2026-08-25)
+
+| Archivo | Qué es |
+|---|---|
+| `scripts/variantes-imagenes.mjs` | Genera las variantes con `sharp`. **NO corre en el build**: a mano, y salta lo que ya existe. Escribe el manifiesto |
+| `src/data/variantes.json` | 20 kB. Qué anchos existen de cada imagen. Sin él, `srcset` ofreceria direcciones que quiza no existen |
+| `public/v/{ancho}/…` | 1 816 archivos WebP, 99 MB, en 6 anchos (256·384·512·768·1024·1600). Servidos con `max-age=31536000, immutable` |
+| `src/lib/imagen.js` | Decide qué archivo pide cada hueco. Todo lo específico de dónde viven las variantes está en `ADAPTADOR` |
+| `src/components/ui/Foto.jsx` | La imagen que aparece entera o no aparece. `decode()`, reintento, y el rescate de `onLoad` perdido |
+| `src/components/galeria/VisorDeFotos.jsx` | Visor a pantalla completa **solo del sitio público** (controles visibles + precarga de las vecinas). `MediaViewer` es compartido y no se toca |
+| `src/styles/propio.css` | Estilos que NO pueden ir en `theme.css`, que viaja igual a los tres repos |
+| `vid img/` | **Masters** de los dos videos del hero. Fuera de `public/`: no se despliegan. Ver su `LEEME.md` |
+| `public/media/img/hero-salon-720.mp4`<br>`public/media/img/hero-jardin-720.mp4` | El fondo del hero a 1280×720. Nombres nuevos a propósito: `/media/` se cachea 30 días |
+
+> **Al reemplazar una foto o un video:** cámbiale el nombre. La caché es larga y el generador
+> salta lo que ya existe, así que sobrescribir en el mismo nombre no surte efecto.
+
+
 ## Raíz
 
 | Archivo | Qué hace | Riesgo |
