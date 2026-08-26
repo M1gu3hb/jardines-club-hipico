@@ -140,6 +140,130 @@ function Nocturnos() {
   );
 }
 
+
+/** Bautizos: la concha del agua y la gota. */
+function Bautizos() {
+  return (
+    <>
+      <path d="M70 62 q30 -26 60 0 q-30 22 -60 0 z" {...TRAZO} />
+      <path d="M84 55 q6 12 6 20" {...TRAZO} opacity="0.5" />
+      <path d="M100 51 q0 14 0 24" {...TRAZO} opacity="0.5" />
+      <path d="M116 55 q-6 12 -6 20" {...TRAZO} opacity="0.5" />
+      <path d="M100 76 q-6 8 0 13 q6 -5 0 -13" {...TRAZO} />
+      <path d="M62 96 L138 96" {...TRAZO} opacity="0.3" />
+    </>
+  );
+}
+
+/** Presentaciones de tres años: la vela con su lazo. */
+function Presentaciones() {
+  return (
+    <>
+      <path d="M88 90 L88 52 L112 52 L112 90 Z" {...TRAZO} />
+      <path d="M100 52 L100 42" {...TRAZO} />
+      <path d="M100 42 q-5 -6 0 -11 q5 5 0 11" {...TRAZO} opacity="0.85" />
+      <path d="M76 70 q12 -7 24 0 q12 7 24 0" {...TRAZO} opacity="0.55" />
+      <path d="M100 70 l-13 8 l4 -8 l-4 -8 z" {...TRAZO} opacity="0.6" />
+      <path d="M100 70 l13 8 l-4 -8 l4 -8 z" {...TRAZO} opacity="0.6" />
+      <path d="M70 96 L130 96" {...TRAZO} opacity="0.3" />
+    </>
+  );
+}
+
+/** Graduaciones: el birrete y su borla. */
+function Graduaciones() {
+  return (
+    <>
+      <path d="M56 58 L100 42 L144 58 L100 74 Z" {...TRAZO} />
+      <path d="M74 65 L74 84 q26 14 52 0 L126 65" {...TRAZO} opacity="0.7" />
+      <path d="M144 58 L144 80" {...TRAZO} opacity="0.6" />
+      <circle cx="144" cy="84" r="4" {...TRAZO} opacity="0.7" />
+      <path d="M62 96 L138 96" {...TRAZO} opacity="0.3" />
+    </>
+  );
+}
+
+/** Baby showers: el globo y los patucos. */
+function BabyShowers() {
+  return (
+    <>
+      <ellipse cx="94" cy="52" rx="17" ry="20" {...TRAZO} />
+      <path d="M94 72 L94 78 q-4 7 3 12" {...TRAZO} opacity="0.6" />
+      <path d="M118 96 q0 -12 8 -12 q8 0 8 12 z" {...TRAZO} />
+      <path d="M126 84 q0 -8 -6 -8 q-5 0 -5 6" {...TRAZO} opacity="0.7" />
+      <path d="M70 96 L110 96" {...TRAZO} opacity="0.3" />
+      <path d="M62 74 l2.5 5 5 .8 -3.7 3.6 .9 5.2 -4.7 -2.5 -4.7 2.5 .9 -5.2 -3.7 -3.6 5 -.8 z" {...TRAZO} opacity="0.55" />
+    </>
+  );
+}
+
+/** Despedidas: dos copas brindando. */
+function Despedidas() {
+  return (
+    <>
+      <path d="M70 44 L92 44 L84 62 q-3 3 -6 0 z" {...TRAZO} />
+      <path d="M81 62 L81 84" {...TRAZO} />
+      <path d="M72 88 L90 88" {...TRAZO} opacity="0.7" />
+      <path d="M108 44 L130 44 L122 62 q-3 3 -6 0 z" {...TRAZO} />
+      <path d="M119 62 L119 84" {...TRAZO} />
+      <path d="M110 88 L128 88" {...TRAZO} opacity="0.7" />
+      <path d="M96 34 l2 5 5 1 -3.6 3.6 .9 5 -4.3 -2.4 -4.3 2.4 .9 -5 -3.6 -3.6 5 -1 z" {...TRAZO} opacity="0.6" />
+      <path d="M58 96 L142 96" {...TRAZO} opacity="0.28" />
+    </>
+  );
+}
+
+/** Aniversarios: el laurel y el corazón. */
+function Aniversarios() {
+  return (
+    <>
+      <path d="M100 84 q-22 -8 -26 -28 q-2 -12 6 -18" {...TRAZO} opacity="0.6" />
+      <path d="M100 84 q22 -8 26 -28 q2 -12 -6 -18" {...TRAZO} opacity="0.6" />
+      <path d="M82 44 q-7 2 -9 8" {...TRAZO} opacity="0.45" />
+      <path d="M78 58 q-7 2 -8 8" {...TRAZO} opacity="0.45" />
+      <path d="M118 44 q7 2 9 8" {...TRAZO} opacity="0.45" />
+      <path d="M122 58 q7 2 8 8" {...TRAZO} opacity="0.45" />
+      <path d="M100 72 q-11 -10 -11 -18 q0 -8 6 -8 q4 0 5 5 q1 -5 5 -5 q6 0 6 8 q0 8 -11 18 z" {...TRAZO} />
+      <path d="M76 92 L124 92" {...TRAZO} opacity="0.3" />
+    </>
+  );
+}
+
+/** Posadas: la piñata de siete picos y su cuerda. */
+function Posadas() {
+  return (
+    <>
+      <path d="M100 30 L100 44" {...TRAZO} opacity="0.55" />
+      <path d="M84 60 a17 17 0 1 1 32 0 a17 17 0 1 1 -32 0 z" {...TRAZO} />
+      <path d="M100 43 l5 -12 l-10 0 z" {...TRAZO} />
+      <path d="M84 54 l-13 -6 l4 10 z" {...TRAZO} />
+      <path d="M116 54 l13 -6 l-4 10 z" {...TRAZO} />
+      <path d="M88 72 l-9 11 l10 1 z" {...TRAZO} />
+      <path d="M112 72 l9 11 l-10 1 z" {...TRAZO} />
+      <path d="M100 78 l0 14" {...TRAZO} opacity="0.5" />
+      <path d="M62 96 L138 96" {...TRAZO} opacity="0.28" />
+    </>
+  );
+}
+
+/** Reuniones: la mesa larga bajo el árbol. */
+function Reuniones() {
+  return (
+    <>
+      <path d="M60 44 q14 -18 30 -4" {...TRAZO} opacity="0.5" />
+      <path d="M62 44 q-6 12 4 18" {...TRAZO} opacity="0.5" />
+      <path d="M72 40 L72 66" {...TRAZO} opacity="0.45" />
+      <path d="M66 70 L138 70" {...TRAZO} />
+      <path d="M76 70 L76 90" {...TRAZO} />
+      <path d="M128 70 L128 90" {...TRAZO} />
+      <circle cx="90" cy="64" r="3.4" {...TRAZO} opacity="0.7" />
+      <circle cx="104" cy="64" r="3.4" {...TRAZO} opacity="0.7" />
+      <circle cx="118" cy="64" r="3.4" {...TRAZO} opacity="0.7" />
+      <path d="M58 96 L146 96" {...TRAZO} opacity="0.28" />
+    </>
+  );
+}
+
 const POR_SLUG = {
   bodas: Bodas,
   'xv-anos': XVAnos,
@@ -147,6 +271,14 @@ const POR_SLUG = {
   infantiles: Infantiles,
   corporativos: Corporativos,
   nocturnos: Nocturnos,
+  bautizos: Bautizos,
+  presentaciones: Presentaciones,
+  graduaciones: Graduaciones,
+  'baby-showers': BabyShowers,
+  despedidas: Despedidas,
+  aniversarios: Aniversarios,
+  posadas: Posadas,
+  reuniones: Reuniones,
 };
 
 /**

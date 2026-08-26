@@ -69,7 +69,15 @@ export default function PieDeSitio() {
   // Repetir una llamada a la acción palabra por palabra no la refuerza: la gasta, y hace que
   // la página parezca mal armada. Se queda la de arriba, que llega cuando el visitante acaba
   // de leer cómo funciona y todavía tiene sitio para seguir mirando.
-  const enLaPortada = pathname === '/';
+  // DÓNDE NO VA LA FRANJA DE COTIZACIÓN.
+  //
+  // En la PORTADA, porque ya tiene la suya a media página y el dueño la aprobó ahí: repetir el
+  // mismo titular dos veces en la misma pantalla larga no refuerza, gasta.
+  //
+  // Y en `/cotizar`, por un motivo distinto y más evidente: preguntarle «¿listo para cotizar
+  // tu evento?» a alguien que está rellenando el formulario de cotización no tiene sentido.
+  // Palabras del dueño: *«ahí como que no cuadra, descuadra»*.
+  const sinFranja = pathname === '/' || pathname === '/cotizar';
   const cotizar = rutaPorClave('cotizar');
   const enElMapa = RUTAS.filter((r) => r.indexable !== false && !r.coleccion && r.clave !== 'home');
 
@@ -80,7 +88,7 @@ export default function PieDeSitio() {
 
   return (
     <footer className="relative mt-24 border-t border-[#C9A84C]/15 bg-[#080808]">
-      {!enLaPortada && <CtaFinal />}
+      {!sinFranja && <CtaFinal />}
 
       <div className="mx-auto max-w-7xl px-5 sm:px-8 py-14">
         <div className="grid gap-12 sm:grid-cols-2 lg:grid-cols-[1.2fr_1fr_1fr]">

@@ -1,10 +1,13 @@
 import { useParams, Link } from 'react-router-dom';
 import { ArrowRight } from 'lucide-react';
 import Pagina from '@/components/navegacion/Pagina';
+import Acordeon from '@/components/navegacion/Acordeon';
+import TextoQueAparece from '@/components/animacion/TextoQueAparece';
+import RecomendadosDelEvento from '@/components/eventos/RecomendadosDelEvento';
+import { motion } from 'framer-motion';
 import NoEncontrada from '@/pages/NoEncontrada';
 import { useTipoEvento, useSalones } from '@/lib/datos';
 import { construyeRuta, rutaPorClave } from '@/rutas';
-import { rangoTexto } from '@/lib/capacidad';
 import { urlAbsoluta } from '@/config/sitio';
 import GaleriaEspacio from '@/components/espacios/GaleriaEspacio';
 
@@ -108,69 +111,61 @@ export default function EventoDetalle() {
         <div className="grid gap-14 lg:grid-cols-[1.6fr_1fr]">
           <div className="min-w-0">
             {tipo.descripcionLarga && (
-              <div className="space-y-4 text-base font-light leading-[1.85] text-white/60">
+              <div className="space-y-5 text-base font-light leading-[1.85] text-white/60">
+                {/* CADA PÁRRAFO ENTRA AL LLEGAR A ÉL.
+                  *
+                  * El dueño no quiso que se recortara el texto —«no la resumas»— pero sí que
+                  * dejara de ser un muro plano. Un bloque de tres mil caracteres, todo del
+                  * mismo color y apareciendo de golpe, se lee como un contrato.
+                  *
+                  * Entrando de uno en uno, la vista tiene dónde descansar y el texto marca un
+                  * ritmo. No se acorta ni una palabra: se le da tiempo.
+                  *
+                  * El desfase se topa: sin tope, el párrafo doce tardaría cuatro segundos en
+                  * aparecer y el visitante ya habría pasado de largo. */}
                 {tipo.descripcionLarga.split(/\n\s*\n/).map((p, i) => (
-                  <p key={i}>{p.trim()}</p>
+                  <motion.p
+                    key={i}
+                    initial={{ opacity: 0, y: 14 }}
+                    whileInView={{ opacity: 1, y: 0 }}
+                    viewport={{ once: true, margin: '-40px' }}
+                    transition={{ duration: 0.55, delay: Math.min(i * 0.05, 0.3) }}
+                  >
+                    {p.trim()}
+                  </motion.p>
                 ))}
               </div>
             )}
 
             {preguntas.length > 0 && (
               <section aria-labelledby="dudas" className="mt-14">
-                <h2 id="dudas" className="text-[10px] font-light tracking-[0.3em] uppercase text-[#C9A84C]/70">
-                  Lo que más nos preguntan
-                </h2>
-                <dl className="mt-5 divide-y divide-white/5 border-y border-white/5">
+                {/* PLEGADAS, COMO EN `/preguntas-frecuentes`.
+                  *
+                  * Estaban todas abiertas: seis respuestas largas seguidas que empujaban el
+                  * resto de la página hacia abajo y que casi nadie leía enteras. El dueño ya
+                  * lo había pedido para las preguntas generales —«tener todas abiertas se
+                  * siente muy invasivo»— y aquí aplica igual.
+                  *
+                  * `Acordeon` usa `<details>`, así que **el texto sigue en el HTML** aunque
+                  * esté cerrado: Google lo lee y el buscador del navegador lo encuentra. Esa
+                  * es la razón de usar `<details>` y no un panel montado con JavaScript. */}
+                <TextoQueAparece
+                  como="h2"
+                  texto="Lo que más nos preguntan"
+                  resalta="preguntan"
+                  className="block text-2xl font-extralight tracking-tight text-white/95 sm:text-3xl"
+                />
+                <div className="mt-6 divide-y divide-white/5 border-y border-white/5">
                   {preguntas.map((p, i) => (
-                    <div key={i} className="py-5">
-                      <dt className="text-sm font-normal text-white/85">{p.pregunta}</dt>
-                      <dd className="mt-2 text-sm font-light leading-relaxed text-white/45">{p.respuesta}</dd>
-                    </div>
+                    <Acordeon key={i} pregunta={p.pregunta} respuesta={p.respuesta} />
                   ))}
-                </dl>
+                </div>
               </section>
             )}
           </div>
 
           <aside className="lg:sticky lg:top-24 lg:self-start">
-            {recomendados.length > 0 && (
-              <section aria-labelledby="donde" className="skeu-card rounded-2xl p-6">
-                <h2 id="donde" className="text-[10px] font-light tracking-[0.3em] uppercase text-[#C9A84C]/70">
-                  Dónde se hace
-                </h2>
-                <ul className="mt-4 space-y-3">
-                  {recomendados.map((s) => (
-                    <li key={s.id}>
-                      <Link
-                        to={construyeRuta(rutaPorClave('espacio').ruta, s.slug)}
-                        className="group flex items-center gap-3 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#C9A84C]/60 rounded-lg"
-                      >
-                        <img
-                          src={s.imagenPrincipal || '/media/img/dGg8Xxh.jpg'}
-                          alt=""
-                          loading="lazy"
-                          width="56"
-                          height="56"
-                          className="h-14 w-14 shrink-0 rounded-lg object-cover"
-                        />
-                        <span className="min-w-0">
-                          <span className="block truncate text-sm font-light text-white/85 transition-colors group-hover:text-[#C9A84C]">
-                            {s.nombre}
-                          </span>
-                          {rangoTexto(s) && (
-                            <span className="block text-xs font-light text-white/35">
-                              {rangoTexto(s)} personas
-                            </span>
-                          )}
-                        </span>
-                      </Link>
-                    </li>
-                  ))}
-                </ul>
-              </section>
-            )}
-
-            <div className="skeu-card mt-5 rounded-2xl p-6">
+            <div className="skeu-card rounded-2xl p-6">
               <p className="text-sm font-light leading-relaxed text-white/55">
                 Dinos la fecha y cuántos son, y te decimos si está libre y cuánto sale.
               </p>
@@ -185,6 +180,19 @@ export default function EventoDetalle() {
           </aside>
         </div>
       </div>
+
+      {/* LAS RECOMENDACIONES, A LO ANCHO Y NO EN LA COLUMNA ESTRECHA.
+        *
+        * «Dónde se hace» vivía en la barra lateral, con miniaturas de 56 px. El dueño lo dijo:
+        * *«esa parte de los salones hazla más grande, está muy chiquito ese recuadro»*.
+        *
+        * Y tiene razón de fondo, no solo de tamaño: **es la parte que convierte**. Quien ha
+        * leído hasta aquí ya sabe que su evento cabe; lo que le falta es VER dónde y con qué.
+        * Enseñarlo en miniaturas de dos centímetros era enterrar el argumento en el margen.
+        *
+        * Ahora son dos bloques a todo el ancho, con fotografía de verdad, debajo del texto —
+        * que es donde llega quien terminó de leer. */}
+      <RecomendadosDelEvento tipo={tipo} espacios={recomendados} />
     </Pagina>
   );
 }
