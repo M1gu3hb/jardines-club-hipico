@@ -46,13 +46,13 @@ import { isVideo } from '@/components/MediaViewer';
  *
  * El visor deja márgenes y la imagen entra con `object-contain`, así que el hueco real ronda
  * los 1 200-1 600 px incluso en pantalla grande. Pedir 2560 sería descargar el doble para
- * dibujar lo mismo. La calidad sube a 95 porque aquí la foto se mira de cerca.
+ * dibujar lo mismo. Las variantes se generan a calidad 85 en WebP, que a tamaño de
+ * pantalla es indistinguible del original.
  */
 const ANCHO_VISOR = 1600;
-const CALIDAD_VISOR = 95;
 
 function fuenteGrande(url) {
-  return sePuedeOptimizar(url) ? fuenteDe(url, ANCHO_VISOR, CALIDAD_VISOR) : url;
+  return sePuedeOptimizar(url) ? fuenteDe(url, ANCHO_VISOR) : url;
 }
 
 /**

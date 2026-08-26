@@ -1,243 +1,172 @@
+import MANIFIESTO from '@/data/variantes.json';
 import { medidasDe } from '@/lib/medidas';
 
 /**
  * imagen.js — la capa que decide QUÉ archivo se descarga para cada hueco.
  *
  * ══════════════════════════════════════════════════════════════════════════════
- * EL PROBLEMA MEDIDO, NO SUPUESTO
+ * LA HISTORIA COMPLETA, PORQUE EL SEGUNDO INTENTO SALIÓ PEOR QUE EL PRIMERO
  * ══════════════════════════════════════════════════════════════════════════════
  *
- * Se contaron los 449 archivos de imagen de `public/media/`:
+ * **Punto de partida.** 449 imágenes, 257 MB, media de 587 kB. La mediana de ancho eran 576 px,
+ * pero 86 archivos pasaban de 1 600 y llegaban a 4 608 × 3 072 — fotos de cámara sin tocar,
+ * servidas tal cual y dibujadas a 300-500 px. Se descargaban quince veces más píxeles de los
+ * que se pintaban.
  *
- *   · Peso total: 257 MB. Media: 587 kB por imagen.
- *   · 77 pasan de 1 MB. La mayor: 4608 × 3072.
- *   · Pero la MEDIANA de ancho es 576 px.
+ * **Primer intento: optimizar en el borde** (`/_vercel/image`). Sobre el papel, mejor: sin
+ * archivos nuevos, sin tiempo de build y negociando AVIF/WebP con el navegador. El peso cayó de
+ * 2 MB a 20 kB por foto.
  *
- * O sea que el problema no está repartido: **86 archivos de 449 son casi todo el peso**. Son
- * fotos salidas de la cámara, sin tocar. Y en la galería se enseñan a 300-500 px de ancho, así
- * que el navegador descarga alrededor de QUINCE VECES más píxeles de los que va a dibujar.
+ * **Y el sitio quedó PEOR.** El dueño: *«está muchísimo peor, cargan igual de mal»*. Tenía
+ * razón, y la medición explicó por qué. Resource Timing sobre la galería en producción, con la
+ * caché del borde ya caliente:
  *
- * Eso es exactamente lo que el dueño describía: *«tardan demasiado en cargar y da apariencia
- * de que la página está rota»*, y *«una imagen de plano nunca termina de cargar»* — que es lo
- * que pasa cuando una conexión móvil intenta traer ocho megas mientras otras sesenta y ocho
- * peticiones compiten por el mismo ancho de banda.
+ *   · tamaño por imagen ....... 8-19 kB
+ *   · tiempo de DESCARGA ...... 0 ms
+ *   · TTFB .................... 110-920 ms
+ *   · BLOQUEADO EN COLA ....... media 1 780 ms, máximo 4 725 ms
  *
- * ══════════════════════════════════════════════════════════════════════════════
- * POR QUÉ SE OPTIMIZA EN EL BORDE Y NO EN EL BUILD
- * ══════════════════════════════════════════════════════════════════════════════
+ * **El peso ya no era el problema: lo era el número de peticiones.** Un archivo estático del
+ * CDN empieza a responder en unos 30 ms; el endpoint de optimización, aun acertando en caché,
+ * tarda entre 110 y 920 ms. Con setenta imágenes y un navegador que abre unas seis conexiones
+ * a la vez, esa diferencia se multiplica: 70 ÷ 6 × medio segundo son los cuatro y cinco
+ * segundos de espera que él veía.
  *
- * Se valoraron las dos:
+ * Y por eso decía que «antes cargaban mejor»: antes eran archivos estáticos. Pesaban veinte
+ * veces más, pero empezaban a llegar de inmediato.
  *
- *   · **Generar variantes en el build** (con `sharp`): control total y cero coste por
- *     petición, pero son 449 imágenes × 4 anchos = ~1 800 archivos nuevos, varios minutos más
- *     de build en cada despliegue y un repositorio bastante más gordo. Para 86 archivos que lo
- *     necesitan de verdad, es mucha maquinaria.
+ * **Solución actual: archivos estáticos, pero del tamaño correcto.** Las variantes se generan
+ * una vez con `scripts/variantes-imagenes.mjs` y se sirven como cualquier otro archivo del
+ * sitio. Se conservan las dos mitades buenas —TTFB bajo y multiplexado del CDN, más el peso
+ * pequeño— y se pierde la única mala.
  *
- *   · **`/_vercel/image`**, la optimización del propio borde: se pide con parámetros y ya. Sin
- *     archivos nuevos, sin tiempo de build, y **negocia el formato con el navegador** — AVIF a
- *     quien lo acepte, WebP al resto—, que es un ahorro que la generación estática no da sin
- *     triplicar el número de archivos.
+ * Es lo que hacen los sitios donde la fotografía es el producto: **no transforman bajo demanda,
+ * pre-generan**.
  *
- * Se factura **por imagen ORIGEN, no por variante**: 449 orígenes es una cifra pequeña, y las
- * transformaciones quedan cacheadas en el borde durante un año (`minimumCacheTTL`).
+ * ── La lección, que vale para el próximo proyecto ───────────────────────────
  *
- * Y no toca la política de seguridad: `/_vercel/image` es el MISMO origen, así que el
- * `img-src 'self'` que ya hay lo cubre. No se abre nada a terceros.
+ * «Menos kilobytes» no es lo mismo que «más rápido». En una galería, el coste dominante no es
+ * el tamaño de cada imagen sino **cuántas peticiones hay y cuánto tarda cada una en empezar**.
+ * Optimizar el peso e ignorar la latencia empeoró el resultado midiendo mejor en la métrica
+ * equivocada.
  *
  * ══════════════════════════════════════════════════════════════════════════════
  * PENSADO PARA REUTILIZARSE
  * ══════════════════════════════════════════════════════════════════════════════
  *
- * Todo lo específico de Vercel vive en `ADAPTADOR`, abajo. Un proyecto que use otro CDN
- * —Cloudflare, imgix, un servidor propio— cambia esa función y nada más: `Foto` y el resto del
- * sitio no saben quién redimensiona.
+ * Todo lo que depende de dónde viven las variantes está en `ADAPTADOR`. Un proyecto que las
+ * sirva desde otro sitio —un bucket, un CDN de imágenes— cambia esa función y nada más.
  */
-
-// ─────────────────────────────────────────────────────────────────────────────
-// EL ADAPTADOR
-// ─────────────────────────────────────────────────────────────────────────────
 
 /**
- * Traduce (ruta, ancho, calidad) a la dirección que sirve esa versión.
+ * Dónde vive cada variante.
  *
- * @param {string} url      Ruta del original, desde la raíz del sitio.
- * @param {number} ancho    Ancho deseado en píxeles.
- * @param {number} calidad  1-100. Tiene que estar en `images.qualities` de `vercel.json`.
+ * `/v/{ancho}/{misma ruta}.webp`. Se conserva la estructura de carpetas del original para que
+ * sea evidente de un vistazo a qué archivo corresponde cada variante.
  */
-function ADAPTADOR(url, ancho, calidad) {
-  return `/_vercel/image?url=${encodeURIComponent(url)}&w=${ancho}&q=${calidad}`;
+function ADAPTADOR(url, ancho) {
+  const sinExtension = url.replace(/^\/media\//, '').replace(/\.[^.]+$/, '');
+  return `/v/${ancho}/${sinExtension}.webp`;
 }
 
 /**
- * Los anchos que se ofrecen. Coinciden con `images.sizes` de `vercel.json`: pedir uno que no
- * esté en esa lista devuelve un error del borde, no una imagen.
+ * Qué anchos existen de cada imagen, generado por el script junto con los archivos.
+ *
+ * El navegador no puede mirar el disco: sin este manifiesto, `srcset` ofrecería direcciones que
+ * quizá no existen y el navegador elegiría una que devuelve 404 — o sea, una imagen rota.
+ *
+ * @type {Record<string, number[]>}
  */
-export const ANCHOS = [256, 384, 512, 640, 768, 1024, 1280, 1600, 1920, 2560];
+const VARIANTES = MANIFIESTO;
 
-/**
- * Calidad por defecto: ALTA.
- *
- * Empezó en 72 y fue un error. El dueño lo vio antes que ninguna medición: *«todo se ve muy
- * pixelado, desde la miniatura, que es como la mayoría lo ve»*.
- *
- * Y lo que costaba bajarla era casi nada. Medido en producción sobre la misma foto:
- *
- *   · w=1280 con q=72 → 38 kB
- *   · w=960  con q=90 → 37 kB
- *
- * O sea: **subir la calidad a 90 cuesta lo mismo que servir un ancho mayor a 72**. En una
- * fotografía, donde el producto ES la imagen, esa elección no admite duda. Los 2 MB del
- * original siguen siendo dos órdenes de magnitud más, así que el ahorro se conserva entero.
- */
-export const CALIDAD = 90;
+/** Los anchos que el generador produce. Informativo: la verdad está en el manifiesto. */
+export const ANCHOS = [256, 384, 512, 768, 1024, 1600];
 
 // ─────────────────────────────────────────────────────────────────────────────
 
+/** Normaliza una dirección a la clave con la que se guardó en el manifiesto. */
+function clave(url) {
+  if (!url || typeof url !== 'string') return null;
+  const ruta = url.replace(/^https?:\/\/[^/]+/, '').split('?')[0].split('#')[0];
+  return ruta.startsWith('/media/') ? ruta : null;
+}
+
 /**
- * ¿Esta dirección se puede optimizar?
+ * ¿Hay versiones optimizadas de esta imagen?
  *
- * Solo las rutas locales que empiezan por `/media/`. Se dejan fuera:
- *   · Las direcciones absolutas (`https://…`), que no están declaradas en `localPatterns`.
- *   · Los `data:` y `blob:`, que ya son el archivo.
- *   · Los videos: `/_vercel/image` no los toca.
+ * Se comprueba contra el manifiesto y no por el nombre: una imagen más pequeña que el escalón
+ * mínimo no tiene variantes —generarlas la ampliaría— y hay que servirla tal cual. Lo mismo
+ * con los videos, que el generador no toca.
  */
 export function sePuedeOptimizar(url) {
-  if (!url || typeof url !== 'string') return false;
-  if (!url.startsWith('/media/')) return false;
-  return !/\.(mp4|webm|mov|ogg|m4v)(\?|#|$)/i.test(url);
+  const k = clave(url);
+  return Boolean(k && VARIANTES[k] && VARIANTES[k].length > 0);
 }
 
-/**
- * ¿Estamos donde existe `/_vercel/image`?
- *
- * En `npm run dev` NO existe: pedirlo devuelve el HTML de la aplicación con tipo `text/html`, y
- * el navegador dibuja el icono de imagen rota. Así que en desarrollo se sirve el original.
- *
- * Se mira `import.meta.env.PROD` y no el nombre del dominio: el prerender del build también
- * corre con `PROD`, y ahí SÍ interesa escribir las direcciones optimizadas en el HTML.
- */
-function hayOptimizador() {
-  try {
-    return Boolean(import.meta.env && import.meta.env.PROD);
-  } catch {
-    return false;
-  }
-}
-
-/**
- * El ancho máximo que tiene sentido pedir de una imagen.
- *
- * ESTE DETALLE IMPORTA MÁS DE LO QUE PARECE. La mediana de este sitio son 576 px de ancho: si
- * a una imagen de 576 se le piden 1920, el optimizador **la agranda**, y el resultado pesa más
- * que el original y se ve peor. Con las medidas reales a mano —`medidas-medios.json`, generado
- * leyendo las cabeceras de los archivos— se recorta la lista de anchos al tamaño de origen.
- *
- * Sin medidas conocidas se devuelve `null` y se ofrecen todos los anchos: es preferible pedir
- * de más una vez que no optimizar nunca.
- */
-function anchoDeOrigen(url) {
-  const m = medidasDe(url);
-  return m && m.ancho ? m.ancho : null;
-}
-
-/**
- * Los anchos que se van a ofrecer para una imagen concreta.
- * Siempre al menos uno, aunque el original sea diminuto.
- */
+/** Los anchos disponibles de una imagen concreta, de menor a mayor. */
 export function anchosPara(url) {
-  const origen = anchoDeOrigen(url);
-  if (!origen) return ANCHOS;
-  const utiles = ANCHOS.filter((a) => a <= origen);
-  return utiles.length > 0 ? utiles : [ANCHOS[0]];
+  const k = clave(url);
+  return k && VARIANTES[k] ? VARIANTES[k] : [];
 }
 
 /**
- * La dirección de una sola versión. Se usa como `src` de respaldo, para los navegadores que
- * no entienden `srcset`.
+ * La dirección de una versión concreta, o el original si no hay variantes.
+ *
+ * Si se pide un ancho mayor del que existe, se devuelve el mayor disponible: pedir 1600 de una
+ * imagen que solo llega a 512 daría un 404, y un 404 es una imagen rota.
  */
-export function fuenteDe(url, ancho, calidad = CALIDAD) {
-  if (!sePuedeOptimizar(url) || !hayOptimizador()) return url;
-  return ADAPTADOR(url, ancho, calidad);
+export function fuenteDe(url, ancho) {
+  const disponibles = anchosPara(url);
+  if (disponibles.length === 0) return url;
+  const elegido = disponibles.filter((a) => a >= ancho)[0] || disponibles[disponibles.length - 1];
+  return ADAPTADOR(clave(url), elegido);
 }
 
 /**
  * El `srcset` completo: cada ancho con su descriptor `w`.
  *
- * El navegador elige solo, sabiendo tres cosas que el servidor no sabe: el ancho real del
- * hueco tras aplicar el CSS, la densidad de la pantalla y —en algunos— si la conexión va mal.
- * Por eso se le dan las opciones en vez de decidir por él.
+ * Se le dan todas las opciones al navegador porque él sabe tres cosas que el servidor no: el
+ * ancho real del hueco tras aplicar el CSS, la densidad de la pantalla y, en algunos casos, si
+ * la conexión va mal.
  */
-export function conjuntoDeFuentes(url, calidad = CALIDAD) {
-  if (!sePuedeOptimizar(url) || !hayOptimizador()) return undefined;
-  return anchosPara(url)
-    .map((a) => `${ADAPTADOR(url, a, calidad)} ${a}w`)
-    .join(', ');
+export function conjuntoDeFuentes(url) {
+  const disponibles = anchosPara(url);
+  if (disponibles.length === 0) return undefined;
+  const k = clave(url);
+  return disponibles.map((a) => `${ADAPTADOR(k, a)} ${a}w`).join(', ');
 }
 
 /**
  * Atributos listos para un `<img>`: `src`, `srcSet`, `width` y `height`.
  *
- * `width` y `height` van SIEMPRE que se conozcan, y no son decorativos: sin ellos el navegador
- * no sabe cuánto sitio reservar, la imagen ocupa cero alto hasta que llega y al llegar empuja
- * todo lo que tiene debajo. En una galería de sesenta y nueve piezas eso es la página entera
- * moviéndose mientras alguien intenta tocar una foto.
- *
- * @param {string} url
- * @param {Object} [opciones]
- * @param {number} [opciones.calidad]
- * @param {number} [opciones.anchoPreferido] Ancho para el `src` de respaldo.
+ * `width` y `height` van siempre que se conozcan, y no son decorativos: sin ellos la imagen
+ * ocupa cero alto hasta que llega, y al llegar empuja todo lo que tiene debajo. En una galería
+ * de sesenta y nueve piezas eso es la página entera moviéndose mientras alguien intenta tocar
+ * una foto.
  */
 export function atributosDeImagen(url, opciones = {}) {
-  const { calidad = CALIDAD, anchoPreferido = 1280 } = opciones;
+  const { anchoPreferido = 1024 } = opciones;
   const med = medidasDe(url);
-  const disponibles = anchosPara(url);
-
-  // Para el respaldo se elige el ancho ofrecido más cercano al preferido, sin pasarse.
-  const respaldo =
-    disponibles.filter((a) => a <= anchoPreferido).pop() || disponibles[0];
 
   return {
-    src: fuenteDe(url, respaldo, calidad),
-    srcSet: conjuntoDeFuentes(url, calidad),
+    src: fuenteDe(url, anchoPreferido),
+    srcSet: conjuntoDeFuentes(url),
     width: med ? med.ancho : undefined,
     height: med ? med.alto : undefined,
   };
 }
 
 /**
- * Prepara las piezas de una galería para el visor a pantalla completa.
+ * Prepara las piezas de una galería para un visor a pantalla completa.
  *
- * ══════════════════════════════════════════════════════════════════════════════
- * POR QUÉ ESTO EXISTE EN VEZ DE ARREGLAR EL VISOR
- * ══════════════════════════════════════════════════════════════════════════════
- *
- * `MediaViewer` es **copia byte a byte en los tres repositorios** y hay un contrato que lo
- * vigila. Tocarlo aquí crearía la divergencia que ese contrato existe para evitar.
- *
- * Pero el problema no está en el visor: está en lo que se le da. Recibía la dirección del
- * ORIGINAL, así que abría un JPEG de dos a ocho megas. Palabras del dueño: *«cambio de imagen
- * y sale todo sin nada, y se pinta de arriba hacia abajo y tarda como tres segundos»*. Eso es
- * exactamente lo que se ve descargando ocho megas por una conexión normal.
- *
- * La solución no necesita tocar el visor: **se le entregan las direcciones ya optimizadas**. A
- * 1600 px y calidad 95, una foto de cámara pasa de megas a unos cien kilobytes, y a pantalla
- * completa es indistinguible del original.
- *
- * ── Por qué 1600 y no 2560 ──────────────────────────────────────────────────
- *
- * Porque el visor no ocupa la pantalla entera: deja márgenes y la imagen cabe con
- * `object-contain`. En una pantalla de portátil normal el hueco real ronda los 1 200 px, y en
- * una grande los 1 600. Pedir 2560 sería descargar el doble para dibujar lo mismo.
- *
- * Y la calidad sube a 95, no 90: aquí la foto se mira de cerca y a tamaño grande, que es
- * justo donde un artefacto de compresión sí se nota.
- *
- * @param {Array} piezas  Cada una con `url`. El resto de campos se conserva.
+ * Se mantiene por compatibilidad con `Ficha`, que se la pasa a su visor. 1600 px es lo que
+ * ocupa una foto a pantalla completa con los márgenes del visor; pedir más sería descargar el
+ * doble para dibujar lo mismo.
  */
 export function piezasParaVisor(piezas) {
   if (!Array.isArray(piezas)) return piezas;
   return piezas.map((pieza) => {
     if (!pieza || !sePuedeOptimizar(pieza.url)) return pieza;
-    return { ...pieza, url: fuenteDe(pieza.url, 1600, 95) };
+    return { ...pieza, url: fuenteDe(pieza.url, 1600) };
   });
 }

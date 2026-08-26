@@ -1,37 +1,5 @@
 {
   "$schema": "https://openapi.vercel.sh/vercel.json",
-  "images": {
-    "sizes": [
-      256,
-      384,
-      512,
-      640,
-      768,
-      1024,
-      1280,
-      1600,
-      1920,
-      2560
-    ],
-    "formats": [
-      "image/avif",
-      "image/webp"
-    ],
-    "qualities": [
-      50,
-      72,
-      90,
-      95
-    ],
-    "minimumCacheTTL": 31536000,
-    "localPatterns": [
-      {
-        "pathname": "^/media/.*$",
-        "search": ""
-      }
-    ],
-    "dangerouslyAllowSVG": false
-  },
   "redirects": [
     {
       "source": "/portal",
@@ -70,6 +38,15 @@
     }
   ],
   "headers": [
+    {
+      "source": "/v/(.*)",
+      "headers": [
+        {
+          "key": "Cache-Control",
+          "value": "public, max-age=31536000, immutable"
+        }
+      ]
+    },
     {
       "source": "/(.*)",
       "headers": [

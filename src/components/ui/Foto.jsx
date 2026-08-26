@@ -110,7 +110,7 @@ export default function Foto({
     setIntento(0);
   }, [url]);
 
-  const { src, srcSet, width, height } = atributosDeImagen(url, { calidad });
+  const { src, srcSet, width, height } = atributosDeImagen(url);
 
   // El reintento añade un parámetro que cambia para saltarse la caché de la petición fallida.
   const sufijo = intento > 0 ? `${src.includes('?') ? '&' : '?'}r=${intento}` : '';
