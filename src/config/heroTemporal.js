@@ -62,7 +62,7 @@
  * `dist/assets/`:
  *
  *   activo: true   →  el bundle solo cita `style-contest-2026.mp4`
- *   activo: false  →  el bundle solo cita `NBa3E9g.mp4` y `uykWsK9.mp4`
+ *   activo: false  →  el bundle solo cita `hero-salon-720.mp4` y `hero-jardin-720.mp4`
  *
  * O sea: el interruptor no deja código muerto viajando al navegador. Y los tres
  * .mp4 siguen los tres en `dist/media/` —Vite copia `public/` tal cual—, así que

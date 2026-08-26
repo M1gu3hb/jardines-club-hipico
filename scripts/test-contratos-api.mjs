@@ -944,7 +944,7 @@ zona("web");
   //    concretas — que son irrecuperables si desaparecen del código.
   const carrusel = entre(hero, "function HeroVideoBg()", "\n}");
   if (!carrusel) fallos.push("`HeroVideoBg` —el carrusel de siempre— ya no existe");
-  for (const v of ["/media/img/NBa3E9g.mp4", "/media/img/uykWsK9.mp4"]) {
+  for (const v of ["/media/img/hero-salon-720.mp4", "/media/img/hero-jardin-720.mp4"]) {
     if (!hero.includes(v)) fallos.push(`el hero ya no conoce \`${v}\`: apagar el video temporal no lo devolvería`);
     try { leer(`public${v}`); } catch { fallos.push(`falta el archivo \`public${v}\``); }
   }

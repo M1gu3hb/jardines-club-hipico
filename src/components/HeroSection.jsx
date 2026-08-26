@@ -4,9 +4,28 @@ import { MapPin } from "lucide-react";
 import { HERO_TEMPORAL } from "@/config/heroTemporal";
 import { isSoundEnabled, subscribeSoundEnabled } from "./soundSystem";
 
+/**
+ * Los dos videos del fondo del hero.
+ *
+ * ── POR QUÉ CAMBIARON DE NOMBRE Y NO SE SOBRESCRIBIERON ─────────────────────
+ *
+ * Son los MISMOS DOS VIDEOS que había, re-codificados desde los originales de cámara: antes
+ * iban a 854×480 —de tanto pasar por manos habían perdido la mitad de la resolución— y ahora
+ * van a los 1280×720 nativos. Medido con SSIM contra el original: el salón sube de 0.970 a
+ * 0.994 de fidelidad, y el jardín de 0.953 a 0.991.
+ *
+ * No se reemplazó `NBa3E9g.mp4` ni `uykWsK9.mp4` en su sitio a propósito: `/media/` se sirve
+ * con caché de 30 días, así que cambiar un archivo sin cambiarle el nombre habría seguido
+ * enseñando el viejo a quien ya hubiera pasado por aquí. Nombre nuevo, archivo nuevo, y todos
+ * lo ven a la primera.
+ *
+ * `maxTime` NO se toca: el jardín sigue cediendo el paso a los 3.5 s, igual que siempre. Su
+ * archivo dura ahora 3.7 s en vez de 8 —solo se usaban los primeros segundos, el resto eran
+ * cuatro megas que nadie llegaba a ver nunca—.
+ */
 const VIDEOS = [
-  { src: "/media/img/NBa3E9g.mp4", maxTime: null },
-  { src: "/media/img/uykWsK9.mp4", maxTime: 3.5 },
+  { src: "/media/img/hero-salon-720.mp4", maxTime: null },
+  { src: "/media/img/hero-jardin-720.mp4", maxTime: 3.5 },
 ];
 
 function HeroVideoBg() {

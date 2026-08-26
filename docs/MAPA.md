@@ -122,7 +122,7 @@ Para **editar contenido**, se usa el panel admin — ver [`DATOS.md`](DATOS.md).
 | Reseñas del carrusel / números de confianza / rating | **Panel admin → Reseñas** (tablas `resenas` / `resenas_config`) |
 | Preguntas del FAQ | `src/components/FaqSection.jsx` (array `FAQS`) |
 | Pasos de "Cómo funciona" | `src/components/ComoFunciona.jsx` (array `PASOS`) |
-| Videos de fondo del hero | Reemplazar `public/media/img/NBa3E9g.mp4` y `uykWsK9.mp4`, o editar el array `VIDEOS` en `HeroSection.jsx` |
+| Videos de fondo del hero | Editar el array `VIDEOS` en `HeroSection.jsx`. NO sobrescribas el archivo en su sitio: `/media/` se sirve con cache de 30 dias y quien ya paso por el sitio seguiria viendo el viejo. Archivo nuevo, nombre nuevo |
 | Textos de sección (eyebrows, títulos "Servicios", "Amenidades", "Galería") | El componente de esa sección (ver tabla §2) |
 | Colores / estilos globales | **`src/styles/theme.css`** (tokens `.skeu-*`, Inter, scrollbar) y `tailwind.config.js`. El dorado de marca es `#C9A84C`. **No** `Layout.jsx` |
 | Orden de las secciones | `src/pages/Home.jsx` (`<main>`) y la constante `MENU_ITEMS` del mismo archivo |
