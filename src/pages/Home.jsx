@@ -19,6 +19,7 @@ import QueEstasPlaneando from "../components/home/QueEstasPlaneando";
 import EspaciosDestacados from "../components/home/EspaciosDestacados";
 import Diferenciadores from "../components/home/Diferenciadores";
 import BloqueAvisos from "../components/home/BloqueAvisos";
+import BandaClasesDeBaile from "../components/anuncios/BandaClasesDeBaile";
 import ServiciosYAmenidades from "../components/home/ServiciosYAmenidades";
 import GaleriaAsomo from "../components/home/GaleriaAsomo";
 import VerTodo from "../components/home/VerTodo";
@@ -183,14 +184,17 @@ export default function Home() {
               logoUrl={config?.logoUrl}
             />
 
-            {/* AQUÍ IBA EL ANUNCIO DE LAS CLASES DE BAILE. Retirado el 2026-08-25 a
-                petición del dueño: *«quítalo por el momento, no me gusta cómo se ve, me lo
-                imaginé diferente»*.
-
-                No se borró nada: `src/components/anuncios/BandaClasesDeBaile.jsx` sigue ahí
-                con su imagen y su respaldo dibujado, y la imagen sigue en
-                `public/media/img/anuncio-clases-de-baile.png`. Para devolverlo: importarlo y
-                ponerlo de vuelta en esta línea. */}
+            {/* EL ANUNCIO DE LAS CLASES DE BAILE, DE VUELTA — y a sangre.
+              *
+              * Se retiró el 2026-08-25 —*«no me gusta cómo se ve, me lo imaginé diferente»*—
+              * porque iba dentro de un marco dorado con esquinas redondeadas, o sea: una
+              * tarjeta. Vuelve el 2026-08-27 con la imagen que entregó el dueño y con la
+              * instrucción que faltaba: *«abajo del hero, como si fuera parte del hero, que
+              * cubra todo el ancho de la pantalla»*.
+              *
+              * Va PEGADO al hero y antes de `Confianza` por eso mismo: es la continuación de
+              * la promesa, no una interrupción entre ella y las cifras. */}
+            <BandaClasesDeBaile />
 
             {/* LAS CIFRAS, PEGADAS AL HERO.
               *
