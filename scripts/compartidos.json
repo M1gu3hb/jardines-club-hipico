@@ -132,7 +132,6 @@
       "ruta": "src/components/ui/toast.jsx",
       "sha256": "8a98ef70908fd33627d09f6a5c715417b243502836539acda857843dd4817070",
       "tambienEn": [
-        "portal",
         "crm"
       ]
     },
@@ -140,7 +139,6 @@
       "ruta": "src/components/ui/toaster.jsx",
       "sha256": "fc1bce32d9a45f5be28c67b486962b90eed76742f3c0995f5fb908ffc6bde3cd",
       "tambienEn": [
-        "portal",
         "crm"
       ]
     },
@@ -148,7 +146,6 @@
       "ruta": "src/components/ui/use-toast.jsx",
       "sha256": "40f2839736597a3f7d54e4359a375c5991ce58eb341d8abb944874ac0dce9bbc",
       "tambienEn": [
-        "portal",
         "crm"
       ]
     },
