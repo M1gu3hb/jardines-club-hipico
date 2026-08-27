@@ -212,6 +212,39 @@ function escrituraSinEfecto(op, table) {
   return e;
 }
 
+/**
+ * Tablas cuyo borrado NO pasa por el shim, y el motivo exacto en cada caso.
+ *
+ * ── Por qué existe esto (J-11) ──────────────────────────────────────────────
+ *
+ * `entities.X.delete()` es genérico: la fábrica se lo da a TODAS las entidades por igual, y eso
+ * está bien para casi todas. Para `eventos` no, y la diferencia es grande:
+ *
+ *   · Borrar un evento **arrastra en cascada sus `pagos`** — el libro contable que se construyó
+ *     en `sec_39` precisamente para que no se pudiera borrar. Append-only en la base y sin
+ *     policy de DELETE para nadie… y aun así desaparece si se va su evento.
+ *   · Y se salta las **cinco guardas** de `api/eliminar-evento.js`: la confirmación por nombre,
+ *     el recuento de homónimos, la comprobación de permisos, la compensación si algo falla a
+ *     medias, y el borrado explícito —y auditado— del usuario de Auth asociado.
+ *
+ * O sea que la vía corta no es «lo mismo pero más rápido»: es lo mismo sin ninguna de las
+ * protecciones, y destruyendo de paso el registro de dinero.
+ *
+ * ── Por qué se bloquea AQUÍ además de en la base ────────────────────────────
+ *
+ * En la base se revoca también (`sec_48`), y ése es el cierre de verdad. Pero el mensaje que da
+ * Postgres al negar un DELETE es un 42501 sin contexto, y quien lo lea no sabrá que existe una
+ * ruta correcta. Esto lo dice antes, y lo dice entero.
+ *
+ * Hoy no rompe a nadie: **no hay una sola llamada a `Evento.delete` en ninguno de los tres
+ * repositorios** — comprobado, no supuesto. Esto es el escalón, no una migración de código.
+ */
+const SIN_BORRADO_DIRECTO = {
+  eventos:
+    "Borrar un evento desde el navegador arrastra sus pagos en cascada y se salta las cinco " +
+    "guardas de `api/eliminar-evento.js`. Usa esa ruta: `functions.invoke(\"eliminar-evento\")`.",
+};
+
 function makeEntity(name) {
   const table = TABLES[name] || toSnake(name);
   return {
@@ -328,12 +361,14 @@ function makeEntity(name) {
      * y esta función devuelve `{ success: true }`. Ver `deleteEstricto`.
      */
     async delete(id) {
+      if (SIN_BORRADO_DIRECTO[table]) throw new Error(SIN_BORRADO_DIRECTO[table]);
       const { error } = await supabase.from(table).delete().eq("id", id);
       if (error) { console.error("[shim] delete", table, error.message); throw error; }
       return { success: true };
     },
     /** Como `delete`, pero **lanza si no se borró ninguna fila**. Ver `updateEstricto`. */
     async deleteEstricto(id) {
+      if (SIN_BORRADO_DIRECTO[table]) throw new Error(SIN_BORRADO_DIRECTO[table]);
       const { data, error } = await supabase.from(table).delete().eq("id", id).select();
       if (error) { console.error("[shim] deleteEstricto", table, error.message); throw error; }
       if (!data || data.length === 0) throw escrituraSinEfecto("delete", table);
