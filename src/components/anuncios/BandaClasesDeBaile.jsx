@@ -15,6 +15,18 @@ import ParejaQueBaila from './ParejaQueBaila';
 const IMAGEN = '/media/img/anuncio-clases-de-baile-ancho.png';
 
 /**
+ * La MISMA pieza, recompuesta más corta, para cuando la pantalla está en vertical.
+ *
+ * No es un recorte de la otra ni un tamaño distinto del mismo archivo: es otra composición, con
+ * el texto y la pareja más juntos. Por eso son dos archivos y no dos `srcset` del mismo — un
+ * `srcset` sirve para dar la misma imagen en varias resoluciones, no para cambiarla.
+ *
+ * 1672×626 → 2,67:1. En un teléfono de 375 px eso son 140 px de alto **con la imagen entera**,
+ * frente a los 78 px que daría la ancha a proporción natural.
+ */
+const IMAGEN_VERTICAL = '/media/img/anuncio-clases-de-baile-vertical.png';
+
+/**
  * BandaClasesDeBaile — el anuncio de la academia, a sangre.
  *
  * ══════════════════════════════════════════════════════════════════════════════
@@ -30,23 +42,56 @@ const IMAGEN = '/media/img/anuncio-clases-de-baile-ancho.png';
  * esquinas, se va el ancho máximo y se va el relleno lateral. De borde a borde.
  *
  * ══════════════════════════════════════════════════════════════════════════════
- * EL PROBLEMA REAL: 4,81:1 NO CABE EN UN TELÉFONO
+ * DOS IMÁGENES, NO UNA RECORTADA — Y POR QUÉ SE LLEGÓ AQUÍ
  * ══════════════════════════════════════════════════════════════════════════════
  *
- * La imagen mide 2172×452. A ancho completo en un móvil de 390 px eso da **81 px de alto**, y
- * ahí «Próximamente» queda en unos 7 px: presente, ilegible, inútil. Un anuncio que no se puede
- * leer en el aparato desde el que entra la mayoría no es un anuncio.
+ * La pieza ancha mide 2172×452, o sea 4,81:1. A ancho completo en un móvil de 375 px eso da
+ * **78 px de alto**, y ahí «Próximamente» queda en unos 7 px: presente, ilegible, inútil.
  *
- * Por eso la proporción cambia con el ancho y la imagen se **recorta**, en vez de encogerse:
+ * El primer intento fue **recortarla** en pantallas estrechas —2:1 en móvil, anclado al 32%
+ * para no comerse el texto—. Funcionaba en el sentido estricto: el texto se leía y nada
+ * desbordaba. Pero recortar es tirar composición, y el dueño lo vio enseguida: *«en formato
+ * vertical se recorta»*.
  *
- *   · móvil    2:1   → ~195 px de alto. Se ve el texto entero y algo de salón.
- *   · tablet   3:1
- *   · desktop  2172/452 → la proporción real: no se recorta nada, se ve la pieza completa.
+ * Así que ahora hay **dos archivos**, no uno recortado de dos maneras:
  *
- * Y el recorte se ancla en `32%`, no en el centro. El texto vive en el tercio izquierdo y la
- * pareja en el derecho; centrar el recorte se comería justo las palabras y dejaría un salón
- * bonito que no anuncia nada. Con `32%` el texto sobrevive en todos los anchos, que es de lo
- * que trata la pieza.
+ *   · **vertical** (`orientation: portrait`) → 1672×626, 2,67:1. Se enseña **entera**, a su
+ *     proporción exacta. En 375 px son 140 px de alto y no falta nada.
+ *   · **horizontal** (`orientation: landscape`) → la ancha de siempre, que es la que se pensó
+ *     para PC y tablet apaisada, y que ahí luce.
+ *
+ * El criterio es la ORIENTACIÓN y no el ancho, porque es lo que se pidió —«únicamente en
+ * formato vertical»— y porque describe mejor el caso: una tablet en vertical tiene 820 px de
+ * ancho, que para un punto de corte por anchura sería «escritorio», y sin embargo sufre
+ * exactamente el mismo problema que un teléfono.
+ *
+ * ══════════════════════════════════════════════════════════════════════════════
+ * LA CAJA SIGUE A LA IMAGEN, Y NO AL REVÉS
+ * ══════════════════════════════════════════════════════════════════════════════
+ *
+ * Aquí no hay `aspect-ratio` fijado por CSS. Es `w-full h-auto` y ya: la altura sale de la
+ * proporción del archivo que el navegador haya cargado.
+ *
+ * Y eso NO es pereza, es lo que hace el arreglo a prueba de fallos. El primer intento sí
+ * fijaba la proporción por CSS —una para vertical y otra para horizontal— con `<picture>`
+ * eligiendo el archivo. Dos mecanismos distintos decidiendo lo mismo, y **medido en el
+ * navegador: se desincronizan.** Al girar la pantalla sin recargar, el CSS cambiaba de
+ * proporción al instante y la fuente no: la imagen corta acababa metida en una caja de 4,81:1
+ * con `object-cover`, o sea **recortada** — exactamente lo que se estaba arreglando.
+ *
+ * Con la caja siguiendo al archivo eso no puede pasar. Si el navegador tarda en cambiar de
+ * fuente, o no la cambia nunca, lo peor que ocurre es que se vea la otra composición **entera**.
+ * Un fallo que no recorta nada.
+ *
+ * Las medidas van en los dos sitios —`width`/`height` en el `<source>` y en el `<img>`— para
+ * que reserve el hueco correcto ANTES de descargar, y la portada no dé un salto al llegar.
+ *
+ * ── Por qué `<picture>` y no `srcset` ───────────────────────────────────────
+ *
+ * `srcset` sirve para dar **la misma imagen** en varias resoluciones y dejar que el navegador
+ * elija; puede escoger cualquiera y da igual, porque son la misma. Aquí las dos NO son la
+ * misma: cambia la composición. Eso es *art direction*, y para eso está `<picture>` con
+ * `media`, que no deja elección: en vertical, esa.
  *
  * ══════════════════════════════════════════════════════════════════════════════
  * EL TEXTO ESTÁ DENTRO DE LA IMAGEN, Y ESO OBLIGA A DOS COSAS
@@ -90,25 +135,41 @@ export default function BandaClasesDeBaile() {
         {falloLaImagen ? (
           <Respaldo />
         ) : (
-          <img
-            src={IMAGEN}
-            alt="Próximamente: clases de baile en Jardines Club Hípico"
-            /* Las medidas reales del archivo. Con la proporción fijada por CSS abajo no hacen
-               falta para evitar el salto, pero van igual: si el CSS no cargara, el navegador
-               sigue reservando el hueco correcto en vez de reflujar la portada entera. */
-            width="2172"
-            height="452"
-            /* `eager` porque está pegado al hero: con `lazy` aparecía en blanco justo al
-               terminar la animación de entrada, que es cuando más se mira.
-               `fetchpriority="low"` para que ese adelanto NO le quite ancho de banda al vídeo
-               del hero, que es lo que mide el LCP. Las dos cosas juntas: se pide pronto, pero
-               detrás de lo importante. */
-            loading="eager"
-            fetchPriority="low"
-            decoding="async"
-            onError={() => setFalloLaImagen(true)}
-            className="block w-full object-cover object-[32%_center] aspect-[2/1] sm:aspect-[3/1] lg:aspect-[2172/452] transition-transform duration-700 group-hover:scale-[1.01]"
-          />
+          <picture>
+            {/* En vertical manda ésta, y `media` no admite discusión: el navegador no elige.
+                Las medidas van en el `<source>` para que reserve el hueco correcto ANTES de
+                descargarla — si solo estuvieran en el `<img>`, reservaría el de la ancha y la
+                portada daría un salto al llegar el archivo. */}
+            <source
+              media="(orientation: portrait)"
+              srcSet={IMAGEN_VERTICAL}
+              width="1672"
+              height="626"
+            />
+            <img
+              src={IMAGEN}
+              alt="Próximamente: clases de baile en Jardines Club Hípico"
+              /* Las medidas reales del archivo ancho, que es el que sirve de respaldo. Con la
+                 proporción fijada por CSS abajo no hacen falta para evitar el salto, pero van
+                 igual: si el CSS no cargara, el navegador sigue reservando un hueco razonable
+                 en vez de reflujar la portada entera. */
+              width="2172"
+              height="452"
+              /* `eager` porque está pegado al hero: con `lazy` aparecía en blanco justo al
+                 terminar la animación de entrada, que es cuando más se mira.
+                 `fetchpriority="low"` para que ese adelanto NO le quite ancho de banda al vídeo
+                 del hero, que es lo que mide el LCP. Las dos cosas juntas: se pide pronto, pero
+                 detrás de lo importante. */
+              loading="eager"
+              fetchPriority="low"
+              decoding="async"
+              onError={() => setFalloLaImagen(true)}
+              /* `h-auto` y ni un `aspect-*`: la altura la pone la proporción del archivo que se
+                 haya cargado. Ver arriba — es lo que impide que una discrepancia entre el CSS y
+                 la fuente vuelva a recortar. */
+              className="block w-full h-auto transition-transform duration-700 group-hover:scale-[1.01]"
+            />
+          </picture>
         )}
 
         {/* La llamada a la acción, encima y abajo a la derecha. Discreta: el anuncio ya dice lo
