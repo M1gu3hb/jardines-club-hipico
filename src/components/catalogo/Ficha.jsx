@@ -114,7 +114,7 @@ export default function Ficha({ item, invertida = false }) {
         <div className="flex flex-1 flex-col p-6">
           <h3 className="text-lg font-light text-white/90">{titulo}</h3>
           {item.descripcion && (
-            <p className="mt-2.5 text-sm font-light leading-relaxed text-white/45">
+            <p className="mt-2.5 text-sm font-light leading-relaxed text-[color:var(--texto-3)]">
               {item.descripcion}
             </p>
           )}

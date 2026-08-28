@@ -141,7 +141,7 @@ function Aviso({ aviso, invertido }) {
         )}
 
         {aviso.cuerpo && (
-          <div className="mt-5 space-y-3 text-sm font-light leading-[1.8] text-white/45">
+          <div className="mt-5 space-y-3 text-sm font-light leading-[1.8] text-[color:var(--texto-3)]">
             {aviso.cuerpo.split(/\n\s*\n/).map((p, i) => (
               <p key={i}>{p.trim()}</p>
             ))}

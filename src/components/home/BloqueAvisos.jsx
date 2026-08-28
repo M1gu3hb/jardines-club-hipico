@@ -43,7 +43,7 @@ export default function BloqueAvisos() {
           </h2>
           <Link
             to="/avisos"
-            className="inline-flex items-center gap-2 text-[10px] font-light tracking-[0.2em] uppercase text-white/45 transition-colors hover:text-[#C9A84C]"
+            className="inline-flex items-center gap-2 text-[10px] font-light tracking-[0.2em] uppercase text-[color:var(--texto-3)] transition-colors hover:text-[#C9A84C]"
           >
             Ver todos
             <ArrowRight size={12} aria-hidden="true" />

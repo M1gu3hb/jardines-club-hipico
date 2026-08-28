@@ -132,7 +132,7 @@ Los cuatro tienen que pasar:
 ```bash
 npm run lint            # 0 problemas
 npm run build           # exit 0
-npm run test:contratos  # 59/59
+npm run test:contratos  # 69/69 (reparto: web 40 . comun 29) -- medido el 2026-08-28
 npm run typecheck       # 7 errores = línea base de ESTE repo, no debe SUBIR (bajó de 9 en el rediseño)
 ```
 

@@ -64,7 +64,7 @@ function ItemsSection({ id, eyebrow, titulo, descripcion, items }) {
           </div>
           <h2 className="text-4xl sm:text-5xl md:text-6xl font-thin text-white mb-3">{titulo}</h2>
           {descripcion && (
-            <p className="text-white/45 text-sm md:text-[15px] max-w-xl mx-auto leading-relaxed">
+            <p className="text-[color:var(--texto-3)] text-sm md:text-[15px] max-w-xl mx-auto leading-relaxed">
               {descripcion}
             </p>
           )}

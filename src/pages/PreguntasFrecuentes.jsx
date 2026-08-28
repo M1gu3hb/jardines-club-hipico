@@ -114,7 +114,7 @@ export default function PreguntasFrecuentes() {
           <h2 className="text-2xl font-extralight text-white/90 sm:text-3xl">
             ¿Tu duda no está aquí?
           </h2>
-          <p className="mx-auto mt-4 max-w-md text-sm font-light leading-relaxed text-white/45">
+          <p className="mx-auto mt-4 max-w-md text-sm font-light leading-relaxed text-[color:var(--texto-3)]">
             Pregúntanos directamente. Contestamos el mismo día y no hace falta que sepas todavía
             ni la fecha ni cuántos van a ser.
           </p>

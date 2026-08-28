@@ -111,7 +111,7 @@ export default function PieDeSitio() {
                 <li key={r.clave}>
                   <Link
                     to={r.ruta}
-                    className="text-sm font-light text-white/45 transition-colors hover:text-[#C9A84C] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#C9A84C]/60 rounded-sm"
+                    className="text-sm font-light text-[color:var(--texto-3)] transition-colors hover:text-[#C9A84C] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#C9A84C]/60 rounded-sm"
                   >
                     {r.nombre}
                   </Link>
@@ -130,7 +130,7 @@ export default function PieDeSitio() {
                   href={MAPA}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="group flex items-start gap-3 text-white/45 transition-colors hover:text-white/80"
+                  className="group flex items-start gap-3 text-[color:var(--texto-3)] transition-colors hover:text-white/80"
                 >
                   {/* Los tres iconos de contacto van en oro hundido, no en oro pleno: forman una columna
                       que se repite, y a 8.66:1 la marca pesaria mas que la direccion o el telefono. */}
@@ -139,13 +139,13 @@ export default function PieDeSitio() {
                 </a>
               </li>
               <li>
-                <a href={telHref} className="flex items-center gap-3 text-white/45 transition-colors hover:text-white/80">
+                <a href={telHref} className="flex items-center gap-3 text-[color:var(--texto-3)] transition-colors hover:text-white/80">
                   <Phone size={14} className="shrink-0 text-[color:var(--oro-hundido)]" aria-hidden="true" />
                   <span>{TELEFONO}</span>
                 </a>
               </li>
               <li>
-                <a href={`mailto:${CORREO}`} className="flex items-center gap-3 text-white/45 transition-colors hover:text-white/80 break-all">
+                <a href={`mailto:${CORREO}`} className="flex items-center gap-3 text-[color:var(--texto-3)] transition-colors hover:text-white/80 break-all">
                   <Mail size={14} className="shrink-0 text-[color:var(--oro-hundido)]" aria-hidden="true" />
                   <span>{CORREO}</span>
                 </a>

@@ -72,9 +72,22 @@ const contraste = (a, b) => {
   return (hi + 0.05) / (lo + 0.05);
 };
 
-/** Compone el alfa sobre el fondo y mide. */
+/**
+ * Compone el alfa sobre el fondo y mide.
+ *
+ * ── EL `Math.round` NO ES COSMÉTICO ─────────────────────────────────────────
+ *
+ * Sin él, `text-white/45` daba **4.50:1** y pasaba. El canal compuesto sale 255·0.45 + 10·0.55 =
+ * **120.25**, y la pantalla no puede pintar 120.25: pinta **120**. Con el valor entero el ratio
+ * real es **4.48:1**, o sea que ese literal NO cumple AA — y estaba en seis archivos dándose por
+ * bueno.
+ *
+ * Es un cuarto de centésima de diferencia, y justo por eso importa: solo cambia el veredicto de
+ * los valores que están en el filo, que son exactamente los que alguien eligió pensando «con
+ * esto llego». Un medidor que redondea a su favor es peor que no tenerlo, porque da permiso.
+ */
 const medir = (rgb, alfa) =>
-  contraste(rgb.map((c, i) => c * alfa + FONDO[i] * (1 - alfa)), FONDO);
+  contraste(rgb.map((c, i) => Math.round(c * alfa + FONDO[i] * (1 - alfa))), FONDO);
 
 /* ── resolver el color de una clase de Tailwind ───────────────────────────── */
 function resolver(base) {

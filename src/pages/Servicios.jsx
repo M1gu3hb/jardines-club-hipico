@@ -133,7 +133,7 @@ export default function Servicios() {
               ? `Y hay ${amenidades.length} amenidades más`
               : 'Y luego están las amenidades'}
           </h2>
-          <p className="mt-4 text-sm font-light leading-relaxed text-white/45">
+          <p className="mt-4 text-sm font-light leading-relaxed text-[color:var(--texto-3)]">
             Inflables, cámara 360, pista pixel led, un mago, un auto clásico para las fotos.
             Todo lo que hace que un evento se recuerde está en su propia página.
           </p>

@@ -80,7 +80,7 @@ export default function Condiciones() {
                   >
                     {c.titulo}
                   </h3>
-                  <p className="mt-2 text-sm font-light leading-relaxed text-white/45">
+                  <p className="mt-2 text-sm font-light leading-relaxed text-[color:var(--texto-3)]">
                     {c.texto}
                   </p>
                 </div>

@@ -34,7 +34,7 @@ export default function CtaCotizacion({ onOpenForm }) {
           <h2 className="text-3xl sm:text-4xl md:text-5xl font-thin text-white mb-5 relative z-10">
             ¿Listo para cotizar tu evento?
           </h2>
-          <p className="text-white/45 text-sm leading-relaxed mb-10 md:mb-12 max-w-md mx-auto tracking-wide relative z-10">
+          <p className="text-[color:var(--texto-3)] text-sm leading-relaxed mb-10 md:mb-12 max-w-md mx-auto tracking-wide relative z-10">
             Cuéntanos algunos detalles y te enviamos una cotización personalizada sin costo.
           </p>
           <motion.button

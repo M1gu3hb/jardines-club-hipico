@@ -71,7 +71,7 @@ export default function ServiciosYAmenidades() {
             resalta="nada de fuera"
             className="block text-3xl font-extralight tracking-tight text-white/95 sm:text-5xl"
           />
-          <p className="mx-auto mt-5 max-w-xl text-sm font-light leading-relaxed text-white/45 sm:text-base">
+          <p className="mx-auto mt-5 max-w-xl text-sm font-light leading-relaxed text-[color:var(--texto-3)] sm:text-base">
             Y si ya tienes tus proveedores, también se puede hablar. Aquí nada es obligatorio.
           </p>
         </motion.div>
@@ -158,7 +158,7 @@ function Invitacion({ items, eyebrow, cantidad, sustantivo, texto, enlace, cta, 
             <NumeroQueCuenta hasta={cantidad} /> {sustantivo}
           </h3>
 
-          <p className="mt-4 flex-1 text-sm font-light leading-relaxed text-white/45 sm:text-base">
+          <p className="mt-4 flex-1 text-sm font-light leading-relaxed text-[color:var(--texto-3)] sm:text-base">
             {texto}
           </p>
 

@@ -92,7 +92,7 @@ export default function Eventos() {
                     Los de arriba son los más pedidos, no los únicos. El recinto se ha usado
                     para formatos que no aparecen en ninguna lista.
                   </h2>
-                  <p className="mx-auto mt-3 max-w-xl text-sm font-light leading-relaxed text-white/45">
+                  <p className="mx-auto mt-3 max-w-xl text-sm font-light leading-relaxed text-[color:var(--texto-3)]">
                     Cuéntanos qué tienes en mente y te decimos qué espacio le queda mejor.
                   </p>
                   <span className="mt-5 inline-flex items-center gap-2 text-[10px] font-light tracking-[0.2em] uppercase text-[#C9A84C]/80 transition-colors group-hover:text-[#C9A84C]">
@@ -114,7 +114,7 @@ export default function Eventos() {
             </h2>
             <Link
               to="/espacios"
-              className="inline-flex items-center gap-2 text-[10px] font-light tracking-[0.2em] uppercase text-white/45 transition-colors hover:text-[#C9A84C]"
+              className="inline-flex items-center gap-2 text-[10px] font-light tracking-[0.2em] uppercase text-[color:var(--texto-3)] transition-colors hover:text-[#C9A84C]"
             >
               Ver los ocho
               <ArrowRight size={12} aria-hidden="true" />

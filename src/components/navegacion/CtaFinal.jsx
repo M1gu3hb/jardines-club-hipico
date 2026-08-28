@@ -73,7 +73,7 @@ export default function CtaFinal() {
             ¿Listo para cotizar tu evento?
           </h2>
 
-          <p className="relative z-10 mx-auto mb-10 max-w-md text-sm leading-relaxed tracking-wide text-white/45 md:mb-12">
+          <p className="relative z-10 mx-auto mb-10 max-w-md text-sm leading-relaxed tracking-wide text-[color:var(--texto-3)] md:mb-12">
             Cuéntanos algunos detalles y te enviamos una cotización personalizada sin costo.
           </p>
 

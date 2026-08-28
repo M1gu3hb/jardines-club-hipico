@@ -183,7 +183,7 @@ export default function Galeria() {
           <h2 className="text-2xl font-extralight text-white/90 sm:text-3xl">
             ¿Te late el lugar?
           </h2>
-          <p className="mx-auto mt-4 max-w-lg text-sm font-light leading-relaxed text-white/45">
+          <p className="mx-auto mt-4 max-w-lg text-sm font-light leading-relaxed text-[color:var(--texto-3)]">
             Cuéntanos cómo imaginas tu evento y te decimos qué espacio le queda mejor y si tu
             fecha está libre. O ven a verlo: la visita no cuesta nada.
           </p>

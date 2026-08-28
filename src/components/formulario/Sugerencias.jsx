@@ -57,7 +57,7 @@ export default function Sugerencias({ tipoEvento, personas, disponibles, elegido
                 'inline-flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-[11px] font-light transition-colors',
                 marcado
                   ? 'border-[#C9A84C] bg-[#C9A84C]/15 text-[#C9A84C]'
-                  : 'border-white/10 text-white/45 hover:border-white/30 hover:text-white/70',
+                  : 'border-white/10 text-[color:var(--texto-3)] hover:border-white/30 hover:text-white/70',
               ].join(' ')}
             >
               {/* El icono ocupa su sitio siempre, marcado o no. Si apareciera solo al marcar,

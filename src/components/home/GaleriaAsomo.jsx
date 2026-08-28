@@ -74,7 +74,7 @@ export default function GaleriaAsomo() {
             resalta="tú"
             className="block text-3xl font-extralight tracking-tight text-white/95 sm:text-5xl"
           />
-          <p className="mx-auto mt-5 max-w-xl text-sm font-light leading-relaxed text-white/45 sm:text-base">
+          <p className="mx-auto mt-5 max-w-xl text-sm font-light leading-relaxed text-[color:var(--texto-3)] sm:text-base">
             Ninguna de estas fotos es de banco de imágenes ni de otro lugar. Son de aquí.
           </p>
         </motion.div>

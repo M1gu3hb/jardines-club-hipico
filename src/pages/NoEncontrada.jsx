@@ -43,7 +43,7 @@ export default function NoEncontrada() {
           Esta página<br />no existe
         </h1>
 
-        <p className="mt-8 mx-auto max-w-md text-base font-light leading-relaxed text-white/45">
+        <p className="mt-8 mx-auto max-w-md text-base font-light leading-relaxed text-[color:var(--texto-3)]">
           Puede que el enlace esté roto o que la dirección haya cambiado. El recinto sigue
           donde estaba, eso sí.
         </p>

@@ -82,7 +82,7 @@ export default function EspaciosDestacados() {
             className="block text-3xl font-extralight tracking-tight text-white/95 sm:text-5xl"
           />
 
-          <p className="mx-auto mt-5 max-w-xl text-sm font-light leading-relaxed text-white/45 sm:text-base">
+          <p className="mx-auto mt-5 max-w-xl text-sm font-light leading-relaxed text-[color:var(--texto-3)] sm:text-base">
             Salones cerrados, jardines abiertos, una capilla y un área para los niños. Todo
             dentro del mismo terreno, sin que nadie tenga que trasladarse.
           </p>
@@ -94,7 +94,7 @@ export default function EspaciosDestacados() {
             <EsqueletoTarjetas cuantas={4} columnas="sm:grid-cols-2" />
           </>
         ) : isError ? (
-          <p className="py-10 text-center text-sm font-light text-white/45">
+          <p className="py-10 text-center text-sm font-light text-[color:var(--texto-3)]">
             No pudimos cargar los espacios ahora mismo.{' '}
             <Link to="/contacto" className="text-[#C9A84C] underline underline-offset-4">
               Escríbenos y te los contamos

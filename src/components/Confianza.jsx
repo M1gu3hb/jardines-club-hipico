@@ -112,7 +112,7 @@ export default function Confianza() {
               >
                 {s.valor}
               </span>
-              <span className="text-white/45 text-[10px] sm:text-xs tracking-[0.15em] uppercase mt-2 leading-tight">
+              <span className="text-[color:var(--texto-3)] text-[10px] sm:text-xs tracking-[0.15em] uppercase mt-2 leading-tight">
                 {s.label}
               </span>
             </div>

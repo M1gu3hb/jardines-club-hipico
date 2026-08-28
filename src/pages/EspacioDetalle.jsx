@@ -185,7 +185,7 @@ export default function EspacioDetalle() {
                     {preguntas.map((p, i) => (
                       <div key={i} className="py-5">
                         <dt className="text-sm font-normal text-white/85">{p.pregunta}</dt>
-                        <dd className="mt-2 text-sm font-light leading-relaxed text-white/45">{p.respuesta}</dd>
+                        <dd className="mt-2 text-sm font-light leading-relaxed text-[color:var(--texto-3)]">{p.respuesta}</dd>
                       </div>
                     ))}
                   </dl>
@@ -242,7 +242,7 @@ export default function EspacioDetalle() {
                 </h2>
                 <Link
                   to="/espacios"
-                  className="inline-flex items-center gap-2 text-[10px] font-light tracking-[0.2em] uppercase text-white/45 transition-colors hover:text-[#C9A84C]"
+                  className="inline-flex items-center gap-2 text-[10px] font-light tracking-[0.2em] uppercase text-[color:var(--texto-3)] transition-colors hover:text-[#C9A84C]"
                 >
                   Ver los ocho
                   <ArrowRight size={12} aria-hidden="true" />

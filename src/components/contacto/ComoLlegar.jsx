@@ -62,7 +62,7 @@ export default function ComoLlegar() {
           <div className="skeu-card rounded-2xl p-8">
             <Car size={20} className="text-[#C9A84C]/70" aria-hidden="true" />
             <h3 className="mt-5 text-base font-light text-white/90">Llegando en coche</h3>
-            <p className="mt-3 text-sm font-light leading-relaxed text-white/45">
+            <p className="mt-3 text-sm font-light leading-relaxed text-[color:var(--texto-3)]">
               El estacionamiento está dentro del recinto y es amplio. Los invitados entran
               con el coche: no hay que buscar sitio en la calle ni pagar valet.
             </p>
@@ -71,7 +71,7 @@ export default function ComoLlegar() {
           <div className="skeu-card rounded-2xl p-8">
             <Navigation size={20} className="text-[#C9A84C]/70" aria-hidden="true" />
             <h3 className="mt-5 text-base font-light text-white/90">¿Vienes a conocerlo?</h3>
-            <p className="mt-3 text-sm font-light leading-relaxed text-white/45">
+            <p className="mt-3 text-sm font-light leading-relaxed text-[color:var(--texto-3)]">
               Avísanos antes de venir y te enseñamos los ocho espacios con calma. Un recinto
               se decide viéndolo, y así te aseguras de que haya alguien para atenderte.
             </p>

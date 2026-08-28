@@ -100,7 +100,7 @@ export default function Contacto() {
           <h2 className="text-xl font-light text-white/90">
             ¿Ya sabes qué evento quieres hacer?
           </h2>
-          <p className="mt-3 mx-auto max-w-lg text-sm font-light leading-relaxed text-white/45">
+          <p className="mt-3 mx-auto max-w-lg text-sm font-light leading-relaxed text-[color:var(--texto-3)]">
             El formulario nos deja prepararte una propuesta antes de contestarte, con los
             espacios que le quedan bien a tu número de invitados. Es un minuto.
           </p>

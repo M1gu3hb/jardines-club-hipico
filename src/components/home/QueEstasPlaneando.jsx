@@ -104,7 +104,7 @@ export default function QueEstasPlaneando() {
             * al fondo del asunto: una lista de tipos se lee como un catálogo cerrado, y aquí
             * se han hecho cosas que no caben en ninguna de las categorías. Decirlo aquí
             * cuesta una línea; no decirlo cuesta las visitas que no se ven reflejadas. */}
-          <p className="mx-auto mt-5 max-w-xl text-sm font-light leading-relaxed text-white/45 sm:text-base">
+          <p className="mx-auto mt-5 max-w-xl text-sm font-light leading-relaxed text-[color:var(--texto-3)] sm:text-base">
             Aquí no hay paquetes cerrados. Como lo imagines, así lo armamos — y lo de abajo son
             ejemplos, no una lista de lo único que se puede hacer.
           </p>

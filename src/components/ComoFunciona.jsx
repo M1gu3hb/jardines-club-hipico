@@ -72,7 +72,7 @@ export default function ComoFunciona() {
                   <Icon size={20} className="text-[#C9A84C]" />
                 </div>
                 <h3 className="text-white text-lg font-light mb-2.5">{p.titulo}</h3>
-                <p className="text-white/45 text-sm leading-relaxed">{p.desc}</p>
+                <p className="text-[color:var(--texto-3)] text-sm leading-relaxed">{p.desc}</p>
               </motion.div>
             );
           })}

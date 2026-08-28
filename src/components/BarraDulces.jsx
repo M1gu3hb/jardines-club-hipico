@@ -70,7 +70,7 @@ export default function BarraDulces() {
                 Ahora contamos con{" "}
                 <span style={{ color: "#F5A9C6" }} className="font-normal">Barra de Dulces</span>
               </h3>
-              <p className="text-white/45 text-xs sm:text-sm mt-1">
+              <p className="text-[color:var(--texto-3)] text-xs sm:text-sm mt-1">
                 Dulce Corazón · Carritos de snacks para tu evento
               </p>
             </div>

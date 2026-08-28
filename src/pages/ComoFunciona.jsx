@@ -70,7 +70,7 @@ export default function ComoFunciona() {
                   <Check size={14} className="mt-1 shrink-0 text-[#C9A84C]/70" aria-hidden="true" />
                   <div>
                     <p className="text-sm font-normal text-white/85">{c.titulo}</p>
-                    <p className="mt-1.5 text-sm font-light leading-relaxed text-white/45">{c.texto}</p>
+                    <p className="mt-1.5 text-sm font-light leading-relaxed text-[color:var(--texto-3)]">{c.texto}</p>
                   </div>
                 </div>
               </li>
@@ -125,7 +125,7 @@ export default function ComoFunciona() {
             ))}
           </ul>
 
-          <p className="mt-6 max-w-3xl text-sm font-light leading-relaxed text-white/45">
+          <p className="mt-6 max-w-3xl text-sm font-light leading-relaxed text-[color:var(--texto-3)]">
             {PLANTA_DE_LUZ}
           </p>
         </section>
@@ -161,7 +161,7 @@ export default function ComoFunciona() {
           <h2 className="text-2xl sm:text-3xl font-extralight text-white/90">
             El paso que más pesa es verlo
           </h2>
-          <p className="mt-4 text-sm font-light leading-relaxed text-white/45">
+          <p className="mt-4 text-sm font-light leading-relaxed text-[color:var(--texto-3)]">
             Son más de dos hectáreas. En fotos no se dimensiona, y por eso insistimos tanto en
             la visita: no cuesta nada y no compromete a nada.
           </p>

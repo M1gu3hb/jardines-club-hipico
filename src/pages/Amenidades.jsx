@@ -117,7 +117,7 @@ export default function Amenidades() {
           <h2 className="text-2xl sm:text-3xl font-extralight text-white/90">
             ¿Y lo que hace que el evento salga?
           </h2>
-          <p className="mt-4 text-sm font-light leading-relaxed text-white/45">
+          <p className="mt-4 text-sm font-light leading-relaxed text-[color:var(--texto-3)]">
             El montaje, la coordinación, los alimentos y todo lo que incluye la renta están en
             la otra página.
           </p>

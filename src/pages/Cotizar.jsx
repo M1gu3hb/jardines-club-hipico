@@ -118,7 +118,7 @@ export default function Cotizar() {
               <h2 className="text-[10px] font-light tracking-[0.3em] uppercase text-[#C9A84C]/75">
                 ¿Prefieres hablar?
               </h2>
-              <p className="mt-3 text-sm font-light leading-relaxed text-white/45">
+              <p className="mt-3 text-sm font-light leading-relaxed text-[color:var(--texto-3)]">
                 Hay quien no quiere llenar formularios, y se entiende. Escríbenos o llámanos
                 directo.
               </p>
@@ -163,7 +163,7 @@ function Paso({ n, titulo, children }) {
       <span className="text-[#C9A84C]/40 text-xs font-light tabular-nums pt-1">{n}</span>
       <span>
         <span className="block text-sm font-normal text-white/85">{titulo}</span>
-        <span className="mt-1.5 block text-sm font-light leading-relaxed text-white/45">
+        <span className="mt-1.5 block text-sm font-light leading-relaxed text-[color:var(--texto-3)]">
           {children}
         </span>
       </span>
