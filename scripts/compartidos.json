@@ -98,6 +98,11 @@
       ]
     },
     {
+      "ruta": "scripts/medir-contraste-pantallas.mjs",
+      "sha256": "94b20251a49ace1001ff0ba5a706f564ae6b28bc670abe0fae04cda2f80a05ea",
+      "motivo": "mide que literales de color de TEXTO quedan por debajo de 4.5:1. Byte a byte en los tres porque el problema NO es solo del CRM: medido, el sitio publico tiene 70 ocurrencias y el portal 103, frente a las 43 del CRM. Un medidor que solo vive donde el problema es menor no sirve de nada"
+    },
+    {
       "ruta": "src/api/base44Client.js",
       "sha256": "e95112528b143aeca237295533b478f95e12707f616217edb35767aa604be8fa",
       "tambienEn": [
