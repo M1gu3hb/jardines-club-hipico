@@ -99,7 +99,7 @@
     },
     {
       "ruta": "src/api/base44Client.js",
-      "sha256": "64df669c54a6c650d5063c96b6864d9e76429478a44479eb972720a59a35405d",
+      "sha256": "ff62b118a50ccf64192c1f7723fe8f058190ee70825cbe91c3266d08a9b8fe4f",
       "tambienEn": [
         "portal",
         "crm"
