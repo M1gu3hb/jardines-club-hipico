@@ -16,6 +16,29 @@
 import { readFileSync, readdirSync } from "node:fs";
 import { createHash } from "node:crypto";
 
+/* ════════════════════════════════════════════════════════════════════════════
+ * ESTA SUITE FALLA CERRADA
+ * ════════════════════════════════════════════════════════════════════════════
+ *
+ * Si un `await` de nivel superior no se resuelve —un contrato que ejecuta una función y esa
+ * función se olvida de resolver su promesa— Node imprime «Detected unsettled top-level await»,
+ * **no ejecuta la última línea** y sale con **código 0**. Es decir: la puerta da VERDE sobre una
+ * suite que ni siquiera terminó de correr.
+ *
+ * No es teórico. Ocurrió el 2026-08-28 en el portal, validando mutando un contrato que ejecuta
+ * el lector del cuerpo de una subida: se repuso la versión rota, la suite se quedó colgada en
+ * ese `await`, imprimió el aviso y salió con 0. Ni una línea de «FALLA», ni recuento, ni código
+ * de error. El CI lo habría dado por bueno.
+ *
+ * El arreglo es de una línea y no depende de que nadie se acuerde: se sale con 1 desde el primer
+ * instante, y solo la última línea del archivo —la que ya cuenta los fallos— tiene permiso para
+ * bajarlo a 0. Cualquier camino que no llegue hasta ahí deja el 1 puesto.
+ *
+ * Va en los tres repos aunque las tres suites sean archivos PROPIOS y no copias: el modo de
+ * fallo es del intérprete, no del contenido.
+ */
+process.exitCode = 1;
+
 const leer = (p) => readFileSync(new URL(`../${p}`, import.meta.url), "utf8");
 const leerDir = (p) => readdirSync(new URL(`../${p}`, import.meta.url));
 /**
