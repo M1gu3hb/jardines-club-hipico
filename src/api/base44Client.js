@@ -65,12 +65,29 @@ const TABLES = {
   EventoNota: "evento_notas",
   Notificacion: "notificaciones",
   Rsvp: "rsvps",
+  // LAS DOS DE LA INVITACION, desde la FASE 3 del portal (`sec_53`, `sec_54`, `sec_62`).
+  //
+  //   · `Invitacion` es la invitacion del CLIENTE —una por evento—, no el boleto del invitado.
+  //     El cliente la LEE de aqui; para escribirla no vale `entities.Invitacion.update`: sus
+  //     policies exigen `is_admin()`, asi que la escritura va por la RPC `invitacion_editar`.
+  //     El shim devolveria el parche como si se hubiera guardado (regla 10), y ese es
+  //     exactamente el P0 que ya costo meses en esta misma pantalla.
+  //
+  //   · `PlantillaInvitacion` es el catalogo del CMS. Lectura publica de lo activo.
+  //
+  // Y estan aqui, y no en cada aplicacion, porque el Proxy se tipa con `keyof typeof TABLES`:
+  // una entidad que no figure en esta lista da TS2339 en el typecheck y, en runtime, consulta
+  // una tabla inexistente que `runQuery` convierte en `[]` **en silencio**. Es el fallo que la
+  // cabecera del Proxy describe, y esta es la lista que lo impide.
+  Invitacion: "invitacion",
+  PlantillaInvitacion: "plantillas_invitacion",
 };
 
 // Tablas con columna `orden` (para ordenar por defecto cuando no se pasa sort).
 const CON_ORDEN = new Set([
   "salones", "galeria", "servicios", "amenidades", "servicios_extra", "alimentos",
   "resenas", "mesas", "cronograma", "items_contratados", "tipos_evento", "anuncios",
+  "plantillas_invitacion",
 ]);
 
 const toSnake = (s) => s.replace(/([A-Z])/g, (m) => "_" + m.toLowerCase());
