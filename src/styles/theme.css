@@ -7,6 +7,130 @@
    ============================================================ */
 @import url('https://fonts.googleapis.com/css2?family=Inter:wght@100;200;300;400;500&display=swap');
 
+/* ════════════════════════════════════════════════════════════════════════════
+   LA ESCALA · una sola, para las tres aplicaciones
+   ════════════════════════════════════════════════════════════════════════════
+
+   POR QUÉ ESTÁ AQUÍ Y NO EN CADA APLICACIÓN
+
+   Hasta el 2026-08-28 el CRM tenía una escala completa y razonada en `panel.css`, el sitio
+   público no tenía ninguna, y el portal tampoco: sus dorados vivían como **diez hex distintos
+   sin nombre** repartidos por este archivo y por las clases de Tailwind. Diez dorados sin
+   nombre no son una paleta, son diez decisiones que nadie volvió a tomar.
+
+   Esta escala **no es nueva**: son los valores de `panel.css`, promovidos tal cual. Inventar
+   una segunda habría sido la tercera verdad sobre el mismo dorado, que es exactamente el fallo
+   que este proyecto ya pagó con las reglas de contraseña y con las formas de mesa.
+
+   Como los valores son idénticos a los que `panel.css` sigue definiendo después, el CRM **no
+   cambia ni un píxel**. Cuando sus duplicados se retiren, seguirá viéndose igual.
+
+   ── LO QUE **NO** ESTÁ AQUÍ, Y ES A PROPÓSITO ──────────────────────────────
+
+   La **escala tipográfica** y la **duración del movimiento** viven en cada aplicación, no aquí.
+   No es un olvido: los dos registros son opuestos y está escrito en `07-DISENO.md` §3.
+
+     el CRM      se juzga por clics por operación. Lo abre el dueño cuarenta veces al día.
+                 Cuerpo de 13 px, saltos cortos, 140 ms.
+     el portal   lo abre la clienta tres o cuatro veces en su vida, con ilusión, y en un
+                 teléfono. Cuerpo de 16 px como MÍNIMO —por debajo, iOS hace zoom solo al
+                 enfocar un campo— y aire entre las cosas.
+
+   Compartir el color y separar el tamaño es deliberado: un componente común —`MesaEditor` lo
+   es— hereda el registro de la aplicación que lo aloja, que es lo correcto.
+
+   ── EL CONTRASTE ESTÁ MEDIDO, NO ESTIMADO ──────────────────────────────────
+
+   El número junto a cada color es su contraste WCAG 2.1 contra `--fondo`, calculado por
+   `scripts/medir-contraste-tokens.mjs` (portal). Si alguno se toca, hay que volver a medirlo.
+
+   Y una corrección de las que motivan tener el script: `panel.css` documentaba `--peligro` como
+   7.52:1. Medido con código independiente, son **7.16:1**. Sigue pasando de sobra, pero el
+   número no había salido de una medición. Los de `--texto-2` y `--texto-3` difieren en la
+   segunda decimal según se redondee el compuesto alfa antes o después; aquí se anota el valor
+   con el compuesto redondeado a enteros, que es lo que la pantalla pinta de verdad.
+   ════════════════════════════════════════════════════════════════════════════ */
+:root {
+  /* ── FONDOS · cuatro niveles y no más ──────────────────────────────────────
+     La diferencia entre ellos es deliberadamente pequeña. En una interfaz oscura la jerarquía
+     la dan los BORDES, no el relleno: escalones marcados convierten cada tarjeta en una caja
+     gris y matan la sensación de superficie continua. */
+  --fondo:            #0a0a0a;   /* el lienzo */
+  --fondo-hundido:    #060606;   /* barras, cabeceras, pozos */
+  --superficie:       #101010;   /* tarjetas, filas */
+  --superficie-alta:  #161616;   /* lo que flota sobre una tarjeta: hoja, menú, modal */
+
+  /* ── LÍNEAS · lo que separa ────────────────────────────────────────────────
+     No llevan información, así que no tienen mínimo de contraste de texto — pero sí un máximo
+     implícito: una rejilla de líneas fuertes compite con el contenido.
+
+     OJO con el borde dorado: medido, `rgba(201,168,76,.18)` sobre una tarjeta da **1.38:1**, y
+     `.22` sobre el panel de cristal da **1.46:1**. Los dos están por debajo de lo que se
+     distingue, así que el filo «premium» que hoy lleva cada tarjeta del portal es ruido, no un
+     borde. Por eso `--oro-borde` es .28 y no .18. */
+  --linea:            rgba(255, 255, 255, 0.07);
+  --linea-fuerte:     rgba(255, 255, 255, 0.13);
+  --oro-borde:        rgba(201, 168, 76, 0.28);
+  --oro-borde-vivo:   rgba(201, 168, 76, 0.55);
+
+  /* ── VELOS · fondos teñidos ────────────────────────────────────────────────
+     La fila seleccionada, el chip activo, la zona de peligro. */
+  --oro-velo:         rgba(201, 168, 76, 0.09);
+  --oro-velo-fuerte:  rgba(201, 168, 76, 0.16);
+  --peligro-velo:     rgba(248, 113, 113, 0.09);
+
+  /* ── TEXTO · TRES niveles, y el tercero sigue siendo legible ───────────────
+     Solo tres a propósito. Un cuarto obligaría a bajar de 4.5:1, que es exactamente como
+     aparecen los `white/40` y `white/35` que hoy son ilegibles —medido: `white/40` sobre una
+     tarjeta da **3.81:1**—. Si hace falta más jerarquía se usa el TAMAÑO o el PESO, que no
+     cuestan contraste. */
+  --texto:            #ffffff;                      /* 19.80:1 — títulos, cifras */
+  --texto-2:          rgba(255, 255, 255, 0.72);    /* 10.20:1 — cuerpo */
+  --texto-3:          rgba(255, 255, 255, 0.55);    /*  6.28:1 — secundario, el más tenue */
+
+  /* ── EL DORADO · tres, con su papel escrito ────────────────────────────────
+     Y una corrección medida al propio plan: `07-DISENO.md` §8 dice que «el dorado sobre negro es
+     justo el par que falla». **No falla.** `#c9a84c` sobre el lienzo da 8.66:1 y pasa incluso
+     como cuerpo. Lo que sí falla es el dorado a baja opacidad usado de borde, y el gris claro
+     de toda la vida. El diagnóstico estaba en el color equivocado. */
+  --oro:              #c9a84c;                      /*  8.66:1 — acento, enlaces, activo */
+  --oro-claro:        #e6c870;                      /* 12.12:1 — hover del acento */
+  --oro-hundido:      #a88532;                      /*  5.72:1 — pulsado, acento en reposo */
+
+  /* ── SEMÁNTICOS ────────────────────────────────────────────────────────────
+     Nunca solos: el color no puede ser el único medio. Van siempre con icono o con palabra. */
+  --peligro:          #f87171;                      /*  7.16:1 — destructivo */
+  --exito:            #4ade80;                      /* 11.36:1 — confirmación */
+
+  /* ── RADIOS · tres ─────────────────────────────────────────────────────────
+     Había siete valores distintos en uso, más un `border-radius: 20px` escrito a mano dentro
+     de `.skeu-card` que sigue ahí abajo. */
+  --r-chico:          6px;    /* chips, badges, campos */
+  --r:                10px;   /* tarjetas, botones, filas */
+  --r-grande:         16px;   /* modales, paneles, hojas */
+
+  /* ── SOMBRAS · dos ─────────────────────────────────────────────────────────
+     Antes cada clase llevaba su propia pila de cuatro capas escrita a mano. Una sombra dice
+     «esto está por encima». Nada más. */
+  --sombra:           0 1px 2px rgba(0, 0, 0, 0.5);
+  --sombra-alta:      0 8px 28px rgba(0, 0, 0, 0.65);
+
+  /* ── CAPAS · una escala semántica, no números sueltos ──────────────────────
+     Medido antes de escribir esto, en los dos repos con interfaz: `z-10`, `z-40`, `z-50`,
+     `z-[60]`, `z-[70]`, `z-[100]` y `z-[300]`. Siete valores y ningún orden: nadie puede saber
+     si una hoja va por encima de un menú sin abrir los dos.
+
+     El orden es el de la interacción: lo que interrumpe va encima de lo que acompaña. */
+  --capa-base:        0;
+  --capa-fija:       10;   /* barras que acompañan al scroll */
+  --capa-dock:       20;   /* la navegación del teléfono */
+  --capa-menu:       30;   /* desplegables anclados a un control */
+  --capa-velo:       40;   /* el oscurecido que aísla lo de arriba */
+  --capa-hoja:       50;   /* hojas y modales */
+  --capa-aviso:      60;   /* toasts: tienen que verse sobre un modal */
+  --capa-pista:      70;   /* tooltips: lo último que se dibuja */
+}
+
 *, *::before, *::after { box-sizing: border-box; }
 
 html, body {
