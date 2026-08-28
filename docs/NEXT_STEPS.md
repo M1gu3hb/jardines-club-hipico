@@ -74,7 +74,7 @@ borrado de una invitación. No la bloquea nada de la separación.
 > No toca datos.
 >
 > Batería: `lint` 0, `build` exit 0, `test:contratos` **278/278**, `typecheck` 59 (línea base).
-> Migraciones `sec_01..25`, Vero intacto. **`sec_27` recomendada y no aplicada** (J-13; era `sec_26`, renumerada porque `sec_26` pasa a ser la RPC de la invitación). **`sec_26` escrita y no aplicada** (J-14). Lo único que impide declarar el proyecto cerrado es el §1.
+> Migraciones `sec_01..25`, Vero intacto. **`sec_27` recomendada y no aplicada** (J-13; era `sec_26`, renumerada porque `sec_26` pasa a ser la RPC de la invitación). ~~**`sec_26` escrita y no aplicada** (J-14)~~ → **APLICADA** el 2026-08-05 (ledger `20260805042714`), y `authenticated` tiene `EXECUTE` sobre `jardines.invitacion_guardar`. Comprobado contra la base el 2026-08-27 con `has_function_privilege`. **J-14 cerrado.**
 
 ## Urgente — bloquea el cierre del proyecto
 

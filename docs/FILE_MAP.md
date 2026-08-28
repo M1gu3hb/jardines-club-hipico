@@ -228,9 +228,11 @@ scroll, D8). `hooks/useBackButtonClose.js`, `hooks/use-mobile.jsx`.
 
 ## `supabase/`
 
-- `migrations/20260805120000_jardines_sec_26_invitacion_cliente.sql` — **ESCRITA Y NO
-  APLICADA.** RPC `jardines.invitacion_guardar` para que el cliente pueda activar su invitación
-  digital (J-14). Es una decisión de producto del dueño; ensayada en un bloque revertido.
+- `migrations/20260805120000_jardines_sec_26_invitacion_cliente.sql` — **APLICADA** el
+  2026-08-05 (ledger `20260805042714`). RPC `jardines.invitacion_guardar`, para que el cliente
+  active su invitación digital sin relajar `eventos_upd` —que sigue exigiendo `is_admin()`, y ese
+  es el acierto—. Cerraba J-14. Este renglón decía «ESCRITA Y NO APLICADA» tres semanas después
+  de aplicarse; corregido el 2026-08-27 contra el ledger, no contra un documento.
 - `migrations/*.sql` — 24 migraciones forward-only `jardines_sec_01..25` aplicadas. **No reescribir las
   aplicadas.**
 - `tests/seguridad.sql` — suite en `BEGIN/ROLLBACK`, datos sintéticos con prefijo `sint-`.
