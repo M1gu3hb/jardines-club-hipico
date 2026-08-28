@@ -76,7 +76,7 @@ export default function BloqueAvisos() {
                     {a.titulo}
                   </span>
                   {a.resumen && (
-                    <span className="mt-1.5 block line-clamp-3 text-sm font-light leading-relaxed text-white/40">
+                    <span className="mt-1.5 block line-clamp-3 text-sm font-light leading-relaxed text-[color:var(--texto-3)]">
                       {a.resumen}
                     </span>
                   )}

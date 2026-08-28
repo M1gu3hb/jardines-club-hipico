@@ -12,6 +12,9 @@ function Estrellas({ n = 5, size = 13 }) {
         <Star
           key={i}
           size={size}
+          // La estrella APAGADA se queda en white/15 a proposito: no es informacion, es el
+          // riel sobre el que se lee la dorada. Subirla a 6.28:1 haria que un 3/5 se leyera
+          // casi como un 5/5, que es justo lo contrario de lo que la calificacion dice.
           className={i < Math.round(n) ? "text-[#E6C870]" : "text-white/15"}
           fill={i < Math.round(n) ? "#E6C870" : "transparent"}
         />
@@ -30,6 +33,9 @@ function ReseñaCard({ r }) {
       <p className="text-white/70 text-sm leading-relaxed mt-3 mb-4 flex-1">“{r.texto}”</p>
       <div className="flex items-center gap-3 pt-3 border-t border-white/5">
         <div
+          // `text-[#1a1208]` va sobre el degradado dorado del `style` de abajo (#E2C266 →
+          // #A88532), no sobre el fondo del tema: el medidor no lee `background` y lo da a
+          // 1.07:1, pero el par real pasa de 8:1.
           className="w-9 h-9 rounded-full flex items-center justify-center text-[#1a1208] text-sm font-semibold flex-shrink-0"
           style={{ background: "linear-gradient(180deg, #E2C266, #A88532)" }}
         >
@@ -37,7 +43,7 @@ function ReseñaCard({ r }) {
         </div>
         <div className="min-w-0">
           <p className="text-white/80 text-xs font-medium truncate">{r.autor}</p>
-          {r.evento && <p className="text-[#C9A84C]/60 text-[11px] truncate">{r.evento}</p>}
+          {r.evento && <p className="text-[color:var(--oro)] text-[11px] truncate">{r.evento}</p>}
         </div>
       </div>
     </div>

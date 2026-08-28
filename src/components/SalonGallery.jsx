@@ -95,7 +95,7 @@ function Lightbox({ items, startIdx, onClose }) {
       <div className="flex items-center justify-between px-5 py-3 flex-shrink-0" style={{ borderBottom: "1px solid rgba(255,255,255,0.05)" }}>
         <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
           <div style={{ height: 1, width: 20, background: "rgba(201,168,76,0.4)" }} />
-          <span style={{ color: "rgba(201,168,76,0.6)", fontSize: 10, letterSpacing: "0.3em", textTransform: "uppercase" }}>
+          <span style={{ color: "var(--oro)", fontSize: 10, letterSpacing: "0.3em", textTransform: "uppercase" }}>
             {idx + 1} / {totalItems}
           </span>
         </div>
@@ -289,7 +289,7 @@ export default function SalonGallery({ galeria, heroIdx, onThumbClick }) {
       <div>
         <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 12 }}>
           <div style={{ height: 1, width: 24, background: "rgba(201,168,76,0.3)" }} />
-          <span style={{ color: "rgba(201,168,76,0.5)", fontSize: 10, letterSpacing: "0.25em", textTransform: "uppercase" }}>
+          <span style={{ color: "var(--oro)", fontSize: 10, letterSpacing: "0.25em", textTransform: "uppercase" }}>
             Galería · {galeria.length} fotos
           </span>
         </div>

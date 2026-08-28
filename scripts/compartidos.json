@@ -91,13 +91,6 @@
       ]
     },
     {
-      "ruta": "public/sw.js",
-      "sha256": "afa25969d3bef449211ef4c6895a6bfd177923fb137f2f6f74824f666558abb5",
-      "tambienEn": [
-        "portal"
-      ]
-    },
-    {
       "ruta": "scripts/medir-contraste-pantallas.mjs",
       "sha256": "94b20251a49ace1001ff0ba5a706f564ae6b28bc670abe0fae04cda2f80a05ea",
       "motivo": "mide que literales de color de TEXTO quedan por debajo de 4.5:1. Byte a byte en los tres porque el problema NO es solo del CRM: medido, el sitio publico tiene 70 ocurrencias y el portal 103, frente a las 43 del CRM. Un medidor que solo vive donde el problema es menor no sirve de nada"
@@ -127,7 +120,7 @@
     },
     {
       "ruta": "src/components/MediaViewer.jsx",
-      "sha256": "e2987808bf66ed711a72d961382aa036733c953835a3b19fcde94ca4c2dd6ee2",
+      "sha256": "202ed6e824ad6c207cf18dd23739a1dbf8322484739f1c3f969653f5577b4f78",
       "tambienEn": [
         "portal",
         "crm"
@@ -398,6 +391,10 @@
     {
       "ruta": "public/manifest.webmanifest",
       "motivo": "existe en otro repo pero ADAPTADO aqui"
+    },
+    {
+      "ruta": "public/sw.js",
+      "motivo": "el service worker es de CADA aplicacion, no comun. Su estrategia de cache depende de lo que sirve: el portal tiene sesion, armazon que cachear y pantalla propia de sin conexion; el sitio publico no tiene sesion y es estatico. Eran identicos solo porque los dos eran el mismo passthrough de nueve lineas que no cacheaba nada -- una coincidencia, no un contrato. El de este repo sigue siendo el passthrough de nueve lineas: cambiarlo es su propio trabajo"
     },
     {
       "ruta": "rediseño-sitio-web/00-LEEME.md",

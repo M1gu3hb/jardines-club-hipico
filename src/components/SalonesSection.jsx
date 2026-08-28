@@ -61,7 +61,7 @@ export default function SalonesSection({ salones, onSelectSalon }) {
               <div className="h-px w-12 sm:w-16 bg-gradient-to-l from-transparent to-[#C9A84C]/50" />
             </div>
             <h2 className="text-4xl sm:text-5xl md:text-6xl font-thin text-white mb-4">Salones</h2>
-            <p className="text-white/40 text-sm tracking-wider max-w-md mx-auto px-4">
+            <p className="text-[color:var(--texto-3)] text-sm tracking-wider max-w-md mx-auto px-4">
               Cada espacio diseñado para crear momentos únicos e inolvidables
             </p>
           </motion.div>
@@ -71,7 +71,7 @@ export default function SalonesSection({ salones, onSelectSalon }) {
               <p className="text-white/70 text-sm">
                 No pudimos cargar la lista de espacios en este momento.
               </p>
-              <p className="text-white/40 text-xs mt-2 leading-relaxed">
+              <p className="text-[color:var(--texto-3)] text-xs mt-2 leading-relaxed">
                 Tenemos ocho espacios, de 30 a 600 personas. Escríbenos y te contamos cuál encaja
                 con tu evento.
               </p>

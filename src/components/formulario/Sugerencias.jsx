@@ -38,7 +38,7 @@ export default function Sugerencias({ tipoEvento, personas, disponibles, elegido
         Para un evento así solemos ofrecer
       </legend>
 
-      <p className="mt-1 mb-3 text-[11px] font-light leading-relaxed text-white/35">
+      <p className="mt-1 mb-3 text-[11px] font-light leading-relaxed text-[color:var(--texto-3)]">
         Marca lo que te llame la atención y lo incluimos en tu cotización. Nada de esto te
         compromete, y no marcar nada también está bien.
       </p>
@@ -75,7 +75,7 @@ export default function Sugerencias({ tipoEvento, personas, disponibles, elegido
       </div>
 
       {porTamano.map((motivo) => (
-        <p key={motivo} className="mt-3 text-[11px] font-light leading-relaxed text-white/40">
+        <p key={motivo} className="mt-3 text-[11px] font-light leading-relaxed text-[color:var(--texto-3)]">
           {motivo}
         </p>
       ))}
@@ -109,7 +109,7 @@ export default function Sugerencias({ tipoEvento, personas, disponibles, elegido
  */
 export function InvitacionAVer() {
   return (
-    <p className="rounded-2xl border border-white/5 bg-white/[0.02] px-4 py-3 text-[11px] font-light leading-relaxed text-white/40">
+    <p className="rounded-2xl border border-white/5 bg-white/[0.02] px-4 py-3 text-[11px] font-light leading-relaxed text-[color:var(--texto-3)]">
       ¿Prefieres verlo con fotos antes de decidir?{' '}
       <Link to="/amenidades" className="text-[#C9A84C]/85 underline underline-offset-4">
         Mira las amenidades

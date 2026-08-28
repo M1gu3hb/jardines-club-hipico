@@ -141,7 +141,7 @@ export default function RecomendadosDelEvento({ tipo, espacios = [] }) {
                     </div>
 
                     {s.descripcion && (
-                      <p className="line-clamp-2 px-5 py-4 text-sm font-light leading-relaxed text-white/40">
+                      <p className="line-clamp-2 px-5 py-4 text-sm font-light leading-relaxed text-[color:var(--texto-3)]">
                         {s.descripcion}
                       </p>
                     )}
@@ -212,7 +212,7 @@ export default function RecomendadosDelEvento({ tipo, espacios = [] }) {
                           {item.titulo}
                         </p>
                         {item.descripcion && (
-                          <p className="mt-1 line-clamp-2 text-xs font-light leading-relaxed text-white/40">
+                          <p className="mt-1 line-clamp-2 text-xs font-light leading-relaxed text-[color:var(--texto-3)]">
                             {item.descripcion}
                           </p>
                         )}
@@ -224,6 +224,8 @@ export default function RecomendadosDelEvento({ tipo, espacios = [] }) {
             )}
 
             <div className="mt-10 flex flex-col items-start gap-3 sm:flex-row sm:items-center">
+              {/* El medidor compara todo contra el fondo #0a0a0a y por eso marca este tinte: aquí
+                  va sobre el degradado dorado de .skeu-gold-btn, y ese par real no baja de 5.3:1. */}
               <Link
                 to={`/cotizar?evento=${encodeURIComponent(tipo.slug)}`}
                 className="skeu-gold-btn inline-flex items-center gap-2 rounded-full px-7 py-3.5 text-xs font-medium tracking-[0.16em] uppercase text-[#1a1408]"

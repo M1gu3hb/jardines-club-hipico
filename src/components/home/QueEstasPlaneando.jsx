@@ -219,7 +219,7 @@ function Tarjeta({ tipo }) {
           {tipo.nombre}
         </h3>
 
-        <p className="mt-2.5 flex-1 text-sm font-light leading-relaxed text-white/40">
+        <p className="mt-2.5 flex-1 text-sm font-light leading-relaxed text-[color:var(--texto-3)]">
           {tipo.descripcionCorta || 'Cuéntanos cómo lo imaginas y te decimos qué espacio le queda mejor.'}
         </p>
 

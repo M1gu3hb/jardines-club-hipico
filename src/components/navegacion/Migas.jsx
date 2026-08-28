@@ -65,13 +65,13 @@ export default function Migas({ clave, nombreFinal }) {
           const ultimo = i === eslabones.length - 1;
           return (
             <li key={r.clave} className="flex items-center gap-1">
-              {i > 0 && <ChevronRight size={11} className="text-[#C9A84C]/35" aria-hidden="true" />}
+              {i > 0 && <ChevronRight size={11} className="text-[color:var(--oro-hundido)]" aria-hidden="true" />}
               {ultimo ? (
                 <span className="text-[#C9A84C]" aria-current="page">{r.nombre}</span>
               ) : (
                 <Link
                   to={r.ruta}
-                  className="text-white/40 transition-colors hover:text-white/75 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#C9A84C]/60 rounded-sm"
+                  className="text-[color:var(--texto-3)] transition-colors hover:text-white/75 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#C9A84C]/60 rounded-sm"
                 >
                   {r.nombre}
                 </Link>

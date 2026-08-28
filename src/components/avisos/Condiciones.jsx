@@ -89,7 +89,7 @@ export default function Condiciones() {
           ))}
         </ul>
 
-        <p className="mt-8 text-xs font-light leading-relaxed text-white/30">
+        <p className="mt-8 text-xs font-light leading-relaxed text-[color:var(--texto-3)]">
           Estas condiciones son las que aplicamos siempre. Lo particular de tu evento —montaje,
           proveedores, horarios especiales— se acuerda contigo y queda por escrito en el
           contrato.

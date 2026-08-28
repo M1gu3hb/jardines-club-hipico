@@ -155,7 +155,11 @@ export default function SplashScreen({ logoUrl, onFinish }) {
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             transition={{ delay: 1.4, duration: 0.8 }}
-            style={{ position: "absolute", bottom: 24, color: "rgba(255,255,255,0.15)", fontSize: 9, letterSpacing: "0.4em", textTransform: "uppercase" }}
+            /* Iba en blanco al 15% — 1.47:1, por debajo de lo que un ojo distingue del negro. No es
+               atmósfera: es una frase que se lee y que el lector de pantalla anuncia (no lleva
+               `aria-hidden`, a diferencia del nombre de arriba). A 9 px y con 0.4em de espaciado ya
+               es lo más tenue de la pantalla; el contraste no tenía por qué añadirse a eso. */
+            style={{ position: "absolute", bottom: 24, color: "var(--texto-3)", fontSize: 9, letterSpacing: "0.4em", textTransform: "uppercase" }}
           >
             Momentos Únicos e Inolvidables
           </motion.p>

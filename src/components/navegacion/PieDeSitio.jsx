@@ -36,7 +36,7 @@ function EnlacePortal() {
   const destino = import.meta.env.VITE_URL_PORTAL || '/portal';
   const esOtraApp = /^https?:[/][/]/.test(destino);
   const clases =
-    'inline-flex items-center gap-2 text-[10px] font-light tracking-[0.2em] uppercase text-white/30 transition-colors hover:text-[#C9A84C] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#C9A84C]/60 rounded-sm';
+    'inline-flex items-center gap-2 text-[10px] font-light tracking-[0.2em] uppercase text-[color:var(--texto-3)] transition-colors hover:text-[#C9A84C] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#C9A84C]/60 rounded-sm';
 
   // Una URL absoluta es otra aplicación: hay que SALIR del enrutador, no navegar dentro de él.
   if (esOtraApp) {
@@ -95,8 +95,8 @@ export default function PieDeSitio() {
 
           <div>
             <p className="text-[#F5E3A0] text-base font-light tracking-[0.26em] uppercase">Jardines</p>
-            <p className="text-white/35 text-[10px] font-light tracking-[0.4em] uppercase">Club Hípico</p>
-            <p className="mt-6 max-w-xs text-sm font-light leading-relaxed text-white/40">
+            <p className="text-[color:var(--texto-3)] text-[10px] font-light tracking-[0.4em] uppercase">Club Hípico</p>
+            <p className="mt-6 max-w-xs text-sm font-light leading-relaxed text-[color:var(--texto-3)]">
               Ocho espacios en un mismo recinto de Xochimilco: jardines, salones, capilla,
               área infantil y estancias para hospedaje.
             </p>
@@ -132,19 +132,21 @@ export default function PieDeSitio() {
                   rel="noopener noreferrer"
                   className="group flex items-start gap-3 text-white/45 transition-colors hover:text-white/80"
                 >
-                  <MapPin size={14} className="mt-0.5 shrink-0 text-[#C9A84C]/60" aria-hidden="true" />
+                  {/* Los tres iconos de contacto van en oro hundido, no en oro pleno: forman una columna
+                      que se repite, y a 8.66:1 la marca pesaria mas que la direccion o el telefono. */}
+                  <MapPin size={14} className="mt-0.5 shrink-0 text-[color:var(--oro-hundido)]" aria-hidden="true" />
                   <span>{UBICACION}</span>
                 </a>
               </li>
               <li>
                 <a href={telHref} className="flex items-center gap-3 text-white/45 transition-colors hover:text-white/80">
-                  <Phone size={14} className="shrink-0 text-[#C9A84C]/60" aria-hidden="true" />
+                  <Phone size={14} className="shrink-0 text-[color:var(--oro-hundido)]" aria-hidden="true" />
                   <span>{TELEFONO}</span>
                 </a>
               </li>
               <li>
                 <a href={`mailto:${CORREO}`} className="flex items-center gap-3 text-white/45 transition-colors hover:text-white/80 break-all">
-                  <Mail size={14} className="shrink-0 text-[#C9A84C]/60" aria-hidden="true" />
+                  <Mail size={14} className="shrink-0 text-[color:var(--oro-hundido)]" aria-hidden="true" />
                   <span>{CORREO}</span>
                 </a>
               </li>
@@ -153,7 +155,7 @@ export default function PieDeSitio() {
         </div>
 
         <div className="mt-12 flex flex-col gap-4 border-t border-white/5 pt-6 sm:flex-row sm:items-center sm:justify-between">
-          <p className="text-[10px] font-light tracking-[0.14em] text-white/25">
+          <p className="text-[10px] font-light tracking-[0.14em] text-[color:var(--texto-3)]">
             © {anio} Jardines Club Hípico · Xochimilco, Ciudad de México
           </p>
 

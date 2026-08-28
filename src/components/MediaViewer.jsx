@@ -157,7 +157,7 @@ export default function MediaViewer({ items, startIdx = 0, onClose, autoPlayVide
                 className={`h-0.5 transition-all ${i === current ? "w-6 bg-[#C9A84C]" : "w-2 bg-white/20"}`} />
             ))}
           </div>
-          <span className="text-white/30 text-xs tracking-widest">{current + 1} / {items.length}</span>
+          <span className="text-[color:var(--texto-3)] text-xs tracking-widest">{current + 1} / {items.length}</span>
         </div>
       )}
     </motion.div>

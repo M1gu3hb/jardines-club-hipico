@@ -337,7 +337,7 @@ export default function FormularioModal({
           <p style={{ color: "rgba(201,168,76,0.8)", fontSize: 14, marginBottom: 6 }}>
             Folio: <strong>{folio}</strong>
           </p>
-          <p style={{ color: "rgba(255,255,255,0.4)", fontSize: 13, marginBottom: 28, lineHeight: 1.6 }}>
+          <p style={{ color: "var(--texto-3)", fontSize: 13, marginBottom: 28, lineHeight: 1.6 }}>
             Nos comunicaremos contigo a la brevedad. Para una atención más rápida y personalizada, escríbenos por WhatsApp.
           </p>
           <a href={waLink} target="_blank" rel="noopener noreferrer"
@@ -413,10 +413,10 @@ export default function FormularioModal({
             ) : (
               <h2 className="text-white font-light tracking-wide text-lg">Cotiza tu evento</h2>
             )}
-            <p className="text-white/30 text-xs mt-0.5">Sin costo · Te respondemos en menos de 24h</p>
+            <p className="text-[color:var(--texto-3)] text-xs mt-0.5">Sin costo · Te respondemos en menos de 24h</p>
           </div>
           {!enPagina && (
-            <button onClick={() => { try { playSound("close"); } catch (e) {} onClose(); }} className="text-white/30 hover:text-white transition-colors">
+            <button onClick={() => { try { playSound("close"); } catch (e) {} onClose(); }} className="text-[color:var(--texto-3)] hover:text-white transition-colors">
               <X size={20} />
             </button>
           )}
@@ -433,14 +433,16 @@ export default function FormularioModal({
                     onClick={() => { set("salonSeleccionado", s); try { playSound("click"); } catch (e) {} setStep(1); }}
                     className="w-full flex items-center justify-between px-5 py-4 border border-white/10 hover:border-[#C9A84C]/50 hover:bg-[#C9A84C]/5 text-white/70 hover:text-white transition-all text-sm text-left rounded-xl">
                     <span>{s}</span>
-                    <ChevronRight size={16} className="text-[#C9A84C]/50" />
+                    {/* Oro hundido y no oro pleno: el galon solo avisa de que la fila lleva a algun
+                        sitio, y a 8.66:1 pesaria mas que el nombre del salon, que es lo que se lee. */}
+                    <ChevronRight size={16} className="text-[color:var(--oro-hundido)]" />
                   </button>
                 ))}
                 <button type="button"
                   onClick={() => { set("salonSeleccionado", ""); try { playSound("click"); } catch (e) {} setStep(1); }}
                   className="w-full flex items-center justify-between px-5 py-4 border border-dashed border-[#C9A84C]/30 hover:border-[#C9A84C]/60 hover:bg-[#C9A84C]/5 text-[#C9A84C]/80 transition-all text-sm text-left rounded-xl">
                   <span>Aún no lo decido — ayúdenme a elegir</span>
-                  <ChevronRight size={16} className="text-[#C9A84C]/50" />
+                  <ChevronRight size={16} className="text-[color:var(--oro-hundido)]" />
                 </button>
               </div>
             </div>
@@ -464,11 +466,11 @@ export default function FormularioModal({
                 <Field label="Teléfono / WhatsApp *" value={form.telefono} onChange={v => set("telefono", v)} type="tel" />
 
                 <div>
-                  <label className="text-white/40 text-xs uppercase tracking-wider mb-2 block">Tipo de evento *</label>
+                  <label className="text-[color:var(--texto-3)] text-xs uppercase tracking-wider mb-2 block">Tipo de evento *</label>
                   <div className="grid grid-cols-3 gap-2">
                     {TIPOS_EVENTO.map(t => (
                       <button key={t} type="button" onClick={() => set("tipoEvento", t)}
-                        className={`py-2.5 text-xs border transition-all rounded-lg ${form.tipoEvento === t ? "border-[#C9A84C] bg-[#C9A84C]/10 text-[#C9A84C]" : "border-white/10 text-white/40 hover:border-white/30"}`}>
+                        className={`py-2.5 text-xs border transition-all rounded-lg ${form.tipoEvento === t ? "border-[#C9A84C] bg-[#C9A84C]/10 text-[#C9A84C]" : "border-white/10 text-[color:var(--texto-3)] hover:border-white/30"}`}>
                         {t}
                       </button>
                     ))}
@@ -476,7 +478,7 @@ export default function FormularioModal({
                   {form.tipoEvento === "Otro" && (
                     <input value={form.tipoEventoOtro} onChange={e => set("tipoEventoOtro", e.target.value)}
                       placeholder="Ej: graduación, bautizo, aniversario..."
-                      className="mt-3 w-full bg-white/5 border border-[#C9A84C]/30 text-white/80 text-sm px-4 py-3 rounded-xl outline-none focus:border-[#C9A84C]/60 placeholder:text-white/20" />
+                      className="mt-3 w-full bg-white/5 border border-[#C9A84C]/30 text-white/80 text-sm px-4 py-3 rounded-xl outline-none focus:border-[#C9A84C]/60 placeholder:text-[color:var(--texto-3)]" />
                   )}
                 </div>
 
@@ -511,17 +513,17 @@ export default function FormularioModal({
                   * Sigue siendo opcional a propósito: obligar a escribir un párrafo para pedir
                   * una cotización espanta a quien solo quiere saber si su fecha está libre. */}
                 <div>
-                  <label className="text-white/40 text-xs uppercase tracking-wider mb-2 block">
+                  <label className="text-[color:var(--texto-3)] text-xs uppercase tracking-wider mb-2 block">
                     ¿Cómo imaginas tu evento? (opcional)
                   </label>
                   <textarea value={form.comentarios} onChange={e => set("comentarios", e.target.value)} rows={3}
-                    className="w-full bg-white/5 border border-white/10 text-white/80 text-sm px-4 py-3 rounded-xl outline-none focus:border-[#C9A84C]/40 resize-none placeholder:text-white/20"
+                    className="w-full bg-white/5 border border-white/10 text-white/80 text-sm px-4 py-3 rounded-xl outline-none focus:border-[#C9A84C]/40 resize-none placeholder:text-[color:var(--texto-3)]"
                     placeholder="Cuéntanoslo con tus palabras. Así como lo imaginas, así lo armamos." />
                 </div>
 
                 <div className="flex items-start gap-3 pt-1">
                   <CheckBtn checked={form.aceptoAvisoPrivacidad} onChange={() => set("aceptoAvisoPrivacidad", !form.aceptoAvisoPrivacidad)} />
-                  <span className="text-white/30 text-xs leading-relaxed">
+                  <span className="text-[color:var(--texto-3)] text-xs leading-relaxed">
                     Acepto el aviso de privacidad y autorizo el tratamiento de mis datos personales. *
                   </span>
                 </div>
@@ -531,18 +533,22 @@ export default function FormularioModal({
 
               <div className="flex items-center justify-between mt-7 pt-5 border-t border-white/5">
                 {!preselectedSalon ? (
-                  <button type="button" onClick={() => { try { playSound("click"); } catch (e) {} setStep(0); }} className="flex items-center gap-2 text-white/30 hover:text-white/60 text-sm transition-colors">
+                  <button type="button" onClick={() => { try { playSound("click"); } catch (e) {} setStep(0); }} className="flex items-center gap-2 text-[color:var(--texto-3)] hover:text-white/60 text-sm transition-colors">
                     <ChevronLeft size={16} /> Atrás
                   </button>
                 ) : <div />}
+                {/* `text-[#0a0a0a]` va sobre `bg-[#C9A84C]`: el medidor lo da a 1.00:1 porque supone
+                    el fondo del tema, pero el par real —negro sobre dorado— pasa de 8:1. No se toca.
+                    El deshabilitado si sube: el boton nace deshabilitado, y es justo ahi donde hace
+                    falta poder leer «Enviar solicitud» para entender que es lo que aun no se puede. */}
                 <button type="button" onClick={handleSubmit} disabled={!puedeEnviar || loading}
-                  className="flex items-center gap-2 bg-[#C9A84C] disabled:bg-white/10 disabled:text-white/20 text-[#0a0a0a] px-7 py-3 text-sm font-medium tracking-wide hover:bg-[#d4b558] rounded-full shadow-lg shadow-[#C9A84C]/20 transition-all disabled:cursor-not-allowed">
+                  className="flex items-center gap-2 bg-[#C9A84C] disabled:bg-white/10 disabled:text-[color:var(--texto-3)] text-[#0a0a0a] px-7 py-3 text-sm font-medium tracking-wide hover:bg-[#d4b558] rounded-full shadow-lg shadow-[#C9A84C]/20 transition-all disabled:cursor-not-allowed">
                   {loading && <Loader2 size={14} className="animate-spin" />}
                   {loading ? "Enviando..." : "Enviar solicitud"}
                   {!loading && <ChevronRight size={14} />}
                 </button>
               </div>
-              <p className="text-white/25 text-[11px] text-center mt-4">
+              <p className="text-[color:var(--texto-3)] text-[11px] text-center mt-4">
                 Solo lo esencial. Los detalles (montaje, alimentos, servicios) los vemos juntos por WhatsApp.
               </p>
             </div>
@@ -569,9 +575,9 @@ export default function FormularioModal({
 function Field({ label, value, onChange, type = "text", placeholder = "" }) {
   return (
     <div>
-      <label className="text-white/40 text-xs uppercase tracking-wider mb-2 block">{label}</label>
+      <label className="text-[color:var(--texto-3)] text-xs uppercase tracking-wider mb-2 block">{label}</label>
       <input type={type} value={value} onChange={e => onChange(e.target.value)} placeholder={placeholder}
-        className="w-full bg-white/5 border border-white/8 text-white/85 text-sm px-4 py-3.5 rounded-xl outline-none focus:border-[#C9A84C]/50 focus:bg-[#C9A84C]/5 placeholder:text-white/15 transition-all duration-200" />
+        className="w-full bg-white/5 border border-white/8 text-white/85 text-sm px-4 py-3.5 rounded-xl outline-none focus:border-[#C9A84C]/50 focus:bg-[#C9A84C]/5 placeholder:text-[color:var(--texto-3)] transition-all duration-200" />
     </div>
   );
 }
@@ -580,6 +586,8 @@ function CheckBtn({ checked, onChange }) {
   return (
     <button type="button" onClick={onChange}
       className={`w-4 h-4 rounded-sm border flex-shrink-0 flex items-center justify-center transition-all ${checked ? "border-[#C9A84C] bg-[#C9A84C]" : "border-white/20"}`}>
+      {/* Mismo caso que el boton de enviar: la palomita es negra sobre el cuadro ya dorado
+          (`bg-[#C9A84C]` de la linea de arriba), no sobre el fondo. El medidor no lee `bg-`. */}
       {checked && <Check size={9} className="text-black" />}
     </button>
   );

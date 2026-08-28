@@ -170,7 +170,7 @@ export default function GaleriaSection({ galeria }) {
         >
           <div className="flex items-center justify-center gap-4 mb-4">
             <div className="h-px w-12 bg-[#C9A84C]/40" />
-            <span className="text-[#C9A84C]/60 text-xs tracking-[0.3em] uppercase">Nuestros Eventos</span>
+            <span className="text-[color:var(--oro)] text-xs tracking-[0.3em] uppercase">Nuestros Eventos</span>
             <div className="h-px w-12 bg-[#C9A84C]/40" />
           </div>
           <h2 className="text-4xl md:text-5xl font-thin text-white">Galería</h2>

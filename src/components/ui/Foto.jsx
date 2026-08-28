@@ -211,7 +211,10 @@ export default function Foto({
           aria-label={alt || 'Imagen no disponible'}
           className="absolute inset-0 grid place-items-center bg-white/[0.03]"
         >
-          <ImageOff size={18} className="text-white/20" aria-hidden="true" />
+          {/* Discreto sí, invisible no: iba en blanco al 20% —1.77:1— y era el único aviso de que
+              la foto falló. Un objeto gráfico que hace falta para entender el contenido pide 3:1
+              (WCAG 1.4.11) y ese marco entero no dice nada más. */}
+          <ImageOff size={18} className="text-[color:var(--texto-3)]" aria-hidden="true" />
         </span>
       ) : (
         <img

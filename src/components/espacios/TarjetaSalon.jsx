@@ -16,7 +16,10 @@ const SIN_FOTO = '/media/img/dGg8Xxh.jpg';
 const ESTILO_AJUSTE = {
   [AJUSTE.IDEAL]: { texto: 'Le queda bien', clase: 'text-[#C9A84C] border-[#C9A84C]/40' },
   [AJUSTE.SE_ADAPTA]: { texto: 'Se adapta', clase: 'text-amber-200/80 border-amber-200/30' },
-  [AJUSTE.NO_CABE]: { texto: 'No caben', clase: 'text-white/35 border-white/15' },
+  // El gris de «este no» iba en blanco al 35% (3.14:1). Que el veredicto sea negativo no lo
+  // vuelve secundario: es justo el que evita que alguien pida un espacio donde no cabe. El
+  // token secundario es el escalón más tenue que aún se lee, así que conserva el papel apagado.
+  [AJUSTE.NO_CABE]: { texto: 'No caben', clase: 'text-[color:var(--texto-3)] border-white/15' },
   [AJUSTE.NO_APLICA]: { texto: 'Hospedaje', clase: 'text-sky-200/70 border-sky-200/25' },
 };
 

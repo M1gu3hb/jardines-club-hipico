@@ -48,7 +48,11 @@ export default function InformacionDeServicios({ texto, cargando = false }) {
         >
           <div className="mb-6 flex items-center gap-4">
             <div className="h-px w-16 bg-gradient-to-r from-transparent to-amber-500/40" />
-            <span className="text-xs tracking-[0.35em] uppercase text-amber-500/60">
+            {/* El ámbar al 60% daba 3.86:1 y este renglón es el que nombra la sección. Pasa al
+                dorado de la escala, que es el acento del sitio entero: el ámbar solo se sostenía
+                aquí, sin nombre y sin nadie que volviera a decidirlo. El velo y el borde de la
+                tarjeta siguen en ámbar y son los que dan el tono de aviso — no llevan texto. */}
+            <span className="text-xs tracking-[0.35em] uppercase text-[color:var(--oro)]">
               Avisos importantes
             </span>
           </div>
@@ -62,12 +66,15 @@ export default function InformacionDeServicios({ texto, cargando = false }) {
 
           <div className="rounded-2xl border border-amber-500/15 bg-amber-500/5 p-6 backdrop-blur-sm sm:p-8">
             <div className="mb-6 flex gap-3">
+              {/* El icono no es adorno: es la mitad visual del «lee con atención», y a 3.86:1 no
+                  llegaba ni al 3:1 que pide 1.4.11 para un objeto gráfico. Va al mismo dorado que
+                  su etiqueta para que los dos se lean como una sola señal. */}
               <AlertCircle
                 size={16}
                 aria-hidden="true"
-                className="mt-0.5 flex-shrink-0 text-amber-500/60"
+                className="mt-0.5 flex-shrink-0 text-[color:var(--oro)]"
               />
-              <span className="text-xs font-medium tracking-wider uppercase text-amber-500/60">
+              <span className="text-xs font-medium tracking-wider uppercase text-[color:var(--oro)]">
                 Por favor lee con atención
               </span>
             </div>

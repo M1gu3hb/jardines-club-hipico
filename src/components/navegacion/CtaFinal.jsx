@@ -77,6 +77,8 @@ export default function CtaFinal() {
             Cuéntanos algunos detalles y te enviamos una cotización personalizada sin costo.
           </p>
 
+          {/* Exento: el medidor lo compara contra el fondo #0a0a0a, pero este tinte va sobre el
+              degradado dorado de .skeu-gold-btn; el par real no baja de 5.3:1. */}
           <Link
             to={cotizar.ruta}
             className="skeu-gold-btn relative z-10 inline-flex items-center gap-3 rounded-full px-10 py-4 text-sm font-medium tracking-[0.2em] uppercase text-[#1a1408] sm:px-14 sm:py-5"

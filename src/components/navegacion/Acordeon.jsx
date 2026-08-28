@@ -39,7 +39,7 @@ export default function Acordeon({ pregunta, respuesta }) {
         <Plus
           size={16}
           aria-hidden="true"
-          className="mt-0.5 shrink-0 text-[#C9A84C]/60 transition-transform duration-300 group-open:rotate-45"
+          className="mt-0.5 shrink-0 text-[color:var(--oro)] transition-transform duration-300 group-open:rotate-45"
         />
         <span className="flex-1 text-base font-normal leading-snug text-white/85 transition-colors group-hover:text-white">
           {pregunta}

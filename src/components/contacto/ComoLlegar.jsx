@@ -40,6 +40,9 @@ export default function ComoLlegar() {
             {DIRECCION}
           </address>
 
+          {/* El medidor marca este `text-[#1a1408]` a 1.08:1 porque asume que todo texto va sobre
+              el lienzo negro. Aquí no: `.skeu-gold-btn` pinta el degradado dorado de marca debajo,
+              y el par real —casi negro sobre #C9A84C— pasa de 8:1. No se toca. */}
           <a
             href={MAPA}
             target="_blank"
@@ -50,7 +53,7 @@ export default function ComoLlegar() {
             <ExternalLink size={13} aria-hidden="true" />
           </a>
 
-          <p className="mt-4 text-xs font-light text-white/30">
+          <p className="mt-4 text-xs font-light text-[color:var(--texto-3)]">
             Se abre en tu aplicación de mapas, con la ruta desde donde estés.
           </p>
         </div>
@@ -82,7 +85,7 @@ export default function ComoLlegar() {
         </div>
       </div>
 
-      <p className="mt-10 text-sm font-light text-white/40">
+      <p className="mt-10 text-sm font-light text-[color:var(--texto-3)]">
         ¿Dudas sobre horarios de acceso o el montaje?{' '}
         <Link to="/como-funciona" className="text-[#C9A84C] underline underline-offset-4">
           Mira cómo funciona

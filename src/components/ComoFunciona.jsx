@@ -50,7 +50,11 @@ export default function ComoFunciona() {
                 transition={{ duration: 0.5, delay: i * 0.12 }}
                 className="skeu-card p-6 sm:p-7 text-center relative"
               >
-                {/* Número */}
+                {/* Número — marca de agua, no información: el orden de los pasos ya lo da el orden
+                    de lectura de la rejilla, y el paso se identifica por su título. Sale a 1.18:1 en
+                    el medidor de contraste y se queda ahí a propósito: subirlo a los 6.28:1 del texto
+                    secundario pondría un «1» de 48 px compitiendo con «Elige tu espacio», que es lo
+                    que hay que leer. `select-none` porque tampoco es texto que nadie quiera copiar. */}
                 <span
                   className="absolute top-4 right-5 text-5xl font-thin leading-none select-none"
                   style={{ color: "rgba(201,168,76,0.12)" }}

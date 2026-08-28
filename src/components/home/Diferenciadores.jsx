@@ -92,7 +92,7 @@ export default function Diferenciadores() {
                 <h3 className="mt-4 text-base font-light text-white/90 transition-colors group-hover:text-[#C9A84C] sm:text-lg">
                   {c.titulo}
                 </h3>
-                <p className="mt-2.5 text-sm font-light leading-relaxed text-white/40">{c.texto}</p>
+                <p className="mt-2.5 text-sm font-light leading-relaxed text-[color:var(--texto-3)]">{c.texto}</p>
               </Link>
             </motion.li>
           ))}

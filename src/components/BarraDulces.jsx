@@ -134,7 +134,7 @@ export default function BarraDulces() {
                     <p className="mt-5 text-[13px]" style={{ color: "#F5A9C6" }}>
                       Ideal para cumpleaños, bodas, baby showers, graduaciones, eventos empresariales y reuniones familiares.
                     </p>
-                    <p className="mt-4 text-white/35 text-xs">
+                    <p className="mt-4 text-[color:var(--texto-3)] text-xs">
                       Pregúntanos por este servicio al cotizar tu evento.
                     </p>
                   </div>

@@ -104,11 +104,11 @@ export default function SalonOverlay({ salon, onClose, onCotizar }) {
           <div className="flex items-center justify-between px-6 py-4 border-b border-white/5 flex-shrink-0">
             <div className="flex items-center gap-3">
               <div className="h-px w-8 bg-[#C9A84C]/40" />
-              <span className="text-[#C9A84C]/60 text-xs tracking-[0.3em] uppercase">Jardines Club Hípico</span>
+              <span className="text-[color:var(--oro)] text-xs tracking-[0.3em] uppercase">Jardines Club Hípico</span>
             </div>
             <button
               onClick={onClose}
-              className="w-9 h-9 flex items-center justify-center border border-white/10 text-white/40 hover:text-white hover:border-white/30 transition-all"
+              className="w-9 h-9 flex items-center justify-center border border-white/10 text-[color:var(--texto-3)] hover:text-white hover:border-white/30 transition-all"
             >
               <X size={16} />
             </button>
@@ -135,6 +135,9 @@ export default function SalonOverlay({ salon, onClose, onCotizar }) {
               </AnimatePresence>
 
               <div className="absolute inset-0 bg-black/0 group-hover:bg-black/30 transition-all duration-300 flex items-center justify-center pointer-events-none">
+                {/* El alfa 0 no es un color tenue, es el estado APAGADO de un hover: «Ampliar»
+                    no existe hasta que el raton entra, y entonces sale a `white/80` (12.58:1).
+                    Subirlo dejaria el rotulo pegado encima de la foto todo el tiempo. */}
                 <span className="text-white/0 group-hover:text-white/80 text-xs tracking-widest uppercase transition-all border border-white/0 group-hover:border-white/30 px-4 py-1.5">Ampliar</span>
               </div>
               <div className="absolute inset-0 bg-gradient-to-t from-[#0a0a0a] via-transparent to-transparent pointer-events-none" />
@@ -171,7 +174,7 @@ export default function SalonOverlay({ salon, onClose, onCotizar }) {
               <div>
                 <h1 className="text-3xl md:text-4xl font-thin text-white mb-3">{salon.nombre}</h1>
                 {capacidad && (
-                  <div className="flex items-center gap-2 text-[#C9A84C]/60 text-sm">
+                  <div className="flex items-center gap-2 text-[color:var(--oro)] text-sm">
                     <Users size={14} />
                     <span>{capacidad}</span>
                   </div>
@@ -182,7 +185,7 @@ export default function SalonOverlay({ salon, onClose, onCotizar }) {
                 <div>
                   <div className="flex items-center gap-4 mb-4">
                     <div className="h-px w-8 bg-[#C9A84C]/30" />
-                    <span className="text-[#C9A84C]/50 text-xs tracking-[0.25em] uppercase">Descripción</span>
+                    <span className="text-[color:var(--oro)] text-xs tracking-[0.25em] uppercase">Descripción</span>
                   </div>
                   <p className="text-white/50 leading-relaxed text-sm">
                     {salon.descripcionLarga || salon.descripcion}
@@ -194,12 +197,14 @@ export default function SalonOverlay({ salon, onClose, onCotizar }) {
                 <div>
                   <div className="flex items-center gap-4 mb-4">
                     <div className="h-px w-8 bg-[#C9A84C]/30" />
-                    <span className="text-[#C9A84C]/50 text-xs tracking-[0.25em] uppercase">Características</span>
+                    <span className="text-[color:var(--oro)] text-xs tracking-[0.25em] uppercase">Características</span>
                   </div>
                   <ul className="grid grid-cols-1 md:grid-cols-2 gap-2">
                     {salon.caracteristicas.map((c, i) => (
                       <li key={i} className="flex items-start gap-2 text-white/50 text-sm">
-                        <Check size={13} className="text-[#C9A84C]/60 flex-shrink-0 mt-0.5" />
+                        {/* Oro hundido: esta palomita hace de vineta y se repite en cada linea; en oro pleno
+                            la columna de simbolos gritaria mas que las caracteristicas que enumera. */}
+                        <Check size={13} className="text-[color:var(--oro-hundido)] flex-shrink-0 mt-0.5" />
                         {c}
                       </li>
                     ))}
@@ -217,6 +222,8 @@ export default function SalonOverlay({ salon, onClose, onCotizar }) {
               <div className="pt-4 pb-8">
                 <button
                   onClick={() => { onClose(); onCotizar(salon.nombre); }}
+                  // `text-[#0a0a0a]` va sobre `bg-[#C9A84C]`: el medidor lo da a 1.00:1 porque supone
+                  // el fondo del tema; el par real —negro sobre dorado— pasa de 8:1. No se toca.
                   className="w-full md:w-auto bg-[#C9A84C] text-[#0a0a0a] px-10 py-4 text-sm font-medium tracking-widest uppercase hover:bg-[#d4b558] transition-all"
                 >
                   Cotizar este salón
