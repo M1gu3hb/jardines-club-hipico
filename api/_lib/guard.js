@@ -264,6 +264,54 @@ export async function usuarioEsClienteDelEvento(admin, userId, eventoId) {
  * evento, aprovisiona el enlace y manda el correo, y la función tiene un tope muy por debajo de
  * esto. Lo que queda fuera son las cuentas que ya existían, que es justo lo que hay que excluir.
  */
+/**
+ * ¿Este evento es de este usuario? Devuelve **un booleano**, y esa es media función.
+ *
+ * ══════════════════════════════════════════════════════════════════════════════
+ * POR QUÉ NO VALE `usuarioEsClienteDelEvento` PARA ESTO
+ * ══════════════════════════════════════════════════════════════════════════════
+ *
+ * Porque responde a OTRA pregunta. Se escribió para `borrarUsuario`, y lo que averigua es «¿es
+ * seguro borrar esta cuenta de auth?»: que sea una cuenta del portal, con rol de cliente, que no
+ * sea personal de operativo, y —lo importante— que **no haya OTROS eventos** colgando de ella
+ * (`.eq("auth_user_id", userId).neq("id", eventoId)`).
+ *
+ * Nunca afirma en positivo que `eventoId` pertenezca a `userId`. Con una cuenta que tenga dos
+ * eventos, diría que no a los dos, incluido el suyo. Y con una cuenta sin ningún evento diría
+ * que sí a cualquier `eventoId` del mundo.
+ *
+ * Esta hace la pregunta directa, con una sola consulta y sin rodeos.
+ *
+ * ══════════════════════════════════════════════════════════════════════════════
+ * Y DEVUELVE UN BOOLEANO A PROPÓSITO
+ * ══════════════════════════════════════════════════════════════════════════════
+ *
+ * `usuarioEsClienteDelEvento` devuelve `{ ok, motivo }` en sus TRECE salidas. Eso está bien para
+ * quien lo consume con `veredicto.ok` —`borrarUsuario` lo hace—, y es una trampa para quien
+ * escriba `if (!(await ...))`: un objeto es siempre truthy, así que esa guarda **no corta
+ * nunca** y el `403` que hay detrás es código muerto. Pasó, y estuvo desplegado.
+ *
+ * Una función cuyo nombre es una pregunta de sí o no devuelve sí o no. Si algún día necesita
+ * explicar el porqué, se añade otra al lado; no se le cambia el tipo a esta.
+ *
+ * Fail-closed: si la lectura se cae, la respuesta es **no**. En una guarda de autorización,
+ * «no pude comprobarlo» y «no» son la misma respuesta.
+ */
+export async function eventoEsDelUsuario(admin, userId, eventoId) {
+  if (!userId || !eventoId) return false;
+  const { data, error } = await admin
+    .schema("jardines").from("eventos")
+    .select("id")
+    .eq("id", eventoId)
+    .eq("auth_user_id", userId)
+    .maybeSingle();
+  if (error) {
+    console.error("[guard] eventoEsDelUsuario:", error.message);
+    return false;
+  }
+  return !!data;
+}
+
 const VENTANA_RECIEN_CREADO_MS = 10 * 60 * 1000;
 
 /**
