@@ -52,8 +52,9 @@ const TABLES = {
   // entrado—. La invitacion son cuatro columnas de `eventos`. Renombrada en `sec_49`, con
   // 0 filas, que es cuando salia gratis.
   //
-  // Hay una VISTA `jardines.invitaciones` que sigue existiendo como puente mientras los
-  // tres despliegues se ponen al dia. Se retira en cuanto los tres sirvan este archivo.
+  // Hubo una VISTA puente `jardines.invitaciones` mientras los tres despliegues se ponian al
+  // dia. RETIRADA en `sec_50`, comprobado antes contra los tres bundles de produccion. Ese
+  // nombre ya no resuelve en la base: si vuelve a aparecer aqui, la lectura falla.
   Boleto: "boletos",
   // `accesos` no cambio de nombre, solo su columna `invitacion_id` -> `boleto_id`. No hizo
   // falta puente: ninguna de las tres aplicaciones usa `entities.Acceso` — 0 referencias.
