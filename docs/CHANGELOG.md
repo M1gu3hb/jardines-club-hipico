@@ -1,5 +1,36 @@
 # CHANGELOG.md
 
+## 2026-08-30 — El navegador, y el formulario que no estaba roto
+
+Primera sesión con navegador y sesión contra producción. Lo que toca a ESTE repo:
+
+**El formulario de cotización está vivo.** Enviado como visitante anónimo desde `/cotizar` con
+Playwright: `rpc/solicitud_crear` → 200 con folio, `/api/solicitud` → 200, `solicitud_correo` en
+auditoría con `resultado='ok'`, y la pantalla de éxito con su folio. Los 6,1 días sin solicitudes
+son tráfico o SEO, no el formulario.
+
+**`sec_64` — el folio no depende de quién inserta.** `jardines.solicitud_saneo()` fijaba los campos
+internos DESPUÉS del atajo del administrador, así que se iba antes de ponerlos. El dueño probó su
+propio formulario con la sesión abierta y las cinco solicitudes nacieron sin folio; como el frente
+lo exige, vio un error, reintentó, y `api/solicitud` no se invocó ni una vez. Al público se le
+siguen forzando los campos internos; al administrador se le rellena solo lo que venga vacío.
+Ensayada en `BEGIN/ROLLBACK` por las tres vías y validada mutando. La migración vive en el CRM,
+que es donde va la cadena desde `sec_38`.
+
+**El CMS publica.** `DEPLOY_HOOK_WEB` quedó corregido y se comprobó con las tres pruebas: fila
+nueva en `jardines_private.publicaciones` (`http_status 201`), auditoría `publicar` en `ok` con
+`origen='mcp'`, y el cambio visible en el HTML servido a los 80 s. El texto de prueba se restauró
+y se volvió a publicar.
+
+**`ErrorBoundary.jsx` deja de afirmar «No es tu conexión» cuando sí lo es.** Es archivo compartido:
+el cambio viaja a los tres repos con su `sha256` nuevo en los tres manifiestos.
+
+**Un hallazgo de accesibilidad sin arreglar:** la casilla del aviso de privacidad de `/cotizar` es
+un `<button>` **sin texto, sin `aria-label`, sin `role="checkbox"` y sin `aria-checked`**. Con
+lector de pantalla no se sabe qué es ni si está marcada, y es un consentimiento obligatorio.
+
+Puertas: `lint 0 · typecheck 7 · contratos 69/69 · build exit 0`, medidas hoy.
+
 ## 2026-08-26 — Publicar lo que ya estaba escrito, y cuatro arreglos de SEO
 
 `main`: `e9b823f` -> segundo deploy. Ademas `portal` `21c2ee3` y `crm` `7a7c546`.

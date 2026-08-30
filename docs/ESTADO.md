@@ -1,5 +1,29 @@
 # ESTADO.md — dónde está el proyecto, sin optimismo
 
+> ## 🔎 EL FORMULARIO ESTÁ VIVO, y el CMS ya publica — 2026-08-30
+>
+> Las dos preguntas abiertas del negocio quedaron **medidas**, no supuestas.
+>
+> **El formulario de cotización funciona.** Enviado como visitante anónimo con navegador real
+> desde `/cotizar`: `rpc/solicitud_crear` → 200 con folio `JCH-C6A641`, `/api/solicitud` → 200,
+> `solicitud_correo` en auditoría con `resultado='ok'`, y la pantalla de éxito con su folio. El
+> correo salió: ese `{"ok":true}` solo se devuelve después de que `enviarCorreo` resuelva.
+>
+> **Los 6,1 días sin solicitudes NO son el formulario: son tráfico o SEO tras el rediseño.** Con
+> Web Analytics ya encendido se puede separar «no entró nadie» de «entraron y no convirtió».
+>
+> **Por qué parecía roto.** El dueño lo probó con su sesión de administrador abierta, y
+> `jardines.solicitud_saneo()` se iba **antes** de poner el folio cuando quien inserta es admin.
+> El frente exige el folio, así que vio un error, reintentó cinco veces y `api/solicitud` no se
+> llegó a invocar ni una vez. Arreglado en `sec_64`, ensayado en `BEGIN/ROLLBACK` y validado
+> mutando. Rellenadas las 5 filas: 19 solicitudes, 19 folios distintos, 0 sin folio.
+>
+> **El CMS publica.** `DEPLOY_HOOK_WEB` quedó bien y se comprobó de punta a punta: fila nueva en
+> `jardines_private.publicaciones` con `http_status 201`, auditoría `publicar` en `ok`, y el
+> cambio **visible en el HTML servido a los 80 segundos**. Las tres cosas, no una.
+>
+> El detalle completo de la sesión está en `JCH-portal-cliente/portal/11-BITACORA.md` § Sesión 2.
+
 > ## ✅ REDISEÑO EN PRODUCCIÓN — 2026-08-25
 >
 > **Desplegado.** `main` pasó de `ad91904` a `201b39f` (33 commits) por decisión expresa del

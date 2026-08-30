@@ -30,6 +30,26 @@ los dos casos el **uso peligroso** ya está cerrado en código; lo que sigue abi
 
 ## Abiertos
 
+### J-17 — La casilla del aviso de privacidad no tiene nombre accesible · 2026-08-30
+
+En `/cotizar`, la casilla que acepta el aviso de privacidad es un `<button>` **sin texto, sin
+`aria-label`, sin `role="checkbox"` y sin `aria-checked`**. Se encontró al automatizar el
+formulario: no hay forma de localizarla salvo por su contenedor, y eso es exactamente lo que le
+pasa a un lector de pantalla.
+
+**Por qué importa más que un botón cualquiera:** es un **consentimiento obligatorio**. Alguien que
+navegue con lector de pantalla no puede saber qué es ese control, ni si está marcado, ni que el
+botón de enviar no se habilitará hasta pulsarlo. El formulario es la única vía de contacto del
+sitio que deja registro.
+
+**Dónde:** `src/components/FormularioModal.jsx`, el componente `CheckBtn`.
+
+**Arreglo:** `role="checkbox"`, `aria-checked={checked}` y un `aria-label` con el texto de la
+etiqueta, o envolverlo en un `<label>` real con un `<input type="checkbox">` visualmente oculto.
+
+**No se arregló en la sesión que lo encontró** para no meter un cambio de interfaz sin medir el
+contraste ni el foco: entra con el resto del repaso de accesibilidad.
+
 ### ~~J-14~~ — La invitación digital del cliente **RESUELTA** · 2026-08-26
 
 Se deja el historial entero porque explica un fallo que duró meses y su forma de esconderse, pero
