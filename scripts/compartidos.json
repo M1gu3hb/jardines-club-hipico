@@ -105,7 +105,7 @@
     },
     {
       "ruta": "src/components/ErrorBoundary.jsx",
-      "sha256": "531330b7c5c1df4625c60658f185153d0e74a24a392fb71c1b53b44742899c79",
+      "sha256": "f19c19b00c7945699811964f534ce7c1c0276c2308e5c55a77e4cc77f3301054",
       "tambienEn": [
         "portal",
         "crm"
