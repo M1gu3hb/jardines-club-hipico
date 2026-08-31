@@ -521,11 +521,27 @@ export default function FormularioModal({
                     placeholder="Cuéntanoslo con tus palabras. Así como lo imaginas, así lo armamos." />
                 </div>
 
+                {/* EL CONSENTIMIENTO ES OBLIGATORIO, así que su control tiene que ser anunciable.
+                    Era un `<button>` sin texto, sin `role`, sin `aria-checked` y sin `aria-label`:
+                    con lector de pantalla no se sabía qué era, ni si estaba marcado, ni por qué el
+                    botón de enviar seguía apagado. Se encontró al automatizar el formulario — no
+                    había forma de localizarlo salvo por su contenedor, que es exactamente lo que le
+                    pasa a quien navega sin ver.
+
+                    El texto es un `<label htmlFor>`, así que también sirve de zona de pulsación:
+                    un cuadro de 16 px es un blanco difícil en un teléfono. */}
                 <div className="flex items-start gap-3 pt-1">
-                  <CheckBtn checked={form.aceptoAvisoPrivacidad} onChange={() => set("aceptoAvisoPrivacidad", !form.aceptoAvisoPrivacidad)} />
-                  <span className="text-[color:var(--texto-3)] text-xs leading-relaxed">
+                  <CheckBtn
+                    id="acepto-privacidad"
+                    checked={form.aceptoAvisoPrivacidad}
+                    onChange={() => set("aceptoAvisoPrivacidad", !form.aceptoAvisoPrivacidad)}
+                  />
+                  <label
+                    htmlFor="acepto-privacidad"
+                    className="text-[color:var(--texto-3)] text-xs leading-relaxed cursor-pointer"
+                  >
                     Acepto el aviso de privacidad y autorizo el tratamiento de mis datos personales. *
-                  </span>
+                  </label>
                 </div>
               </div>
 
@@ -582,9 +598,29 @@ function Field({ label, value, onChange, type = "text", placeholder = "" }) {
   );
 }
 
-function CheckBtn({ checked, onChange }) {
+/**
+ * La casilla del consentimiento.
+ *
+ * `role="checkbox"` + `aria-checked` + un nombre accesible. Sin los tres, un lector de pantalla
+ * lo anuncia como «botón» sin más: ni qué hace, ni si está marcado. Y es el ÚNICO campo sin el
+ * cual el formulario no se puede enviar, así que quedarse sin saberlo es quedarse fuera.
+ *
+ * Se mantiene como `<button>` y no como `<input type="checkbox">` porque el estilo del cuadro
+ * dorado es de este proyecto y un `input` nativo no se puede pintar así sin ocultarlo y
+ * duplicar el control. Con `role`, `aria-checked`, teclado y `id`, lo que se anuncia es
+ * equivalente.
+ *
+ * El teclado: un `<button>` ya responde a Enter y a Espacio, pero la barra espaciadora sobre un
+ * `role="checkbox"` tiene que alternar y NO desplazar la página. Por eso el `onKeyDown`.
+ */
+function CheckBtn({ checked, onChange, id }) {
   return (
     <button type="button" onClick={onChange}
+      id={id}
+      role="checkbox"
+      aria-checked={checked}
+      aria-label="Acepto el aviso de privacidad y autorizo el tratamiento de mis datos personales"
+      onKeyDown={(e) => { if (e.key === " ") { e.preventDefault(); onChange(); } }}
       className={`w-4 h-4 rounded-sm border flex-shrink-0 flex items-center justify-center transition-all ${checked ? "border-[#C9A84C] bg-[#C9A84C]" : "border-white/20"}`}>
       {/* Mismo caso que el boton de enviar: la palomita es negra sobre el cuadro ya dorado
           (`bg-[#C9A84C]` de la linea de arriba), no sobre el fondo. El medidor no lee `bg-`. */}

@@ -2006,6 +2006,48 @@ zona("web");
   );
 }
 
+zona("web");
+{
+  // ── EL CONSENTIMIENTO OBLIGATORIO SE PUEDE ANUNCIAR ───────────────────────
+  //
+  // La casilla del aviso de privacidad era un `<button>` SIN texto, sin `role`, sin
+  // `aria-checked` y sin `aria-label`. Con lector de pantalla no se sabia que era, ni si estaba
+  // marcada, ni por que el boton de enviar seguia apagado — y es el UNICO campo sin el cual el
+  // formulario no se puede enviar. Quedarse sin saberlo es quedarse fuera del unico canal de
+  // contacto del sitio que deja registro.
+  //
+  // Se encontro AUTOMATIZANDO el formulario: no habia forma de localizar el control salvo por
+  // su contenedor. Esa es exactamente la experiencia de quien navega sin ver, y es la razon de
+  // que una prueba de navegador valga mas que una lectura.
+  //
+  // El contrato se ata al RECORTE del componente, no al archivo: `aria-checked` aparece en mas
+  // sitios del proyecto y buscarlo suelto no diria nada sobre ESTA casilla.
+  const fm = leerCodigo("src/components/FormularioModal.jsx");
+  const malos = [];
+  const comp = entre(fm, "function CheckBtn(", "</button>");
+  if (!comp) malos.push("no encuentro el componente `CheckBtn`");
+  else {
+    if (!/role=["']checkbox["']/.test(comp)) malos.push("`CheckBtn` no declara `role=\"checkbox\"`: se anuncia como un boton cualquiera");
+    if (!/aria-checked=\{checked\}/.test(comp)) malos.push("`CheckBtn` no expone su estado con `aria-checked`");
+    if (!/aria-label=/.test(comp)) malos.push("`CheckBtn` no tiene nombre accesible");
+    if (!/onKeyDown=/.test(comp)) malos.push("`CheckBtn` no alterna con la barra espaciadora, que es lo que se espera de un checkbox");
+  }
+  // Y el texto tiene que estar ATADO al control. Un `<span>` suelto al lado no lo nombra, y
+  // ademas deja un blanco de 16 px como unica zona de pulsacion en un telefono.
+  const uso = entre(fm, "<CheckBtn", "</label>");
+  if (!uso) malos.push("no encuentro el uso de `CheckBtn` con su etiqueta");
+  else {
+    if (!/id="acepto-privacidad"/.test(uso)) malos.push("la casilla perdio su `id`: la etiqueta no se le puede atar");
+    if (!/htmlFor="acepto-privacidad"/.test(uso)) malos.push("el texto del aviso ya no es un `<label htmlFor>` de la casilla");
+  }
+
+  check(
+    "cotizar: la casilla del aviso de privacidad se anuncia, expone su estado y se alterna con el teclado",
+    malos.length === 0,
+    malos.slice(0, 3).join(" · "),
+  );
+}
+
 
 zona("comun");
 const sinZona = casos.filter((c) => !c.zona).map((c) => c.nombre);
