@@ -2049,6 +2049,75 @@ zona("web");
 }
 
 
+
+zona("comun");
+{
+  // ── LA AUDITORÍA DICE QUIÉN, Y NO DEPENDE DE QUE ALGUIEN SE ACUERDE ────────
+  //
+  // Medido el 2026-08-31 sobre la base: de las 57 filas escritas por `api_auditar` —mcp 28,
+  // portal 16, api 7, crm 6— NINGUNA tenía actor. `jardines_private.auditar` sacaba `actor_uid`
+  // de `auth.uid()`, y todas las rutas de `api/` hablan con `service_role`, que no lleva sesión.
+  // Quedaba escrito QUÉ se hizo y no QUIÉN, en un sistema donde una ruta borra eventos y otra
+  // crea administradores.
+  //
+  // Enhebrar el actor por los 45 puntos de llamada a `auditar()` se olvida a la primera, y una
+  // ruta nueva nacería sin él. Se sella UNA vez, dentro de `autorizarJardines`, que es por donde
+  // pasan todas las rutas autorizadas. Este contrato vigila esa estructura, no el dato.
+  const g = leerCodigo("api/_lib/guard.js");
+  const malos = [];
+
+  // 1 · El sellado vive DENTRO de `autorizarJardines`, y antes del `return ok`.
+  //     Recortado con delimitadores que son CÓDIGO: `leerCodigo` quita los comentarios, y un
+  //     delimitador que fuera un comentario haría que `entre()` devolviera el archivo entero.
+  const aut = entre(g, "export async function autorizarJardines", "export function marcarActor");
+  if (!aut) malos.push("no encuentro `autorizarJardines`");
+  else {
+    const iSella = aut.indexOf("marcarActor(");
+    const iOk = aut.indexOf("return { ok: true");
+    if (iSella < 0) malos.push("`autorizarJardines` no sella el actor: toda ruta nueva nacería sin QUIÉN");
+    else if (iOk >= 0 && iSella > iOk) malos.push("`autorizarJardines` sella el actor DESPUÉS de devolver: no llega nunca");
+    // Sella el uid de la sesión que acaba de resolver, no otra cosa.
+    if (!/marcarActor\(\s*admin\s*,\s*data\.user\.id/.test(aut)) {
+      malos.push("`autorizarJardines` no sella el uid del usuario que acaba de autorizar");
+    }
+  }
+
+  // 2 · `auditar()` MANDA lo sellado. Sin esto, sellarlo no sirve de nada.
+  const aud = entre(g, "export async function auditar", "export function ipCliente");
+  if (!aud) malos.push("no encuentro `auditar`");
+  else {
+    if (!/__actor\?\.uid\s*\?\s*\{\s*actor_uid:/.test(aud)) {
+      malos.push("`auditar` no manda el `actor_uid` sellado: la columna seguiría vacía");
+    }
+    if (!/__actor\?\.etiqueta\s*\?\s*\{\s*actor:/.test(aud)) {
+      malos.push("`auditar` no manda la etiqueta del actor: `actor_hash` seguiría vacía");
+    }
+    // Van DENTRO de `p_detalle`, que es de donde `sec_69` los sube a sus columnas. Si alguien
+    // los sacara a un parámetro nuevo, `api_auditar` ganaría una SOBRECARGA — la trampa que
+    // rompió la auditoría entera en `sec_41`.
+    const iDet = aud.indexOf("p_detalle:");
+    const iAct = aud.indexOf("actor_uid:");
+    if (iDet < 0 || iAct < 0 || iAct < iDet) {
+      malos.push("el actor no viaja dentro de `p_detalle`: un parámetro nuevo crearía una sobrecarga (sec_41)");
+    }
+  }
+
+  // 3 · Se marca como propiedad NO enumerable.
+  //     El cliente de Supabase se serializa en algunos logs, y `actor_uid` es un identificador
+  //     de persona: enumerable, viajaría a sitios que no lo pidieron.
+  const mar = entre(g, "export function marcarActor", "export async function rateLimit");
+  if (!mar) malos.push("no encuentro `marcarActor`");
+  else if (!/enumerable:\s*false/.test(mar)) {
+    malos.push("`marcarActor` deja el actor enumerable: viajaría a cualquier log que serialice el cliente");
+  }
+
+  check(
+    "comun: la auditoría dice QUIÉN, y el actor se sella una vez en vez de en 45 sitios",
+    malos.length === 0,
+    malos.slice(0, 3).join(" · "),
+  );
+}
+
 zona("comun");
 const sinZona = casos.filter((c) => !c.zona).map((c) => c.nombre);
 check(

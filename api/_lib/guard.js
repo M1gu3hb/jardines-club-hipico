@@ -90,7 +90,34 @@ export async function autorizarJardines(req, admin, { rol } = {}) {
   if (!perfil) return { ok: false, status: 403 };
   if (rol && perfil.rol !== rol) return { ok: false, status: 403 };
 
+  // EL ACTOR SE SELLA AQUI, no en cada ruta.
+  //
+  // Medido el 2026-08-31: de las 57 filas de auditoria escritas por `api_auditar` —mcp 28,
+  // portal 16, api 7, crm 6— **ninguna** tenia actor. `jardines_private.auditar` saca
+  // `actor_uid` de `auth.uid()`, y todas las rutas de `api/` hablan con `service_role`, que no
+  // lleva sesion: la columna nacia vacia siempre. Quedaba saber QUE se hizo y no QUIEN.
+  //
+  // Enhebrarlo por los 45 puntos de llamada a `auditar()` se olvida a la primera. Se sella una
+  // vez, en el sitio por el que pasan TODAS las rutas autorizadas, asi que una ruta nueva lo
+  // hereda sin hacer nada.
+  marcarActor(admin, data.user.id);
   return { ok: true, user: data.user, perfil };
+}
+
+/**
+ * Deja escrito en el cliente privilegiado QUIEN esta actuando, para que `auditar()` lo mande
+ * sin que cada llamada tenga que acordarse.
+ *
+ * Va como propiedad NO enumerable: el cliente de Supabase se serializa en algunos logs y un
+ * campo mas ahi seria ruido, o peor, un dato personal viajando a un sitio que no lo pidio.
+ */
+export function marcarActor(admin, uid, etiqueta) {
+  try {
+    Object.defineProperty(admin, "__actor", {
+      value: { uid: uid ?? null, etiqueta: etiqueta ?? null },
+      writable: true, enumerable: false, configurable: true,
+    });
+  } catch { /* si no se puede marcar, la auditoria sigue: nunca tumba la operacion */ }
 }
 
 /** Rate limit persistente en PostgreSQL. true = permitido. */
@@ -470,7 +497,16 @@ export async function auditar(admin, accion, resultado, extra = {}) {
       // `sec_41` — `CREATE OR REPLACE` con otra aridad crea una SOBRECARGA, no un reemplazo, y
       // todas las llamadas cortas se vuelven ambiguas. Como el dato cabe en el `jsonb` que ya
       // se manda, no hace falta pagar ese riesgo por una etiqueta.
-      p_detalle: { ...(extra.detalle ?? {}), ...(extra.origen ? { origen: extra.origen } : {}) },
+      // El ACTOR viaja por el mismo camino que `origen`, y por el mismo motivo: `api_auditar`
+      // tiene seis parametros y darle un septimo crearia una SOBRECARGA, que es lo que rompio
+      // la auditoria entera en `sec_41`. La funcion los saca del `jsonb` y los pone en su
+      // columna (`sec_69`), asi que se pueden filtrar sin cambiar ninguna firma.
+      p_detalle: {
+        ...(extra.detalle ?? {}),
+        ...(extra.origen ? { origen: extra.origen } : {}),
+        ...(admin?.__actor?.uid ? { actor_uid: admin.__actor.uid } : {}),
+        ...(admin?.__actor?.etiqueta ? { actor: admin.__actor.etiqueta } : {}),
+      },
     });
   } catch { /* la auditoría nunca tumba la operación */ }
 }

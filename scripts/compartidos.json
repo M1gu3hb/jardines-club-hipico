@@ -37,7 +37,7 @@
     },
     {
       "ruta": "api/_lib/guard.js",
-      "sha256": "bb8b812d211ca8997cbb8175067f059df5235d75fb35842da96c1a0f457696f4",
+      "sha256": "5083d5777501d94456d3c2ad4f05ae5ea43af279dce7a1a4a358c9a1e3b8f2a3",
       "tambienEn": [
         "portal",
         "crm"
