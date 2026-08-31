@@ -5,7 +5,22 @@
    Layout, así que la tipografía Inter y los tokens skeu se
    perdían ahí. Ahora es global (importado en main.jsx).
    ============================================================ */
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@100;200;300;400;500&display=swap');
+/* LA TIPOGRAFÍA NO SE PIDE DESDE AQUÍ. Está en el `<head>` de `index.html`.  (D-P-9)
+   ────────────────────────────────────────────────────────────────────────────
+   Aquí había un `@import url('…fonts.googleapis.com…')`, y tenía dos problemas medidos:
+
+   1. Un `@import` cruzado se pide en modo `no-cors`. La respuesta es **opaca**, el service
+      worker no puede inspeccionarla y `guardable()` la descarta con razón. Sin ese CSS no hay
+      `@font-face`, así que el `.woff2` que sí estaba cacheado era **peso muerto**: sin red, la
+      tipografía de la marca no se aplicaba.
+   2. Un `@import` dentro de una hoja son dos viajes en cadena: el navegador tiene que bajar
+      `theme.css` para descubrir que hay una fuente que pedir.
+
+   En `index.html` va como `<link crossorigin="anonymous">`, que es petición CORS —comprobado:
+   `fonts.googleapis.com` y `fonts.gstatic.com` responden `Access-Control-Allow-Origin: *`—, así
+   que la respuesta llega inspeccionable y el worker la guarda.
+
+   Va en los TRES `index.html` porque este archivo es copia byte a byte de los tres repos. */
 
 /* ════════════════════════════════════════════════════════════════════════════
    LA ESCALA · una sola, para las tres aplicaciones

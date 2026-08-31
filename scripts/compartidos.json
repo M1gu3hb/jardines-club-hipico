@@ -188,7 +188,7 @@
     },
     {
       "ruta": "src/styles/theme.css",
-      "sha256": "cd4725025cf29caeb3ec091a0620e7790a8e131bbc60fe1b14c55d658c11ad61",
+      "sha256": "fe2624f85bf0048882bffe43fdf37028695123d21c2e66bb0734e893a54b1c1b",
       "tambienEn": [
         "portal",
         "crm"

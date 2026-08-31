@@ -13,7 +13,7 @@
  * Son comprobaciones estáticas sobre el código, sin red y sin credenciales, así
  * que corren en CI sin tocar Supabase ni enviar correos.
  */
-import { readFileSync, readdirSync } from "node:fs";
+import { readFileSync, readdirSync, existsSync, statSync } from "node:fs";
 import { createHash } from "node:crypto";
 
 /* ════════════════════════════════════════════════════════════════════════════
@@ -41,6 +41,10 @@ process.exitCode = 1;
 
 const leer = (p) => readFileSync(new URL(`../${p}`, import.meta.url), "utf8");
 const leerDir = (p) => readdirSync(new URL(`../${p}`, import.meta.url));
+/* Para lo que NO es texto: los medios se comprueban por hash y por peso, no leyendolos. */
+const existe = (p) => existsSync(new URL(`../${p}`, import.meta.url));
+const leerBytes = (p) => readFileSync(new URL(`../${p}`, import.meta.url));
+const pesoDe = (p) => statSync(new URL(`../${p}`, import.meta.url)).size;
 /**
  * Ruta de una migración por su `sec_NN`, **no por su prefijo de fecha**.
  *
@@ -2194,6 +2198,111 @@ zona("comun");
     `comun: el lector de código se ejecuta y quita lo que dice (${casosLector.length} casos, los 3 agujeros que tuvo)`,
     rotos.length === 0,
     rotos.slice(0, 3).join(" · "),
+  );
+}
+
+zona("comun");
+{
+  // LA TIPOGRAFÍA DE LA MARCA TIENE QUE PODER CACHEARSE.  (D-P-9)
+  //
+  // Un `@import` cruzado dentro de una hoja de estilos se pide en `no-cors`: la respuesta es
+  // OPACA, el service worker no puede inspeccionarla y no la guarda. Sin ese CSS no hay
+  // `@font-face`, así que sin red la tipografía no se aplica **aunque el `.woff2` sí esté
+  // cacheado** — y eso es lo que pasaba: el archivo grande guardado y sirviendo para nada.
+  //
+  // La propiedad no es «hay un link»: es que la petición sea CORS. Sin `crossorigin` el `<link>`
+  // tiene exactamente el mismo problema que el `@import`, así que un contrato que solo mirara
+  // que la fuente está enlazada daría verde sobre la misma avería.
+  const malos = [];
+
+  const tema = leer("src/styles/theme.css");
+  // Ancla al PRINCIPIO DE LÍNEA: la cabecera del propio archivo explica el `@import` que se
+  // quitó, y buscarlo suelto encontraría esa explicación en vez de una regresión.
+  if (/^\s*@import\s+url\(['"]https:\/\/fonts\./m.test(tema)) {
+    malos.push("`theme.css` volvió a pedir la fuente con `@import`: la respuesta sería opaca y el service worker no la guardaría");
+  }
+
+  const html = leer("index.html");
+  const enlaces = [...html.matchAll(/<link\b[^>]*>/g)].map((m) => m[0]);
+  const deFuente = enlaces.filter((l) => /rel=["']stylesheet["']/.test(l) && /fonts\.googleapis\.com/.test(l));
+  if (deFuente.length === 0) {
+    malos.push("`index.html` no enlaza la tipografía de la marca");
+  } else if (!deFuente.some((l) => /crossorigin/.test(l))) {
+    malos.push("el `<link>` de la tipografía no lleva `crossorigin`: la respuesta sería opaca y no se cachearía");
+  }
+
+  check(
+    "comun: la tipografía de la marca se pide de forma que el service worker pueda guardarla",
+    malos.length === 0,
+    malos.slice(0, 2).join(" · "),
+  );
+}
+
+zona("web");
+{
+  // LA PORTADA POR DEFECTO DE UNA INVITACIÓN TIENE QUE PESAR POCO.  (D-P-12)
+  //
+  // Cuando la clienta no sube su foto, la invitación usa la del salón — y esa misma URL es el
+  // `og:image` que ve WhatsApp. Sin reducir pesan de 563 kB a 3 MB, y los previsualizadores de
+  // mensajería descartan las grandes: la tarjeta se queda sin foto, que es justo lo que
+  // `api/invitacion-og.js` existe para arreglar.
+  //
+  // `scripts/derivadas-portada.mjs` escribe `min/<base>.webp`. Este contrato comprueba tres
+  // cosas, y la segunda es la que de verdad importa: **que no estén viejas**. Una derivada vieja
+  // enseñaría en la invitación una foto distinta de la del sitio, y eso no lo nota nadie.
+  const { createHash } = await import("node:crypto");
+  const malos = [];
+
+  const datos = JSON.parse(leer("src/data/site-data.json"));
+  const portadas = [...new Set(
+    (datos.salones || []).map((s) => s.imagenPrincipal)
+      .filter((u) => typeof u === "string" && u.startsWith("/media/img/")),
+  )].sort();
+
+  if (portadas.length === 0) {
+    malos.push("ningun salon tiene `imagenPrincipal`: este contrato no estaria mirando nada");
+  }
+
+  let manifiesto = null;
+  try {
+    manifiesto = JSON.parse(leer("public/media/img/min/derivadas.json"));
+  } catch {
+    malos.push("no hay `min/derivadas.json`: corre `node scripts/derivadas-portada.mjs`");
+  }
+
+  const TOPE_KB = 300;
+  if (manifiesto) {
+    for (const ruta of portadas) {
+      const base = ruta.split("/").pop().replace(/\.[a-z0-9]+$/i, "");
+      const derivada = `public/media/img/min/${base}.webp`;
+
+      // 1 · Existe.
+      if (!existe(derivada)) {
+        malos.push(`falta la derivada de ${ruta}: la invitacion serviria la foto de hasta 3 MB`);
+        continue;
+      }
+
+      // 2 · NO ESTA VIEJA. Se recalcula el sha del original y se compara con el que se anotó al
+      //     generarla. Si alguien reemplazó la foto del salón y no volvió a correr el script, la
+      //     invitación enseñaría la foto ANTERIOR — un fallo silencioso.
+      const sha = createHash("sha256").update(leerBytes(`public/media/img/${ruta.split("/").pop()}`)).digest("hex");
+      if (manifiesto[ruta] !== sha) {
+        malos.push(`la derivada de ${ruta} esta vieja: el original cambio y nadie la regenero`);
+      }
+
+      // 3 · Y pesa poco. El tope no es estético: por encima, la tarjeta de WhatsApp se queda
+      //     sin foto.
+      const kb = Math.round(pesoDe(derivada) / 1024);
+      if (kb > TOPE_KB) {
+        malos.push(`la derivada de ${ruta} pesa ${kb} kB (tope ${TOPE_KB}): la tarjeta se quedaria sin foto`);
+      }
+    }
+  }
+
+  check(
+    `web: las ${portadas.length} portadas de salon tienen derivada ligera, al dia y bajo ${TOPE_KB} kB`,
+    malos.length === 0,
+    malos.slice(0, 3).join(" · "),
   );
 }
 
