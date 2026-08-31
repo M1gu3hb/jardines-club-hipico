@@ -5,22 +5,51 @@
    Layout, así que la tipografía Inter y los tokens skeu se
    perdían ahí. Ahora es global (importado en main.jsx).
    ============================================================ */
-/* LA TIPOGRAFÍA NO SE PIDE DESDE AQUÍ. Está en el `<head>` de `index.html`.  (D-P-9)
+/* LA TIPOGRAFÍA DE LA MARCA SE AUTO-HOSPEDA.  (D-P-9)
    ────────────────────────────────────────────────────────────────────────────
-   Aquí había un `@import url('…fonts.googleapis.com…')`, y tenía dos problemas medidos:
+   Aquí había un `@import url('…fonts.googleapis.com…')`. Se probaron dos arreglos y el primero
+   NO funcionó; queda escrito para que nadie lo repita:
 
-   1. Un `@import` cruzado se pide en modo `no-cors`. La respuesta es **opaca**, el service
-      worker no puede inspeccionarla y `guardable()` la descarta con razón. Sin ese CSS no hay
-      `@font-face`, así que el `.woff2` que sí estaba cacheado era **peso muerto**: sin red, la
-      tipografía de la marca no se aplicaba.
-   2. Un `@import` dentro de una hoja son dos viajes en cadena: el navegador tiene que bajar
-      `theme.css` para descubrir que hay una fuente que pedir.
+   1. `@import` cruzado → respuesta OPACA (`no-cors`), que el service worker no puede
+      inspeccionar ni guardar. Sin ese CSS no hay `@font-face`, así que sin red la tipografía no
+      se aplicaba aunque el `.woff2` estuviera cacheado.
+   2. `<link crossorigin>` en `index.html` → la respuesta ya no es opaca, **y aun así no se
+      cacheaba**. Medido en producción con el worker controlando la página: cero entradas de
+      `fonts.g*` en el caché.
 
-   En `index.html` va como `<link crossorigin="anonymous">`, que es petición CORS —comprobado:
-   `fonts.googleapis.com` y `fonts.gstatic.com` responden `Access-Control-Allow-Origin: *`—, así
-   que la respuesta llega inspeccionable y el worker la guarda.
+      El motivo estaba un piso más abajo, en la CSP de `vercel.json`:
 
-   Va en los TRES `index.html` porque este archivo es copia byte a byte de los tres repos. */
+          connect-src 'self' https://…supabase.co wss://…supabase.co
+
+      Un service worker hereda la CSP de su propio script, y `fetch()` cae bajo `connect-src`.
+      Así que **el worker tiene prohibido pedir Google Fonts**, pase lo que pase con el `<link>`:
+      la lista `FUENTES` de `sw.js` era código muerto desde el principio.
+
+   Lo que sí funciona es no depender de un tercero. Los dos subconjuntos de Inter —latin y
+   latin-ext, variable 100-700, 130 kB juntos— viven en `public/fonts/`. Mismo origen: los cubren
+   `default-src 'self'` y `font-src 'self'`, el worker los cachea como cualquier `.woff2`, y de
+   paso el navegador de la clienta deja de hacerle una petición a Google en cada carga.
+
+   Las tipografías decorativas de la INVITACIÓN siguen viniendo de Google (`piezas.jsx`): son
+   doce, se elige una, y la invitación es una página pública que se abre con red. Ahí no hace
+   falta caché y traerlas todas costaría más de lo que da. */
+
+@font-face {
+  font-family: 'Inter';
+  font-style: normal;
+  font-weight: 100 700;   /* es la variable: un archivo cubre todos los pesos que usa el tema */
+  font-display: swap;
+  src: url('/fonts/inter-latin-ext.woff2') format('woff2');
+  unicode-range: U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+0304, U+0308, U+0329, U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C0, U+2113, U+2C60-2C7F, U+A720-A7FF;
+}
+@font-face {
+  font-family: 'Inter';
+  font-style: normal;
+  font-weight: 100 700;
+  font-display: swap;
+  src: url('/fonts/inter-latin.woff2') format('woff2');
+  unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
+}
 
 /* ════════════════════════════════════════════════════════════════════════════
    LA ESCALA · una sola, para las tres aplicaciones

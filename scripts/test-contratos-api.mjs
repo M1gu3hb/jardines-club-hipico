@@ -1534,7 +1534,22 @@ zona("comun");
   const manifiesto = JSON.parse(leer("scripts/compartidos.json"));
   const fallos = [];
   for (const item of manifiesto.archivos) {
-    const actual = createHash("sha256").update(leer(item.ruta), "utf8").digest("hex");
+    // UN ARCHIVO REGISTRADO QUE YA NO ESTÁ SE DICE, NO SE REVIENTA.
+    //
+    // Antes, borrar un archivo común tiraba la suite con un ENOENT crudo. Salía con 1 —falla
+    // cerrada, que es lo importante— pero lo que veía quien la corría era una traza de Node en
+    // vez de «falta este archivo». Un diagnóstico que no se entiende cuesta media hora.
+    if (!existe(item.ruta)) {
+      fallos.push(`${item.ruta} está en el manifiesto y NO existe en este repo`);
+      continue;
+    }
+    // POR BYTES, no por texto.
+    //
+    // Estaba como `update(leer(ruta), "utf8")`, y para un archivo de código da lo mismo —una
+    // cadena UTF-8 vuelve a los mismos bytes—. Para un BINARIO no: leer un `.woff2` como texto
+    // sustituye cada byte inválido por U+FFFD, así que el hash no era el del archivo y ningún
+    // valor del manifiesto podía coincidir nunca. Salió al registrar la tipografía propia.
+    const actual = createHash("sha256").update(leerBytes(item.ruta)).digest("hex");
     if (actual !== item.sha256) fallos.push(`${item.ruta} cambio aqui sin actualizar el manifiesto`);
   }
   check(
@@ -2203,36 +2218,57 @@ zona("comun");
 
 zona("comun");
 {
-  // LA TIPOGRAFÍA DE LA MARCA TIENE QUE PODER CACHEARSE.  (D-P-9)
+  // LA TIPOGRAFÍA DE LA MARCA NO DEPENDE DE UN TERCERO.  (D-P-9)
   //
-  // Un `@import` cruzado dentro de una hoja de estilos se pide en `no-cors`: la respuesta es
-  // OPACA, el service worker no puede inspeccionarla y no la guarda. Sin ese CSS no hay
-  // `@font-face`, así que sin red la tipografía no se aplica **aunque el `.woff2` sí esté
-  // cacheado** — y eso es lo que pasaba: el archivo grande guardado y sirviendo para nada.
+  // Se probaron dos arreglos antes de este, y el primero NO funcionó. Queda escrito porque el
+  // motivo no es evidente y alguien lo va a volver a intentar:
   //
-  // La propiedad no es «hay un link»: es que la petición sea CORS. Sin `crossorigin` el `<link>`
-  // tiene exactamente el mismo problema que el `@import`, así que un contrato que solo mirara
-  // que la fuente está enlazada daría verde sobre la misma avería.
+  //   1. `@import` cruzado en `theme.css` → respuesta OPACA, que el worker no puede guardar.
+  //   2. `<link crossorigin>` en `index.html` → ya no es opaca, **y seguía sin cachearse**.
+  //      Medido en producción con el worker controlando la página: cero entradas de `fonts.g*`.
+  //      El motivo está en la CSP: `connect-src 'self' …supabase.co`. Un service worker hereda
+  //      la CSP de su propio script y `fetch()` cae bajo `connect-src`, así que **el worker
+  //      tiene prohibido pedir Google Fonts** pase lo que pase con el `<link>`. La lista
+  //      `FUENTES` de `sw.js` era código muerto desde el principio.
+  //
+  // Lo que funciona es auto-hospedarla. Este contrato afirma eso, no «que haya un link»: un
+  // `<link>` a Google con `crossorigin` pasaba el contrato anterior y la avería seguía viva.
   const malos = [];
 
   const tema = leer("src/styles/theme.css");
-  // Ancla al PRINCIPIO DE LÍNEA: la cabecera del propio archivo explica el `@import` que se
-  // quitó, y buscarlo suelto encontraría esa explicación en vez de una regresión.
+
+  // 1 · Nadie pide la tipografía de la marca a un tercero. Ancla al PRINCIPIO DE LÍNEA: la
+  //     cabecera del propio archivo explica el `@import` que se quitó.
   if (/^\s*@import\s+url\(['"]https:\/\/fonts\./m.test(tema)) {
-    malos.push("`theme.css` volvió a pedir la fuente con `@import`: la respuesta sería opaca y el service worker no la guardaría");
+    malos.push("`theme.css` volvió a pedir la fuente con `@import`: respuesta opaca y sin cachear");
+  }
+  const html = leer("index.html");
+  if (/<link[^>]*fonts\.googleapis\.com/.test(html)) {
+    malos.push("`index.html` pide la tipografía a Google: la CSP impide que el worker la cachee");
   }
 
-  const html = leer("index.html");
-  const enlaces = [...html.matchAll(/<link\b[^>]*>/g)].map((m) => m[0]);
-  const deFuente = enlaces.filter((l) => /rel=["']stylesheet["']/.test(l) && /fonts\.googleapis\.com/.test(l));
-  if (deFuente.length === 0) {
-    malos.push("`index.html` no enlaza la tipografía de la marca");
-  } else if (!deFuente.some((l) => /crossorigin/.test(l))) {
-    malos.push("el `<link>` de la tipografía no lleva `crossorigin`: la respuesta sería opaca y no se cachearía");
+  // 2 · Se declara `@font-face` y su `src` es del MISMO ORIGEN.
+  const caras = [...tema.matchAll(/@font-face\s*\{([\s\S]*?)\}/g)].map((m) => m[1]);
+  const deMarca = caras.filter((c) => /font-family:\s*['"]Inter['"]/i.test(c));
+  if (deMarca.length === 0) {
+    malos.push("`theme.css` no declara ningún `@font-face` de la tipografía de la marca");
+  }
+  for (const c of deMarca) {
+    const src = /src:\s*url\(['"]?([^'")]+)/.exec(c);
+    if (!src) { malos.push("un `@font-face` de la marca no tiene `src`"); continue; }
+    if (!src[1].startsWith("/fonts/")) {
+      malos.push(`la tipografía se sirve desde «${src[1]}»: si no es del mismo origen, la CSP impide cachearla`);
+      continue;
+    }
+    // 3 · Y el archivo existe de verdad. Un `@font-face` que apunta a un 404 no da error
+    //     visible: el navegador se cae al siguiente de la pila y nadie se entera.
+    if (!existe(`public${src[1]}`)) {
+      malos.push(`\`${src[1]}\` no existe en \`public/\`: el navegador caería a la tipografía del sistema sin avisar`);
+    }
   }
 
   check(
-    "comun: la tipografía de la marca se pide de forma que el service worker pueda guardarla",
+    `comun: la tipografía de la marca se auto-hospeda (${deMarca.length} @font-face del mismo origen)`,
     malos.length === 0,
     malos.slice(0, 2).join(" · "),
   );

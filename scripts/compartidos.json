@@ -91,6 +91,22 @@
       ]
     },
     {
+      "ruta": "public/fonts/inter-latin-ext.woff2",
+      "sha256": "34b9c504cab7a73e37b746343a449132e56cf7b5481af2cb81dc74dcff25c956",
+      "tambienEn": [
+        "portal",
+        "crm"
+      ]
+    },
+    {
+      "ruta": "public/fonts/inter-latin.woff2",
+      "sha256": "3100e775e8616cd2611beecfa23a4263d7037586789b43f035236a2e6fbd4c62",
+      "tambienEn": [
+        "portal",
+        "crm"
+      ]
+    },
+    {
       "ruta": "scripts/columnas-reales.mjs",
       "sha256": "ab2a081c8471fbf9f924187263538cad2fba00435b20eb26f1c64047689326f7",
       "tambienEn": [
@@ -188,7 +204,7 @@
     },
     {
       "ruta": "src/styles/theme.css",
-      "sha256": "fe2624f85bf0048882bffe43fdf37028695123d21c2e66bb0734e893a54b1c1b",
+      "sha256": "89146f8b8d71ee34f289597e334c3d0abec74fe27a2fce42b157b1d85c1f70fb",
       "tambienEn": [
         "portal",
         "crm"
