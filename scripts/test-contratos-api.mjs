@@ -1534,6 +1534,16 @@ zona("comun");
   const manifiesto = JSON.parse(leer("scripts/compartidos.json"));
   const fallos = [];
   for (const item of manifiesto.archivos) {
+    // UNA COPIA QUE NO DICE CON QUIÉN, NO SIRVE PARA NADA.
+    //
+    // El manifiesto existe para responder a una pregunta: «acabo de tocar este archivo, ¿a qué
+    // otros repos tengo que llevarlo?». Una entrada sin `tambienEn` esta declarada como comun y
+    // NO contesta esa pregunta, asi que el contrato la deja pasar y quien edite el archivo se
+    // queda sin saber donde replicarlo. Habia una asi —`medir-contraste-pantallas.mjs`— en los
+    // tres manifiestos: llevaba un `motivo` en vez de la lista.
+    if (!Array.isArray(item.tambienEn) || item.tambienEn.length === 0) {
+      fallos.push(`${item.ruta} esta declarado comun y no dice en que otros repos vive`);
+    }
     // UN ARCHIVO REGISTRADO QUE YA NO ESTÁ SE DICE, NO SE REVIENTA.
     //
     // Antes, borrar un archivo común tiraba la suite con un ENOENT crudo. Salía con 1 —falla
