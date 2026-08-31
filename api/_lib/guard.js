@@ -511,6 +511,42 @@ export async function auditar(admin, accion, resultado, extra = {}) {
   } catch { /* la auditoría nunca tumba la operación */ }
 }
 
+/**
+ * Como `auditar`, pero DICE si escribio.
+ *
+ * `auditar()` se traga sus excepciones a proposito: la auditoria nunca puede tumbar la operacion
+ * del negocio. Eso esta bien para el 99% de los casos y mal para uno: cuando la fila de auditoria
+ * es la CONDICION para poder hacer algo destructivo.
+ *
+ * El caso real es `api/eliminar-evento.js`: borrar un evento destruye su libro de pagos, asi que
+ * el libro se copia a la auditoria ANTES. Si esa copia no cuaja y no nos enteramos, se borra el
+ * registro del dinero sin dejar nada. Ahi «no dio error» no basta.
+ *
+ * Sigue sin lanzar —devuelve `false`— para que no pueda tumbar nada por descuido: quien la llama
+ * decide que hacer con el `false`. Es la misma distincion que `updateEstricto` / `update` del
+ * shim, y por eso lleva el mismo sufijo.
+ */
+export async function auditarEstricto(admin, accion, resultado, extra = {}) {
+  try {
+    const { error } = await admin.rpc("api_auditar", {
+      p_accion: accion, p_resultado: resultado,
+      p_entidad: extra.entidad ?? null, p_entidad_id: extra.entidadId ?? null,
+      p_evento_id: extra.eventoId ?? null,
+      p_detalle: {
+        ...(extra.detalle ?? {}),
+        ...(extra.origen ? { origen: extra.origen } : {}),
+        ...(admin?.__actor?.uid ? { actor_uid: admin.__actor.uid } : {}),
+        ...(admin?.__actor?.etiqueta ? { actor: admin.__actor.etiqueta } : {}),
+      },
+    });
+    if (error) console.error(`[guard] auditarEstricto ${accion}:`, error.message);
+    return !error;
+  } catch (e) {
+    console.error(`[guard] auditarEstricto ${accion}:`, e.message);
+    return false;
+  }
+}
+
 /** IP del cliente según el gateway de Vercel; nunca del cuerpo de la petición. */
 export function ipCliente(req) {
   const xff = req.headers["x-forwarded-for"];
