@@ -1,5 +1,55 @@
 # CHANGELOG.md
 
+## 2026-08-31 — Dos averías que llevaban meses invisibles, y la deuda cerrada
+
+Sesión de cierre de la deuda `D-P-*`. Lo que toca a ESTE repo va abajo del todo; lo primero es
+lo que afecta a los tres, porque son fallos de la base y del código común.
+
+**Nadie podía crear una mesa. Ni un boleto. Nunca.** (`sec_70`) `jardines.mesas.token` y
+`jardines.boletos.token` tienen como valor por defecto `jardines_private.token_seguro()`, y
+**nadie puede ejecutarla**: `anon` false, `authenticated` false, `service_role` false. Un
+`DEFAULT` se evalúa con los permisos de **quien inserta**, no con los del dueño de la tabla, así
+que todo `INSERT` sin token explícito moría con `permission denied for function token_seguro`. El
+editor de mesas estaba roto para todo el mundo, en el CRM y en el portal. Llevaba invisible desde
+que existe la columna porque la base tenía `mesas 0 · boletos 0 · accesos 0`: **la función nunca
+se había ejercitado de punta a punta**, y ninguna de las cuatro puertas habla con la base. Se
+arregla con un puente en `jardines` que delega, para no abrir `jardines_private`.
+
+**De 57 escrituras del servidor no se sabía quién las hizo.** (`sec_69`) `jardines_private.auditar`
+saca `actor_uid` de `auth.uid()` y todas las rutas de `api/` hablan con `service_role`, que no
+lleva sesión: mcp 28, portal 16, api 7 y crm 6, **ninguna** con actor. Ahora `autorizarJardines`
+sella el actor una vez —por donde pasan todas las rutas autorizadas— en vez de enhebrarlo por los
+45 puntos de llamada. Verificado: `publicar` deja un `actor_uid` que resuelve a `rol: admin`.
+
+**El historial de migraciones vive entero en el repo privado.** (`D-P-3`) Estaba partido: 56 aquí
+y 33 en el CRM. Se copiaron las 55 que faltaban; el CRM tiene hoy **88 archivos = las 88
+migraciones nuestras del ledger real**. **Las copias de aquí no se borran** —borrarlas no las
+despublica, el historial de git ya las tiene, y quitarlas rompería contratos de este repo—: lo que
+cambia es dónde está la verdad. Detalle y las dos discrepancias que aparecieron al medir en
+`JCH-CRM/supabase/LEDGER.md`.
+
+**La tipografía de la marca se auto-hospeda.** (`D-P-9`) El `@import` de `theme.css` daba respuesta
+opaca; moverlo a un `<link crossorigin>` **no bastó** —medido: seguía sin cachearse— porque la CSP
+prohíbe al service worker pedir Google Fonts (`connect-src`). Los dos subconjuntos de Inter viven
+ahora en `public/fonts/` de los tres repos. Este sitio no tiene service worker con esa necesidad,
+pero `theme.css` es copia común y el cambio viaja con ella.
+
+**Lo de ESTE repo: la portada por defecto de una invitación pesaba hasta 3 MB.** (`D-P-12`) Las
+ocho fotos de salón se auto-hospedan sin reducir —de 563 kB a 3 024 kB, medido pidiéndolas a
+producción—, y esa misma URL es el `og:image` de la invitación. Los previsualizadores de
+mensajería descartan las imágenes grandes, así que **una invitación sin portada propia se
+compartía con una tarjeta sin foto**: justo el fallo que `api/invitacion-og.js` existe para
+arreglar, entrando por otra puerta. `scripts/derivadas-portada.mjs` escribe
+`public/media/img/min/<base>.webp` y las deja en 1 370 kB juntas (88% menos). El contrato
+comprueba que **no estén viejas**: guarda el sha256 del original al generar y lo recalcula, porque
+una derivada vieja enseñaría en la invitación una foto distinta de la del sitio.
+
+Y **la quinta puerta** (`scripts/columnas-reales.mjs`) vive ahora también aquí: extraía de
+`.select()` y de `.insert/update({})` pero **no leía los filtros**, que es la forma exacta del bug
+que la hizo nacer. Comprobado contra la base: de las 20 referencias a columnas que el `api/` de
+este repo le pide, **cero** no existen.
+
+
 ## 2026-08-30 — El navegador, y el formulario que no estaba roto
 
 Primera sesión con navegador y sesión contra producción. Lo que toca a ESTE repo:

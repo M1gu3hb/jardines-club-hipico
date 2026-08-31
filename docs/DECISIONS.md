@@ -488,3 +488,77 @@ camino correcto.
 El contrato encontró **seis huérfanas más**, todas anteriores: `registrar_llegada_mesa` (que
 escribiría la columna que el tablero de meseros lee y nadie llena), `revocar_staff_token`,
 `confirmar_evento`, `auditoria_reciente`, `operativo_ubicar` y `operativo_evento_activo`.
+
+### D-COD-22 — Un `DEFAULT` corre con los permisos de quien inserta, no con los del dueño
+
+**Decisión.** Ninguna columna de `jardines` puede tener como `DEFAULT` una función de
+`jardines_private`. Si hace falta, se pone un **puente en `jardines`** que sea `SECURITY DEFINER`
+y **delegue** —nunca copiar la fórmula— y se concede solo a los roles que insertan.
+
+**Por qué.** `mesas.token` y `boletos.token` tenían `DEFAULT jardines_private.token_seguro()`, y
+esa función **no la puede ejecutar nadie**: `anon`, `authenticated` y `service_role`, los tres
+false. Un `DEFAULT` se evalúa con los permisos de **quien inserta**, así que todo `INSERT` sin
+token explícito moría con `permission denied for function token_seguro`. El editor de mesas
+estaba roto **para todo el mundo**, en el CRM y en el portal, desde que existe la columna.
+
+Y no se notó porque la base tenía `mesas 0 · boletos 0 · accesos 0`: **la función nunca se había
+ejercitado de punta a punta**. Es el mismo hueco que dejó el MCP entero roto con las cuatro
+puertas en verde — ninguna de las cuatro habla con la base.
+
+**Por qué un puente y no un `grant`.** Conceder `EXECUTE` no basta: `authenticated` tampoco tiene
+USAGE sobre `jardines_private`, así que harían falta las dos concesiones — y eso abriría un schema
+entero (auditoría, pases de vista previa, cubos de rate limit) para poder llamar a una función que
+solo devuelve 32 bytes aleatorios. Lo cierra `sec_70`.
+
+### D-COD-23 — La auditoría dice QUIÉN, y el actor se sella una vez
+
+**Decisión.** El actor se sella en `autorizarJardines`, que es por donde pasan **todas** las rutas
+autorizadas, y `auditar()` lo manda dentro de `p_detalle`. Una ruta nueva lo hereda sin hacer
+nada. **No se enhebra por cada llamada.**
+
+**Por qué.** De las 57 filas de auditoría escritas desde el servidor —mcp 28, portal 16, api 7,
+crm 6— **ninguna tenía actor**: `jardines_private.auditar` saca `actor_uid` de `auth.uid()` y las
+rutas de `api/` hablan con `service_role`, que no lleva sesión. Quedaba escrito QUÉ se hizo y no
+QUIÉN, en un sistema donde una ruta borra eventos y otra crea administradores. Hay **45** puntos
+de llamada a `auditar()`: enhebrarlo por todos se olvida a la primera.
+
+**Y por qué `auditar` gana un parámetro en vez de sacarlo del `jsonb`.** La vía barata —la de
+`sec_47` con `origen`— no vale para `actor_uid`: `auditar` inserta la fila y `api_auditar` no ve
+su `id`, así que habría que rellenarla con un `UPDATE` posterior buscando «la última fila de esta
+acción». Eso tiene una **carrera**, y **un registro que puede atribuir mal es peor que uno
+vacío**. Se hace con `DROP` explícito en la misma migración, que es el único camino seguro tras
+`sec_41`. Lo cierra `sec_69`.
+
+### D-COD-24 — Cuando la auditoría es la condición para destruir, usa `auditarEstricto`
+
+**Decisión.** `auditar()` se sigue tragando sus excepciones —la auditoría nunca puede tumbar la
+operación del negocio— y hay un `auditarEstricto` que **devuelve `false`** para el caso en que la
+fila de auditoría es la **condición** para poder hacer algo irreversible.
+
+**Por qué.** Borrar un evento se lleva su libro de pagos por cascada (`sec_39`), y ese libro es
+append-only por tres capas justo porque un asiento no se corrige borrando. Si **bloquear** el
+borrado es una regla de negocio —y esa la decide el dueño—, destruir el registro **sin dejar
+copia** no lo es: eso es pérdida de datos. El libro se copia a la auditoría antes de tocar nada
+y, si la copia no cuaja, no se borra. Ahí «no dio error» tenía que significar algo.
+
+Sigue sin lanzar, para que no pueda tumbar nada por descuido: quien la llama decide. Es la misma
+distinción que `updateEstricto` / `update` del shim, y lleva el mismo sufijo a propósito.
+
+### D-COD-25 — La vista previa del CRM no cabe en el shim, y por eso no se empezó
+
+**Decisión.** El modo «vista previa» del portal **no va dentro de `src/api/base44Client.js`**. Va
+en un envoltorio propio del portal, y las pantallas se cambian a él.
+
+**Por qué.** `06-CRM-Y-MCP.md` §4 especifica la función entera y pide «un solo interruptor en el
+cliente de datos». Ese interruptor **no tiene dónde ir**: el shim es copia **byte a byte de los
+tres repos** y exporta un literal (`export const base44 = { entities, … }`) sin punto de
+inyección, y las **14** pantallas lo importan directo. Meter ahí el modo previa enviaría código de
+suplantación de identidad al CRM y al sitio público, que nunca deben tenerlo — y bifurcar el shim
+está prohibido: son tres verdades sobre la misma base.
+
+Medido lo que cuesta hacerlo bien: **54** puntos de acceso a datos en 13 pantallas, de los que
+**21 son escrituras y 4 son RPC** sobre nueve entidades. Esa es la lista blanca que la ruta de
+previa tiene que aceptar, y es acotable — pero es una **fase**, no un arreglo, y el propio plan la
+llama «la función más peligrosa del proyecto». Queda como `D-P-19` con el diseño ya resuelto, en
+vez de medio construida.
+
