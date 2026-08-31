@@ -89,14 +89,31 @@ const leerDirRec = (p) =>
  *
  * Para saber si un `/` abre un regex o es una división se mira el último carácter significativo:
  * tras un valor (`)`, `]`, identificador, número) un `/` divide; tras `( , = : [ ! & | ? { } ; ~ +
- * - * % < > ^` o al principio, abre un regex. Es la heurística estándar y basta para este repo.
+ * - * % < > ^` o al principio, abre un regex. Es la heurística estándar.
+ *
+ *   5. **el cierre de un JSX tras una llave**: `<Foto src={x} />`. El último significativo es `}`,
+ *      que sí abre regex en JavaScript, así que ese `/>` se tomaba por el principio de una
+ *      expresión regular y se tragaba el resto de la línea — con sus comentarios dentro. No es
+ *      teórico: rompió el contrato de rutas al envolver la invitación en un `<Suspense>` (D-P-10).
+ *
+ *      El arreglo NO puede ser «un `/` seguido de `>` nunca abre regex»: `escHtml` tiene
+ *      `.replace(/>/g, "&gt;")` en los TRES repos, y ahí el `/` va tras un `(`. Medido, no
+ *      supuesto. Lo que se excluye es exactamente la pareja `}` + `/>`, que en este código es
+ *      siempre JSX.
+ *
+ * `sinComentarios` está separada de `leerCodigo` para poder EJECUTARLA sobre texto en la propia
+ * suite: es la única forma de comprobar que quita lo que dice que quita. Leerla no basta — este
+ * mismo lector ha tenido ya tres agujeros (`image/*`, el `"` de un regex, y el `/>` de JSX), y
+ * los tres cegaban contratos EN SILENCIO.
  */
-const leerCodigo = (p) => {
-  const s = leer(p);
+const sinComentarios = (s) => {
   let out = "";
   let i = 0;
   let ultimoSignificativo = ""; // último carácter no-blanco que SÍ se emitió
-  const abreRegex = () => ultimoSignificativo === "" || "(,=:[!&|?{};~+-*%<>^".includes(ultimoSignificativo);
+  const abreRegex = (siguiente) =>
+    // `}` seguido de `/>` es el cierre de un JSX, no un regex. Ver la cabecera.
+    !(ultimoSignificativo === "}" && siguiente === ">") &&
+    (ultimoSignificativo === "" || "(,=:[!&|?{};~+-*%<>^".includes(ultimoSignificativo));
   const emitir = (t) => { out += t; const s2 = t.trimEnd(); if (s2) ultimoSignificativo = s2.slice(-1); };
   while (i < s.length) {
     const c = s[i];
@@ -116,7 +133,7 @@ const leerCodigo = (p) => {
       const fin = s.indexOf("\n", i + 2);
       i = fin < 0 ? s.length : fin; continue;            // se conserva el salto de línea
     }
-    if (c === "/" && abreRegex()) {                      // 3) expresión regular literal
+    if (c === "/" && abreRegex(d)) {                     // 3) expresión regular literal
       let j = i + 1, clase = false;
       while (j < s.length) {
         const e = s[j];
@@ -134,6 +151,7 @@ const leerCodigo = (p) => {
   }
   return out;
 };
+const leerCodigo = (p) => sinComentarios(leer(p));
 const casos = [];
 
 /**
@@ -2115,6 +2133,67 @@ zona("comun");
     "comun: la auditoría dice QUIÉN, y el actor se sella una vez en vez de en 45 sitios",
     malos.length === 0,
     malos.slice(0, 3).join(" · "),
+  );
+}
+
+zona("comun");
+{
+  // `sinComentarios` SE EJECUTA, no se lee. Es el lector del que dependen ~60 contratos: si se
+  // traga un trozo de archivo, todos ellos afirman sobre un archivo mutilado y **pasan igual**.
+  //
+  // Ya ha tenido tres agujeros, los tres encontrados de casualidad y los tres silenciosos:
+  //   · `"image/*"` lo tomaba por el inicio de un comentario de bloque
+  //   · el `"` de `.replace(/"/g, ...)` lo tomaba por el inicio de una cadena
+  //   · el `/>` de un JSX tras `}` lo tomaba por el inicio de un regex  (D-P-10)
+  //
+  // Cada caso de abajo es uno de esos, escrito como la línea real que lo disparó.
+  const casosLector = [
+    {
+      que: "un comentario de línea normal",
+      dado: 'const a = 1; // fuera\nconst b = 2;',
+      quita: "fuera", conserva: "const b = 2",
+    },
+    {
+      que: "`image/*` no abre un comentario de bloque",
+      dado: 'const M = "image/*";\nconst DESPUES = 1; // fuera',
+      quita: "fuera", conserva: "DESPUES",
+    },
+    {
+      que: "el `\"` de un regex no abre una cadena",
+      dado: 'const e = (s) => s.replace(/"/g, "&quot;");\nconst DESPUES = 1; // fuera',
+      quita: "fuera", conserva: "DESPUES",
+    },
+    {
+      // El comentario va en LA MISMA LÍNEA a propósito. Con él en la siguiente este caso NO
+      // discrimina: un lector que tratara `/>` como código normal se comería la línea 1 entera
+      // y aun así limpiaría la 2, así que pasaba igual. Medido mutando.
+      que: "un regex que empieza por `>` sigue siendo un regex",
+      dado: 'const e = (s) => s.replace(/>/g, "&gt;"); // fuera\nconst FIN = 2;',
+      quita: "fuera", conserva: "&gt;",
+    },
+    {
+      que: "D-P-10 · el `/>` de un JSX tras `}` no abre un regex",
+      dado: '<Foto src={d.portada} /> // fuera\n<Otro />',
+      quita: "fuera", conserva: "<Otro />",
+    },
+    {
+      que: "D-P-10 · y lo de después de ese JSX se sigue limpiando",
+      dado: '<Ruta element={<A />} />\nconst DESPUES = 1; // fuera\nconst FIN = 2;',
+      quita: "fuera", conserva: "FIN",
+    },
+  ];
+
+  const rotos = [];
+  for (const c of casosLector) {
+    const salida = sinComentarios(c.dado);
+    if (salida.includes(c.quita)) rotos.push(`${c.que}: NO quitó «${c.quita}»`);
+    if (!salida.includes(c.conserva)) rotos.push(`${c.que}: se comió «${c.conserva}»`);
+  }
+
+  check(
+    `comun: el lector de código se ejecuta y quita lo que dice (${casosLector.length} casos, los 3 agujeros que tuvo)`,
+    rotos.length === 0,
+    rotos.slice(0, 3).join(" · "),
   );
 }
 
