@@ -562,3 +562,30 @@ previa tiene que aceptar, y es acotable — pero es una **fase**, no un arreglo,
 llama «la función más peligrosa del proyecto». Queda como `D-P-19` con el diseño ya resuelto, en
 vez de medio construida.
 
+
+### D-COD-26 — Las pantallas de mesas NO se separan todavía, y el núcleo sí
+
+**Decisión.** La FASE 5 del plan del portal (`portal/10-FASES.md`, paso 5.2) dice «extraer el
+núcleo común y **bifurcar las pantallas a propósito**». Se hizo la primera mitad y **no la
+segunda**: `src/lib/mesas.js` y `VistaCenital.jsx` salen a módulo compartido, y `MesaEditor.jsx`,
+`MesaPanel.jsx` y `ListaMesas.jsx` **siguen siendo copia byte a byte** entre el portal y el CRM,
+registradas en los dos manifiestos.
+
+**Por qué.** Lo que separa a las dos aplicaciones aquí ya está expresado, y no en forma de
+archivos distintos: son las props `editable` y `esCliente`. La segunda es la que endurece el
+borrado —el cliente no borra una mesa con boletos ya emitidos, el administrador sí— y la que hace
+que el límite de mesas del contrato se diga vendiendo en vez de bloqueando. Bifurcar hoy 700
+líneas para expresar una diferencia que **ya está expresada** deja dos archivos que hay que
+arreglar dos veces, y ése es exactamente el defecto que este proyecto lleva pagando desde la
+partición: «una copia sin contrato es deuda pura».
+
+**Cuándo se bifurca de verdad.** Cuando la diferencia deje de caber en una prop: la FASE 6 sienta
+gente —el cliente busca entre SUS invitados, el administrador entre todos— y la FASE 7 trae los
+boletos, que el cliente reparte y la casa valida en la puerta. Ahí las pantallas divergen en lo
+que HACEN, no solo en lo que permiten, y separarlas dejará de ser duplicar.
+
+Lo que sí se cumplió del 5.2 sin excepción: la geometría **no** vive en ninguna pantalla. Vive en
+un módulo sin JSX que Node importa y ejecuta, con un contrato que le pide las cuatro formas de 1 a
+40 y comprueba que ninguna silla se pisa. Eso no era opcional: el número del asiento se imprime en
+un boleto que alguien enseña en la puerta de un jardín, y si el asiento 3 no fuera el mismo sitio
+en las dos aplicaciones nadie se enteraría hasta esa noche.
