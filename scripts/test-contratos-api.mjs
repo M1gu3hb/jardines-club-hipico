@@ -2374,6 +2374,134 @@ check(
 // ESTE CONTRATO TIENE QUE SER EL ÚLTIMO. Se cuenta a sí mismo con el `+ 1`, porque en el momento
 // de comprobar todavía no se ha empujado a `casos`. Si alguien añade otro debajo, este falla por
 // uno — ruidoso y evidente, que es como tiene que fallar.
+
+zona("comun");
+{
+  // TODA ESCRITURA QUE PUEDE DUPLICARSE ARRANCA CON UN PESTILLO SÍNCRONO.
+  //
+  // ══════════════════════════════════════════════════════════════════════════════
+  // POR QUÉ ESTE CONTRATO NO TIENE LISTA DE NOMBRES
+  // ══════════════════════════════════════════════════════════════════════════════
+  //
+  // El contrato anterior vigilaba tres setters —`setGuardando`, `setAnulando`, `setCreando`— y
+  // eso lo convertía en una lista blanca: un manejador que usara `setSubiendo`, `setAvisando`,
+  // `setBorrando` o `setGenerando` caía fuera y **nadie lo miraba**. Medido el 2026-09-02: había
+  // **43 manejadores `async` que escriben sin ningún pestillo** repartidos por los tres repos, y
+  // entre ellos el que crea un administrador en Auth, el que crea el usuario de una clienta, el
+  // que manda un correo al cliente, el que borra un evento entero, el que registra una llegada en
+  // la puerta y **el formulario de cotización**, que es el camino que da de comer.
+  //
+  // Así que esto no busca nombres: busca la PROPIEDAD. Recorre cada `.jsx`, saca el cuerpo de cada
+  // manejador `async` contando llaves, y si dentro hay una escritura que puede duplicarse exige el
+  // pestillo. Un manejador nuevo entra bajo vigilancia el día que se escribe, sin que nadie tenga
+  // que acordarse de apuntarlo.
+  //
+  // ══════════════════════════════════════════════════════════════════════════════
+  // QUÉ CUENTA COMO «PUEDE DUPLICARSE», Y QUÉ NO
+  // ══════════════════════════════════════════════════════════════════════════════
+  //
+  // SÍ: `.create(` (dos toques, dos filas) · `.upload(` (dos archivos) · `functions.X(` (dos
+  // correos, dos usuarios en Auth, dos borrados) · y `rpc("...")` cuyo nombre NO empiece por
+  // `info_` ni `progreso_`, que es la convención de este proyecto para las RPC de solo lectura.
+  //
+  // NO: `update*` y `delete*` por `id`. Y esto es una decisión, no un olvido: un `patch` que gira
+  // una mesa quince grados se llama DOS VECES A PROPÓSITO cuando alguien quiere treinta, y un
+  // pestillo se tragaría el segundo giro en silencio. Repetir un `UPDATE` con el mismo parche es
+  // idempotente y repetir un `DELETE` del mismo `id` no borra dos veces. Lo que esas sí necesitan
+  // es `catch`, y de eso se ocupa la parte de abajo.
+  //
+  // TAMPOCO los manejadores que DEVUELVEN un valor: eso no es un manejador de evento, es un
+  // servicio que alguien llama y cuyo resultado se usa —`PortalInvitacion.guardar` devuelve
+  // `{ok, noBorradas}` al editor—. Su pestillo vive en quien lo llama, y ponerle uno aquí haría
+  // que la segunda llamada devolviera `undefined` y el editor cantara «guardado» sobre nada.
+  const fallos = [];
+
+  /** El cuerpo de una función desde su `{`, contando llaves y saltando cadenas. */
+  const cuerpoDesde = (s, iLlave) => {
+    let n = 0, modo = null;
+    for (let i = iLlave; i < s.length; i++) {
+      const c = s[i];
+      if (modo) {
+        if (c === "\\") { i++; continue; }
+        if (c === modo) modo = null;
+        continue;
+      }
+      if (c === '"' || c === "'" || c === "`") { modo = c; continue; }
+      if (c === "{") n++;
+      else if (c === "}") { n--; if (n === 0) return s.slice(iLlave, i + 1); }
+    }
+    return null;
+  };
+
+  const RPC_DE_LECTURA = /^(info_|progreso_)/;
+  /** Las escrituras que pueden duplicarse, con su nombre para el mensaje. */
+  const escriturasDe = (cuerpo) => {
+    const encontradas = [];
+    for (const m of cuerpo.matchAll(/\.(create|upload)\(/g)) encontradas.push(`.${m[1]}(`);
+    for (const m of cuerpo.matchAll(/functions\.(\w+)\(/g)) {
+      if (m[1] !== "invoke") encontradas.push(`functions.${m[1]}(`);
+      else encontradas.push("functions.invoke(");
+    }
+    for (const m of cuerpo.matchAll(/\brpc\(\s*["'](\w+)["']/g)) {
+      if (!RPC_DE_LECTURA.test(m[1])) encontradas.push(`rpc("${m[1]}")`);
+    }
+    return encontradas;
+  };
+
+  let mirados = 0, conEscritura = 0;
+  for (const f of leerDirRec("src").filter((x) => x.endsWith(".jsx"))) {
+    const s = leerCodigo(f);
+    const re = /const\s+(\w+)\s*=\s*async\s*\([^)]*\)\s*=>\s*\{/g;
+    let m;
+    while ((m = re.exec(s))) {
+      mirados++;
+      const cuerpo = cuerpoDesde(s, s.indexOf("{", m.index + m[0].length - 1));
+      if (!cuerpo) {
+        fallos.push(`${f}: no pude recortar el cuerpo de \`${m[1]}\` — el contrato no lo está mirando`);
+        continue;
+      }
+      const escrituras = escriturasDe(cuerpo);
+      if (!escrituras.length) continue;
+      // Un manejador que devuelve un valor es un servicio: su pestillo vive en quien lo llama.
+      if (/\breturn\s+[^;\s]/.test(cuerpo)) continue;
+      conEscritura++;
+
+      const quien = `${f.split("/").pop()} · ${m[1]}`;
+      const guarda = /if\s*\([^)]*?(\w+)\.current\b/.exec(cuerpo);
+      const echa = /(\w+)\.current\s*=\s*true/.exec(cuerpo);
+
+      if (!guarda) {
+        fallos.push(`${quien}: escribe con ${escrituras[0]} y NO tiene guarda \`.current\` — dos toques, dos veces`);
+        continue;
+      }
+      if (!echa) {
+        fallos.push(`${quien}: mira un pestillo que nadie echa`);
+        continue;
+      }
+      // Que el que se mira y el que se echa sean EL MISMO. Con dos refs distintos la guarda
+      // consulta uno que siempre está en `false` y la pantalla parece protegida sin estarlo.
+      if (guarda[1] !== echa[1]) {
+        fallos.push(`${quien}: mira \`${guarda[1]}\` y echa \`${echa[1]}\` — no es el mismo pestillo`);
+        continue;
+      }
+      // Y que se SUELTE. Un pestillo que se echa y no se suelta deja el botón muerto para siempre
+      // tras el primer uso; pasó al escribir esta misma tanda, en `AdminGaleria.handleAddUrl`.
+      if (!new RegExp(`${echa[1]}\\.current\\s*=\\s*false`).test(cuerpo)) {
+        fallos.push(`${quien}: echa \`${echa[1]}\` y no lo suelta nunca — el botón queda muerto`);
+      }
+    }
+  }
+
+  // Y el número de manejadores mirados se dice, para que un cambio que los saque del alcance del
+  // contrato —renombrar el patrón, mover a `function` en vez de arrow— se vea como lo que es.
+  check(
+    `comun: toda escritura duplicable lleva pestillo \`useRef\` — ${conEscritura} manejadores vigilados de ${mirados} async`,
+    fallos.length === 0 && conEscritura > 0,
+    fallos.length ? fallos.slice(0, 4).join(" · ")
+                  : "no encontré ni un manejador que escriba: el contrato dejó de mirar donde debía",
+  );
+}
+
 zona("comun");
 {
   const md = leer("CLAUDE.md");

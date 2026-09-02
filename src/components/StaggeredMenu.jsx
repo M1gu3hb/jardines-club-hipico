@@ -299,7 +299,28 @@ export default function StaggeredMenu({
         </div>
       </header>
 
-      <aside id="staggered-menu-panel" ref={panelRef} className="staggered-menu-panel" aria-hidden={!open}>
+      {/* `aria-hidden` NO basta, y ése era el fallo: el CSS oculta este panel **solo con
+          `opacity: 0`**, así que sus enlaces seguían en el orden de tabulación —dentro de un
+          subárbol `aria-hidden`, que es justo lo que Chrome avisa por consola—. Se tabulaba a un
+          menú invisible y el foco desaparecía de la pantalla.
+
+          `inert` lo saca del tabulador Y del árbol de accesibilidad sin tocar una sola propiedad
+          visual, que es lo que hace falta aquí: la apertura la anima GSAP sobre `opacity` y
+          `transform`, y meter `visibility` en esa cadena rompería la animación. En React 18 se
+          pasa como cadena vacía —`inert=""`— porque un booleano dispara un aviso de atributo no
+          reconocido. */}
+      <aside
+        id="staggered-menu-panel"
+        ref={panelRef}
+        className="staggered-menu-panel"
+        aria-hidden={!open}
+        // Va por spread y no como atributo suelto porque los tipos de React 18 no conocen
+        // `inert` —es de React 19— y `checkJs` lo marcaría. Un objeto esparcido no pasa por la
+        // comprobación de propiedades excedentes, así que el atributo llega al DOM y el
+        // typecheck se queda en su línea base. La alternativa era un `@ts-ignore`, que apaga la
+        // comprobación entera de la línea en vez de solo esto.
+        {...(open ? {} : { inert: "" })}
+      >
         <div className="sm-panel-inner">
           <ul className="sm-panel-list" role="list" data-numbering={displayItemNumbering || undefined}>
             {items.map((it, idx) => (

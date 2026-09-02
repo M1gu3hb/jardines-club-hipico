@@ -183,6 +183,13 @@
       ]
     },
     {
+      "ruta": "src/hooks/useDialogoAccesible.js",
+      "sha256": "c84f5747c403b51e01295cf797c60074abdbc3d10dd8f822bac73f6a41d5bd0b",
+      "tambienEn": [
+        "crm"
+      ]
+    },
+    {
       "ruta": "src/index.css",
       "sha256": "8b3995528215d96ef6ca852d09a7677d08b62048f7b248287b883b29a0a8c80b",
       "tambienEn": [

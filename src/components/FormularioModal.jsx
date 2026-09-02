@@ -3,6 +3,7 @@ import { X, ChevronRight, ChevronLeft, Check, Loader2 } from "lucide-react";
 import { base44 } from "@/api/base44Client";
 import { playSound } from "./soundSystem";
 import useLockBodyScroll from "../hooks/useLockBodyScroll";
+import useDialogoAccesible from "../hooks/useDialogoAccesible";
 import { WHATSAPP } from "@/config/negocio";
 import { comoTexto } from "@/lib/sugerencias";
 import Sugerencias, { InvitacionAVer } from "./formulario/Sugerencias";
@@ -156,6 +157,21 @@ export default function FormularioModal({
   // No era que no cupiera: era que no se podía bajar.
   useLockBodyScroll(!enPagina && (open || sent));
 
+  /**
+   * EL DIÁLOGO, CON TECLADO. Escape cierra, el foco entra, no se escapa y vuelve al salir.
+   *
+   * Este archivo es el camino que da de comer y **no tenía ninguna de las cuatro cosas**: solo se
+   * cerraba con el ratón. Quien navega con teclado quedaba encerrado detrás de un formulario que
+   * no podía ni rellenar ni cerrar.
+   *
+   * **Solo cuando es modal.** En `/cotizar` (`enPagina`) el formulario ES la página: ahí no hay
+   * nada de lo que atrapar el foco, no hay fondo que bloquear, y Escape no debe llevarse a nadie
+   * a ninguna parte.
+   */
+  const enVuelo = useRef(false);
+  const caja = useRef(null);
+  useDialogoAccesible(caja, { abierto: !enPagina && (open || sent), onCerrar: onClose });
+
   const handleVolverInicio = () => {
     setSent(false);
     setFolioFinal("");
@@ -244,11 +260,18 @@ export default function FormularioModal({
     form.aceptoAvisoPrivacidad;
 
   const handleSubmit = async () => {
+    // EL PESTILLO, y aquí es el que más duele de todo el ecosistema: dos toques del mismo tick
+    // creaban DOS SOLICITUDES con dos folios distintos, y el dueño llamaba dos veces a la misma
+    // persona por el mismo evento. `loading` es estado y no llega al closure ni al `disabled` del
+    // botón hasta el siguiente repintado; un `useRef` se lee en el acto.
+    if (enVuelo.current) return;
     if (!puedeEnviar) {
       if (!form.aceptoAvisoPrivacidad) setError("Debes aceptar el aviso de privacidad.");
       else setError("Completa los campos obligatorios (*).");
       return;
     }
+    // Después de la validación que hace `return`, o quedaría echado para siempre.
+    enVuelo.current = true;
     setLoading(true);
     setError("");
 
@@ -311,6 +334,7 @@ export default function FormularioModal({
       console.error("[FormularioModal] Error al guardar solicitud:", e);
       setError(mensajeDeError(e));
       setLoading(false);
+      enVuelo.current = false;
       return;
     }
 
@@ -318,6 +342,9 @@ export default function FormularioModal({
     try { playSound("success"); } catch (e) {}
     setFolioFinal(folioGenerado);
     setLoading(false);
+    // El pestillo se suelta también en el camino bueno: la pantalla pasa a la confirmación, pero
+    // dejarlo echado convertiría un componente reutilizado en un formulario muerto.
+    enVuelo.current = false;
     setSent(true);
   };
 
@@ -392,6 +419,13 @@ export default function FormularioModal({
         <div className="absolute inset-0 bg-black/80 backdrop-blur-sm" onClick={onClose} />
       )}
       <div
+        ref={caja}
+        // `role` y `aria-modal` SOLO en modo modal: en `/cotizar` esto es el contenido de la
+        // página, y anunciarlo como diálogo le diría al lector de pantalla que hay algo detrás
+        // esperando, cuando no lo hay.
+        role={enPagina ? undefined : "dialog"}
+        aria-modal={enPagina ? undefined : "true"}
+        aria-labelledby={enPagina ? undefined : "formulario-titulo"}
         className={
           enPagina
             ? 'relative z-10 mx-auto w-full max-w-2xl rounded-2xl border border-[#C9A84C]/20 bg-[#0a0a0a]'
@@ -411,7 +445,7 @@ export default function FormularioModal({
             {enPagina ? (
               <p className="text-white font-light tracking-wide text-lg">Cotiza tu evento</p>
             ) : (
-              <h2 className="text-white font-light tracking-wide text-lg">Cotiza tu evento</h2>
+              <h2 id="formulario-titulo" className="text-white font-light tracking-wide text-lg">Cotiza tu evento</h2>
             )}
             <p className="text-[color:var(--texto-3)] text-xs mt-0.5">Sin costo · Te respondemos en menos de 24h</p>
           </div>
