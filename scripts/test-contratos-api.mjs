@@ -2360,6 +2360,40 @@ check(
   sinZona.length ? `${sinZona.length} sin zona · p.ej. ${sinZona.slice(0, 3).join(" · ")}` : "",
 );
 
+// EL RECUENTO DE CONTRATOS DEL `CLAUDE.md` TIENE QUE SER EL DE VERDAD.
+//
+// Los tres `CLAUDE.md` declaraban 69, 245 y 72 cuando la realidad eran 74, 250 y 76. No es
+// cosmético: ese número es lo primero que lee una sesión nueva para saber si la suite está
+// entera, y un número viejo hace que un fallo silencioso —una suite que dejó de correr la mitad
+// de sus casos— parezca normal.
+//
+// Se corregían a mano y volvían a envejecer al contrato siguiente. Así que ahora lo vigila la
+// propia suite: añadir un contrato obliga a tocar el documento, que es exactamente el momento en
+// que uno se acuerda de por qué lo añadió.
+//
+// ESTE CONTRATO TIENE QUE SER EL ÚLTIMO. Se cuenta a sí mismo con el `+ 1`, porque en el momento
+// de comprobar todavía no se ha empujado a `casos`. Si alguien añade otro debajo, este falla por
+// uno — ruidoso y evidente, que es como tiene que fallar.
+zona("comun");
+{
+  const md = leer("CLAUDE.md");
+  const m = /test:contratos[^\n]*?(\d+)\s*\/\s*\1\b/.exec(md);
+  const real = casos.length + 1;
+  if (!m) {
+    check(
+      "comun: el CLAUDE.md declara cuántos contratos hay",
+      false,
+      `no encuentro un «N/N» junto a \`test:contratos\` en CLAUDE.md; hoy son ${real}`,
+    );
+  } else {
+    check(
+      `comun: el recuento de contratos del CLAUDE.md es el de verdad (${real})`,
+      Number(m[1]) === real,
+      `CLAUDE.md dice ${m[1]}/${m[1]} y la suite tiene ${real}`,
+    );
+  }
+}
+
 let fallan = 0;
 for (const c of casos) {
   if (!c.ok) fallan++;
