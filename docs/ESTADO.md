@@ -108,8 +108,13 @@
 > | App | Repo · commit | URL | Bundle |
 > |---|---|---|---|
 > | web pública | `jardines-club-hipico` · `9d0e053` | <https://jardines-club-hipico.vercel.app> | **775 kB** |
-> | portal del cliente | `JCH-portal-cliente` · `901e80d` (privado) | <https://jch-portal-cliente.vercel.app> | 707 kB |
-> | CRM / punto de venta | `JCH-CRM` · `20a8e8f` (privado) | <https://jch-crm.vercel.app> | 848 kB |
+> | portal del cliente | `JCH-portal-cliente` · `901e80d` (privado) | <https://jch-portal-cliente.vercel.app> | 707 kB ⚠ |
+> | CRM / punto de venta | `JCH-CRM` · `20a8e8f` (privado) | <https://jch-crm.vercel.app> | 848 kB ⚠ |
+>
+> ⚠ **Las dos cifras de las apps privadas son de ANTES del troceado y no valen ya.** Medido el
+> 2026-09-02: el portal entrega **181 kB gzip** en su trozo de entrada, repartido en once trozos
+> perezosos, y el CRM **182 kB gzip**. Se dejan tachadas en vez de borradas porque esta tabla es
+> una foto fechada y el punto de la fila de arriba es la comparación.
 >
 > **Lo que cambió de verdad, y es el punto de todo esto:** el bundle público pasó de
 > **1 098 kB a 775 kB** y ya NO contiene el slug del panel, `AdminSolicitudes`,
@@ -183,9 +188,14 @@ fondo salió con un P0 cada vez.
 |---|---|
 | Commit del código | ver la cabecera de este documento |
 | URL | <https://jardines-club-hipico.vercel.app> |
-| Funciones serverless | **8** |
-| Migraciones aplicadas | `jardines_sec_01..28` (sin `sec_10`) — `sec_29` escrita y SIN aplicar |
-| Contratos | 322/322 · typecheck 59 (línea base) · lint 0 |
+| Funciones serverless | **1** (`api/solicitud.js`). Las otras siete se fueron con el CRM y el portal en la partición del 2026-08-24 |
+| Migraciones aplicadas | Ya no viven aquí: el historial completo está en `M1gu3hb/JCH-CRM`, en `supabase/migrations/` — 91 archivos, medido el 2026-09-01 |
+| Contratos | **76/76** · typecheck **7** (línea base) · lint 0 — medido el 2026-09-02 |
+
+> **Estas tres cifras decían `322/322`, `typecheck 59` y `8 funciones`, que son las del
+> MONOLITO**, de antes de que el proyecto se partiera en tres. Llevaban ahí desde el 2026-08-24.
+> Es la regla anti-documentación muerta incumplida en el sitio donde más engaña: una tabla de
+> «lo esencial» que se lee para saber dónde está uno.
 
 **Bloques desplegados:** 1–9 completos, 9E incluido. Ya está arriba el arreglo que impedía crear
 dos eventos de la misma solicitud, el mínimo de contraseña unificado en 8, el botón de convertir

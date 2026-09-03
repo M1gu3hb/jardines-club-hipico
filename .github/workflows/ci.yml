@@ -1,0 +1,187 @@
+# .github/workflows/ci.yml — las cuatro puertas del SITIO PÚBLICO, en cada push y en cada PR.
+#
+# ══════════════════════════════════════════════════════════════════════════════
+# POR QUÉ EXISTE, Y POR QUÉ LLEGA EL ÚLTIMO
+# ══════════════════════════════════════════════════════════════════════════════
+#
+# El portal tiene CI desde el 2026-08-27 y el CRM también. **Este repositorio no tenía**, y es el
+# único de los tres que es PÚBLICO y el que ve un cliente que no ha comprado nada todavía. Las
+# cuatro puertas se corrían a mano, que es exactamente como una sesión con prisa se las salta.
+#
+# Y aquí hay una asimetría que lo hace peor: los otros dos son privados y sus fallos los ve la
+# casa. Un fallo de éste lo ve alguien que estaba decidiendo dónde hacer su boda.
+#
+# ══════════════════════════════════════════════════════════════════════════════
+# LO QUE ESTE FLUJO NO COMPRUEBA — dicho aquí para que nadie lo suponga
+# ══════════════════════════════════════════════════════════════════════════════
+#
+#   · **Nada contra la base de datos.** `scripts/columnas-reales.mjs` —la «quinta puerta»— existe
+#     en este repo, pero SIN credenciales no comprueba: imprime el SQL para pegarlo en Supabase.
+#     Aquí no hay credenciales a propósito, así que no se ejecuta. El punto ciego es real: un
+#     nombre de columna es una cadena de texto, y para JavaScript es correcta hasta que Postgres
+#     opina.
+#   · **Nada de correo.** `api/solicitud.js` no llega a ejecutarse: no se manda ni un mensaje.
+#   · **Nada de comportamiento en el navegador.** No hay pruebas de UI ni E2E. Que el formulario
+#     de cotización compile no dice que se pueda rellenar.
+#   · **Nada de los medios.** `scripts/build-media.mjs` descarga ~570 MB por red y NO se corre
+#     aquí. El build usa lo que ya está en `public/`.
+#   · **Nada del prerender contra datos reales.** `npm run build` sí incluye `prerender.mjs`, y
+#     ése es el punto: en el build de la FASE anterior el prerender construía las páginas con la
+#     caché ya llena, así que el estado de carga no se ejecutaba nunca. Verde aquí significa que
+#     el prerender terminó, no que las páginas digan la verdad.
+#
+# Verde aquí significa «no se rompió nada de lo que se puede comprobar leyendo el repo». No
+# significa que funcione.
+
+name: puertas
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+# Solo lectura del repositorio. Este job no empuja nada ni llama a la API de GitHub.
+permissions:
+  contents: read
+
+# Un push encima de otro cancela el anterior: lo que importa es el estado de la punta.
+concurrency:
+  group: puertas-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  # ══════════════════════════════════════════════════════════════════════════
+  # LAS DOS LÍNEAS BASE, Y POR QUÉ SE CUENTAN EN VEZ DE MIRAR EL CÓDIGO DE SALIDA
+  # ══════════════════════════════════════════════════════════════════════════
+  #
+  # `npm run typecheck` es `tsc -p ./jsconfig.json` sobre un proyecto de JavaScript con
+  # `checkJs`. Devuelve un código distinto de cero SIEMPRE mientras queden errores conocidos y
+  # aceptados. Un `run: npm run typecheck` a secas dejaría este flujo en rojo permanente, y un CI
+  # que siempre está rojo no lo mira nadie: eso es peor que no tener CI.
+  #
+  # Así que se CUENTAN los errores y se comparan con la línea base, en las DOS direcciones: si
+  # suben, algo nuevo dejó de tipar; si bajan, la línea base está vieja y hay que bajarla aquí
+  # mismo, o el margen se lo come el siguiente cambio sin que nadie se entere.
+  #
+  # Los 7 de hoy, medidos el 2026-09-02: 3 de `src/api/base44Client.js` —copia byte a byte de los
+  # otros dos repos, vigilada por el contrato de `scripts/compartidos.json`— y 4 repartidos entre
+  # `HeroSection`, `soundSystem`, `SoundToggle` y `StaggeredMenu`.
+  TYPECHECK_BASE: 7
+
+jobs:
+  puertas:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Descargar el código
+        uses: actions/checkout@v4
+        with:
+          # Sin esto, checkout deja el token escrito en `.git/config` y al alcance de cualquier
+          # paso posterior — incluido cualquier cosa que arrastre `npm ci` desde el registro.
+          persist-credentials: false
+
+      - name: Node 22
+        uses: actions/setup-node@v4
+        with:
+          # No hay `.nvmrc` ni `engines` en `package.json`, así que la fuente es el lock
+          # (`lockfileVersion` 3). Se elige 22 por lo mismo que en los otros dos repos: los
+          # `@supabase/*` piden `>=22.0.0`, y en `ubuntu-latest` entran binarios opcionales de
+          # rollup que suben el suelo real a 22.20. `'22'` resuelve la 22.x más reciente y cumple;
+          # clavar `'22.0'` reintroduciría el aviso de motor incompatible.
+          node-version: '22'
+          cache: 'npm'
+
+      - name: Instalar dependencias
+        id: instalar
+        # `npm ci`, no `npm install`: instala EXACTAMENTE lo que dice el lock y se planta si el
+        # lock y `package.json` no concuerdan. `npm install` resolvería versiones nuevas por su
+        # cuenta y CI acabaría probando un árbol que no tiene nadie más.
+        #
+        # OJO tras la poda del 2026-09-02: `package.json` bajó de 68 dependencias a 15, así que
+        # el lock cambió mucho. Si este paso falla con un desajuste, es que alguien tocó
+        # `package.json` sin regenerar `package-lock.json`.
+        run: npm ci
+
+      # ────────────────────────────────────────────────────────────────────────
+      # LAS CUATRO PUERTAS
+      #
+      # Se ejecutan las cuatro aunque una falle —de ahí el `if:` de las tres siguientes— y el job
+      # queda en rojo si cualquiera falló. Parando en la primera: arreglas el lint, lo subes, y
+      # ahí te enteras de que además el typecheck había subido. Dos vueltas para saber lo que se
+      # puede saber en una.
+      #
+      # Lo que sí corta es que falle `npm ci`: sin dependencias las cuatro fallan por el mismo
+      # motivo y ninguna dice nada útil.
+      # ────────────────────────────────────────────────────────────────────────
+
+      - name: 'Puerta 1/4 · lint (línea base: 0 problemas)'
+        # `eslint . --quiet`: `--quiet` esconde los avisos, así que lo que llegue aquí es error.
+        # `no-undef` está activo, y es lo que atrapa un símbolo que se quedó tras un borrado.
+        run: npm run lint
+
+      - name: 'Puerta 2/4 · build (línea base: exit 0)'
+        if: ${{ !cancelled() && steps.instalar.outcome == 'success' }}
+        # `npm run build` son TRES pasos: `medidas-medios.mjs`, `vite build` y `prerender.mjs`.
+        # El prerender levanta el bundle de servidor y escribe una página por ruta, así que este
+        # paso cubre bastante más que compilar: si una ruta revienta al renderizarse en Node, aquí
+        # se ve.
+        #
+        # NO HACE FALTA NINGUNA VARIABLE DE ENTORNO. `VITE_SITE_URL` tiene valor por defecto y
+        # las claves de Supabase solo hacen falta en runtime: sin ellas el build termina igual y
+        # el sitio se renderiza vacío, que es el comportamiento documentado (J-03).
+        run: npm run build
+
+      - name: 'Puerta 3/4 · contratos (línea base: 76/76 — medido el 2026-09-02; solo sube)'
+        if: ${{ !cancelled() && steps.instalar.outcome == 'success' }}
+        # `node scripts/test-contratos-api.mjs`. No toca la red ni la base: son comprobaciones
+        # estáticas sobre el código, y por eso pueden correr aquí sin un solo secreto.
+        #
+        # El número no se fija en este archivo a propósito: lo vigila un contrato de la propia
+        # suite contra el `CLAUDE.md`, así que si alguien añade uno y no lo apunta, la suite falla
+        # sola. Duplicarlo aquí sería un tercer sitio donde el mismo número puede envejecer.
+        run: npm run test:contratos
+
+      - name: 'Puerta 4/4 · typecheck (línea base: 7 errores, NO debe subir)'
+        if: ${{ !cancelled() && steps.instalar.outcome == 'success' }}
+        # ══════════════════════════════════════════════════════════════════════
+        # POR QUÉ NO BASTA CON MIRAR EL CÓDIGO DE SALIDA — ver el bloque `env` de arriba.
+        #
+        # Y por qué se distinguen TRES casos y no dos: entre «tsc reventó» y «todo bien» hay un
+        # cero que no es una línea base de cero, es un silencio. Si `tsc` no encuentra el
+        # proyecto, o la versión cambió, o el `jsconfig` se movió, la salida no trae ni un
+        # `error TS` y el contador da 0 — que compararía como «bajó» y dejaría el job en verde
+        # sobre un typecheck que no se ejecutó.
+        # ══════════════════════════════════════════════════════════════════════
+        run: |
+          set +e
+          SALIDA=$(npm run typecheck 2>&1)
+          CODIGO=$?
+          set -e
+          echo "$SALIDA"
+
+          # Caso 1: tsc se quejó de sí mismo, no del código. No hay línea base que valga.
+          if echo "$SALIDA" | grep -qE "error TS(5[0-9]{3}|6[0-9]{3})"; then
+            echo "::error::tsc no pudo ejecutarse (error de configuración, no de tipos)."
+            exit 1
+          fi
+
+          ERRORES=$(echo "$SALIDA" | grep -cE "error TS" || true)
+
+          # Caso 2: cero errores Y código de salida cero. Eso sí es un cero de verdad.
+          if [ "$ERRORES" -eq 0 ] && [ "$CODIGO" -ne 0 ]; then
+            echo "::error::tsc salió con $CODIGO y no imprimió ni un 'error TS'. Eso no es un cero, es un silencio."
+            exit 1
+          fi
+
+          echo "errores de tipos: $ERRORES  ·  línea base: $TYPECHECK_BASE"
+
+          if [ "$ERRORES" -gt "$TYPECHECK_BASE" ]; then
+            echo "::error::el typecheck SUBIÓ de $TYPECHECK_BASE a $ERRORES. Algo nuevo dejó de tipar."
+            exit 1
+          fi
+
+          if [ "$ERRORES" -lt "$TYPECHECK_BASE" ]; then
+            echo "::error::el typecheck BAJÓ a $ERRORES y la línea base sigue en $TYPECHECK_BASE. Bájala en .github/workflows/ci.yml y en CLAUDE.md, o el margen se lo come el siguiente cambio."
+            exit 1
+          fi

@@ -140,13 +140,6 @@
       ]
     },
     {
-      "ruta": "src/components/MediaCarrusel.jsx",
-      "sha256": "2f84352039d607442a7a25d60d541938beae99a9a9268ff9ca686e13a3df996a",
-      "tambienEn": [
-        "portal"
-      ]
-    },
-    {
       "ruta": "src/components/MediaViewer.jsx",
       "sha256": "202ed6e824ad6c207cf18dd23739a1dbf8322484739f1c3f969653f5577b4f78",
       "tambienEn": [
@@ -1046,6 +1039,15 @@
     {
       "ruta": "vite.config.js",
       "motivo": "existe en otro repo pero ADAPTADO aqui"
+    }
+  ],
+  "retirados": [
+    {
+      "ruta": "src/components/MediaCarrusel.jsx",
+      "motivo": "BORRADO en la web (R-9, 2026-09-02): no lo importaba nadie desde ninguna de las entradas reales —medido siguiendo el grafo de imports desde main.jsx, entrada-servidor.jsx, api/solicitud.js y los doce scripts, no con un grep—. Se fue con la home anterior al rediseno, junto a SalonesSection, GaleriaSection y ServiciosAmenidades. SIGUE VIVO en el portal, donde lo usa PortalArmalo.jsx, asi que alli no se toca: deja de ser copia compartida porque ya solo existe en un repo.",
+      "seguiaEn": [
+        "portal"
+      ]
     }
   ]
 }

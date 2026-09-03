@@ -468,15 +468,22 @@ zona("web");
 {
   // `leerCodigo` y no `leer`: las cabeceras explican de dónde venía el fallo y citan el
   // dominio. Buscarlo con comentarios haría fallar el contrato por su propia documentación.
-  const publicos = [
-    "src/components/CtaCotizacion.jsx",
-    "src/components/GaleriaSection.jsx",
-    "src/components/SalonesSection.jsx",
-    "src/components/SalonOverlay.jsx",
-    "src/components/ServiciosAmenidades.jsx",
-    "src/components/Confianza.jsx",
-    "src/pages/Home.jsx",
-  ];
+  // LA LISTA SE DERIVA DEL ÁRBOL, NO SE ESCRIBE A MANO.
+  //
+  // Eran siete rutas fijas, y la poda del 2026-09-02 borró tres de ellas —`GaleriaSection`,
+  // `SalonesSection`, `SalonOverlay`, que llevaban meses sin importador—: la suite entera reventó
+  // con un `ENOENT` en vez de fallar con un mensaje. Y el problema de fondo era peor que el
+  // reventón: **un componente público nuevo no entraba en la lista**, así que podía cargar
+  // imágenes de un origen que la CSP bloquea sin que nadie lo mirara.
+  //
+  // Derivarla del árbol arregla las dos cosas a la vez: borrar un archivo no rompe nada, y uno
+  // nuevo nace vigilado.
+  const publicos = leerDirRec("src")
+    .filter((f) => f.endsWith(".jsx") && (f.startsWith("src/components/") || f.startsWith("src/pages/")));
+  if (publicos.length < 20) {
+    check("9D: la lista de componentes públicos se quedó vacía", false,
+      `solo encontré ${publicos.length} componentes: el recorrido del árbol dejó de funcionar`);
+  }
   const HOSTS_DE_IMAGEN = /https:\/\/(images\.unsplash\.com|i\.imgur\.com|media\.base44\.com|[a-z0-9-]+\.cloudfront\.net|cdn\.[a-z0-9-]+\.[a-z]{2,})/;
   const sucios = publicos.filter((f) => HOSTS_DE_IMAGEN.test(leerCodigo(f)));
   check(
@@ -779,17 +786,25 @@ zona("web");
 // real va de 400 a 600. Escondía además los cuatro espacios más distintivos, capilla incluida.
 // Quien planeara una boda de 500 se iba creyendo que el sitio le queda chico.
 {
-  const salones = leerCodigo("src/components/SalonesSection.jsx");
   const contacto = leerCodigo("src/components/ContactoSection.jsx");
   const fallos = [];
 
-  // No hay una lista de salones escrita a mano en el componente. La forma que se prohíbe es el
-  // objeto con `nombre` Y `capacidad` literales, que es lo que hace que se vea como un dato bueno.
-  if (/nombre:\s*"[^"]+"[\s\S]{0,240}?capacidad:\s*"[^"]+"/.test(salones)) {
-    fallos.push("`SalonesSection` vuelve a traer salones inventados");
+  // SE BUSCA EN TODO EL ÁRBOL VIVO, NO EN UN ARCHIVO.
+  //
+  // Esto miraba `src/components/SalonesSection.jsx`, que **la poda del 2026-09-02 borró** por
+  // llevar meses sin importador — y la suite reventó con un `ENOENT`. Pero atarlo al archivo era
+  // el error de fondo: la propiedad no es «ese componente no inventa salones», es «NINGUNO los
+  // inventa». Los salones los pinta hoy `home/EspaciosDestacados` y cinco páginas más, ninguna de
+  // las cuales estaba vigilada.
+  //
+  // La forma que se prohíbe es el objeto con `nombre` Y `capacidad` literales, que es lo que hace
+  // que un respaldo se vea como un dato bueno: «Salón Cerrado» no existe, y a «Jardines» le ponían
+  // 100–300 personas cuando el real va de 400 a 600. Quien planeara una boda de 500 se iba
+  // creyendo que el sitio le queda chico.
+  const INVENTA = /nombre:\s*"[^"]+"[\s\S]{0,240}?capacidad:\s*"[^"]+"/;
+  for (const f of leerDirRec("src").filter((x) => x.endsWith(".jsx") || x.endsWith(".js"))) {
+    if (INVENTA.test(leerCodigo(f))) fallos.push(`${f} trae salones inventados en el código`);
   }
-  // Y con la lista vacía se dice que no cargó, en vez de no pintar nada en silencio.
-  if (!/listado\.length === 0/.test(salones)) fallos.push("con la lista vacía no se avisa de nada");
 
   // Los respaldos de contacto salen del módulo verificado, no de literales.
   for (const mentira of ["55 0000 0000", "contacto@jardinesclubhipico.mx", "https://maps.google.com", '"Ciudad de México"']) {

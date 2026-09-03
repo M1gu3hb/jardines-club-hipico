@@ -96,6 +96,7 @@ export default function Home() {
       <Cabecera
         titulo={def.titulo}
         descripcion={def.descripcion}
+        imagen={def.imagen}
         ruta="/"
         jsonLd={{
           '@context': 'https://schema.org',

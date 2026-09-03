@@ -41,6 +41,9 @@
  * @property {string}  [soloSiHay] Solo entra en el sitemap si esa colección tiene filas.
  * @property {string}  [titulo]    `<title>`. Si falta se compone con el nombre.
  * @property {string}  [descripcion] `<meta name="description">`.
+ * @property {string}  [imagen]    La que se ve al compartir el enlace (`og:image`). Relativa a la
+ *   raíz del sitio. Sin ella, `Cabecera` pone `twitter:card: summary` y WhatsApp enseña un
+ *   enlace pelado — que es lo que pasaba con la PORTADA hasta el 2026-09-02.
  */
 
 /** @type {Ruta[]} */
@@ -55,6 +58,18 @@ export const RUTAS = [
     descripcion:
       'Ocho espacios en un mismo recinto de Xochimilco: jardines, salones, capilla, ' +
       'área infantil y hospedaje. De 30 a 600 invitados. Cotiza tu evento sin compromiso.',
+    // LA FOTO QUE SE VE AL COMPARTIR EL ENLACE.
+    //
+    // Hasta el 2026-09-02 la portada no tenía ninguna, así que `Cabecera` ponía
+    // `twitter:card: summary` y **cada vez que alguien compartía el sitio por WhatsApp salía un
+    // enlace pelado** — sin foto, sin nada que invitara a abrirlo. Comprobado en el HTML servido,
+    // no leído del código.
+    //
+    // Se usa la DERIVADA ligera (`min/*.webp`, 1400 px, 247 kB) y no el original de 577 kB: los
+    // previsualizadores descartan las imágenes grandes, y ése fue exactamente el fallo que la
+    // FASE 4 del portal ya pagó con la tarjeta de la invitación. El formato webp está probado en
+    // esa misma tarjeta, que es la que se verificó funcionando en WhatsApp real.
+    imagen: '/media/img/min/GqNFCgG.webp',
   },
 
   // ── ESPACIOS ──────────────────────────────────────────────────────────────

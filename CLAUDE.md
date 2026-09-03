@@ -137,6 +137,32 @@ npm run test:contratos  # 76/76 (reparto: web 42 . comun 33) -- medido el 2026-0
 npm run typecheck       # 7 errores = línea base de ESTE repo, no debe SUBIR (bajó de 9 en el rediseño)
 ```
 
+**Y desde el 2026-09-02 hay CI**: `.github/workflows/ci.yml` corre las cuatro en cada push y en
+cada pull request. Era el ÚNICO de los tres repos sin él, y es el único público — el que ve
+alguien que todavía no ha comprado nada. Dos detalles que no son obvios y están explicados dentro
+del propio archivo: el typecheck **cuenta** los errores contra `TYPECHECK_BASE` en vez de mirar el
+código de salida (que es distinto de cero siempre) y grita en las **dos** direcciones, y el
+recuento de contratos **no** se duplica ahí porque ya lo vigila un contrato contra este mismo
+documento.
+
+**El número del typecheck está duplicado en `.github/workflows/ci.yml` (`TYPECHECK_BASE`). Si
+cambia aquí, cambia allí.**
+
+**Las dependencias se podaron el 2026-09-02**, de **68 a 15**. Se midió siguiendo el grafo de
+imports desde las entradas reales —`src/main.jsx`, `src/entrada-servidor.jsx`, `api/solicitud.js`
+y los doce scripts—, no con un `grep`, y se borraron además **58 archivos de `src/` inalcanzables**:
+46 de `components/ui/` (de shadcn, de los que solo viven `toaster`, `toast`, `use-toast`,
+`Esqueleto` y `Foto`), la home anterior al rediseño (`SalonesSection`, `GaleriaSection`,
+`ServiciosAmenidades`) y los siete que esa home arrastraba.
+
+**El bundle no cambió ni un byte**: 872 710 antes y 872 710 después, y el gzip varió en 1 byte por
+el nombre de un archivo. El árbol ya las sacudía. Lo que se gana es disco, tiempo de `npm install`
+y **superficie de cadena de suministro** — no rendimiento, y quien espere lo segundo se va a
+llevar un chasco.
+
+`src/pages/Nosotros.jsx` **no se borró**: está aparcada a propósito con su 301 en `vercel.json`, y
+con ella se quedan `data/textos-nosotros.js` y `animacion/PistaQueSeDibuja.jsx`, que solo ella usa.
+
 Si tocaste SQL, además corre `supabase/tests/seguridad.sql` (va en
 `BEGIN/ROLLBACK`, no deja rastro).
 
