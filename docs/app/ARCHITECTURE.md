@@ -129,12 +129,24 @@ publican, porque Vercel ignora las carpetas que empiezan por `_`.
    trigger al INSERT. Sin esto se podía llamar aquí directamente para saltarse el control del
    formulario.
 5. Relee la fila con `service_role` y exige que **exista** y tenga **menos de 15 minutos**.
-6. **Idempotencia** por solicitud: un reintento no manda el correo dos veces, pero un fallo real
-   sí se puede reintentar, porque la clave solo se consume cuando el envío sale bien.
-7. Compone el correo con la plantilla común y **escapa todo** con `escHtml`: el nombre y los
+6. **Manda DOS correos, independientes** (E-1, 2026-09-03), cada uno con su `try/catch`, su
+   clave de idempotencia y su fila de auditoría:
+   - el **aviso al dueño** (`solicitud-correo` / `solicitud_correo`), que va a `MAIL_TO` con
+     respaldo en `GMAIL_USER`, y
+   - el **acuse a quien llenó el formulario** (`solicitud-acuse` / `solicitud_acuse`), que va al
+     correo de la fila **solo si lo dio** —el campo es opcional y sin él no se manda nada ni se
+     marca ninguna clave— y lleva el folio, el resumen de lo pedido y el plazo de respuesta.
+
+   **Idempotencia** recuperable en los dos y con **claves distintas**: un reintento no manda
+   ninguno dos veces, un fallo real sí se puede reintentar, y que salga uno no da el otro por
+   enviado. Con una sola clave, el primero en cerrarla enterraría al otro.
+7. Compone los dos correos con la plantilla común y **escapa todo** con `escHtml`: el nombre y los
    comentarios los escribe un desconocido en un formulario público, así que son la entrada menos
-   confiable del proyecto. Manda HTML y texto plano.
-8. Audita el resultado (`ok`, `denegado`, `error`) en la tabla privada de auditoría.
+   confiable del proyecto. Los dos mandan HTML y texto plano.
+8. Audita cada resultado (`ok`, `denegado`, `error`) en la tabla privada de auditoría.
+9. **El código de respuesta lo decide solo el aviso al dueño**: 500 si falló él (el front lo
+   traduce a «escríbenos por WhatsApp con tu folio»), 200 si falló solo el acuse. El acuse queda
+   reintentable y su fallo consta en la auditoría — perder el acuse no puede hacer perder el lead.
 
 `api/_lib/`:
 
@@ -218,14 +230,16 @@ Es el único camino de escritura de esta aplicación, y merece verse entero.
    Sin folio del servidor no hay registro confirmado, y NO se enseña exito.
    El usuario conserva lo que escribio para reintentar.
 
-6. Aviso al dueño, dispara-y-olvida (si falla, la solicitud YA quedo guardada):
+6. Aviso al dueno + acuse al cliente, dispara-y-olvida (si falla, la solicitud YA quedo guardada):
        base44.functions.invoke("gmailSolicitud", { solicitudId: creada.id })
          -> POST /api/solicitud  con SOLO el id
 
 7. api/solicitud.js: rate limit por IP -> relee la fila (service_role) ->
-   comprueba que existe y tiene < 15 min -> idempotencia -> compone el correo
-   escapando todo -> Nodemailer/Gmail -> audita.
+   comprueba que existe y tiene < 15 min -> DOS correos independientes, cada uno
+   con su clave de idempotencia: el aviso al dueno y, si la fila trae correo, el
+   acuse al cliente -> compone escapando todo -> Nodemailer/Gmail -> audita.
    El boton de WhatsApp solo se pinta si `telefono.js` pudo derivar el numero.
+   Devuelve 500 solo si fallo el aviso al dueno.
 
 8. La pantalla enseña el folio que devolvio la BASE. Nunca uno inventado.
 ```

@@ -28,9 +28,9 @@ código común con los archivos reales.
 
 ---
 
-## 2. Los 59 contratos, agrupados
+## 2. Los 65 contratos, agrupados
 
-### El formulario y su correo (8 + 6 = 14)
+### El formulario y sus dos correos (14 + 6 = 20)
 
 | Contrato | Qué ata |
 |---|---|
@@ -38,10 +38,16 @@ código común con los archivos reales.
 | `solicitud: el front no fabrica folios` | El folio sale de la base o no hay éxito |
 | `solicitud: la API relee la fila de la base` | El correo se arma con datos canónicos |
 | `solicitud: usa la plantilla dorada común, no un transporter propio` | Una sola fuente de estilo y remitente |
-| `solicitud: todo dato de la fila va escapado en el HTML` | Entrada de un desconocido, escapada |
+| `solicitud: todo dato de la fila va escapado en el HTML de los dos correos` | Entrada de un desconocido, escapada. Y el propio recorte se comprueba: los dos constructores de HTML tienen que caer dentro del tramo mirado |
 | `solicitud: se conserva el texto plano como alternativa` | Hay clientes que no pintan HTML |
-| `solicitud: el replyTo sale de la fila, no del cuerpo` | El dueño responde al cliente real |
+| `solicitud: los dos replyTo los pone el servidor` | El del dueño, el correo de la fila saneado; el del acuse, la bandeja de la casa |
 | `solicitud: el asunto conserva folio y nombre` | Se puede buscar en el buzón |
+| `solicitud: el acuse solo sale si la fila trae correo` | El campo es opcional: sin él no se manda nada **ni se marca ninguna clave** |
+| `solicitud: cada correo lleva su propia clave de idempotencia` | Que salga uno no da el otro por enviado; que falle uno no impide reintentar el otro |
+| `solicitud: un fallo del acuse no cambia la respuesta` | El 500 cuelga solo del aviso al dueño. Perder el acuse no puede hacer perder el lead |
+| `solicitud: el plazo que promete el acuse es el que promete el formulario` | Cruza las dos cifras y exige que la frase use la constante |
+| `solicitud: el acuse lleva folio, resumen y plazo` **(ejecutado)** | Corre `acuseParaCliente` con una solicitud de mentira y mira HTML y texto plano |
+| `solicitud: el acuse escapa lo que escribió el desconocido` **(ejecutado)** | Le mete `<script>` y comillas y comprueba que salen escapados |
 | `api/solicitud.js: importa escHtml` | El escapador bueno, no uno propio |
 | `api/solicitud.js: sin variables sin escapar en cuerpoHtml` | Recorre los `${}` del template y exige `escHtml(` |
 | `api/solicitud.js: sin .catch(() => {}) sobre llamadas a Supabase` | `supabase-js` resuelve con `{ error }`: un `.catch` no atrapa nada |

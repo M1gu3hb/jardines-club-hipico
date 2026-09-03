@@ -399,24 +399,235 @@ zona("web");
       .map((m) => m[1].trim())
       .filter((e) => !/^escHtml\(/.test(e))
       .filter((e) => !/^(filas)$/.test(e));      // fragmento ya escapado por `fila()`
+    // EL TRAMO TIENE QUE CONTENER LOS DOS CUERPOS, no solo el que había cuando se escribió esto.
+    //
+    // Desde E-1 hay dos correos: el aviso al dueño y el acuse al cliente. Si mañana alguien
+    // mueve `construirHtmlAcuse` debajo de `construirTexto`, el recorte dejaría de mirarlo y
+    // este contrato seguiría en verde afirmando que "todo dato va escapado" sobre la mitad del
+    // HTML. Es el fallo que esta suite persigue —el contrato atado al identificador y no al
+    // uso— así que el propio recorte se comprueba.
+    const faltan = ["function construirHtml(", "function construirHtmlAcuse("]
+      .filter((f) => !constructores.includes(f));
     check(
-      "solicitud: todo dato de la fila va escapado en el HTML",
-      constructores.length > 0 && crudas.length === 0,
-      constructores ? crudas.join(" | ") : "no se encontraron los constructores del HTML",
+      "solicitud: todo dato de la fila va escapado en el HTML de los dos correos",
+      constructores.length > 0 && crudas.length === 0 && faltan.length === 0,
+      [
+        crudas.join(" | "),
+        faltan.length ? `fuera del tramo comprobado: ${faltan.join(", ")}` : "",
+        constructores ? "" : "no se encontraron los constructores del HTML",
+      ].filter(Boolean).join(" · "),
     );
   }
   check(
     "solicitud: se conserva el texto plano como alternativa",
     /texto: construirTexto\(s\)/.test(codigo),
   );
-  check(
-    "solicitud: el replyTo sale de la fila, no del cuerpo de la petición",
-    /replyTo: s\.email/.test(codigo) && !/replyTo:\s*(lectura|req|body)/.test(codigo),
-  );
+  /* LOS DOS `replyTo` LOS PONE EL SERVIDOR, y cada uno apunta a donde toca.
+   *
+   * El del aviso al dueño es el correo de la fila —para que responda al cliente de verdad y no a
+   * una dirección que puso quien llamó a la ruta—, saneado por el mismo validador que el
+   * destinatario del acuse: `Reply-To` es una cabecera igual que `To`.
+   * El del acuse es la bandeja de la casa (`destinoAviso()`, o sea `MAIL_TO`), que es lo que
+   * exige §5.5 de `16E-CORREOS.md`: quien conteste al acuse no puede caer en un buzón sin
+   * etiqueta. Se afirma sobre CADA `replyTo:` del archivo, no sobre uno concreto: si mañana
+   * aparece un tercer correo, también queda cubierto.
+   */
+  {
+    const fallos = [];
+    const declarados = [...codigo.matchAll(/replyTo:\s*([^,\n]+)/g)].map((m) => m[1].trim());
+    const inventados = declarados.filter((e) => !/^correoUtilizable\(s\.email\)/.test(e));
+    if (!declarados.length) fallos.push("ningún correo declara `replyTo`");
+    if (inventados.length) fallos.push(`un replyTo no sale de la fila saneada: ${inventados.join(" | ")}`);
+    if (/replyTo:\s*(lectura|req|body)/.test(codigo)) fallos.push("un replyTo sale del cuerpo de la petición");
+    // El del acuse viaja como parámetro, y lo que se le pasa es la bandeja de la casa.
+    if (!/async function acusarAlCliente\(admin, s, replyTo\)/.test(codigo) ||
+        !/enviarCorreo\(\{[\s\S]{0,400}\breplyTo,/.test(entre(codigo, "async function acusarAlCliente", "export default"))) {
+      fallos.push("el acuse ya no manda el `replyTo` que le pasan");
+    }
+    if (!/acusarAlCliente\(admin, s, to\)/.test(codigo) || !/const to = destinoAviso\(\)/.test(codigo)) {
+      fallos.push("al acuse no se le pasa la bandeja de la casa (`destinoAviso()`)");
+    }
+    check(
+      "solicitud: los dos replyTo los pone el servidor — el del dueño de la fila saneada, el del acuse hacia la casa",
+      fallos.length === 0,
+      fallos.join(" · "),
+    );
+  }
   check(
     "solicitud: el asunto conserva folio y nombre",
     /subject: `\[JCH\] Nueva solicitud \$\{s\.folio[\s\S]{0,60}s\.nombre_completo/.test(codigo),
   );
+
+  /* ══════════════════════════════════════════════════════════════════════════
+   * E-1 · EL ACUSE A QUIEN LLENÓ EL FORMULARIO
+   * ══════════════════════════════════════════════════════════════════════════
+   *
+   * Hasta hoy la ruta mandaba UN correo. Ahora manda dos y son independientes, y toda la
+   * dificultad está en esa independencia: tres de estos cinco contratos existen para que no se
+   * pueda deshacer sin que la suite lo diga.
+   *
+   * Ninguna de las cuatro puertas manda un correo, así que dos de los cinco EJECUTAN el
+   * constructor —que por eso es una función pura exportada— en vez de leer el código y creérselo.
+   */
+  {
+    const acuse = entre(codigo, "async function acusarAlCliente", "export default");
+    const fallos = [];
+    if (!acuse) fallos.push("no se encontró `acusarAlCliente`");
+    // (a) La comprobación del correo existe y RECHAZA lo que no se puede mandar. Se afirma sobre
+    //     el cuerpo de `correoUtilizable`, no sobre su nombre: un nombre no valida nada.
+    const util = entre(codigo, "const correoUtilizable =", "const fila =");
+    if (!/return null/.test(util) || !/\\s/.test(util)) {
+      fallos.push("`correoUtilizable` no rechaza, o ya no excluye espacios en blanco (cabecera `To:`)");
+    }
+    // (b) EL ORDEN manda: sin correo se sale ANTES de tocar la clave y ANTES de enviar. Si el
+    //     `return` cayera detrás del `idemIniciar`, una solicitud sin correo dejaría marcada una
+    //     clave que nunca corresponde a un envío — y el acuse quedaría enterrado si mañana se
+    //     completara el dato.
+    const iCorreo = acuse.indexOf("correoUtilizable(s.email)");
+    const iSalida = acuse.indexOf('return "sin_correo"');
+    const iIdem = acuse.indexOf("idemIniciar(");
+    const iEnvio = acuse.indexOf("enviarCorreo(");
+    if (!(iCorreo >= 0 && iSalida > iCorreo && iIdem > iSalida && iEnvio > iIdem)) {
+      fallos.push("sin correo no se sale antes de marcar la clave y de enviar");
+    }
+    check(
+      "solicitud: el acuse solo sale si la fila trae correo, y sin correo no marca ninguna clave",
+      fallos.length === 0,
+      fallos.join(" · "),
+    );
+
+    // (c) DOS CLAVES DISTINTAS. Con una sola, el primero de los dos correos que la cerrara
+    //     dejaría al otro sin forma de reintentarse, y un envío daría el otro por hecho.
+    const dueno = entre(codigo, "async function avisarAlDueno", "async function acusarAlCliente");
+    const cte = (n) => (new RegExp(`const ${n} = "([^"]+)"`).exec(codigo) || [])[1];
+    const kDueno = cte("IDEM_DUENO");
+    const kAcuse = cte("IDEM_ACUSE");
+    const usa = (cuerpo, k, otra) =>
+      new RegExp(`idemIniciar\\(admin, ${k},`).test(cuerpo) &&
+      new RegExp(`idemCerrar\\(admin, ${k}, s\\.id, true\\)`).test(cuerpo) &&
+      new RegExp(`idemCerrar\\(admin, ${k}, s\\.id, false\\)`).test(cuerpo) &&
+      !new RegExp(`\\b${otra}\\b`).test(cuerpo);
+    const fallos2 = [];
+    if (!kDueno || !kAcuse) fallos2.push("no se encontraron las dos constantes de idempotencia");
+    else if (kDueno === kAcuse) fallos2.push(`las dos claves son la misma cadena: "${kDueno}"`);
+    if (!usa(dueno, "IDEM_DUENO", "IDEM_ACUSE")) fallos2.push("el aviso al dueño no abre y cierra SOLO su clave");
+    if (!usa(acuse, "IDEM_ACUSE", "IDEM_DUENO")) fallos2.push("el acuse no abre y cierra SOLO su clave");
+    check(
+      "solicitud: cada correo lleva su propia clave de idempotencia, y son distintas",
+      fallos2.length === 0,
+      fallos2.join(" · "),
+    );
+
+    // (d) NINGUNA MITAD TUMBA A LA OTRA, y el código de respuesta lo decide solo el aviso al
+    //     dueño. Perder el acuse no puede hacer perder el lead, y un 500 por el acuse sería
+    //     además permanente: el reintento encuentra cerrada la clave del dueño.
+    const i0 = codigo.indexOf("const avisoDueno = await avisarAlDueno");
+    const cola = i0 < 0 ? "" : codigo.slice(i0);
+    const fallos3 = [];
+    if (!cola) fallos3.push("no se encontró la llamada al aviso al dueño en el handler");
+    // El acuse se intenta SIEMPRE, no colgando de que el aviso al dueño saliera.
+    if (!/^\s*const acuse = await acusarAlCliente\(/m.test(cola)) {
+      fallos3.push("el acuse no se intenta incondicionalmente después del aviso al dueño");
+    }
+    // Tolerante al espaciado y a las llaves: partir el `if` en tres líneas no es una regresión.
+    // (La primera versión exigía la línea exacta y la mutación inocua la tumbó.)
+    if (!/if\s*\(\s*avisoDueno\s*===\s*"fallido"\s*\)\s*\{?\s*return generico\(res,\s*500\)/.test(cola)) {
+      fallos3.push("el 500 ya no cuelga de que fallara el aviso al dueño");
+    }
+    // Y `acuse` no gobierna ninguna respuesta: solo viaja como dato dentro del 200.
+    for (const m of cola.matchAll(/\bacuse\b[^\n]*/g)) {
+      const linea = m[0];
+      if (/generico\(res|res\.status\((?!200)/.test(linea)) fallos3.push(`el acuse decide una respuesta: «${linea.trim().slice(0, 70)}»`);
+    }
+    check(
+      "solicitud: un fallo del acuse no cambia la respuesta; uno del aviso al dueño sí",
+      fallos3.length === 0,
+      fallos3.join(" · "),
+    );
+  }
+
+  /* EL PLAZO QUE SE PROMETE EN EL CORREO ES EL QUE SE PROMETE EN PANTALLA.
+   *
+   * El formulario dice «Te respondemos en menos de 24h» antes de que la persona escriba nada. Si
+   * el acuse dijera otra cosa, habría dos promesas y ninguna forma de saber cuál vale. Se cruzan
+   * los dos números, y se exige además que la frase del correo USE la constante en vez de
+   * repetir la cifra a mano — que es como los dos vuelven a divergir.
+   */
+  {
+    const enPantalla = /Te respondemos en menos de\s*(\d+)\s*h/.exec(front);
+    const enConstante = /const PLAZO_HORAS = (\d+)/.exec(codigo);
+    const frases = entre(codigo, "function frasesAcuse", "function construirTextoAcuse");
+    const fallos = [];
+    if (!enPantalla) fallos.push("el formulario ya no promete un plazo en horas");
+    if (!enConstante) fallos.push("`PLAZO_HORAS` no está declarada en la ruta");
+    if (enPantalla && enConstante && enPantalla[1] !== enConstante[1]) {
+      fallos.push(`la pantalla promete ${enPantalla[1]} h y el acuse ${enConstante[1]} h`);
+    }
+    if (!/menos de \$\{PLAZO_HORAS\} horas/.test(frases)) {
+      fallos.push("la frase del acuse no usa `PLAZO_HORAS`: la cifra puede divergir sin que nada avise");
+    }
+    check(
+      "solicitud: el plazo que promete el acuse es el que promete el formulario",
+      fallos.length === 0,
+      fallos.join(" · "),
+    );
+  }
+
+  /* LOS DOS EJECUTADOS. `acuseParaCliente` es pura a propósito —ni red, ni base, ni entorno—
+   * justo para que se pueda llamar desde aquí con una solicitud de mentira. */
+  {
+    const { acuseParaCliente } = await import("../api/solicitud.js");
+    const s = {
+      folio: "JCH-4B2C71", nombre_completo: "Mariana Estrada Nuñez", telefono: "55 2311 8153",
+      email: "no-existe@example.com", salon_seleccionado: "Jardín Principal", tipo_evento: "Boda",
+      fecha_tentativa: "2027-02-14", numero_personas: 180,
+      comentarios: "Quisiéramos ceremonia civil a las 5.",
+    };
+    const a = acuseParaCliente(s);
+    const fallos = [];
+    if (!a.asunto.includes(s.folio)) fallos.push("el asunto no lleva el folio");
+    // LO QUE EL ACUSE TIENE QUE LLEVAR, y en LAS DOS versiones: hay clientes de correo que no
+    // pintan HTML, y ahí el texto plano es el correo entero.
+    for (const [etiqueta, valor] of [
+      ["el folio", s.folio], ["el espacio", s.salon_seleccionado], ["el tipo de evento", s.tipo_evento],
+      ["la fecha tentativa", s.fecha_tentativa], ["las personas", String(s.numero_personas)],
+      ["el teléfono", s.telefono], ["los comentarios", s.comentarios],
+      ["el plazo", "menos de 24 horas"],
+    ]) {
+      if (!a.html.includes(valor)) fallos.push(`el HTML no lleva ${etiqueta}`);
+      if (!a.texto.includes(valor)) fallos.push(`el texto plano no lleva ${etiqueta}`);
+    }
+    // Y no promete nada que el aviso de privacidad no diga: ni publicidad ni suscripción.
+    if (!/No es publicidad y no te suscribimos a nada/.test(a.html)) {
+      fallos.push("el pie ya no dice que no es publicidad");
+    }
+    check("solicitud: el acuse lleva folio, resumen y plazo — en HTML y en texto plano (ejecutado)",
+      fallos.length === 0, fallos.join(" · "));
+
+    // ESCAPADO, EJECUTADO. Es un correo que va a un desconocido con datos que escribió otro
+    // desconocido: la entrada menos confiable del proyecto acaba dentro de HTML.
+    const hostil = {
+      folio: 'JCH-<img src=x onerror="alert(1)">',
+      nombre_completo: "<script>alert('xss')</script>",
+      salon_seleccionado: "Jardín' onmouseover='alert(2)",
+      tipo_evento: "<b>Boda</b>",
+      comentarios: "</td></tr></table><script>fetch('http://mal.example.com')</script>",
+    };
+    const h = acuseParaCliente(hostil).html;
+    const fugas = [
+      ["<script", "<script"], ["</td></tr></table>", "</td></tr></table>"],
+      ["<b>Boda</b>", "<b>Boda</b>"], ["comilla del cliente", "Jardín' onmouseover='"],
+      ["etiqueta img del cliente", "<img src=x"],
+    ].filter(([, crudo]) => h.includes(crudo)).map(([e]) => e);
+    const escapadas = ["&lt;script&gt;", "&#39;xss&#39;", "&lt;img src=x onerror=&quot;alert(1)&quot;&gt;"]
+      .filter((e) => !h.includes(e));
+    check(
+      "solicitud: el acuse escapa lo que escribió el desconocido (ejecutado)",
+      fugas.length === 0 && escapadas.length === 0,
+      [fugas.length ? `sale crudo: ${fugas.join(", ")}` : "",
+        escapadas.length ? `no aparece escapado: ${escapadas.join(", ")}` : ""].filter(Boolean).join(" · "),
+    );
+  }
 }
 
 
