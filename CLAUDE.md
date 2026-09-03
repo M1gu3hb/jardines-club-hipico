@@ -132,7 +132,7 @@ Los cuatro tienen que pasar:
 ```bash
 npm run lint            # 0 problemas
 npm run build           # exit 0
-npm run test:contratos  # 77/77 (reparto: web 42 . comun 33) -- medido el 2026-09-01
+npm run test:contratos  # 78/78 (reparto: web 42 . comun 33) -- medido el 2026-09-01
                         # El numero lo vigila un contrato: si cambia aqui y no ahi, la suite falla.
 npm run typecheck       # 7 errores = línea base de ESTE repo, no debe SUBIR (bajó de 9 en el rediseño)
 ```

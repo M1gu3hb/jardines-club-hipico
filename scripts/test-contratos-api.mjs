@@ -2594,6 +2594,71 @@ zona("comun");
   );
 }
 
+
+zona("comun");
+{
+  // UN GLOBAL, UN DUEÑO.
+  //
+  // ══════════════════════════════════════════════════════════════════════════════
+  // B-01 · EL FALLO QUE ESTE CONTRATO EXISTE PARA QUE NO VUELVA
+  // ══════════════════════════════════════════════════════════════════════════════
+  //
+  // `FormularioModal` usaba dos ganchos que escribían el MISMO estilo global:
+  // `useLockBodyScroll` ponía `overflow: hidden`, y `useDialogoAccesible` —que corre después—
+  // capturaba el valor **ya modificado** y lo restauraba al cerrar. React ejecuta las limpiezas en
+  // orden de declaración: la primera devolvía `""`, la segunda volvía a poner `"hidden"`.
+  //
+  // **El `<html>` se quedaba bloqueado para siempre.** Todo visitante que abriera «Cotizar mi
+  // evento» desde la portada y lo cerrara —o que lo ENVIARA CON ÉXITO— se quedaba en una página
+  // muerta. El CTA de más tráfico del negocio. Determinista, cada ciclo.
+  //
+  // Lo introdujo un arreglo de accesibilidad, y **ninguna de las cinco puertas lo vio**: lint,
+  // build, typecheck y los contratos miran archivos de uno en uno, y esto solo existe cuando dos
+  // se juntan en el mismo componente.
+  //
+  // Estáticamente no se puede simular el orden de las limpiezas de React. Lo que SÍ se puede
+  // afirmar, y es la propiedad que lo impide de raíz: **un solo módulo del repositorio escribe
+  // este estilo**. Con un dueño no hay pelea posible.
+  const malos = [];
+  const ESCRIBE_OVERFLOW = /\.style\.overflow\s*=/;
+
+  const duenos = [];
+  let mirados = 0;
+  for (const dir of ["src", "api"].filter((d) => existe(d))) {
+    for (const f of leerDirRec(dir)) {
+      if (!/\.(js|jsx|mjs|ts)$/.test(f)) continue;
+      mirados++;
+      if (ESCRIBE_OVERFLOW.test(leerCodigo(f))) duenos.push(f);
+    }
+  }
+
+  if (mirados === 0) malos.push("no miré ni un archivo: el recorrido se rompió");
+  if (duenos.length > 1) {
+    malos.push(`${duenos.length} módulos escriben \`style.overflow\`: ${duenos.join(", ")}. Con dos dueños, uno restaura lo que el otro dejó puesto (B-01)`);
+  }
+
+  // Y si hay uno, es el que tiene que ser: el gancho que existe para eso. Un dueño distinto
+  // —una pantalla suelta que lo hace por su cuenta— es el mismo problema con otro nombre.
+  if (duenos.length === 1 && !/useLockBodyScroll/.test(duenos[0])) {
+    malos.push(`quien escribe \`style.overflow\` es ${duenos[0]} y no \`useLockBodyScroll\`, que es el gancho que existe para eso`);
+  }
+
+  // El gancho de diálogo NO lo toca. Se mira aparte porque es el que lo tocaba, y porque su
+  // cabecera lo NOMBRA al explicar por qué ya no: `leerCodigo` quita los comentarios, así que lo
+  // que quede es código de verdad. (Este mismo despiste tumbó el `assert` del arreglo.)
+  if (existe("src/hooks/useDialogoAccesible.js")) {
+    if (ESCRIBE_OVERFLOW.test(leerCodigo("src/hooks/useDialogoAccesible.js"))) {
+      malos.push("`useDialogoAccesible` volvió a escribir `overflow`: es exactamente B-01");
+    }
+  }
+
+  check(
+    `comun: un solo módulo escribe \`style.overflow\` — ${mirados} archivos mirados, ${duenos.length} dueño(s)`,
+    malos.length === 0,
+    malos.slice(0, 2).join(" · "),
+  );
+}
+
 zona("comun");
 {
   const md = leer("CLAUDE.md");

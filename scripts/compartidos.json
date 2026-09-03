@@ -177,7 +177,14 @@
     },
     {
       "ruta": "src/hooks/useDialogoAccesible.js",
-      "sha256": "c84f5747c403b51e01295cf797c60074abdbc3d10dd8f822bac73f6a41d5bd0b",
+      "sha256": "775e0bdd59456eeeb4dd840b4e97f9c7aeb374030e776762ea803b2c5898af5e",
+      "tambienEn": [
+        "crm"
+      ]
+    },
+    {
+      "ruta": "src/hooks/useLockBodyScroll.js",
+      "sha256": "18c2159621c77ca099bd2318f72cde8d20cc8763a9e0197455f7658090aa10fa",
       "tambienEn": [
         "crm"
       ]

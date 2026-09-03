@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
+import useLockBodyScroll from "@/hooks/useLockBodyScroll";
 import { createPortal } from 'react-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { X, ChevronLeft, ChevronRight, Play } from 'lucide-react';
@@ -90,13 +91,16 @@ export default function VisorDeFotos({ piezas, indice, onCerrar, onCambiar }) {
     return () => window.removeEventListener('keydown', alPulsar);
   }, [abierto, ir, onCerrar]);
 
-  // ── El scroll del fondo se bloquea mientras el visor está encima ────────
-  useEffect(() => {
-    if (!abierto || typeof document === 'undefined') return undefined;
-    const antes = document.documentElement.style.overflow;
-    document.documentElement.style.overflow = 'hidden';
-    return () => { document.documentElement.style.overflow = antes; };
-  }, [abierto]);
+  // ── El scroll del fondo, con el gancho que es su único dueño ────────────
+  //
+  // Esto tenía su propio efecto guardando «cómo estaba». Con un solo componente en pantalla
+  // funciona; en cuanto coincide con otro que hace lo mismo, el segundo captura el valor ya
+  // modificado y al cerrar lo restaura — y el fondo se queda bloqueado para siempre. Es B-01,
+  // que en `FormularioModal` dejaba la portada muerta después de cerrar el CTA principal.
+  //
+  // `useLockBodyScroll` lleva un contador: si dos cosas lo piden a la vez, el fondo se libera
+  // cuando se va la última.
+  useLockBodyScroll(abierto);
 
   // ══════════════════════════════════════════════════════════════════════════
   // LA PRECARGA DE LAS VECINAS — lo que quita los tres segundos
