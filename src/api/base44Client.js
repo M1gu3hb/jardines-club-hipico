@@ -619,11 +619,37 @@ const integrations = {
 const auth = {
   async me() { const { data } = await supabase.auth.getUser(); if (!data?.user) throw new Error("no session"); return data.user; },
   async session() { const { data } = await supabase.auth.getSession(); return data?.session || null; },
-  // Perfil (rol) del usuario logueado. RLS permite leer el perfil propio.
+  /**
+   * Perfil (rol) del usuario logueado. RLS permite leer el perfil propio.
+   *
+   * ⚠️ LANZA SI LA LECTURA SE CAE, y esa distinción es todo el arreglo de B-10.
+   *
+   * Aquí se destructuraba solo `data` y el `error` se TIRABA. Una lectura caída —sin red, el
+   * token sin renovar, la base de mal día— devolvía `null`, que es exactamente lo mismo que
+   * devuelve un usuario que no tiene fila de perfil. Quien llama concluía «esta persona no
+   * tiene rol», y `PortalPage` le pintaba a una clienta CON LA SESIÓN INTACTA la pantalla de
+   * acceso: parece que la han echado de su propio evento, y encima se le pide una contraseña
+   * que sin red no se puede comprobar. Es el gemelo de J-02 en el camino de entrar.
+   *
+   * «No hay sesión» SIGUE siendo `null` y no un error: nadie ha entrado todavía, y eso no es
+   * una avería. Se mira antes con `getSession()` —que lee el almacenamiento local, no la red—
+   * porque supabase-js v2 reporta la falta de sesión como un `error` (`AuthSessionMissingError`)
+   * y mezclarlo con los fallos de verdad devolvería el bug por la puerta de atrás.
+   *
+   * LÍMITE, dicho en vez de aparentado: si la sesión guardada ya no vale, `getUser()` falla y
+   * esto lanza, así que la pantalla dirá «no pudimos cargar» y ofrecerá reintentar en lugar de
+   * mandar al login. Dura poco — supabase-js emite `SIGNED_OUT` en cuanto no puede renovar y el
+   * contexto se recarga solo— y es la dirección segura del error: dudar en voz alta antes que
+   * expulsar a alguien en silencio.
+   */
   async perfil() {
-    const { data: u } = await supabase.auth.getUser();
+    const { data: s } = await supabase.auth.getSession();
+    if (!s?.session?.user) return null;
+    const { data: u, error: uErr } = await supabase.auth.getUser();
+    if (uErr) { console.error("[shim] perfil getUser", uErr.message); throw uErr; }
     if (!u?.user) return null;
-    const { data } = await supabase.from("perfiles").select("*").eq("user_id", u.user.id).maybeSingle();
+    const { data, error } = await supabase.from("perfiles").select("*").eq("user_id", u.user.id).maybeSingle();
+    if (error) { console.error("[shim] perfil", error.message); throw error; }
     return rowToObj(data);
   },
   // Login admin: email + contraseña directos.
