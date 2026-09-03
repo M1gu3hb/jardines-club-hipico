@@ -2661,9 +2661,36 @@ zona("comun");
 
 zona("comun");
 {
+  /* ══════════════════════════════════════════════════════════════════════════
+   * EL RECUENTO **Y EL REPARTO** DEL CLAUDE.md
+   * ══════════════════════════════════════════════════════════════════════════
+   *
+   * El total ya estaba atado. El reparto NO, y por eso el CLAUDE.md llegó a decir
+   * «78/78 (reparto: web 42 · comun 33)» durante días: 42 + 33 = 75, tres de menos, y las tres
+   * puertas en verde. El número grande se actualizaba porque un contrato lo vigilaba; los dos
+   * pequeños se copiaban a mano y envejecían solos.
+   *
+   * Es el mismo fallo que este archivo persigue en el código —una cifra afirmada que nadie
+   * comprueba— cometido por el propio archivo que lo persigue. Así que ahora se comprueban las
+   * tres cosas: el total, cada zona, y que las zonas SUMEN el total. La tercera es la que habría
+   * cazado el 42 + 33.
+   *
+   * ── El `YO` ────────────────────────────────────────────────────────────────
+   *
+   * Este bloque cuenta la suite mientras forma parte de ella, así que tiene que sumarse a sí
+   * mismo. `YO` es cuántos `check` declara. **Si añades otro aquí, sube `YO`.** Y si se te
+   * olvida, no pasa nada malo en silencio: el contrato falla en la siguiente corrida diciendo
+   * que el CLAUDE.md y la suite no cuadran, que es exactamente lo que tiene que hacer.
+   */
+  const YO = 2;
   const md = leer("CLAUDE.md");
-  const m = /test:contratos[^\n]*?(\d+)\s*\/\s*\1\b/.exec(md);
-  const real = casos.length + 1;
+  const linea = /^[^\n]*test:contratos[^\n]*$/m.exec(md)?.[0] || "";
+  const real = casos.length + YO;
+
+  const porZonaAhora = Object.fromEntries(ZONAS.map((z) => [z, casos.filter((c) => c.zona === z).length]));
+  porZonaAhora.comun += YO;
+
+  const m = /(\d+)\s*\/\s*\1\b/.exec(linea);
   if (!m) {
     check(
       "comun: el CLAUDE.md declara cuántos contratos hay",
@@ -2677,6 +2704,43 @@ zona("comun");
       `CLAUDE.md dice ${m[1]}/${m[1]} y la suite tiene ${real}`,
     );
   }
+
+  /* El reparto se lee SOLO del span que lo declara, no de la línea entera.
+   *
+   * La primera versión buscaba `\bcomun\b\s*(\d+)` sobre todo el renglón, y **la mutación la
+   * tumbó**: al borrar el «comun 66» de verdad, el contrato siguió encontrando un número —el
+   * «comun 33» que la propia frase explicativa cita como ejemplo del bug— y falló por el motivo
+   * equivocado. Hoy pasaba de casualidad, porque `exec` devuelve la PRIMERA coincidencia y la
+   * buena venía antes; con la prosa reordenada habría afirmado un reparto leído de una anécdota.
+   *
+   * Es exactamente el fallo que este archivo persigue —atarse al identificador en vez de al
+   * uso—, cometido por el contrato que vigila los recuentos. Así que se recorta primero: lo que
+   * va dentro de los acentos graves tras la palabra `reparto`, o hasta el paréntesis que lo
+   * cierra. Fuera de ahí no se mira nada.
+   */
+  const mSpan = /reparto\s*:?\s*`([^`]*)`|reparto\s*:?\s*([^)`\n]*)/.exec(linea);
+  const trozo = mSpan ? (mSpan[1] ?? mSpan[2] ?? "") : "";
+  const declarado = {};
+  for (const z of ZONAS) {
+    const mz = new RegExp(`\\b${z}\\b\\s*[.·:]?\\s*(\\d+)`).exec(trozo);
+    if (mz) declarado[z] = Number(mz[1]);
+  }
+  const conCifra = ZONAS.filter((z) => declarado[z] !== undefined);
+  const discrepan = conCifra.filter((z) => declarado[z] !== porZonaAhora[z]);
+  const faltan = ZONAS.filter((z) => porZonaAhora[z] > 0 && declarado[z] === undefined);
+  const suma = conCifra.reduce((a, z) => a + declarado[z], 0);
+  const sumaMal = m && conCifra.length > 0 && suma !== Number(m[1]);
+
+  const pega = (z) => `${z}: dice ${declarado[z]}, son ${porZonaAhora[z]}`;
+  check(
+    `comun: el REPARTO del CLAUDE.md cuadra con la suite (${ZONAS.filter((z) => porZonaAhora[z] > 0).map((z) => `${z} ${porZonaAhora[z]}`).join(" · ")})`,
+    discrepan.length === 0 && faltan.length === 0 && !sumaMal,
+    [
+      discrepan.map(pega).join(" · "),
+      faltan.length ? `sin declarar: ${faltan.join(", ")}` : "",
+      sumaMal ? `el reparto suma ${suma} y el total declarado es ${m[1]}` : "",
+    ].filter(Boolean).join(" · "),
+  );
 }
 
 let fallan = 0;

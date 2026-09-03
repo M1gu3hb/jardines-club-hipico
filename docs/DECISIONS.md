@@ -589,3 +589,60 @@ un módulo sin JSX que Node importa y ejecuta, con un contrato que le pide las c
 40 y comprueba que ninguna silla se pisa. Eso no era opcional: el número del asiento se imprime en
 un boleto que alguien enseña en la puerta de un jardín, y si el asiento 3 no fuera el mismo sitio
 en las dos aplicaciones nadie se enteraría hasta esa noche.
+
+
+### D-COD-27 — El subsistema Operativo se congela, y su superficie se retira hoy
+
+**Decisión.** Se toma la salida **A** de `portal/16I-OPERATIVO.md`, recortada a lo que se puede
+demostrar: se retira la superficie viva del «Modo Evento» y **no se borra nada de su trabajo**.
+Aplicado en `sec_75`.
+
+Se fue:
+
+- El `EXECUTE` a **`anon`** de `registrar_llegada_mesa` e `info_mesa_token`. Eran invocables desde
+  internet por cualquiera. `authenticated` las conserva.
+- `operativo_ubicaciones` y `operativo_transmisiones` salen de `supabase_realtime`. Una de ellas
+  son **coordenadas GPS de empleados**: no publicarlas mientras no exista el consentimiento
+  explícito que ese dato exige no es ahorro, es lo correcto.
+- Dos RPC sin llamador: `operativo_ubicar` y `operativo_evento_activo`.
+
+Se queda: las **seis tablas con sus datos y su RLS**, `operativo_personal` y
+`operativo_asignacion` —que `AdminOperativo` usa—, la cuenta de `operativo_personal` que hace
+`api/_lib/guard.js` para negarse a borrar el usuario Auth de un empleado, el bucket `operativo` y
+`eventos.operativo_desde`. Los dos últimos son decisiones del dueño —reusar el bucket, o que el
+interruptor selle la columna—, no consecuencias de esta medición.
+
+**Por qué ahora.** Se estaba pagando mantenimiento —inventario de borrado, foto de integridad,
+pruebas de RLS— por código que nadie ejecuta, y ya se había pagado antes: `sec_03`, `sec_08`,
+`sec_09`, `sec_12`, `sec_14` y `sec_18` se gastaron asegurándolo, incluido un IDOR real y un
+fail-open que concedía permiso universal ante la ausencia de un dato. Endurecer indefinidamente
+algo que no se va a construir cuesta más que retirarlo. Si algún día se construye la aplicación del
+empleado, las migraciones están enteras en el historial y reponerlo es copiar y ajustar.
+
+**Lo que se midió antes de tocar, y por qué hicieron falta tres métodos.** El primer `grep` dijo
+que `registrar_llegada_mesa` tenía **cinco llamadores** y estuvo a punto de parar todo esto: eran
+cinco **comentarios** que nombran la RPC precisamente para explicar que nadie la llama. Es el mismo
+fallo que este proyecto persigue en sus contratos —buscar un identificador suelto sobre un archivo
+entero— cometido sobre el código fuente. Los tres métodos que sí coinciden: cero invocaciones
+reales (`rpc("…")`) en los tres repos, cero entradas en `jardines_private.auditoria`, y **cero
+filas con `mesas.ocupadas > 0`**, siendo esa RPC su única escritora.
+
+### La lección que vale más que la decisión: `grep` no ve a los llamadores que viven en la base
+
+`16I` lista **cinco** RPC «sin un solo llamador». Son **dos**. Las otras tres las llaman
+**políticas de RLS**, que son llamadores como cualquier otro y no aparecen en una búsqueda sobre
+`src/`:
+
+    mis_canales()           → op_personal_sel, op_canales_sel, op_pc_sel
+    mis_canales_escuchar()  → op_tx_sel  ·  «op audio select» @ storage.objects
+    mis_canales_hablar()    → op_tx_ins  ·  «op audio insert» @ storage.objects
+
+El ensayo en `BEGIN/ROLLBACK` murió con `cannot drop function … because other objects depend on
+it`, y la pista del propio error proponía `DROP … CASCADE`. **Aceptarla habría borrado cinco
+políticas** y dejado esas tablas sin su filtro: se habría cerrado una superficie pequeña abriendo
+una mucho peor, con las cuatro puertas en verde y sin que nadie lo notara.
+
+**Regla, y va con nombre para poder citarla:** antes de retirar una función SQL se le pregunta a
+`pg_depend`, no solo a `grep`. Y una migración de retirada afirma también **lo que conserva** —
+`sec_75` tiene una poscondición que exige que las tres RPC de canales y sus cinco políticas sigan
+en pie, que es exactamente la que habría fallado con el `CASCADE`.

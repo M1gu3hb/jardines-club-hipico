@@ -40,11 +40,27 @@ Lo que **sí** debería preocupar más que cualquiera de ellas: el único flujo 
   son `scripts/build-media.mjs` (que lo escribe), `scripts/seed-supabase.mjs` y `scripts/montage.mjs`.
 - **Lo que sí se hizo, y no es lo mismo:** el sitio ya **arranca** aunque la base no conteste
   (plazo de 2.5 s en `Home.jsx`, contrato 3.1) y los respaldos **dejaron de inventar** — sin
-  configuración, el contacto sale de `src/config/negocio.js`, que son datos verificados, y los
-  salones dicen que la lista no cargó en vez de enseñar cinco inventados (contratos 1.4 y 1.5).
+  configuración, el contacto sale de `src/config/negocio.js`, que son datos verificados.
   Arrancar vacío es honesto; arrancar con datos falsos era peor.
+- **«Los salones dicen que la lista no cargó» ERA FALSO, y se corrigió el 2026-09-02.** Esa frase
+  describía seis ramas de «no pudimos cargar» —`/espacios`, la ficha de espacio, la de tipo de
+  evento, `/galeria`, `/avisos` y los destacados de la portada— que **nunca se ejecutaron ni una
+  vez**: `runQuery` devuelve `[]` ante el error en vez de lanzar, así que la promesa de
+  react-query siempre resolvía y `isError` era falso para siempre. Lo que se veía en su lugar era
+  peor que un error: `/espacios/{slug}` contestaba **«página no encontrada»** a un enlace real
+  compartido por WhatsApp, y `/amenidades` pintaba un `<h1>` de **«0 amenidades»** encima del
+  texto que enumera inflables, cámara 360 y un mago — congelado además en `dist/` por el
+  prerender, o sea servido a Google hasta el siguiente despliegue.
+- **Cómo quedó:** `src/lib/datos.js` lee con `listEstricto`/`filterEstricto` en las siete
+  consultas que **deciden** algo (salones, tipos de evento, galería, servicios, amenidades,
+  anuncios); las tres decorativas —alimentos, servicios extra, configuración— siguen tolerantes y
+  está escrito por qué. `runQuery` **no se tocó**: es copia byte a byte con el portal y el CRM.
+  Ningún titular afirma ya un número que no se leyó, y `scripts/prerender.mjs` **aborta el build**
+  si una colección llega vacía sin derecho a estarlo (`anuncios` es la única que hoy lo tiene:
+  medido, 0 filas).
 - **Archivos:** `src/api/base44Client.js` (no tiene rama de degradación), `src/data/site-data.json`.
-- **Prioridad:** baja. **Estado:** abierto. **No es una regresión: nunca existió.**
+- **Prioridad:** baja. **Estado:** abierto en su causa raíz —el sitio se sigue pintando vacío sin
+  base—, pero **ya lo dice en vez de mentir**. No es una regresión: nunca existió.
 
 ### J-04 — `og:url` y los dos JSON-LD apuntan a un dominio que no es el servido
 
