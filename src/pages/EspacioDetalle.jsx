@@ -29,17 +29,36 @@ import Foto from '@/components/ui/Foto';
  * igual que un slug inventado. Enseñar el 404 en ese instante haría parpadear «no existe»
  * en una página que sí existe, cada vez que alguien entra directo desde un enlace. Por eso
  * se espera a que la carga termine antes de juzgar.
+ *
+ * ── Y el caso que de verdad dolía: 404 PARA UNA URL QUE EXISTE ──────────────
+ *
+ * Esperar a que la carga termine no bastaba, porque la carga TERMINABA BIEN aunque la base
+ * no hubiera contestado: `runQuery` devolvía `[]` ante el error, `isLoading` se apagaba,
+ * `isError` no se encendía nunca y `find` no encontraba nada. Resultado: esta página —la que
+ * se comparte por WhatsApp— respondía **«página no encontrada»** durante una caída, sobre un
+ * enlace a un salón real. Quien lo recibe no entiende «vuelve luego»: entiende que el salón
+ * ya no está, y no vuelve a abrirlo.
+ *
+ * Ahora la lista se lee en modo estricto (ver `src/lib/datos.js`), así que hay tres estados
+ * distinguibles y el 404 se pinta **solo** cuando la lista llegó, llegó con espacios, y
+ * ninguno es este slug.
  */
 export default function EspacioDetalle() {
   const { slug } = useParams();
-  const { data: salon, isLoading, isError } = useSalon(slug);
+  const { data: salon, isLoading, isError, listaVacia } = useSalon(slug);
   const { data: todos } = useSalones();
 
   if (isLoading) {
     return <div className="min-h-[60vh] grid place-items-center text-sm font-light text-white/30">Cargando…</div>;
   }
 
-  if (isError) {
+  // «No pudimos cargar» ANTES que el 404, y `listaVacia` cuenta como no haber cargado.
+  //
+  // Cero espacios no es una respuesta posible de este recinto: son ocho y están activos. Si la
+  // lista llega vacía sin error —una política de lectura que se cierra de más—, lo que está
+  // roto es el sitio entero, no este slug, y decirle a quien abrió el enlace que su salón no
+  // existe sería la peor de las dos mentiras disponibles.
+  if (isError || listaVacia) {
     return (
       <div className="mx-auto max-w-2xl px-5 pt-40 pb-24 text-center">
         <p className="text-sm font-light text-white/50">

@@ -27,6 +27,18 @@ import GaleriaEspacio from '@/components/espacios/GaleriaEspacio';
  * La plantilla se construye ahora igualmente, porque el día que el dueño entregue el texto de
  * bodas y sus fotos, encender la fila en el panel publica la página entera. Sin tocar código
  * y sin esperar a nadie.
+ *
+ * ── La caída y el 404 no son lo mismo, y hasta ahora se veían igual ─────────
+ *
+ * `isError` no se encendía jamás —`runQuery` devolvía `[]` ante el error, ver
+ * `src/lib/datos.js`—, así que una caída de la base terminaba aquí abajo, en `if (!tipo)`, y
+ * esta página contestaba «no encontrada» a una dirección que sí existe. La lectura de tipos
+ * ya es estricta, así que el aviso de abajo por fin puede aparecer.
+ *
+ * Y AQUÍ NO SE MIRA SI LA LISTA VINO VACÍA, al revés que en la ficha de espacio. La asimetría
+ * es a propósito: cero espacios activos es imposible —son ocho— pero cero tipos de evento
+ * activos es el estado NORMAL de esta tabla mientras no haya contenido propio, y en ese caso
+ * el 404 es la respuesta correcta y no un síntoma de nada.
  */
 export default function EventoDetalle() {
   const { slug } = useParams();

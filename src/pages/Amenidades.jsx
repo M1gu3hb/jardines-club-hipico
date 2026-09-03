@@ -32,17 +32,34 @@ import { reparte } from '@/lib/servicios';
  * importa, y la página le hace caso sola.
  */
 export default function Amenidades() {
-  const { data: servicios, isLoading: cargaS } = useServicios();
-  const { data: atracciones, isLoading: cargaA } = useAmenidades();
+  const { data: servicios, isLoading: cargaS, isError: falloS } = useServicios();
+  const { data: atracciones, isLoading: cargaA, isError: falloA } = useAmenidades();
   const { amenidades, delRecinto } = reparte(servicios || [], atracciones || []);
 
   const cargando = cargaS || cargaA;
+
+  // EL FALLO ES DE LAS DOS LECTURAS, NO DE LA QUE LLEVA EL NOMBRE.
+  //
+  // El recuento de amenidades sale de `reparte`, que cruza las dos tablas porque están
+  // cruzadas en producción (ver `src/lib/servicios.js`). Mirar solo `amenidades` dejaría pasar
+  // el caso peor: la otra lectura se cae, el reparto encuentra dos filas sueltas donde hay
+  // quince, y el titular anuncia «2 amenidades» — un número falso, que es peor que ninguno.
+  const fallo = falloS || falloA;
+
+  // NO SE AFIRMA UN NÚMERO QUE NO SE LEYÓ.
+  //
+  // Aquí ponía `${amenidades.length} amenidades` en cuanto dejaba de cargar, y como una lectura
+  // caída también deja de cargar, el `<h1>` decía **«0 amenidades»** justo encima de un texto
+  // que enumera inflables, cámara 360, pista pixel led y un mago. Y el prerender lo congelaba
+  // en `dist/`, así que ese cero se le servía a Google hasta el siguiente despliegue.
+  const titular =
+    !cargando && !fallo && amenidades.length > 0 ? `${amenidades.length} amenidades` : 'Amenidades';
 
   return (
     <Pagina
       clave="amenidades"
       eyebrow="Lo que le sumas a tu evento"
-      encabezado={cargando ? 'Amenidades' : `${amenidades.length} amenidades`}
+      encabezado={titular}
       entradilla={
         'Inflables, cámara 360, pista pixel led, un mago, un auto clásico para las fotos. ' +
         'Todo se contrata aparte de la renta y tiene precio fijo — eliges solo lo que quieras.'
@@ -51,13 +68,27 @@ export default function Amenidades() {
       <div className="mx-auto max-w-7xl px-5 sm:px-8 pb-8">
         {cargando && <p className="py-20 text-center text-sm font-light text-white/35">Cargando…</p>}
 
-        {!cargando && amenidades.length === 0 && (
+        {/* «No pudimos cargar» solo cuando NO se pudo cargar. Antes este aviso salía con
+            `amenidades.length === 0`, que era el único síntoma disponible de una caída — y de
+            paso le decía «se cayó» a un catálogo legítimamente vacío. Ya no hace falta
+            adivinar: la lectura estricta enciende `isError`. */}
+        {!cargando && fallo && (
           <p className="py-20 text-center text-sm font-light text-white/50">
             No pudimos cargar las amenidades ahora mismo.{' '}
             <Link to="/contacto" className="text-[#C9A84C] underline underline-offset-4">
               Escríbenos
             </Link>{' '}
             y te las contamos una por una.
+          </p>
+        )}
+
+        {!cargando && !fallo && amenidades.length === 0 && (
+          <p className="py-20 text-center text-sm font-light text-white/50">
+            Todavía no hay amenidades publicadas.{' '}
+            <Link to="/contacto" className="text-[#C9A84C] underline underline-offset-4">
+              Escríbenos
+            </Link>{' '}
+            y te contamos qué se le puede sumar a tu evento.
           </p>
         )}
 

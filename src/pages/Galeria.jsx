@@ -88,9 +88,19 @@ export default function Galeria() {
               </p>
             </div>
 
-            <p className="mb-6 text-xs font-light tracking-[0.14em] uppercase text-white/30">
-              {items.length} {items.length === 1 ? 'pieza' : 'piezas'}
-            </p>
+            {/* EL RECUENTO SOLO SI HAY ALGO QUE CONTAR.
+              *
+              * Esta línea decía «0 piezas» encima de una rejilla vacía siempre que la lectura
+              * se caía: `isError` no se encendía nunca —`runQuery` devolvía `[]` ante el
+              * error— así que la rama de arriba no entraba y el sitio afirmaba un cero que
+              * nadie había leído. Con la lectura estricta (`src/lib/datos.js`) la caída ya sale
+              * por su aviso; esto cubre lo que queda: una galería de verdad vacía no necesita
+              * anunciarlo con un número. */}
+            {items.length > 0 && (
+              <p className="mb-6 text-xs font-light tracking-[0.14em] uppercase text-white/30">
+                {items.length} {items.length === 1 ? 'pieza' : 'piezas'}
+              </p>
+            )}
 
             {/* ══════════════════════════════════════════════════════════════════════
               * FILAS JUSTIFICADAS, NO REJILLA

@@ -247,6 +247,17 @@ async function principal() {
   const { build } = await import('vite');
   await build({
     logLevel: 'warn',
+    // `publicDir: false` — SIN ESTO EL BUILD COPIA 688 MB DE MEDIOS A `.prerender/`.
+    //
+    // Vite vuelca `public/` en cada `outDir`, y `public/media/` son los videos y fotos del
+    // sitio: 688 MB medidos. El paquete de servidor solo se usa para llamar a
+    // `renderToString` y no lee un solo byte de ahi, asi que la copia entera es trabajo tirado
+    // — y en Windows, ademas, un fallo: al reconstruir desde cero revienta con
+    // `EPERM, Permission denied: .prerender\media` mientras copia miles de archivos.
+    //
+    // Era invisible mientras `.prerender/` sobreviviera entre builds con los medios ya dentro.
+    // Se ve el dia que alguien lo borra, y entonces el build no arranca en esa maquina.
+    publicDir: false,
     build: {
       ssr: 'src/entrada-servidor.jsx',
       outDir: '.prerender',
@@ -261,15 +272,64 @@ async function principal() {
   const { URL_SITIO } = await import(pathToFileURL(join(RAIZ, 'src', 'config', 'sitio.js')).href);
 
   log('trayendo el contenido de la base…');
-  const { salones, tipos, anuncios, siembra } = await modulo.traeDatos();
+  const { salones, tipos, anuncios, galeria, servicios, amenidades, alimentos, config, siembra } =
+    await modulo.traeDatos();
 
-  if (!salones?.length) {
+  // ══════════════════════════════════════════════════════════════════════════════
+  // UNA COLECCION VACIA QUE NO DEBERIA ESTARLO TUMBA EL BUILD
+  // ══════════════════════════════════════════════════════════════════════════════
+  //
+  // Aqui solo se miraban los `salones`. El agujero era todo lo demas: un build en el que
+  // fallara la lectura de `amenidades` seguia adelante y escribia en `dist/` un `<h1>` que
+  // decia **«0 amenidades»** sobre un texto que enumera inflables, camara 360 y un mago. Y ese
+  // HTML es el que se le sirve a Google y a la vista previa de WhatsApp hasta el siguiente
+  // despliegue: la mentira no dura lo que dura la caida, dura hasta que alguien vuelva a
+  // construir.
+  //
+  // La comprobacion de `flojas` de mas abajo NO lo atrapa: mide caracteres de texto, y esas
+  // paginas van llenas de prosa fija. Se pintan perfectas y con el numero equivocado.
+  //
+  // ── QUE PUEDE ESTAR VACIO DE VERDAD ────────────────────────────────────────
+  //
+  // Medido contra la base el 2026-09-02, con la misma `anon key` que usa el build:
+  //
+  //   salones 8 · tipos_evento 15 (14 activos) · galeria 69 · servicios 14 · amenidades 15
+  //   alimentos 3 · config_sitio 1 · anuncios 0
+  //
+  // `anuncios` es la UNICA legitimamente vacia —la tabla nacio para novedades con fecha y aun
+  // no tiene ninguna—, y por eso no entra en esta lista: abortar por ella tumbaria todos los
+  // builds a partir de hoy. `rutas.js` ya la trata como lo que es, con `soloSiHay: 'anuncios'`.
+  //
+  // Las demas no pueden llegar a cero sin que algo este roto: o la lectura fallo, o una
+  // politica de lectura se cerro de mas. Lo segundo NO propaga ningun error —la base contesta
+  // 200 con cero filas— asi que las lecturas estrictas de `traeDatos` no bastan y hace falta
+  // contar.
+  const EXIGEN_FILAS = {
+    salones: salones?.length,
+    tipos_evento: tipos?.length,
+    galeria: galeria?.length,
+    servicios: servicios?.length,
+    amenidades: amenidades?.length,
+    alimentos: alimentos?.length,
+    config_sitio: config?.length,
+  };
+
+  const vacias = Object.entries(EXIGEN_FILAS).filter(([, cuantas]) => !cuantas).map(([nombre]) => nombre);
+  if (vacias.length) {
     throw new Error(
-      'La base no devolvio ningun salon. Prerenderizar ahora congelaria un sitio VACIO en ' +
-      'el HTML, que es peor que no prerenderizar. Revisa VITE_SUPABASE_URL / ANON_KEY.',
+      'La base no devolvio ninguna fila en: ' + vacias.join(', ') + '. Prerenderizar ahora ' +
+      'congelaria esa ausencia en el HTML —titulares de «0 amenidades», paginas sin catalogo— ' +
+      'y se le serviria a Google hasta el siguiente despliegue. Revisa VITE_SUPABASE_URL / ' +
+      'ANON_KEY y las politicas de lectura de esas tablas. (`anuncios` no entra aqui: hoy esta ' +
+      'vacia de verdad.)',
     );
   }
+
   log(`${salones.length} espacios · ${tipos.filter((t) => t.activo).length} tipos de evento activos`);
+  log(
+    `${galeria.length} piezas de galeria · ${servicios.length} servicios · ` +
+    `${amenidades.length} amenidades · ${alimentos.length} menus · ${(anuncios || []).length} anuncios`,
+  );
 
   // Las rutas dinamicas se expanden desde la base. Las filas de `tipos_evento` apagadas NO
   // entran: sin contenido propio serian paginas casi identicas entre si.

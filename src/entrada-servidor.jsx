@@ -54,27 +54,48 @@ import ArbolDeRutas from '@/ArbolDeRutas';
  * Las claves son EXACTAMENTE las de `src/lib/datos.js`. Una que no coincida no rompe nada:
  * simplemente esa consulta no encuentra su siembra y la página se prerenderiza vacía. Por eso
  * el guion comprueba después que el HTML lleva contenido de verdad.
+ *
+ * ── TODAS LAS LECTURAS SON ESTRICTAS, Y AQUÍ MÁS QUE EN NINGÚN SITIO ────────
+ *
+ * `list`/`filter` devuelven `[]` tanto si no hay filas como si la lectura se cayó. En el
+ * navegador eso da una pantalla pobre durante unos segundos; aquí da **HTML congelado**: un
+ * build en el que fallara `amenidades` publicaba un `<h1>` de «0 amenidades» en `dist/` y se
+ * lo servía a Google —y a la vista previa de WhatsApp— hasta el siguiente despliegue.
+ *
+ * Con `listEstricto`/`filterEstricto` ese build se cae con el error de Postgres en la salida,
+ * que es exactamente lo que tiene que pasar: mejor no desplegar que desplegar una mentira.
+ * `scripts/prerender.mjs` remata comprobando además que ninguna colección llegue vacía sin
+ * derecho a estarlo — un error propagado se ve, pero cero filas por una política mal cerrada
+ * no propaga nada.
  */
 export async function traeDatos() {
   const { base44 } = await import('@/api/base44Client');
 
   const [salones, tipos, galeria, servicios, amenidades, alimentos, anuncios, config] = await Promise.all([
-    base44.entities.Salon.filter({ activo: true }, 'orden'),
-    base44.entities.TipoEvento.list('orden'),
-    base44.entities.Galeria.list('orden'),
-    base44.entities.ServicioItem.list('orden'),
-    base44.entities.AmenidadItem.list('orden'),
-    base44.entities.AlimentoMenu.list('orden'),
+    base44.entities.Salon.filterEstricto({ activo: true }, 'orden'),
+    base44.entities.TipoEvento.listEstricto('orden'),
+    base44.entities.Galeria.listEstricto('orden'),
+    base44.entities.ServicioItem.listEstricto('orden'),
+    base44.entities.AmenidadItem.listEstricto('orden'),
+    base44.entities.AlimentoMenu.listEstricto('orden'),
     // Los anuncios llegan ya filtrados por la POLITICA de la base: un borrador o uno caducado
     // no los devuelve. Aqui no hay que volver a filtrar nada.
-    base44.entities.Anuncio.list('orden'),
-    base44.entities.ConfigSitio.list(),
+    base44.entities.Anuncio.listEstricto('orden'),
+    base44.entities.ConfigSitio.listEstricto(),
   ]);
 
   return {
     salones,
     tipos,
     anuncios,
+    // Las demas colecciones viajan CRUDAS ademas de sembradas, para que `prerender.mjs` pueda
+    // contarlas antes de escribir nada. Contarlas desde `siembra` obligaria a saber que clave
+    // guarda cada cosa, y la que decide si el build sigue no deberia depender de eso.
+    galeria,
+    servicios,
+    amenidades,
+    alimentos,
+    config,
     siembra: [
       { clave: ['salones'], datos: salones },
       { clave: ['tipos_evento'], datos: tipos.filter((t) => t.activo) },

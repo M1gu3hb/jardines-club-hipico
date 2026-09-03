@@ -23,6 +23,35 @@ import { base44 } from '@/api/base44Client';
  * No inventa datos de respaldo. Si Supabase no responde, la lista viene vacía y la pantalla
  * lo dice. El respaldo estático que hubo aquí no era una aproximación al recinto: era otro
  * recinto, con cinco salones que no existen y el jardín a la mitad de su capacidad real.
+ *
+ * ── Y POR QUÉ CASI TODAS LEEN EN MODO ESTRICTO ──────────────────────────────
+ *
+ * «La pantalla lo dice» era mentira, y lo fue durante todo el rediseño. `entities.X.list` y
+ * `.filter` devuelven `[]` **tanto si no hay filas como si la lectura se cayó**: `runQuery`
+ * escribe el error en la consola y devuelve la lista vacía. Con eso la promesa de react-query
+ * SIEMPRE resuelve, así que `isError` era **falso para siempre** y las seis ramas de «no
+ * pudimos cargar» del sitio —`/espacios`, la ficha de espacio, la de tipo de evento,
+ * `/galeria`, `/avisos` y los destacados de la portada— nunca se ejecutaron ni una vez.
+ *
+ * Lo que se veía en su lugar era peor que un error, y le dolía a quien llega de fuera:
+ *
+ *   · Un enlace a `/espacios/salon-encanto` compartido por WhatsApp durante una caída
+ *     enseñaba **«página no encontrada»**. Un 404 para una dirección que existe: quien lo
+ *     recibe no entiende «vuelve luego», entiende «ese salón ya no está».
+ *   · `/amenidades` pintaba un `<h1>` de **«0 amenidades»** justo encima de un texto que
+ *     enumera inflables, cámara 360, pista pixel led y un mago.
+ *
+ * Por eso las lecturas que **DECIDEN** algo —si se pinta un 404, si se afirma un número—
+ * usan `listEstricto`/`filterEstricto`, que propagan el error y encienden `isError` de verdad.
+ *
+ * Lo que NO se hizo, y es deliberado: cambiar `runQuery` para que lance siempre. Ese archivo
+ * es copia byte a byte con el portal y el CRM (`scripts/compartidos.json`), y dentro de los
+ * tres hay veintitantas lecturas decorativas escritas sin un solo `catch`. Hacerlas lanzar
+ * cambiaría un dato de menos por una pantalla en blanco, en tres aplicaciones a la vez.
+ *
+ * Las tres que se quedan tolerantes son `useAlimentos`, `useServiciosExtra` y `useConfigSitio`:
+ * ninguna decide un 404 ni sostiene un número en pantalla. Si fallan se pierde una fila de
+ * etiquetas o un teléfono, y ninguna pantalla afirma algo falso por ello.
  */
 
 const CINCO_MINUTOS = 5 * 60 * 1000;
@@ -51,7 +80,7 @@ function useLista(clave, fn) {
 
 /** Los 8 espacios activos, en el orden que fijó el dueño. */
 export const useSalones = () =>
-  useLista(['salones'], () => base44.entities.Salon.filter({ activo: true }, 'orden'));
+  useLista(['salones'], () => base44.entities.Salon.filterEstricto({ activo: true }, 'orden'));
 
 /**
  * Un espacio por su slug.
@@ -62,7 +91,24 @@ export const useSalones = () =>
  */
 export function useSalon(slug) {
   const q = useSalones();
-  return { ...q, data: q.data?.find((s) => s.slug === slug) };
+  return {
+    ...q,
+    data: q.data?.find((s) => s.slug === slug),
+    /**
+     * La lista LLEGÓ, y llegó sin un solo espacio.
+     *
+     * No es lo mismo que «este slug no existe», y la diferencia decide qué se pinta. Un
+     * `find` sobre una lista vacía devuelve `undefined` igual que un slug inventado, así que
+     * sin este dato la ficha no puede distinguir «no hay tal salón» de «no hay NINGÚN salón»
+     * — y acaba enseñando un 404 para una dirección real, que es el fallo que se comparte
+     * por WhatsApp.
+     *
+     * Con las lecturas estrictas una caída ya viaja por `isError`; esto cubre el otro camino:
+     * una respuesta correcta de cero filas (una política de lectura que se cierra de más).
+     * Ahí no hay error que propagar y el sitio entero está roto, no ese slug.
+     */
+    listaVacia: q.isSuccess && (q.data?.length ?? 0) === 0,
+  };
 }
 
 /**
@@ -73,7 +119,7 @@ export function useSalon(slug) {
  * prácticamente idénticas, que es contenido duplicado y penaliza a todo el sitio.
  */
 export const useTiposEvento = () =>
-  useLista(['tipos_evento'], () => base44.entities.TipoEvento.filter({ activo: true }, 'orden'));
+  useLista(['tipos_evento'], () => base44.entities.TipoEvento.filterEstricto({ activo: true }, 'orden'));
 
 /**
  * TODOS los tipos, apagados incluidos. Solo para el hub `/eventos`.
@@ -86,7 +132,7 @@ export const useTiposEvento = () =>
  * perdería justamente la información más valiosa que trae una visita: a qué viene.
  */
 export const useTodosLosTipos = () =>
-  useLista(['tipos_evento', 'todos'], () => base44.entities.TipoEvento.list('orden'));
+  useLista(['tipos_evento', 'todos'], () => base44.entities.TipoEvento.listEstricto('orden'));
 
 export function useTipoEvento(slug) {
   const q = useTiposEvento();
@@ -104,16 +150,21 @@ export function useTipoEvento(slug) {
  * Es más seguro que filtrar en el cliente y además hace imposible el fallo clásico de olvidar
  * el filtro en una de las dos pantallas que leen lo mismo.
  */
-export const useAnuncios = () => useLista(['anuncios'], () => base44.entities.Anuncio.list('orden'));
+export const useAnuncios = () =>
+  useLista(['anuncios'], () => base44.entities.Anuncio.listEstricto('orden'));
 
-export const useGaleria = () => useLista(['galeria'], () => base44.entities.Galeria.list('orden'));
+export const useGaleria = () =>
+  useLista(['galeria'], () => base44.entities.Galeria.listEstricto('orden'));
 
 export const useServicios = () =>
-  useLista(['servicios'], () => base44.entities.ServicioItem.list('orden'));
+  useLista(['servicios'], () => base44.entities.ServicioItem.listEstricto('orden'));
 
 export const useAmenidades = () =>
-  useLista(['amenidades'], () => base44.entities.AmenidadItem.list('orden'));
+  useLista(['amenidades'], () => base44.entities.AmenidadItem.listEstricto('orden'));
 
+// Las dos TOLERANTES que quedan, y no por descuido: ver la cabecera del archivo. Ninguna
+// decide un 404 ni sostiene un número, así que un fallo aquí quita una fila de etiquetas —
+// no hace mentir a ninguna pantalla.
 export const useServiciosExtra = () =>
   useLista(['servicios_extra'], () => base44.entities.ServicioExtra.list('orden'));
 
