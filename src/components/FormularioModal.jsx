@@ -137,6 +137,14 @@ export default function FormularioModal({
   const [loading, setLoading] = useState(false);
   const [sent, setSent] = useState(false);
   const [folioFinal, setFolioFinal] = useState("");
+  /* ¿LE LLEGÓ EL AVISO AL DUEÑO? — B-04
+   *
+   * Tres valores, y los tres se pintan distinto: `"pendiente"` (aún viaja, o acaba de
+   * mandarse), `"ok"` (el servidor confirmó el correo) y `"fallo"` (la ruta lo rechazó).
+   *
+   * La solicitud queda guardada en los tres casos: el `INSERT` ya ocurrió y tiene folio. Lo
+   * que cambia es QUÉ SE LE PROMETE a quien acaba de escribir. */
+  const [avisoAlDueno, setAvisoAlDueno] = useState("pendiente");
   const [error, setError] = useState("");
   const [salones, setSalones] = useState([]);
 
@@ -192,6 +200,7 @@ export default function FormularioModal({
       setSent(false);
       setError("");
       setFolioFinal("");
+      setAvisoAlDueno("pendiente");
       setLoading(false);
       // Sin esto, quien manda una solicitud y abre otra se encuentra marcado lo de la anterior.
       setInteresado([]);
@@ -200,14 +209,42 @@ export default function FormularioModal({
       // siempre. Preseleccionar algo inventado sería peor que no preseleccionar nada.
       const delTipo = tipoEventoSugerido ? SLUG_A_TIPO[tipoEventoSugerido] : null;
 
-      // Si hay borrador, manda ÉL sobre los valores iniciales — es lo que la persona escribió.
-      // Lo de la URL se aplica encima solo si el borrador no lo traía ya: quien viene de la
-      // ficha del Salón Encanto y había escrito otro salón, se queda con el suyo.
+      /* ═══════════════════════════════════════════════════════════════════
+       * EL BORRADOR CONSERVA LO QUE ESCRIBIÓ; EL ENLACE MANDA EN LO QUE ELIGIÓ — B-24
+       * ═══════════════════════════════════════════════════════════════════
+       *
+       * Antes el borrador ganaba en todo, y eso rompía dos cosas a la vez:
+       *
+       *   · `delTipo` —el tipo de evento que viene de `/eventos/:slug`— se calculaba justo
+       *     arriba y **no se usaba en esta rama**. Como el efecto de guardado escribe un
+       *     borrador en el PRIMER render, bastaba con haber mirado el formulario en las
+       *     últimas seis horas para que ningún enlace `?evento=…` volviera a preseleccionar
+       *     nada. El parámetro existía y no hacía nada.
+       *   · El salón del borrador pisaba `preselectedSalon`. Resultado: `/cotizar?espacio=
+       *     jardin-central` con la página entera diciendo «Te interesa Jardín Central» sobre
+       *     una etiqueta que decía **Salón Encanto**, y la RPC recibiendo Salón Encanto. Dos
+       *     verdades en la misma pantalla, y la que viaja es la que el visitante no ve.
+       *
+       * La regla ahora separa las dos cosas, porque no son la misma:
+       *
+       *   · Lo que ESCRIBIÓ —nombre, teléfono, correo, fecha, personas, comentarios— es suyo y
+       *     no lo toca nadie. Perderlo es imperdonable; es el motivo de que el borrador exista.
+       *   · Lo que ELIGIÓ desde un enlace —el espacio y el tipo de evento— lo manda el enlace
+       *     que acaba de pulsar, porque es el acto más reciente y deliberado, y porque es lo
+       *     que la página de alrededor ya está afirmando. Los dos se ven en pantalla y se
+       *     pueden cambiar ahí mismo, así que no hay nada atrapado.
+       */
       const borrador = leeBorrador();
       if (borrador?.form) {
-        setForm({ ...initialForm, ...borrador.form, ...(borrador.form.salonSeleccionado ? {} : { salonSeleccionado: preselectedSalon || "" }) });
+        const delEnlace = {
+          ...(delTipo || {}),
+          ...(preselectedSalon ? { salonSeleccionado: preselectedSalon } : {}),
+        };
+        const conBorrador = { ...initialForm, ...borrador.form, ...delEnlace };
+        if (!conBorrador.salonSeleccionado) conBorrador.salonSeleccionado = "";
+        setForm(conBorrador);
         setInteresado(Array.isArray(borrador.interesado) ? borrador.interesado : []);
-        setStep(borrador.form.salonSeleccionado || preselectedSalon ? 1 : 0);
+        setStep(conBorrador.salonSeleccionado ? 1 : 0);
         justSentRef.current = false;
         return;
       }
@@ -316,18 +353,59 @@ export default function FormularioModal({
       // intentaba un UPDATE posterior que RLS rechazaba en silencio, así que el
       // folio del correo nunca coincidía con el de la base.
       const creada = await base44.entities.SolicitudEvento.create(dataToSave);
-      // Sin folio del servidor no hay registro confirmado: no se muestra éxito.
-      if (!creada?.folio) throw new Error("SIN_CONFIRMACION");
+      /* LO QUE CONFIRMA EL REGISTRO ES EL `id`, NO EL FOLIO — B-24
+       *
+       * Esto exigía folio y, si no venía, lanzaba «Inténtalo de nuevo» conservando el
+       * borrador. Pero `jardines.solicitud_crear` **inserta primero y devuelve después**
+       * (`returning id, folio`): si vuelve con `id`, LA FILA YA EXISTE. Mandar a reintentar
+       * ahí produce un segundo lead con otro folio para la misma persona — exactamente el
+       * daño que el pestillo de dos líneas más arriba existe para evitar, entrando por la
+       * puerta de al lado.
+       *
+       * El folio lo pone un trigger BEFORE INSERT y hoy siempre llega (comprobado contra
+       * producción el 2026-09-03: `JCH-90D0A6`). Pero «hoy siempre llega» no es una garantía
+       * sobre la que valga la pena duplicar leads: si un día no llegara, la confirmación ya
+       * sabe pintar «—» en su lugar y la solicitud sigue estando en la base para atenderla.
+       *
+       * Se sigue exigiendo señal de vida del servidor: sin `id` no hubo INSERT que valga. */
+      if (!creada?.id) throw new Error("SIN_CONFIRMACION");
       // Enviada: el borrador ya no sirve y dejarlo rellenaría el siguiente formulario con los
       // datos del anterior.
       tiraBorrador();
-      folioGenerado = creada.folio;
+      folioGenerado = creada.folio || "";
 
       // Aviso por correo al administrador. Solo viaja el id: el servidor vuelve a
       // leer la solicitud de la base y arma el correo con los datos canónicos, así
       // que el navegador no puede inventar el contenido ni el destinatario.
-      // Es cortesía: si falla, la solicitud YA quedó registrada.
-      base44.functions.invoke("gmailSolicitud", { solicitudId: creada.id }).catch(() => {});
+      //
+      // ─── B-04 · «Es cortesía» era falso, y por eso este `.catch` estaba vacío ───
+      //
+      // Sí: la solicitud YA quedó registrada, con su folio, y eso no se pierde. Pero el aviso
+      // NO es cortesía — es el único camino por el que el dueño se entera de que existe. Y
+      // `/api/solicitud` rechaza por motivos que no tienen nada de excepcional:
+      //
+      //   · rate limit de 10 por IP y hora. Detrás de un CGNAT o desde una oficina, el
+      //     visitante número once no genera correo. Y `rateLimit` es FAIL-CLOSED: si su RPC
+      //     falla, TODAS las llamadas dan 429 y los avisos paran del todo, sin que nadie lo note.
+      //   · faltan variables de entorno → 500.
+      //   · la ventana de frescura de 15 minutos: un corte de red pierde el aviso para siempre.
+      //
+      // Mientras tanto se leía «¡Solicitud enviada! Nos comunicaremos contigo a la brevedad»,
+      // que es una promesa que nadie iba a cumplir porque nadie sabía que había que cumplirla.
+      // La persona espera una llamada que no llega y se va con otro salón.
+      //
+      // No se bloquea el envío esperando al correo —la fila ya está y hacerla esperar por un
+      // aviso que es del dueño sería castigarla por un problema ajeno—: se marca el resultado y
+      // la pantalla de confirmación DICE LA VERDAD, poniendo WhatsApp por delante cuando el
+      // aviso no salió. Un fallo ruidoso es mejor que uno silencioso.
+      //
+      // `functions.invoke` LANZA ante un `!res.ok` (`src/api/funciones.js:48`), así que este
+      // `catch` sí se ejecuta con un 429 o un 500. Comprobado antes de escribirlo: si el shim
+      // se los tragara, todo esto sería decorado.
+      base44.functions
+        .invoke("gmailSolicitud", { solicitudId: creada.id })
+        .then(() => setAvisoAlDueno("ok"))
+        .catch(() => setAvisoAlDueno("fallo"));
     } catch (e) {
       // Nada de éxito falso: si PostgreSQL no confirmó, el usuario se entera y
       // conserva lo que escribió para reintentar sin volver a capturarlo.
@@ -364,9 +442,20 @@ export default function FormularioModal({
           <p style={{ color: "rgba(201,168,76,0.8)", fontSize: 14, marginBottom: 6 }}>
             Folio: <strong>{folio}</strong>
           </p>
-          <p style={{ color: "var(--texto-3)", fontSize: 13, marginBottom: 28, lineHeight: 1.6 }}>
-            Nos comunicaremos contigo a la brevedad. Para una atención más rápida y personalizada, escríbenos por WhatsApp.
-          </p>
+          {avisoAlDueno === "fallo" ? (
+            /* No se le enseña un error rojo ni se le dice que algo se rompió: lo suyo salió
+               bien y tiene folio. Lo que cambia es que el WhatsApp deja de ser «para una
+               atención más rápida» y pasa a ser LA forma de que la vean. */
+            <p style={{ color: "var(--texto-3)", fontSize: 13, marginBottom: 28, lineHeight: 1.6 }}>
+              Tu solicitud quedó registrada con el folio de arriba, guárdalo. No pudimos mandar
+              el aviso automático al equipo, así que <strong style={{ color: "rgba(201,168,76,0.9)" }}>escríbenos
+              por WhatsApp</strong> con tu folio para que te atiendan hoy mismo.
+            </p>
+          ) : (
+            <p style={{ color: "var(--texto-3)", fontSize: 13, marginBottom: 28, lineHeight: 1.6 }}>
+              Nos comunicaremos contigo a la brevedad. Para una atención más rápida y personalizada, escríbenos por WhatsApp.
+            </p>
+          )}
           <a href={waLink} target="_blank" rel="noopener noreferrer"
             style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 8, backgroundColor: "#25D366", color: "#fff", padding: "14px 20px", fontSize: 15, textDecoration: "none", borderRadius: "2px", marginBottom: 12, fontWeight: 500 }}>
             <svg width="20" height="20" fill="currentColor" viewBox="0 0 24 24">
@@ -570,11 +659,26 @@ export default function FormularioModal({
                     checked={form.aceptoAvisoPrivacidad}
                     onChange={() => set("aceptoAvisoPrivacidad", !form.aceptoAvisoPrivacidad)}
                   />
+                  {/* B-23 · «el aviso de privacidad» AHORA SE PUEDE LEER.
+                      Era texto plano exigiendo aceptar un documento que no existía en ninguna
+                      parte del sitio (`/aviso-de-privacidad` → 404, medido contra producción).
+                      El enlace abre en pestaña nueva a propósito: mandar a alguien fuera del
+                      formulario a medio rellenar le tiraría lo escrito. */}
                   <label
                     htmlFor="acepto-privacidad"
                     className="text-[color:var(--texto-3)] text-xs leading-relaxed cursor-pointer"
                   >
-                    Acepto el aviso de privacidad y autorizo el tratamiento de mis datos personales. *
+                    Acepto el{" "}
+                    <a
+                      href="/aviso-de-privacidad"
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      onClick={(e) => e.stopPropagation()}
+                      className="text-[#C9A84C]/85 underline underline-offset-2 hover:text-[#C9A84C]"
+                    >
+                      aviso de privacidad
+                    </a>{" "}
+                    y autorizo el tratamiento de mis datos personales. *
                   </label>
                 </div>
               </div>

@@ -34,6 +34,9 @@ export const CARGADORES = {
   'preguntas-frecuentes': () => import('@/pages/PreguntasFrecuentes'),
   contacto: () => import('@/pages/Contacto'),
   cotizar: () => import('@/pages/Cotizar'),
+  // Si esta línea falta, la ruta existe en el sitemap y la página sale en blanco para Google:
+  // es el fallo que el comentario de arriba describe, y por eso las dos listas son una sola.
+  'aviso-de-privacidad': () => import('@/pages/AvisoPrivacidad'),
   // `nosotros` esta APARCADA por decision del dueno (2026-08-25): sin ruta y sin carga
   // perezosa. El archivo sigue en `src/pages/Nosotros.jsx` con las instrucciones para
   // revivirla. `ubicacion` se fundio con `contacto` y su archivo se borro.

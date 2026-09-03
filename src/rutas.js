@@ -36,6 +36,9 @@
  * @property {string} [padre]      Clave de la ruta madre. Encadena las migas.
  * @property {boolean} [menu]      Sale en la navegación principal.
  * @property {boolean} [indexable] Entra en el sitemap. Por defecto sí.
+ * @property {boolean} [legal]     Documento legal. Sale en la línea del © del pie, no en el
+ *   mapa del sitio: un aviso de privacidad entre «Espacios» y «Galería» descoloca las dos cosas
+ *   —quien busca salones tropieza con él y quien lo busca a él no lo encuentra donde mira—.
  * @property {number}  [prioridad] `<priority>` del sitemap, 0-1.
  * @property {string}  [coleccion] Tabla de la que salen los hijos de una ruta dinámica.
  * @property {string}  [soloSiHay] Solo entra en el sitemap si esa colección tiene filas.
@@ -205,6 +208,28 @@ export const RUTAS = [
     titulo: 'Cotiza tu evento · Jardines Club Hípico',
     descripcion: 'Cuéntanos qué estás planeando y te respondemos con una cotización.',
   },
+  {
+    // EL AVISO DE PRIVACIDAD — B-23.
+    //
+    // El formulario EXIGE aceptarlo para poder enviarse, y esta ruta no existía: en producción
+    // `/aviso-de-privacidad` devolvía 404, comprobado con una petición real. Un consentimiento
+    // obligatorio a un documento ilegible.
+    //
+    // Va INDEXABLE, al revés que `/cotizar`. Es una de las páginas que un buscador espera
+    // encontrar en un sitio que pide un teléfono, y no tenerla se nota. Prioridad baja: importa
+    // que exista y se encuentre, no que compita con los espacios.
+    ruta: '/aviso-de-privacidad',
+    clave: 'aviso-de-privacidad',
+    nombre: 'Aviso de privacidad',
+    padre: 'home',
+    legal: true,
+    prioridad: 0.2,
+    titulo: 'Aviso de privacidad · Jardines Club Hípico',
+    descripcion:
+      'Qué datos te pedimos en el formulario de cotización, para qué los usamos, dónde se ' +
+      'guardan y cómo pedir que los borremos.',
+  },
+
   // ── ESPERA CONTENIDO ──────────────────────────────────────────────────────
 
   {

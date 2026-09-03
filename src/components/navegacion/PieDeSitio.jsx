@@ -79,7 +79,13 @@ export default function PieDeSitio() {
   // Palabras del dueño: *«ahí como que no cuadra, descuadra»*.
   const sinFranja = pathname === '/' || pathname === '/cotizar';
   const cotizar = rutaPorClave('cotizar');
-  const enElMapa = RUTAS.filter((r) => r.indexable !== false && !r.coleccion && r.clave !== 'home');
+  // Los documentos legales SALEN del mapa del sitio y bajan a la línea del ©, que es donde los
+  // busca quien los busca. Se separan por la bandera `legal` de `rutas.js` y no por una lista
+  // aparte aquí: con dos listas, la siguiente página legal aparecería en una y no en la otra.
+  const enElMapa = RUTAS.filter(
+    (r) => r.indexable !== false && !r.coleccion && !r.legal && r.clave !== 'home',
+  );
+  const legales = RUTAS.filter((r) => r.legal);
 
   const telHref = `tel:${TELEFONO.replace(/[^\d+]/g, '')}`;
   const waHref = `https://wa.me/${WHATSAPP}?text=${encodeURIComponent(
@@ -157,6 +163,17 @@ export default function PieDeSitio() {
         <div className="mt-12 flex flex-col gap-4 border-t border-white/5 pt-6 sm:flex-row sm:items-center sm:justify-between">
           <p className="text-[10px] font-light tracking-[0.14em] text-[color:var(--texto-3)]">
             © {anio} Jardines Club Hípico · Xochimilco, Ciudad de México
+            {legales.map((r) => (
+              <span key={r.clave}>
+                {' · '}
+                <Link
+                  to={r.ruta}
+                  className="transition-colors hover:text-[#C9A84C] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#C9A84C]/60 rounded-sm"
+                >
+                  {r.nombre}
+                </Link>
+              </span>
+            ))}
           </p>
 
           {/* EL ACCESO AL PORTAL DE CLIENTES.
