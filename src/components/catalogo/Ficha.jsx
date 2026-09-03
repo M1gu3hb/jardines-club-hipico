@@ -95,7 +95,13 @@ export default function Ficha({ item, invertida = false }) {
           </div>
         </article>
 
-        <Visor fotos={fotos} titulo={titulo} abierto={abierto} cerrar={() => setAbierto(null)} />
+        <Visor
+          fotos={fotos}
+          titulo={titulo}
+          abierto={abierto}
+          cerrar={() => setAbierto(null)}
+          cambiar={setAbierto}
+        />
       </>
     );
   }
@@ -121,7 +127,13 @@ export default function Ficha({ item, invertida = false }) {
         </div>
       </article>
 
-      <Visor fotos={fotos} titulo={titulo} abierto={abierto} cerrar={() => setAbierto(null)} />
+      <Visor
+        fotos={fotos}
+        titulo={titulo}
+        abierto={abierto}
+        cerrar={() => setAbierto(null)}
+        cambiar={setAbierto}
+      />
     </>
   );
 }
@@ -161,7 +173,21 @@ function Portada({ url, alt, onAbrir, className = '', cuantas, compacta = false 
   );
 }
 
-function Visor({ fotos, titulo, abierto, cerrar }) {
+/**
+ * Visor — el visor a pantalla completa de una ficha.
+ *
+ * ── `onCambiar` es el índice, no un adorno ──────────────────────────────────
+ *
+ * Aquí había un `onCambiar={() => {}}`. `VisorDeFotos` pinta las dos flechas, el contador
+ * «1 / 14» y ata `ArrowLeft`/`ArrowRight` en cuanto hay más de una pieza, pero quien manda
+ * sobre el índice es esta ficha: sin el setter, todo eso quedaba dibujado e inerte y no se
+ * podía pasar de foto. Y la tira de abajo anuncia un «+9» sobre fotos a las que solo se llega
+ * navegando, así que el badge prometía nueve montajes inalcanzables (B-22).
+ *
+ * El patrón es el mismo que usa `GaleriaEspacio`: el estado del índice vive en el componente
+ * que abre el visor, y el visor recibe el setter tal cual.
+ */
+function Visor({ fotos, titulo, abierto, cerrar, cambiar }) {
   return (
     <AnimatePresence>
       {abierto !== null && fotos.length > 0 && (
@@ -169,7 +195,7 @@ function Visor({ fotos, titulo, abierto, cerrar }) {
           piezas={fotos.map((url) => ({ url, titulo }))}
           indice={abierto}
           onCerrar={cerrar}
-          onCambiar={() => {}}
+          onCambiar={cambiar}
         />
       )}
     </AnimatePresence>
