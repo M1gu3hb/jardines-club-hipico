@@ -2517,6 +2517,83 @@ zona("comun");
   );
 }
 
+
+zona("comun");
+{
+  // NINGUNA DIRECCIÓN DE CORREO ESCRITA A PELO EN `api/`.
+  //
+  // El `CLAUDE.md` de los tres repos lo dice desde el principio —«nunca poner … correos internos
+  // ni datos personales en commits»— y **nada lo comprobaba**. El 2026-09-03 había una dirección
+  // de Gmail PERSONAL en los tres, como destino por defecto de los avisos:
+  //
+  //     const DEST_DEFAULT = "…@gmail.com";
+  //     const to = process.env.MAIL_TO || DEST_DEFAULT;
+  //
+  // La de la web está en un repositorio **público** —`gh repo view`: `visibility: PUBLIC`—, así
+  // que era un dato personal publicado. Peor todavía: si `MAIL_TO` no estuviera puesta en el
+  // entorno, **cada lead del formulario se iba a una bandeja particular** sin que nada avisara.
+  //
+  // ── DÓNDE SE PROHÍBE, Y DÓNDE NO ────────────────────────────────────────────
+  //
+  // En `api/`, **cero excepciones**: es donde se manda el correo, y un literal ahí es un destino
+  // que no sale del entorno. Ése era el fallo.
+  //
+  // En `src/` se permite UNA: `src/config/negocio.js`, que existe precisamente para ser el único
+  // sitio donde vive el correo PÚBLICO del negocio —el que sale en el pie del sitio y en la
+  // página de contacto—. Ése no es un secreto: es información que el negocio publica a propósito,
+  // y tenerla en un solo archivo es lo que impide que aparezca inventada en cinco pantallas, que
+  // es un fallo que este proyecto ya tuvo (contrato 1.5).
+  //
+  // El primer intento de este contrato no distinguía las dos cosas y marcaba el correo del
+  // negocio como si fuera una fuga. Un contrato que castiga lo correcto se acaba desactivando.
+  const malos = [];
+
+  const CORREO = /["'`]([A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,})["'`]/g;
+  // Marcadores de posición: no son buzones de nadie.
+  const RELLENO = /@(ejemplo|example|dominio|correo|tu-?dominio)\./i;
+  // El dominio sintético del usuario interno del cliente: tampoco es un buzón.
+  const SINTETICO = /@portal\.jardines\.local$/;
+
+  let mirados = 0;
+  const revisa = (dir, permitido) => {
+    if (!existe(dir)) return;
+    for (const f of leerDirRec(dir)) {
+      if (!/\.(js|jsx|mjs|ts)$/.test(f)) continue;
+      if (permitido && permitido(f)) continue;
+      mirados++;
+      for (const m of leerCodigo(f).matchAll(CORREO)) {
+        const d = m[1];
+        if (RELLENO.test(d) || SINTETICO.test(d)) continue;
+        // Se enseña el dominio y no la dirección entera: el mensaje acaba en la salida de CI, y
+        // publicarla ahí sería repetir el fallo que se está arreglando.
+        malos.push(`${f} lleva una dirección escrita a pelo (@${d.split("@")[1]})`);
+      }
+    }
+  };
+
+  revisa("api", null);
+  revisa("src", (f) => f === "src/config/negocio.js");
+
+  // ── LO QUE ESTE CONTRATO **NO** COMPRUEBA, Y POR QUÉ ────────────────────────
+  //
+  // Se intentó exigir que todo archivo de `api/` que llame a `enviarCorreo()` mire `MAIL_TO`, y
+  // **se retiró**: marca `api/_lib/correo.js`, que es quien DEFINE `enviarCorreo` y no manda nada
+  // por su cuenta, y `api/crear-admin.js`, que escribe al administrador recién creado —una
+  // dirección que viene del dato, no del entorno, y que MAIL_TO no debe pisar—.
+  //
+  // Distinguir «este envío es para la casa» de «este envío es para una persona concreta» es una
+  // decisión de intención, y expresarla con un regex daría un contrato que castiga lo correcto.
+  // Es la regla 5 de los contratos de este proyecto: un hueco declarado es honesto; un contrato
+  // falso, no. Lo que sí queda cerrado es lo que causó el fallo — que no haya una dirección
+  // escrita en `api/`.
+
+  check(
+    `comun: ninguna dirección de correo escrita en \`api/\` — ${mirados} archivos mirados`,
+    malos.length === 0 && mirados > 0,
+    malos.length ? malos.slice(0, 3).join(" · ") : "no miré ni un archivo: el recorrido se rompió",
+  );
+}
+
 zona("comun");
 {
   const md = leer("CLAUDE.md");

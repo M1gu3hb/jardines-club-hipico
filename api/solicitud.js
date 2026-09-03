@@ -21,7 +21,33 @@ import {
   auditar, generico, ipCliente, escHtml,
 } from "./_lib/guard.js";
 
-const DEST_DEFAULT = "mighuer427@gmail.com";
+/**
+ * A DÓNDE VA EL AVISO SI NADIE LO DICE.
+ *
+ * Aquí había una dirección de Gmail PERSONAL escrita a pelo, y en el repositorio de la web —que es
+ * **público**, comprobado con `gh repo view`: `visibility: PUBLIC`— eso es un dato personal
+ * publicado. Va contra la regla de secretos del proyecto, que nombra los «correos personales» con
+ * todas las letras. Y hacía algo peor que estar ahí: **si `MAIL_TO` no estuviera puesta en Vercel,
+ * cada lead del formulario se iría a una bandeja particular** sin que nada avisara.
+ *
+ * El respaldo pasa a ser `GMAIL_USER`, que es la cuenta **desde la que se manda** y por tanto la
+ * del negocio: ya es obligatoria —sin ella esta ruta devuelve 500— así que el respaldo no puede
+ * faltar, y no hay ninguna dirección escrita en el código.
+ *
+ * **Por qué respaldo y no un error.** Tumbar el envío cuando falta `MAIL_TO` convertiría un correo
+ * que llega al buzón equivocado en un lead que no llega a ninguno. Es la trampa 4 del método: un
+ * arreglo que empeora lo que arregla. Lo que sí hace es **gritar en el registro**, que es donde el
+ * dueño lo ve sin que se le pierda un cliente por el camino.
+ */
+const destinoAviso = () => {
+  const to = process.env.MAIL_TO;
+  if (to) return to;
+  console.warn(
+    "[correo] MAIL_TO no está puesta en el entorno: el aviso se manda a GMAIL_USER. " +
+    "Ponla en Vercel para dirigirlo a la bandeja que toque.",
+  );
+  return process.env.GMAIL_USER;
+};
 
 /**
  * Fila de la tabla del correo. Estilos EN LÍNEA porque Gmail borra el `<style>` del `<head>`,
@@ -110,7 +136,7 @@ export default async function handler(req, res) {
 
   const user = process.env.GMAIL_USER;
   const pass = process.env.GMAIL_APP_PASSWORD;
-  const to = process.env.MAIL_TO || DEST_DEFAULT;
+  const to = destinoAviso();
   if (!user || !pass) {
     console.error("[solicitud] Faltan GMAIL_USER / GMAIL_APP_PASSWORD");
     return generico(res, 500);
