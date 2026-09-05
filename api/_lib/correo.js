@@ -115,6 +115,30 @@ export function plantillaOro({ pretitulo, titulo, cuerpoHtml, ctaTexto, ctaUrl, 
 // ahora porque dejarla exportada era dejar lista la pieza para deshacer esa
 // decisión sin querer. Está en el historial si hiciera falta consultarla.
 
+/**
+ * A dónde contesta quien recibe un correo del club.
+ *
+ * ── POR QUÉ ESTO ES UNA FUNCIÓN Y NO UNA LÍNEA REPETIDA ────────────────────
+ *
+ * `replyTo` era opcional y **cinco de los nueve envíos del ecosistema no lo ponían**: el de
+ * credenciales del portal, el de bienvenida a un admin nuevo, el de la reseña, el de reenvío del
+ * enlace de acceso y el de notificaciones. Un correo sin `replyTo` se contesta al `from`, que es
+ * la cuenta de Gmail desde la que se manda, y no a la dirección que el club sí mira.
+ *
+ * Eso no rompe nada visible, y por eso llevaba meses así: quien contesta cree que ha contestado.
+ * La clienta que responde «no me llegó la contraseña» al correo de sus credenciales está
+ * escribiendo a un buzón que nadie abre, y desde fuera parece que en el club no contestan.
+ *
+ * Se arregla **en el emisor y no en cada llamador** por una razón concreta: los cinco que
+ * faltaban no se olvidaron a la vez, se fueron olvidando de uno en uno según se añadían envíos
+ * nuevos. Un valor por omisión no se puede olvidar; una línea que hay que acordarse de copiar,
+ * sí. Quien necesite otra dirección —el aviso de un lead, que se contesta AL LEAD— la sigue
+ * pasando y gana.
+ */
+export function responderA() {
+  return process.env.MAIL_TO || process.env.GMAIL_USER || undefined;
+}
+
 /** Envía un correo (HTML + texto alternativo) con la cuenta Gmail del club. */
 export async function enviarCorreo({ to, subject, html, texto, replyTo }) {
   const user = process.env.GMAIL_USER;
@@ -124,7 +148,8 @@ export async function enviarCorreo({ to, subject, html, texto, replyTo }) {
   await transporter.sendMail({
     from: `"Jardines Club Hípico" <${user}>`,
     to,
-    replyTo: replyTo || undefined,
+    // El que pase el llamador gana; si no pasa ninguno, se contesta a la casa. Nunca al vacío.
+    replyTo: replyTo || responderA(),
     subject,
     text: texto || subject,
     html,

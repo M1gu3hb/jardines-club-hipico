@@ -29,7 +29,7 @@
     },
     {
       "ruta": "api/_lib/correo.js",
-      "sha256": "b9e206c13411ea2e4b37cb410d8cd61a9fe7d81c766c2e5a8619641d860437b4",
+      "sha256": "28a813293676cbfa47e90c117522671ad298bb8612b6be9ce2bdb278b2d70b38",
       "tambienEn": [
         "portal",
         "crm"

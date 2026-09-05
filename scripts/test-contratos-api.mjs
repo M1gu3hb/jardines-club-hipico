@@ -1654,6 +1654,46 @@ zona("comun");
   check("comun: las tres URL se declaran UNA vez, en `api/_lib/urls.js`", fallos.length === 0, fallos.join(" · "));
 }
 
+zona("comun");
+{
+  /**
+   * NINGÚN CORREO DEL CLUB SALE SIN `Reply-To`.
+   *
+   * Cinco de los nueve envíos del ecosistema no lo ponían: credenciales del portal, bienvenida
+   * de un admin, petición de reseña, reenvío del enlace de acceso y notificaciones. Un correo
+   * sin `Reply-To` se contesta al `from` —la cuenta desde la que se manda—, no a la dirección
+   * que el club mira. La clienta que responde «no me llegó la contraseña» escribe a un buzón
+   * que nadie abre, y desde fuera parece que aquí no contestan.
+   *
+   * Se arregló en el EMISOR, con un valor por omisión, y no en los cinco llamadores: los cinco
+   * no se olvidaron a la vez, se fueron olvidando de uno en uno según se añadían envíos nuevos.
+   *
+   * POR QUÉ EL RECORTE ES EL OBJETO Y NO EL ARCHIVO. La propiedad no es «la palabra `replyTo`
+   * aparece», que daría verde con solo mencionarla en un comentario o en la firma. Es «el
+   * objeto que se le pasa a `sendMail` cae en `responderA()` cuando el llamador no trae nada».
+   * Por eso se recorta exactamente ese objeto literal.
+   *
+   * Y se comprueba también la forma VIEJA. Sin eso, volver a `|| undefined` —que es la
+   * regresión exacta— fallaría solo la primera comprobación; con las dos, el mensaje dice qué
+   * pasó en vez de «falta algo».
+   */
+  const correo = leerCodigo("api/_lib/correo.js");
+  const alSobre = entre(correo, "transporter.sendMail({", "});");
+  const responde = entre(correo, "export function responderA(", "export async function enviarCorreo");
+  const fallos = [];
+  if (!alSobre) fallos.push("no encuentro el objeto que se le pasa a `sendMail`");
+  if (!responde) fallos.push("`responderA()` no está definida en `correo.js`, o dejó de ir antes de `enviarCorreo`");
+  if (alSobre && !/replyTo:\s*replyTo\s*\|\|\s*responderA\(\)/.test(alSobre)) {
+    fallos.push("el sobre no cae en `responderA()` cuando el llamador no pasa `replyTo`");
+  }
+  if (alSobre && /replyTo:\s*replyTo\s*\|\|\s*undefined/.test(alSobre)) {
+    fallos.push("el sobre volvió a salir sin `Reply-To`: quien conteste escribe a un buzón que nadie abre");
+  }
+  if (responde && !/process\.env\.MAIL_TO/.test(responde)) fallos.push("`responderA()` no mira `MAIL_TO`");
+  if (responde && !/process\.env\.GMAIL_USER/.test(responde)) fallos.push("`responderA()` se quedó sin respaldo a `GMAIL_USER`");
+  check("comun: ningún correo del club sale sin `Reply-To` — por omisión contesta a la casa", fallos.length === 0, fallos.join(" · "));
+}
+
 
 
 // ---------------------------------------------------------------- escapado de correos

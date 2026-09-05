@@ -328,8 +328,12 @@ async function avisarAlDueno(admin, s, to) {
       // replyTo sale de la base, no del cuerpo de la petición: así el dueño responde al
       // cliente de verdad y no a una dirección que puso quien llamó a la ruta. Y pasa por el
       // MISMO saneador que el destinatario del acuse: `Reply-To` es una cabecera igual que
-      // `To`, así que si la columna trajera un salto de línea sería el mismo agujero. Con la
-      // forma mal, se manda sin `replyTo` — el aviso sale igual, que es lo que importa.
+      // `To`, así que si la columna trajera un salto de línea sería el mismo agujero.
+      //
+      // Si el correo del lead viene mal formado, `enviarCorreo` pone el de la casa por omisión
+      // (`responderA()`). Antes se mandaba SIN `Reply-To` y el dueño acababa contestándose a sí
+      // mismo desde la cuenta de envío; ahora al menos cae donde alguien mira. Lo que no cambia
+      // es lo importante: el aviso sale igual, con correo utilizable o sin él.
       replyTo: correoUtilizable(s.email) || undefined,
       subject: `[JCH] Nueva solicitud ${s.folio || ""} - ${s.nombre_completo || ""}`.trim(),
       html: plantillaOro({
