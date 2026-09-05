@@ -287,6 +287,49 @@ where a.grantee = 0;
 -- `sec_21` al revocar el INSERT de anon. Mientras estuvo el filtro, esta aserción habría
 -- pasado igual si alguien reintrodujera escritura pública sobre esa tabla — justo el
 -- invariante que CLAUDE.md dice que esta prueba garantiza. Sin filtro.
+-- ── SOBRECARGAS · dos funciones con el mismo nombre son dos verdades ────────
+--
+-- `CREATE OR REPLACE` con otra aridad NO reemplaza: CREA UNA SOBRECARGA. Ya rompió `sec_41`, y
+-- volvió a aparecer con `rsvp_crear`, que quedó con dos: la de cuatro argumentos (`sec_05`) y la
+-- de siete (`sec_56`), **las dos concedidas a `anon`**.
+--
+-- Esa convivencia era deliberada y estaba documentada, pero mientras duró las dos puertas no
+-- hacían lo mismo: la corta no guardaba `asistira` —y la columna tiene `default true`, así que
+-- todo lo que entraba por ahí contaba como CONFIRMADO—, no creaba a los acompañantes, y se
+-- saltaba `rsvp_activo` y `max_personas_enlace`, que son los dos interruptores del cliente.
+-- `sec_76` la dejó DELEGANDO en la de siete, así que hoy hay dos firmas y **una sola verdad**.
+--
+-- Estas dos comprobaciones vigilan justo eso, y no que «no haya sobrecargas»: prohibirlas del
+-- todo obligaría a soltar la corta, y soltarla rompería a cualquier teléfono que aún tenga en su
+-- service worker un paquete anterior a la FASE 4. Lo que no puede volver a pasar es que las dos
+-- IMPLEMENTEN.
+--
+-- Se mira `prosrc`, que es el CUERPO. Con `pg_get_functiondef` esta comprobación pasaría por el
+-- nombre de la propia función, que sale en la cabecera — es la trampa del identificador suelto,
+-- y se pisó al escribir la poscondición de `sec_76`.
+insert into _t
+select 'B4','las sobrecargas de jardines son solo las conocidas',
+       coalesce(string_agg(distinct proname, ','), '(ninguna)'),
+       coalesce(bool_and(proname = 'rsvp_crear'), true)
+from (
+  select p.proname
+  from pg_proc p join pg_namespace n on n.oid = p.pronamespace
+  where n.nspname = 'jardines'
+  group by p.proname having count(*) > 1
+) sobrecargadas;
+
+insert into _t
+select 'B4','de las dos rsvp_crear solo UNA implementa; la corta delega',
+       count(*) filter (where implementa)::text || ' implementa(n), '
+         || count(*) filter (where delega)::text || ' delega(n)',
+       count(*) filter (where implementa) = 1 and count(*) filter (where delega) = 1
+from (
+  select position('insert into jardines.rsvps' in lower(p.prosrc)) > 0 as implementa,
+         position('select jardines.rsvp_crear(p_token' in lower(p.prosrc)) > 0 as delega
+  from pg_proc p join pg_namespace n on n.oid = p.pronamespace
+  where n.nspname = 'jardines' and p.proname = 'rsvp_crear'
+) puertas;
+
 insert into _t
 select 'B6','anon sin INSERT/UPDATE/DELETE en ninguna tabla',
        coalesce(string_agg(distinct table_name, ','), '(ninguna)'), count(*) = 0
