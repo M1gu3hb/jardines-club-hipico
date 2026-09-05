@@ -81,13 +81,23 @@ const TABLES = {
   // cabecera del Proxy describe, y esta es la lista que lo impide.
   Invitacion: "invitacion",
   PlantillaInvitacion: "plantillas_invitacion",
+  //
+  //   · `PlantillaBoleto` es el catalogo del CMS para el PASE del invitado, hermano del de
+  //     invitacion. Se lee desde `/b/:token`, que es una ruta PUBLICA y sin sesion: la tabla
+  //     tiene lectura publica de lo activo, igual que la otra.
+  //
+  //     Y esta aqui aunque el respaldo de codigo (`components/boleto/plantillasBoleto.js`)
+  //     baste para pintar un pase: sin la entrada, `entities.PlantillaBoleto` da TS2339 en el
+  //     typecheck y, en runtime, `runQuery` consultaria una tabla inexistente devolviendo `[]`
+  //     EN SILENCIO — el pase saldria con la plantilla por defecto y nadie sabria por que.
+  PlantillaBoleto: "plantillas_boleto",
 };
 
 // Tablas con columna `orden` (para ordenar por defecto cuando no se pasa sort).
 const CON_ORDEN = new Set([
   "salones", "galeria", "servicios", "amenidades", "servicios_extra", "alimentos",
   "resenas", "mesas", "cronograma", "items_contratados", "tipos_evento", "anuncios",
-  "plantillas_invitacion",
+  "plantillas_invitacion", "plantillas_boleto",
 ]);
 
 const toSnake = (s) => s.replace(/([A-Z])/g, (m) => "_" + m.toLowerCase());
